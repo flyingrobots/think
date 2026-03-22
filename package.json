@@ -7,6 +7,7 @@
     "think": "./bin/think.js"
   },
   "scripts": {
+    "macos": "swift run --package-path macos ThinkMenuBarApp",
     "test:m1": "node --test test/acceptance/*.test.js",
     "test:m2": "swift test --package-path macos",
     "test": "npm run test:m1 && npm run test:m2"
