@@ -24,7 +24,7 @@ final class CapturePanelController {
 
     private func configurePanel() {
         panel.level = .floating
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .moveToActiveSpace, .transient]
+        panel.collectionBehavior = [.fullScreenAuxiliary, .moveToActiveSpace, .transient]
         panel.titleVisibility = .hidden
         panel.titlebarAppearsTransparent = true
         panel.isMovableByWindowBackground = false
