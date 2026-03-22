@@ -14,6 +14,7 @@ import {
   assertFailure,
   assertNotContains,
   assertOccurrences,
+  parseJsonLines,
   assertSuccess,
   combinedOutput,
 } from '../support/assertions.js';
@@ -177,6 +178,44 @@ test('default user language avoids Git terminology', async () => {
       `Default capture UX should not require Git terminology such as "${forbidden}".`
     );
   }
+});
+
+test('verbose capture emits JSONL trace updates on stderr', async () => {
+  const context = await createThinkContext();
+
+  const capture = runThink(context, ['--verbose', 'verbose thought']);
+  assertSuccess(capture, 'Expected verbose capture to succeed.');
+  assert.match(
+    capture.stdout,
+    /Saved locally/,
+    'Expected verbose tracing to preserve the normal human-facing stdout message.'
+  );
+
+  const events = parseJsonLines(
+    capture.stderr,
+    'Expected --verbose to emit valid JSONL trace events on stderr.'
+  );
+
+  assert.deepEqual(
+    events.map(event => event.event),
+    [
+      'cli.start',
+      'repo.ensure.start',
+      'repo.bootstrap.done',
+      'capture.local_save.start',
+      'capture.local_save.done',
+      'backup.skipped',
+      'cli.success',
+    ],
+    'Expected verbose capture to emit a stable event sequence for the local-only save path.'
+  );
+
+  assert.equal(events[0].command, 'capture', 'Expected verbose tracing to identify the capture command.');
+  assert.equal(
+    events[4].entryId.startsWith('entry:'),
+    true,
+    'Expected verbose tracing to include the saved entry identifier.'
+  );
 });
 
 test.todo('raw entries remain immutable after later derived entries exist');

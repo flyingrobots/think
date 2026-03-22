@@ -1,9 +1,13 @@
 import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+
+import { retry, timeout, TimeoutError } from '@git-stunts/alfred';
 
 const PUSH_TIMEOUT_MS = 1500;
+const PUSH_RETRIES = 1;
+const PUSH_RETRY_DELAY_MS = 100;
 
 const DEFAULT_GIT_ENV = {
   GIT_AUTHOR_NAME: 'think',
@@ -23,7 +27,7 @@ const NON_INTERACTIVE_PUSH_ENV = {
 export async function ensureGitRepo(repoDir) {
   await mkdir(repoDir, { recursive: true });
 
-  if (!existsSync(path.join(repoDir, '.git'))) {
+  if (!hasGitRepo(repoDir)) {
     runGit(['init', repoDir], { cwd: process.cwd() });
   }
 
@@ -31,27 +35,163 @@ export async function ensureGitRepo(repoDir) {
   runGit(['-C', repoDir, 'config', 'user.email', DEFAULT_GIT_ENV.GIT_AUTHOR_EMAIL]);
 }
 
-export function pushWarpRefs(repoDir, upstreamUrl, graphName) {
+export async function pushWarpRefs(repoDir, upstreamUrl, graphName, { reporter } = {}) {
   if (!upstreamUrl) {
     return false;
   }
 
-  const result = spawnSync(
-    'git',
-    ['-C', repoDir, 'push', '--porcelain', upstreamUrl, `refs/warp/${graphName}/*:refs/warp/${graphName}/*`],
-    {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-      timeout: PUSH_TIMEOUT_MS,
-      env: {
-        ...process.env,
-        ...DEFAULT_GIT_ENV,
-        ...NON_INTERACTIVE_PUSH_ENV,
-      },
-    }
-  );
+  try {
+    await retry(
+      () => timeout(
+        PUSH_TIMEOUT_MS,
+        signal => runGitPush(repoDir, upstreamUrl, graphName, signal),
+        {
+          onTimeout(elapsed) {
+            reporter?.event('backup.timeout', {
+              elapsedMs: elapsed,
+              timeoutMs: PUSH_TIMEOUT_MS,
+            });
+          },
+        }
+      ),
+      {
+        retries: PUSH_RETRIES,
+        delay: PUSH_RETRY_DELAY_MS,
+        backoff: 'exponential',
+        jitter: 'full',
+        shouldRetry: shouldRetryPush,
+        onRetry(error, attempt, delay) {
+          reporter?.event('backup.retry', {
+            attempt,
+            delayMs: delay,
+            reason: describePushError(error),
+          });
+        },
+      }
+    );
 
-  return result.status === 0 && !result.error;
+    return true;
+  } catch (error) {
+    reporter?.event('backup.failure', {
+      reason: describePushError(error),
+    });
+    return false;
+  }
+}
+
+export function hasGitRepo(repoDir) {
+  return existsSync(path.join(repoDir, '.git'));
+}
+
+function runGitPush(repoDir, upstreamUrl, graphName, signal) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      'git',
+      ['-C', repoDir, 'push', '--porcelain', upstreamUrl, `refs/warp/${graphName}/*:refs/warp/${graphName}/*`],
+      {
+        env: {
+          ...process.env,
+          ...DEFAULT_GIT_ENV,
+          ...NON_INTERACTIVE_PUSH_ENV,
+        },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      }
+    );
+
+    let stdout = '';
+    let stderr = '';
+    let settled = false;
+
+    const onAbort = () => {
+      child.kill('SIGTERM');
+    };
+
+    if (signal) {
+      if (signal.aborted) {
+        onAbort();
+      } else {
+        signal.addEventListener('abort', onAbort, { once: true });
+      }
+    }
+
+    child.stdout.on('data', chunk => {
+      stdout += String(chunk);
+    });
+
+    child.stderr.on('data', chunk => {
+      stderr += String(chunk);
+    });
+
+    child.on('error', error => {
+      finish(buildPushError(error.message, { stdout, stderr, cause: error }));
+    });
+
+    child.on('close', (code, childSignal) => {
+      if (code === 0) {
+        finish(null, { stdout, stderr });
+        return;
+      }
+
+      finish(
+        buildPushError(`git push failed with code ${code ?? 'unknown'}`, {
+          code,
+          signal: childSignal,
+          stdout,
+          stderr,
+        })
+      );
+    });
+
+    function finish(error, result) {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      signal?.removeEventListener('abort', onAbort);
+
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      resolve(result);
+    }
+  });
+}
+
+function shouldRetryPush(error) {
+  if (error instanceof TimeoutError || error?.name === 'TimeoutError') {
+    return true;
+  }
+
+  const text = describePushError(error).toLowerCase();
+  return (
+    text.includes('timed out') ||
+    text.includes('timeout') ||
+    text.includes('connection reset') ||
+    text.includes('temporarily unavailable')
+  );
+}
+
+function describePushError(error) {
+  if (!error) {
+    return 'unknown push failure';
+  }
+
+  const pieces = [
+    error.message,
+    error.stderr,
+    error.stdout,
+  ].filter(Boolean);
+
+  return pieces.join(' ').trim() || 'unknown push failure';
+}
+
+function buildPushError(message, details = {}) {
+  const error = new Error(message);
+  Object.assign(error, details);
+  return error;
 }
 
 function runGit(args, options = {}) {

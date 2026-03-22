@@ -87,6 +87,23 @@ export function assertOccurrences(result, snippet, expectedCount, message) {
   );
 }
 
+export function parseJsonLines(output, message = 'Expected valid JSONL output.') {
+  const lines = String(output)
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean);
+
+  return lines.map((line, index) => {
+    try {
+      return JSON.parse(line);
+    } catch (error) {
+      throw new assert.AssertionError({
+        message: `${message}\nInvalid JSON on line ${index + 1}: ${line}\n${error}`,
+      });
+    }
+  });
+}
+
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

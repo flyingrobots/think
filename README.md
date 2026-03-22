@@ -104,6 +104,12 @@ To enable day-one backup, set `THINK_UPSTREAM_URL` to a reachable Git remote or 
 THINK_UPSTREAM_URL=/path/to/private-upstream.git node ./bin/think.js "backup this too"
 ```
 
+For trace output during a command, use `--verbose`. This emits JSONL progress events on `stderr` while preserving the normal human-facing message on `stdout`:
+
+```bash
+node ./bin/think.js --verbose "trace this capture"
+```
+
 ## Tests Are The Spec
 
 This repo follows a hard rule:
