@@ -1,6 +1,6 @@
 import Foundation
 
-public struct ProcessOutput: Equatable {
+public struct ProcessOutput: Equatable, Sendable {
     public let status: Int32
     public let stdout: String
     public let stderr: String
@@ -12,7 +12,7 @@ public struct ProcessOutput: Equatable {
     }
 }
 
-public protocol ProcessRunning {
+public protocol ProcessRunning: Sendable {
     func run(
         executablePath: String,
         arguments: [String],
@@ -20,7 +20,7 @@ public protocol ProcessRunning {
     ) throws -> ProcessOutput
 }
 
-public struct ThinkCLICommand: Equatable {
+public struct ThinkCLICommand: Equatable, Sendable {
     public let executablePath: String
     public let baseArguments: [String]
     public let environment: [String: String]
@@ -36,7 +36,7 @@ public struct ThinkCLICommand: Equatable {
     }
 }
 
-public final class ThinkCLIAdapter: ThinkCapturing {
+public final class ThinkCLIAdapter: ThinkCapturing, @unchecked Sendable {
     private let runner: ProcessRunning
     private let command: ThinkCLICommand
 

@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 
 public struct CapturePanelConfiguration: Equatable {
@@ -14,10 +15,10 @@ public enum CapturePanelPhase: Equatable {
     case error(message: String)
 }
 
-public final class CapturePanelModel {
-    public private(set) var phase: CapturePanelPhase = .hidden
-    public private(set) var text: String = ""
-    public private(set) var isTextFieldFocused = false
+public final class CapturePanelModel: ObservableObject {
+    @Published public private(set) var phase: CapturePanelPhase = .hidden
+    @Published public private(set) var text: String = ""
+    @Published public private(set) var isTextFieldFocused = false
     public let configuration: CapturePanelConfiguration
 
     private let client: ThinkCapturing
@@ -55,6 +56,7 @@ public final class CapturePanelModel {
         isTextFieldFocused = false
     }
 
+    @MainActor
     @discardableResult
     public func submit() async -> CaptureResult? {
         do {

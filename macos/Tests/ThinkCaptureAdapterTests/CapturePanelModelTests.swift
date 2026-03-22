@@ -1,6 +1,7 @@
 import XCTest
 @testable import ThinkCaptureAdapter
 
+@MainActor
 final class CapturePanelModelTests: XCTestCase {
     func testToggleOpensReadyPanelWithFocusAndNoPlaceholderByDefault() {
         let model = CapturePanelModel(client: FakeCaptureClient())
@@ -84,7 +85,7 @@ final class CapturePanelModelTests: XCTestCase {
     }
 }
 
-private final class FakeCaptureClient: ThinkCapturing {
+private final class FakeCaptureClient: ThinkCapturing, @unchecked Sendable {
     enum Result {
         case success(CaptureResult)
         case failure(Error)

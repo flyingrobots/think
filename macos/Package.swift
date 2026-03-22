@@ -12,10 +12,18 @@ let package = Package(
             name: "ThinkCaptureAdapter",
             targets: ["ThinkCaptureAdapter"]
         ),
+        .executable(
+            name: "ThinkMenuBarApp",
+            targets: ["ThinkMenuBarApp"]
+        ),
     ],
     targets: [
         .target(
             name: "ThinkCaptureAdapter"
+        ),
+        .executableTarget(
+            name: "ThinkMenuBarApp",
+            dependencies: ["ThinkCaptureAdapter"]
         ),
         .testTarget(
             name: "ThinkCaptureAdapterTests",

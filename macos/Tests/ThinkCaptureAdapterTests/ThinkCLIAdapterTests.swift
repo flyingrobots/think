@@ -70,7 +70,7 @@ final class ThinkCLIAdapterTests: XCTestCase {
     }
 }
 
-private final class RecordingRunner: ProcessRunning {
+private final class RecordingRunner: ProcessRunning, @unchecked Sendable {
     private let output: ProcessOutput
 
     private(set) var executablePath = ""

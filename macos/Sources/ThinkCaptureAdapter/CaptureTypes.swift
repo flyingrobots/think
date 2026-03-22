@@ -1,12 +1,12 @@
 import Foundation
 
-public enum BackupState: Equatable {
+public enum BackupState: Equatable, Sendable {
     case skipped
     case backedUp
     case pending
 }
 
-public struct CaptureResult: Equatable {
+public struct CaptureResult: Equatable, Sendable {
     public let backupState: BackupState
 
     public init(backupState: BackupState) {
@@ -14,7 +14,7 @@ public struct CaptureResult: Equatable {
     }
 }
 
-public struct CaptureFailure: Error, Equatable {
+public struct CaptureFailure: Error, Equatable, Sendable {
     public let message: String
 
     public init(message: String) {
@@ -22,6 +22,6 @@ public struct CaptureFailure: Error, Equatable {
     }
 }
 
-public protocol ThinkCapturing {
+public protocol ThinkCapturing: Sendable {
     func capture(text: String) async throws -> CaptureResult
 }
