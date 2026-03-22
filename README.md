@@ -14,6 +14,7 @@ It is infrastructure for cheap, exact, replayable thought capture.
 
 `M0` and `M1` are complete.
 `M2` design is now in progress.
+Current version: `0.1.0`.
 
 What exists today:
 
@@ -137,6 +138,7 @@ The current Milestone 1 suite is green for the implemented raw-capture CLI path.
 Start with these:
 
 - [CONTRIBUTING.md](/Users/james/git/think/CONTRIBUTING.md)
+- [CHANGELOG.md](/Users/james/git/think/CHANGELOG.md)
 - [docs/design/README.md](/Users/james/git/think/docs/design/README.md)
 - [docs/design/0005-m2-macos-capture-surface.md](/Users/james/git/think/docs/design/0005-m2-macos-capture-surface.md)
 - [docs/design/ROADMAP.md](/Users/james/git/think/docs/design/ROADMAP.md)

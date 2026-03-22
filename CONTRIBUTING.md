@@ -117,6 +117,24 @@ The point is to keep the repo honest about:
 - what is actually implemented
 - what was learned
 
+## Release Discipline
+
+Milestone closure and release discipline are coupled.
+
+Rules:
+
+- keep a root [CHANGELOG.md](/Users/james/git/think/CHANGELOG.md)
+- start versioning at `0.1.0`
+- when a milestone is closed, bump `package.json` on the release commit
+- create a Git tag on the commit that lands on `main` for that milestone release
+
+Examples:
+
+- `v0.1.0`
+- `v0.2.0`
+
+The version/tag should reflect milestone reality, not aspirational scope.
+
 ## Testing Rules
 
 Tests must be deterministic.
