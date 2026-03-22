@@ -95,7 +95,7 @@ Run them with:
 npm test
 ```
 
-At the moment, the Milestone 1 suite is expected to fail until the CLI exists.
+The Milestone 1 suite is currently green for the implemented raw-capture CLI path, with later-mode behavior intentionally left as TODO coverage until those modes exist.
 
 ## Design Package
 
