@@ -61,6 +61,7 @@ Everything else is secondary.
 3. Vanishing quickly is part of the UX.
 4. Thin UI is a product virtue here.
 5. Adapter parity matters more than visual cleverness.
+6. Perceived latency matters more than nominal latency.
 
 ## Interaction Doctrine
 
@@ -91,10 +92,10 @@ No:
 The default panel should contain as little as possible:
 
 - a text field
-- maybe minimal affordance text if truly necessary
 
 No:
 
+- placeholder text by default
 - recent thoughts
 - suggestions
 - concept matching
@@ -107,6 +108,7 @@ No:
 The panel should dismiss on Enter after the capture succeeds locally.
 
 It should not linger to celebrate.
+It should not expose an observable “saving” phase in the normal path.
 
 ### No Retrieval Before Write
 
@@ -124,6 +126,48 @@ If status exists, it should be:
 - quiet
 - non-blocking
 - never dashboard-like
+
+### Interrupt Safety
+
+`Escape` means “forget instantly.”
+
+Rules:
+
+- dismiss immediately
+- save nothing
+- leave no partial side effects
+
+### Environmental Sanity
+
+The app must behave sanely under desktop reality:
+
+- repeated hotkey presses are defined and idempotent
+- the panel appears on the correct monitor
+- the panel is not trapped behind other windows
+- opening the panel does not produce focus races with the app the user was in
+
+## Strict Constraints
+
+These are non-negotiable constraints for M2:
+
+- no placeholder text by default
+- no visible save step in the success path
+- no retrieval-before-write
+- no settings UI
+- no history view
+- no suggestions
+- no lingering panel after success
+- no visible network anxiety when backup is pending
+
+If any of these start to bend, the milestone is drifting.
+
+## Latency Perception Rule
+
+The practical benchmark is not “under one second.” The real benchmark is:
+
+- feels instant
+
+If the user can perceive a delay between hotkey, focus, Enter, and disappearance, that is a product bug even if a formal benchmark still passes.
 
 ## Conceptual Loop
 
@@ -152,6 +196,56 @@ flowchart LR
 ```
 
 This milestone must not create a second capture implementation.
+
+## Native Stack Decision
+
+M2 is a “does this feel like thinking?” problem, so native macOS performance and window behavior matter more than portability.
+
+Approved stack:
+
+- SwiftUI for the shell
+- `MenuBarExtra` for menu bar presence
+- `NSPanel` for the transient floating capture surface
+- native macOS hotkey plumbing through AppKit-level integration
+
+Explicit non-goal:
+
+- no C core
+- no FFI abstraction layer
+- no speculative cross-platform runtime
+
+Those may become real later. They are not earned yet.
+
+## Adapter Boundary
+
+Keep `think` as the source of truth.
+
+The macOS app should depend on a tiny boundary such as:
+
+```swift
+func capture(text: String) async throws -> CaptureResult
+```
+
+For M2, the implementation behind that boundary may simply shell out to the existing `think` binary and translate the result.
+
+The important constraint is:
+
+- no capture logic duplication inside the macOS app
+
+If a future shared core becomes necessary, it can replace the client implementation behind the same boundary.
+
+## Technical Shape
+
+```mermaid
+flowchart LR
+    HK["Native hotkey handler"] --> PANEL["NSPanel capture surface"]
+    PANEL --> CLIENT["ThinkCaptureClient"]
+    CLIENT --> CLI["Existing think binary"]
+    CLI --> CORE["Shared capture core"]
+    CORE --> STORE["Local Git/WARP repo"]
+```
+
+This is intentionally unglamorous. That is a feature.
 
 ## App Responsibilities
 
@@ -196,9 +290,8 @@ There should be very few states.
 stateDiagram-v2
     [*] --> Hidden
     Hidden --> Ready: "Hotkey pressed"
-    Ready --> Saving: "Enter"
-    Saving --> Hidden: "Local save succeeded"
-    Saving --> Error: "Local save failed"
+    Ready --> Hidden: "Enter and local save succeeds"
+    Ready --> Error: "Local save fails"
     Error --> Hidden: "Dismiss"
     Error --> Ready: "Retry"
 ```
@@ -206,7 +299,7 @@ stateDiagram-v2
 Interpretation:
 
 - `Ready` should dominate normal use
-- `Saving` should be brief enough to feel invisible
+- successful save should collapse directly into `Hidden`
 - `Error` should exist, but it should be the exceptional path
 
 ## Failure Handling
@@ -216,6 +309,7 @@ The system should preserve trust without adding ceremony.
 Rules:
 
 - local save failure may block dismissal and show a minimal retryable error
+- error UI must stay minimal: no stack traces, no advanced controls, no giant surfaces
 - backup pending must not behave like capture failure
 - unreachable upstream must not drag visible network anxiety into the panel
 
@@ -240,6 +334,7 @@ Not in Milestone 2:
 4. Is the hotkey path already preferred over the CLI for normal desktop use?
 5. Did any retrieval-before-write behavior sneak into the surface?
 6. Did the menu bar UI stay thin and non-administrative?
+7. Does the panel behave correctly across monitor and focus edge cases?
 
 ## Exit Criteria
 
@@ -247,12 +342,15 @@ Not in Milestone 2:
 - the hotkey path preserves exact behavior parity with CLI capture
 - the panel supports one-motion capture: hotkey, type, Enter, gone
 - the field is focused immediately on open
+- `Escape` cancels with zero side effects
+- the panel behaves correctly across normal monitor and focus scenarios
 - the user prefers the hotkey over the CLI without thinking
 - the menu bar app does not become an ad hoc control panel
 
 ## Risks
 
 - focus bugs make the whole milestone feel broken even if the backend works
+- multi-monitor placement or z-order issues make the panel feel unreliable
 - visible status lingers too long and adds cognitive drag
 - panel design grows into a mini app
 - capture semantics drift from the CLI path
