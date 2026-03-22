@@ -2,10 +2,17 @@
   "name": "think",
   "private": true,
   "type": "module",
+  "bin": {
+    "think": "./bin/think.js"
+  },
   "scripts": {
     "test": "node --test test/acceptance/*.test.js"
   },
   "engines": {
     "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "@git-stunts/git-warp": "14.16.2",
+    "@git-stunts/plumbing": "2.8.0"
   }
 }
