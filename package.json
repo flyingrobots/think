@@ -1,0 +1,11 @@
+{
+  "name": "think",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/acceptance/*.test.js"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

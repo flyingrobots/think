@@ -1,0 +1,19 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+
+# Editor and local workspace files
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+.obsidian/
+
+# Dependencies
+node_modules/
