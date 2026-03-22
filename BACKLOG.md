@@ -221,6 +221,17 @@ Look for differences by ingress source:
 
 Only useful later, once there is enough volume and only if it improves product understanding rather than adding vanity analytics.
 
+### Configurable Hotkey
+
+The macOS capture surface should probably allow the user to override the default global hotkey.
+
+Constraints:
+
+- do not add a full settings window early
+- keep a sane built-in default
+- treat this as lightweight preference plumbing, not a control-panel feature
+- do not couple this to multi-step key chords unless there is a real need
+
 ### Writer Provenance Views
 
 Later, expose provenance by ingress surface in a way that is useful rather than substrate-heavy.
