@@ -4,6 +4,8 @@ import Carbon.HIToolbox
 final class GlobalHotKeyMonitor {
     private let handler: () -> Void
     private let hotKeyID = EventHotKeyID(signature: OSType(0x74686E6B), id: 1)
+    private let hotKeyCode = UInt32(kVK_ANSI_I)
+    private let hotKeyModifiers: NSEvent.ModifierFlags = [.command, .shift]
     private var hotKeyRef: EventHotKeyRef?
     private var eventHandlerRef: EventHandlerRef?
 
@@ -62,8 +64,8 @@ final class GlobalHotKeyMonitor {
         )
 
         RegisterEventHotKey(
-            UInt32(kVK_Space),
-            carbonModifiers(from: [.command, .option, .control]),
+            hotKeyCode,
+            carbonModifiers(from: hotKeyModifiers),
             hotKeyID,
             GetApplicationEventTarget(),
             0,
