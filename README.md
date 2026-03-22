@@ -13,7 +13,7 @@ It is infrastructure for cheap, exact, replayable thought capture.
 ## Current Status
 
 `M0` and `M1` are complete.
-`M2` is next.
+`M2` design is now in progress.
 
 What exists today:
 
@@ -34,6 +34,19 @@ What does not exist yet:
 - embeddings
 - clustering
 - dashboard UI
+
+## Milestone Development Loop
+
+This repo uses an explicit milestone loop:
+
+1. design docs first
+2. tests as spec second
+3. implementation third
+4. retrospective
+5. rewrite the root README to reflect reality
+6. close the milestone
+
+That loop is how the repo stays aligned with reality instead of drifting into stale docs or speculative implementation.
 
 ## Product Doctrine
 
@@ -119,6 +132,7 @@ Start with these:
 
 - [CONTRIBUTING.md](/Users/james/git/think/CONTRIBUTING.md)
 - [docs/design/README.md](/Users/james/git/think/docs/design/README.md)
+- [docs/design/0005-m2-macos-capture-surface.md](/Users/james/git/think/docs/design/0005-m2-macos-capture-surface.md)
 - [docs/design/ROADMAP.md](/Users/james/git/think/docs/design/ROADMAP.md)
 - [docs/retrospectives/m1-capture-core-and-upstream-backup.md](/Users/james/git/think/docs/retrospectives/m1-capture-core-and-upstream-backup.md)
 - [BACKLOG.md](/Users/james/git/think/BACKLOG.md)

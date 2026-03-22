@@ -1,6 +1,6 @@
 # Design Review Package
 
-Status: design approved; `M0` and `M1` complete; `M2` next
+Status: design approved; `M0` and `M1` complete; `M2` design in progress
 
 This directory began as the pre-implementation design package for `think`.
 
@@ -22,6 +22,7 @@ This review is meant to answer five questions:
 - [`0002-v0-architecture.md`](./0002-v0-architecture.md): system shape, writer model, storage/replication model, and read/sync policy.
 - [`0003-spec-and-test-strategy.md`](./0003-spec-and-test-strategy.md): design for tests-as-spec, deterministic harnesses, and repo isolation.
 - [`0004-modes-and-success-metrics.md`](./0004-modes-and-success-metrics.md): capture/brainstorm/reflection/x-ray mode doctrine and usage metrics for validating product fit.
+- [`0005-m2-macos-capture-surface.md`](./0005-m2-macos-capture-surface.md): IBM Design Thinking frame and interaction doctrine for the menu bar app and transient capture panel.
 - [`ROADMAP.md`](./ROADMAP.md): milestone sequence, hill mapping, exit criteria, and review checkpoints.
 - [`../retrospectives/m1-capture-core-and-upstream-backup.md`](../retrospectives/m1-capture-core-and-upstream-backup.md): closeout for the first implemented milestone and the remaining validation follow-through.
 - [`BACKLOG.md`](../../BACKLOG.md): deferred ideas, cool ideas, and parking-lot items that should not silently become approved scope.
@@ -34,6 +35,7 @@ flowchart TD
     R --> A["0002 V0 Architecture"]
     R --> T["0003 Spec and Test Strategy"]
     R --> M["0004 Modes and Success Metrics"]
+    R --> M2["0005 M2 macOS Capture Surface"]
     R --> RD["Roadmap and Milestones"]
     R --> BL["Backlog (deferred ideas)"]
     P --> A
@@ -41,6 +43,8 @@ flowchart TD
     A --> T
     P --> RD
     M --> RD
+    M --> M2
+    M2 --> RD
 ```
 
 ## Review Standard
