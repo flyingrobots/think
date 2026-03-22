@@ -10,6 +10,16 @@ Release discipline:
 - `package.json` version is bumped on the release commit
 - a Git tag is created on the commit that lands on `main` for that milestone release
 
+## [Unreleased]
+
+### Added
+
+- explicit read-only CLI flags: `think --recent` and `think --stats`
+- `think --stats` for plain capture counts without turning the CLI into a dashboard
+- stats filters via `--from`, `--to`, and `--since`
+- stats bucketing via `--bucket=hour|day|week`
+- deterministic clock injection for stats tests via `THINK_TEST_NOW`
+
 ## [0.1.0] - 2026-03-22
 
 Initial milestone release for `think`.
@@ -19,7 +29,7 @@ Initial milestone release for `think`.
 - local-first raw CLI capture via `think "..."`
 - first-run bootstrap of a private local repo under `~/.think/repo`
 - exact raw-text preservation using Git/WARP content attachment
-- plain newest-first `recent`
+- plain newest-first recent listing
 - explicit hidden-ref backup push behavior for WARP refs
 - non-blocking backup behavior with honest `Backup pending` fallback
 - `--verbose` JSONL trace output on `stderr`

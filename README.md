@@ -13,15 +13,16 @@ It is infrastructure for cheap, exact, replayable thought capture.
 ## Current Status
 
 `M0` and `M1` are complete.
-`M2` design is now in progress.
+`M2` tests-as-spec are now in progress.
 Current version: `0.1.0`.
 
 What exists today:
 
 - raw CLI capture via `think "..."` or `node ./bin/think.js "..."`
+- explicit read-only CLI surfaces via `think --recent` and `think --stats`
 - first-run bootstrap of a private local repo under `~/.think/repo`
 - exact raw-text preservation
-- plain newest-first `recent`
+- plain newest-first recent listing
 - best-effort upstream backup
 - executable acceptance tests for the implemented behavior
 
@@ -70,10 +71,11 @@ The current shape is:
 - direct writer: CLI
 - local store: `~/.think/repo`
 - day-one backup model: best-effort upstream push after local success
-- read surface: plain `recent`
+- read surfaces: plain `--recent` and plain `--stats`
 
 Capture success means the local save succeeded.
 Backup is separate and best-effort.
+Read commands are explicit flags so literal thoughts like `"recent"` and `"stats"` stay capturable.
 
 Normal user-facing output stays intentionally boring:
 
@@ -89,15 +91,22 @@ From the repo root:
 
 ```bash
 node ./bin/think.js "turkey is good in burritos"
-node ./bin/think.js recent
+node ./bin/think.js --recent
+node ./bin/think.js --stats
+node ./bin/think.js --stats --bucket=day
+node ./bin/think.js --stats --since=7d
 ```
 
 If you install or link the package entrypoint, the intended commands are:
 
 ```bash
 think "turkey is good in burritos"
-think recent
+think --recent
+think --stats
 ```
+
+`--recent` and `--stats` are read-only commands.
+They should not create local app state on their own.
 
 To enable day-one backup, set `THINK_UPSTREAM_URL` to a reachable Git remote or bare repo path before capture:
 
@@ -141,6 +150,7 @@ Start with these:
 - [CHANGELOG.md](/Users/james/git/think/CHANGELOG.md)
 - [docs/design/README.md](/Users/james/git/think/docs/design/README.md)
 - [docs/design/0005-m2-macos-capture-surface.md](/Users/james/git/think/docs/design/0005-m2-macos-capture-surface.md)
+- [docs/design/0006-stats-command.md](/Users/james/git/think/docs/design/0006-stats-command.md)
 - [docs/design/ROADMAP.md](/Users/james/git/think/docs/design/ROADMAP.md)
 - [docs/retrospectives/m1-capture-core-and-upstream-backup.md](/Users/james/git/think/docs/retrospectives/m1-capture-core-and-upstream-backup.md)
 - [BACKLOG.md](/Users/james/git/think/BACKLOG.md)

@@ -1,6 +1,6 @@
 # Roadmap And Milestones
 
-Status: `M0` complete, `M1` complete, `M2` design in progress
+Status: `M0` complete, `M1` complete, `M2` tests-as-spec in progress
 
 ## Planning Frame
 
@@ -13,7 +13,7 @@ Milestones exist to prove user value in sequence. They are not buckets for unrel
 - `M0: Design lock` is complete.
 - `M1: Capture core and upstream backup` is complete from an implementation/specification standpoint.
 - `M1` still has follow-through validation work around real-world usage and latency measurement.
-- `M2: macOS capture surface` is now in the design-first phase.
+- `M2: macOS capture surface` is now in tests-as-spec.
 
 ## Planning Principles
 
