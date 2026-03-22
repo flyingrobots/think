@@ -28,6 +28,60 @@ export async function captureThought(repoDir, thought) {
   return entry;
 }
 
+export async function getStats(repoDir, { from, to, since, bucket } = {}) {
+  const graph = await openGraph(repoDir);
+  const nodeIds = await graph.getNodes();
+  const entries = [];
+
+  const now = getCurrentTime();
+  const sinceDate = since ? parseSince(since, now) : null;
+  const fromDate = from ? new Date(from) : null;
+  const toDate = to ? new Date(to) : null;
+
+  if (toDate) {
+    // If it's just a date like 2026-03-21, we want to include the whole day.
+    if (to.length <= 10) {
+      toDate.setUTCHours(23, 59, 59, 999);
+    }
+  }
+
+  for (const nodeId of nodeIds) {
+    if (!nodeId.startsWith(ENTRY_PREFIX)) {
+      continue;
+    }
+
+    const props = await graph.getNodeProps(nodeId);
+    if (!props || props.kind !== 'capture') {
+      continue;
+    }
+
+    const createdAt = new Date(props.createdAt);
+    
+    if (sinceDate && createdAt < sinceDate) continue;
+    if (fromDate && createdAt < fromDate) continue;
+    if (toDate && createdAt > toDate) continue;
+
+    entries.push({ createdAt });
+  }
+
+  if (!bucket) {
+    return { total: entries.length };
+  }
+
+  const buckets = {};
+  for (const entry of entries) {
+    const key = formatBucketKey(entry.createdAt, bucket);
+    buckets[key] = (buckets[key] || 0) + 1;
+  }
+
+  return {
+    total: entries.length,
+    buckets: Object.entries(buckets)
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([key, count]) => ({ key, count })),
+  };
+}
+
 export async function listRecent(repoDir) {
   const graph = await openGraph(repoDir);
   const nodeIds = await graph.getNodes();
@@ -74,7 +128,7 @@ async function openGraph(repoDir) {
 }
 
 function createEntry(thought, writerId) {
-  const timestamp = new Date();
+  const timestamp = getCurrentTime();
   const unique = randomUUID();
   const createdAt = timestamp.toISOString();
   const sortKey = `${String(timestamp.getTime()).padStart(13, '0')}-${unique}`;
@@ -89,6 +143,46 @@ function createEntry(thought, writerId) {
     sortKey,
     text: thought,
   };
+}
+
+function getCurrentTime() {
+  if (process.env.THINK_TEST_NOW) {
+    const ms = parseInt(process.env.THINK_TEST_NOW, 10);
+    if (!isNaN(ms)) {
+      return new Date(ms);
+    }
+  }
+  return new Date();
+}
+
+function parseSince(since, now) {
+  const match = since.match(/^(\d+)([hdw])$/);
+  if (!match) return null;
+
+  const value = parseInt(match[1], 10);
+  const unit = match[2];
+
+  const ms = {
+    h: 60 * 60 * 1000,
+    d: 24 * 60 * 60 * 1000,
+    w: 7 * 24 * 60 * 60 * 1000,
+  }[unit];
+
+  return new Date(now.getTime() - value * ms);
+}
+
+function formatBucketKey(date, bucket) {
+  const iso = date.toISOString();
+  if (bucket === 'hour') return iso.substring(0, 13) + ':00';
+  if (bucket === 'day') return iso.substring(0, 10);
+  if (bucket === 'week') {
+    // Basic week bucket (start of week)
+    const d = new Date(date);
+    d.setUTCHours(0, 0, 0, 0);
+    d.setUTCDate(d.getUTCDate() - d.getUTCDay());
+    return d.toISOString().substring(0, 10);
+  }
+  return iso.substring(0, 10);
 }
 
 function createWriterId() {

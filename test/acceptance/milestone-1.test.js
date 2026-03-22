@@ -31,9 +31,43 @@ test('CLI raw capture bootstraps the local repo and preserves exact text', async
     `Expected first capture to bootstrap the private local repo at ${context.localRepoDir}.`
   );
 
-  const recent = runThink(context, ['recent']);
+  const recent = runThink(context, ['--recent']);
   assertSuccess(recent, 'Expected recent to succeed after the first capture.');
   assertContains(recent, thought, 'Expected recent to show the exact saved text.');
+});
+
+test('think "recent" is captured as a thought rather than triggering the list', async () => {
+  const context = await createThinkContext();
+
+  assertSuccess(runThink(context, ['recent']), 'Expected "recent" to be captured as a thought.');
+  
+  const recent = runThink(context, ['--recent']);
+  assertContains(recent, 'recent', 'Expected the word "recent" to be in the recent list.');
+});
+
+test('think --recent does not bootstrap local state before the first capture', async () => {
+  const context = await createThinkContext();
+
+  const recent = runThink(context, ['--recent']);
+
+  assertSuccess(recent, 'Expected --recent to succeed before the first capture.');
+  assert.ok(
+    !existsSync(context.localRepoDir),
+    `Expected --recent to remain read-only, but repo was created at ${context.localRepoDir}.`
+  );
+});
+
+test('think --recent rejects an unexpected thought argument', async () => {
+  const context = await createThinkContext();
+
+  const recent = runThink(context, ['--recent', 'this should not be dropped']);
+
+  assertFailure(recent, 'Expected --recent with a thought argument to fail rather than silently discard it.');
+  assertContains(recent, '--recent does not take a thought', 'Expected a clear validation error for mixed command and capture input.');
+  assert.ok(
+    !existsSync(context.localRepoDir),
+    `Expected invalid --recent usage to avoid bootstrapping local state at ${context.localRepoDir}.`
+  );
 });
 
 test('capture does not require retrieval-before-write or conceptual confirmation', async () => {
@@ -80,7 +114,7 @@ test('recent stays plain and chronological', async () => {
     assertSuccess(runThink(context, [entry]), `Expected capture to succeed for entry: ${entry}`);
   }
 
-  const recent = runThink(context, ['recent']);
+  const recent = runThink(context, ['--recent']);
   assertSuccess(recent, 'Expected recent to succeed after multiple captures.');
   const output = combinedOutput(recent);
 
@@ -102,7 +136,7 @@ test('capture is append-only across later capture activity', async () => {
   assertSuccess(runThink(context, [original]), 'Expected first capture to succeed.');
   assertSuccess(runThink(context, [later]), 'Expected later capture activity to succeed.');
 
-  const recent = runThink(context, ['recent']);
+  const recent = runThink(context, ['--recent']);
   assertSuccess(recent, 'Expected recent to succeed after later capture activity.');
   assertContains(recent, original, 'Expected original raw wording to remain unchanged.');
   assertContains(recent, later, 'Expected later raw wording to exist alongside the earlier capture.');
@@ -121,7 +155,7 @@ test('duplicate thoughts produce distinct captures rather than deduping', async 
   assertSuccess(runThink(context, [thought]), 'Expected first duplicate capture to succeed.');
   assertSuccess(runThink(context, [thought]), 'Expected second duplicate capture to succeed.');
 
-  const recent = runThink(context, ['recent']);
+  const recent = runThink(context, ['--recent']);
   assertSuccess(recent, 'Expected recent to succeed after duplicate captures.');
   assertOccurrences(
     recent,
@@ -154,7 +188,7 @@ test('capture preserves formatting neutrality for spacing, casing, and punctuati
   const capture = runThink(context, [thought]);
   assertSuccess(capture, 'Expected formatting-neutral capture to succeed.');
 
-  const recent = runThink(context, ['recent']);
+  const recent = runThink(context, ['--recent']);
   assertSuccess(recent, 'Expected recent to succeed after formatting-neutral capture.');
   assertContains(
     recent,
