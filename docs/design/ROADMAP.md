@@ -1,12 +1,19 @@
 # Roadmap And Milestones
 
-Status: draft for review
+Status: `M0` complete, `M1` complete, `M2` next
 
 ## Planning Frame
 
 This roadmap is grounded in the hills from [`0001-product-frame.md`](./0001-product-frame.md).
 
 Milestones exist to prove user value in sequence. They are not buckets for unrelated engineering activity.
+
+## Current Status
+
+- `M0: Design lock` is complete.
+- `M1: Capture core and upstream backup` is complete from an implementation/specification standpoint.
+- `M1` still has follow-through validation work around real-world usage and latency measurement.
+- `M2: macOS capture surface` is the next milestone.
 
 ## Planning Principles
 
@@ -27,6 +34,10 @@ flowchart LR
 ```
 
 ## Milestone 0: Design Lock
+
+Status:
+
+- complete
 
 Goal:
 
@@ -54,6 +65,11 @@ Exit criteria:
 - no unresolved contradiction about daemon/no-daemon, local/upstream, or ingress ownership
 
 ## Milestone 1: Capture Core And Upstream Backup
+
+Status:
+
+- complete for implementation/specification
+- follow-through remains for habit validation and latency measurement
 
 Goal:
 
@@ -96,6 +112,10 @@ Exit criteria:
 - no embeddings or clustering work begins before capture habit is proven
 
 ## Milestone 2: macOS Capture Surface
+
+Status:
+
+- next
 
 Goal:
 

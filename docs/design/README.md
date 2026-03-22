@@ -1,10 +1,10 @@
 # Design Review Package
 
-Status: draft for review
+Status: design approved; `M0` and `M1` complete; `M2` next
 
-This directory is the pre-implementation design package for `think`.
+This directory began as the pre-implementation design package for `think`.
 
-The intent is to lock the product shape, architectural boundaries, and milestone sequence before writing production code. The package is intentionally small. It should be possible to review the entire set in one sitting and come out with a clear go/no-go decision.
+The intent was to lock the product shape, architectural boundaries, and milestone sequence before writing production code. The package is intentionally small. It should be possible to review the entire set in one sitting and come out with a clear go/no-go decision.
 
 ## Review Scope
 
@@ -23,6 +23,7 @@ This review is meant to answer five questions:
 - [`0003-spec-and-test-strategy.md`](./0003-spec-and-test-strategy.md): design for tests-as-spec, deterministic harnesses, and repo isolation.
 - [`0004-modes-and-success-metrics.md`](./0004-modes-and-success-metrics.md): capture/brainstorm/reflection/x-ray mode doctrine and usage metrics for validating product fit.
 - [`ROADMAP.md`](./ROADMAP.md): milestone sequence, hill mapping, exit criteria, and review checkpoints.
+- [`../retrospectives/m1-capture-core-and-upstream-backup.md`](../retrospectives/m1-capture-core-and-upstream-backup.md): closeout for the first implemented milestone and the remaining validation follow-through.
 - [`BACKLOG.md`](../../BACKLOG.md): deferred ideas, cool ideas, and parking-lot items that should not silently become approved scope.
 
 ## Review Package Map
@@ -70,4 +71,4 @@ After review, we should either:
 - approve the package and start writing spec tests, or
 - return with specific changes to hills, architecture boundaries, or milestone sequencing
 
-No production implementation should begin before this review is complete.
+That review is now complete. Production implementation began after approval, and Milestone 1 has been closed at the implementation/specification level.
