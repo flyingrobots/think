@@ -11,7 +11,9 @@ import {
   assertBefore,
   assertChronologicalOrder,
   assertContains,
+  assertFailure,
   assertNotContains,
+  assertOccurrences,
   assertSuccess,
   combinedOutput,
 } from '../support/assertions.js';
@@ -81,22 +83,83 @@ test('recent stays plain and chronological', async () => {
   assertSuccess(recent, 'Expected recent to succeed after multiple captures.');
   const output = combinedOutput(recent);
 
-  assertChronologicalOrder(output, entries, 'Expected recent output to remain chronological.');
+  assertChronologicalOrder(
+    output,
+    [...entries].reverse(),
+    'Expected recent output to remain newest-first and chronological.'
+  );
   assertNotContains(recent, 'summary', 'Recent should not add summaries.');
   assertNotContains(recent, 'cluster', 'Recent should not add clustering language.');
   assertNotContains(recent, 'related', 'Recent should not inject inferred relatedness.');
 });
 
-test('raw entries remain unchanged across later capture activity', async () => {
+test('capture is append-only across later capture activity', async () => {
   const context = await createThinkContext();
   const original = 'turky is good in burritos';
+  const later = 'later unrelated thought';
 
   assertSuccess(runThink(context, [original]), 'Expected first capture to succeed.');
-  assertSuccess(runThink(context, ['later unrelated thought']), 'Expected later capture activity to succeed.');
+  assertSuccess(runThink(context, [later]), 'Expected later capture activity to succeed.');
 
   const recent = runThink(context, ['recent']);
   assertSuccess(recent, 'Expected recent to succeed after later capture activity.');
   assertContains(recent, original, 'Expected original raw wording to remain unchanged.');
+  assertContains(recent, later, 'Expected later raw wording to exist alongside the earlier capture.');
+  assertBefore(
+    recent,
+    later,
+    original,
+    'Expected append-only behavior to preserve the earlier entry while placing the newer entry first.'
+  );
+});
+
+test('duplicate thoughts produce distinct captures rather than deduping', async () => {
+  const context = await createThinkContext();
+  const thought = 'same thought';
+
+  assertSuccess(runThink(context, [thought]), 'Expected first duplicate capture to succeed.');
+  assertSuccess(runThink(context, [thought]), 'Expected second duplicate capture to succeed.');
+
+  const recent = runThink(context, ['recent']);
+  assertSuccess(recent, 'Expected recent to succeed after duplicate captures.');
+  assertOccurrences(
+    recent,
+    thought,
+    2,
+    'Expected duplicate captures to remain distinct entries rather than being deduped.'
+  );
+});
+
+test('empty input is rejected', async () => {
+  const context = await createThinkContext();
+
+  const result = runThink(context, ['']);
+  assertFailure(result, 'Expected empty input to be rejected.');
+  assertContains(result, 'Thought cannot be empty', 'Expected a clear validation error for empty input.');
+});
+
+test('whitespace-only input is rejected', async () => {
+  const context = await createThinkContext();
+
+  const result = runThink(context, ['   ']);
+  assertFailure(result, 'Expected whitespace-only input to be rejected.');
+  assertContains(result, 'Thought cannot be empty', 'Expected whitespace-only input to use the same validation rule.');
+});
+
+test('capture preserves formatting neutrality for spacing, casing, and punctuation', async () => {
+  const context = await createThinkContext();
+  const thought = 'Mixed CASE, punctuation!!! and   spacing';
+
+  const capture = runThink(context, [thought]);
+  assertSuccess(capture, 'Expected formatting-neutral capture to succeed.');
+
+  const recent = runThink(context, ['recent']);
+  assertSuccess(recent, 'Expected recent to succeed after formatting-neutral capture.');
+  assertContains(
+    recent,
+    thought,
+    'Expected recent to preserve exact spacing, casing, and punctuation from the original capture.'
+  );
 });
 
 test('default user language avoids Git terminology', async () => {
@@ -117,4 +180,5 @@ test('default user language avoids Git terminology', async () => {
 });
 
 test.todo('raw entries remain immutable after later derived entries exist');
+test.todo('stored raw entry bytes remain unchanged in the local store after later writes');
 test.todo('entry kind separation remains explicit once the first derived-entry write path exists');

@@ -10,6 +10,10 @@ export function assertSuccess(result, message) {
   assert.equal(result.status, 0, `${message}\n${formatResult(result)}`);
 }
 
+export function assertFailure(result, message) {
+  assert.notEqual(result.status, 0, `${message}\n${formatResult(result)}`);
+}
+
 export function assertContains(result, snippet, message) {
   assert.match(
     combinedOutput(result),
@@ -59,17 +63,27 @@ export function assertChronologicalOrder(output, entries, message) {
   }
 
   const ascending = positions.every((position, index) => index === 0 || positions[index - 1] < position);
-  const descending = positions.every((position, index) => index === 0 || positions[index - 1] > position);
 
   assert.ok(
-    ascending || descending,
+    ascending,
     [
       message,
-      'Expected entries to appear in a stable chronological order.',
+      'Expected entries to appear in the provided order.',
       `Positions: ${JSON.stringify(positions)}`,
       'Output was:',
       output,
     ].join('\n')
+  );
+}
+
+export function assertOccurrences(result, snippet, expectedCount, message) {
+  const output = combinedOutput(result);
+  const matches = output.match(new RegExp(escapeRegExp(snippet), 'g')) ?? [];
+
+  assert.equal(
+    matches.length,
+    expectedCount,
+    `${message}\nExpected ${expectedCount} occurrences of: ${snippet}\nOutput was:\n${output}`
   );
 }
 
