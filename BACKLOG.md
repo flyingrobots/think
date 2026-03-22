@@ -13,6 +13,30 @@ It is not a commitment list. It is a pressure-release valve for good ideas that 
 - No item here should be promoted ahead of proving daily capture habit.
 - Items may move into roadmap milestones only after design review or playback says they are earned.
 
+## Post-M1 Follow-Through
+
+Milestone 1 is implemented. The remaining gaps are product-validation and operational follow-through, not core capture functionality.
+
+These should stay visible without being confused for unfinished Milestone 1 implementation work.
+
+### Validate Capture Habit
+
+- Use the CLI enough to learn whether capture is actually becoming habitual.
+- Track whether notable thoughts are being captured immediately rather than “later.”
+- Watch for hesitation, self-censorship, or a tendency to avoid capture during real work.
+
+### Measure The Latency Budget
+
+- Add a small benchmark harness for warm-path local capture.
+- Check whether the implementation still fits the stated local capture budget.
+- Keep this as measurement and regression detection, not a flaky timing assertion in the deterministic suite.
+
+### Improve Upstream Provisioning
+
+- Make day-one upstream setup more operator-friendly.
+- Reduce the amount of manual repo/bootstrap work needed to get private backup running.
+- Keep this boring and explicit; do not turn it into hosted-service scope creep.
+
 ## Deferred From Design Review
 
 These came directly out of the design review and should stay visible.
@@ -83,6 +107,37 @@ Resurface older thoughts and ask whether they still feel true.
 Example:
 
 - “You said this two weeks ago. Still true?”
+
+### Golden Transcript Test
+
+Keep a canonical end-to-end “thinking trace” fixture:
+
+- capture `A`
+- capture `B`
+- capture `C`
+- verify replay order and exact content
+
+This is less a product feature than a high-value regression artifact.
+
+### Stress Capture Test
+
+Simulate a burst of rapid captures and verify:
+
+- all captures succeed
+- no silent corruption appears
+- ordering remains coherent
+
+This should stay out of the deterministic acceptance suite unless it can remain stable, but it is worth preserving as a future reliability check.
+
+### Offline-First Torture Test
+
+Exercise a harsher durability path:
+
+- capture with unreachable upstream
+- interrupt or restart the process
+- verify local entries still exist afterward
+
+This is a good future confidence test for the local-first durability claim.
 
 ## Deferred Ideas From The Earlier Product Exploration
 
@@ -165,6 +220,28 @@ Look for differences by ingress source:
 - capture vs brainstorm vs reflection
 
 Only useful later, once there is enough volume and only if it improves product understanding rather than adding vanity analytics.
+
+### Writer Provenance Views
+
+Later, expose provenance by ingress surface in a way that is useful rather than substrate-heavy.
+
+Examples:
+
+- “Captured from menu bar”
+- “Captured from CLI”
+- “Explored during brainstorm”
+
+This should only show up once it helps reflective understanding and does not drag Git/WARP concepts into normal UX.
+
+### Quiet Backup Flushes
+
+The current backup contract is honest but minimal. Later, it may be useful to add a quiet background flush path for pending backups:
+
+- no nagging
+- no control-panel UX
+- no impact on local capture success
+
+This is related to the earlier capture recovery queue idea, but narrower and more operationally grounded.
 
 ## Parking Lot
 
