@@ -2,15 +2,40 @@
 
 > Capture now. Understand later.
 
-`think` is a local-first cognitive capture system for preserving raw thoughts exactly as they happen, then helping their evolution become visible later.
+`think` is a local-first system for capturing raw thoughts exactly as they happen, then making their evolution explorable later.
 
 It is not a notes app.
 It is not a dashboard.
-It is not "Git but semantic."
+It is not a daemon-first personal API.
 
 It is infrastructure for cheap, exact, replayable thought capture.
 
-## Doctrine
+## Current Status
+
+`M0` and `M1` are complete.
+`M2` is next.
+
+What exists today:
+
+- raw CLI capture via `think "..."` or `node ./bin/think.js "..."`
+- first-run bootstrap of a private local repo under `~/.think/repo`
+- exact raw-text preservation
+- plain newest-first `recent`
+- best-effort upstream backup
+- executable acceptance tests for the implemented behavior
+
+What does not exist yet:
+
+- macOS menu bar app
+- global hotkey capture panel
+- brainstorm mode
+- reflection mode
+- x-ray mode
+- embeddings
+- clustering
+- dashboard UI
+
+## Product Doctrine
 
 - Raw capture is sacred.
 - Capture must be cheap.
@@ -20,62 +45,51 @@ It is infrastructure for cheap, exact, replayable thought capture.
 - Replay matters.
 - The substrate may be sophisticated; the capture experience cannot feel sophisticated.
 
-If `think "..."` does not feel natural, the product is already off track.
+If capture feels like “using a system” instead of “writing a thought down,” the product is already drifting.
 
-## Product Shape
+## How It Works Today
 
-The intended long-term modes are:
+`think` writes raw entries into a private local Git/WARP-backed repo.
 
-- `think "..."`: raw capture
-- `think recent`: plain chronological re-entry
-- `think brainstorm "..."`: deliberate idea expansion
-- `think reflect`: dialogue-first reflection
-- `think xray`: explicit structural inspection
+The current shape is:
 
-The capture path is the center. Everything else is downstream of that.
-
-## Current Architecture
-
-`think` is not daemon-first.
-
-The current design centers on:
-
-- a private local Git/WARP-backed repo under `~/.think/repo`
-- direct writers, starting with the CLI
-- day-one private upstream backup
-- eventual richer modes layered on top of immutable raw entries
+- direct writer: CLI
+- local store: `~/.think/repo`
+- day-one backup model: best-effort upstream push after local success
+- read surface: plain `recent`
 
 Capture success means the local save succeeded.
 Backup is separate and best-effort.
 
-Default user language should stay boring:
+Normal user-facing output stays intentionally boring:
 
 - `Saved locally`
 - `Backed up`
 - `Backup pending`
 
-The user should not need to think about Git, refs, push, pull, or graph structure during normal use.
+The product should not require the user to think about refs, commits, pushes, pulls, or graph internals during normal use.
 
-## Milestone 1
+## Usage
 
-Milestone 1 is intentionally narrow:
+From the repo root:
 
-- direct CLI raw capture
-- first-run local repo bootstrap
-- honest upstream backup behavior
-- plain `recent`
-- raw-entry immutability
-- executable acceptance tests for the behavior above
+```bash
+node ./bin/think.js "turkey is good in burritos"
+node ./bin/think.js recent
+```
 
-Not in Milestone 1:
+If you install or link the package entrypoint, the intended commands are:
 
-- macOS overlay UX
-- brainstorm mode
-- reflection mode
-- x-ray mode
-- embeddings
-- clustering
-- dashboard UI
+```bash
+think "turkey is good in burritos"
+think recent
+```
+
+To enable day-one backup, set `THINK_UPSTREAM_URL` to a reachable Git remote or bare repo path before capture:
+
+```bash
+THINK_UPSTREAM_URL=/path/to/private-upstream.git node ./bin/think.js "backup this too"
+```
 
 ## Tests Are The Spec
 
@@ -85,31 +99,36 @@ This repo follows a hard rule:
 - executable tests define the actual spec
 - implementation follows
 
-There is no extra prose-spec layer between design and tests.
+There is no prose-spec layer between design and tests.
 
-Current acceptance tests live under [test/acceptance](/Users/james/git/think/test/acceptance), with reusable fixtures under [test/fixtures](/Users/james/git/think/test/fixtures) and shared assertions under [test/support](/Users/james/git/think/test/support).
+Acceptance tests live under [test/acceptance](/Users/james/git/think/test/acceptance).
+Reusable fixtures live under [test/fixtures](/Users/james/git/think/test/fixtures).
+Shared assertions live under [test/support](/Users/james/git/think/test/support).
 
-Run them with:
+Run the acceptance suite with:
 
 ```bash
 npm test
 ```
 
-The Milestone 1 suite is currently green for the implemented raw-capture CLI path, with later-mode behavior intentionally left as TODO coverage until those modes exist.
+The current Milestone 1 suite is green for the implemented raw-capture CLI path. Later-mode behavior remains intentionally deferred until those modes exist.
 
-## Design Package
+## Repo Guide
 
-The approved design work is in [docs/design/README.md](/Users/james/git/think/docs/design/README.md).
+Start with these:
 
-Start there, then read:
-
-- [docs/design/0001-product-frame.md](/Users/james/git/think/docs/design/0001-product-frame.md)
-- [docs/design/0002-v0-architecture.md](/Users/james/git/think/docs/design/0002-v0-architecture.md)
-- [docs/design/0003-spec-and-test-strategy.md](/Users/james/git/think/docs/design/0003-spec-and-test-strategy.md)
-- [docs/design/0004-modes-and-success-metrics.md](/Users/james/git/think/docs/design/0004-modes-and-success-metrics.md)
+- [docs/design/README.md](/Users/james/git/think/docs/design/README.md)
 - [docs/design/ROADMAP.md](/Users/james/git/think/docs/design/ROADMAP.md)
+- [docs/retrospectives/m1-capture-core-and-upstream-backup.md](/Users/james/git/think/docs/retrospectives/m1-capture-core-and-upstream-backup.md)
+- [BACKLOG.md](/Users/james/git/think/BACKLOG.md)
 
-Deferred ideas live in [BACKLOG.md](/Users/james/git/think/BACKLOG.md). They are intentionally not approved scope.
+Important implementation files:
+
+- [bin/think.js](/Users/james/git/think/bin/think.js)
+- [src/cli.js](/Users/james/git/think/src/cli.js)
+- [src/store.js](/Users/james/git/think/src/store.js)
+- [src/git.js](/Users/james/git/think/src/git.js)
+- [src/paths.js](/Users/james/git/think/src/paths.js)
 
 ## Development Standard
 
@@ -120,4 +139,5 @@ When in doubt:
 - choose fewer fields
 - choose local-first
 - choose behavior over architecture
+- keep `recent` boring
 - protect the capture moment from intelligence creep
