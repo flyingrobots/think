@@ -117,6 +117,7 @@ The current Milestone 1 suite is green for the implemented raw-capture CLI path.
 
 Start with these:
 
+- [CONTRIBUTING.md](/Users/james/git/think/CONTRIBUTING.md)
 - [docs/design/README.md](/Users/james/git/think/docs/design/README.md)
 - [docs/design/ROADMAP.md](/Users/james/git/think/docs/design/ROADMAP.md)
 - [docs/retrospectives/m1-capture-core-and-upstream-backup.md](/Users/james/git/think/docs/retrospectives/m1-capture-core-and-upstream-backup.md)
