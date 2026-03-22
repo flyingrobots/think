@@ -17,3 +17,6 @@ Icon?
 
 # Dependencies
 node_modules/
+
+# SwiftPM build output
+macos/.build/

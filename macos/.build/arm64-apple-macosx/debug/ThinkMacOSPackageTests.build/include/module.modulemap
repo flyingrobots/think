@@ -1,3 +1,0 @@
-module ThinkMacOSPackageTests {
-    header "/Users/james/git/think/macos/.build/arm64-apple-macosx/debug/ThinkMacOSPackageTests.build/include/ThinkMacOSPackageTests-Swift.h"
-}
