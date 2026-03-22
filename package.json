@@ -7,7 +7,9 @@
     "think": "./bin/think.js"
   },
   "scripts": {
-    "test": "node --test test/acceptance/*.test.js"
+    "test:m1": "node --test test/acceptance/*.test.js",
+    "test:m2": "swift test --package-path macos",
+    "test": "npm run test:m1 && npm run test:m2"
   },
   "engines": {
     "node": ">=22.0.0"

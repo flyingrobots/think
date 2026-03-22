@@ -1,0 +1,26 @@
+{
+  "": {
+    "swift-dependencies": "/Users/james/git/think/macos/.build/arm64-apple-macosx/debug/ThinkCaptureAdapter.build/master.swiftdeps"
+  },
+  "/Users/james/git/think/macos/Sources/ThinkCaptureAdapter/CapturePanelModel.swift": {
+    "dependencies": "/Users/james/git/think/macos/.build/arm64-apple-macosx/debug/ThinkCaptureAdapter.build/CapturePanelModel.d",
+    "object": "/Users/james/git/think/macos/.build/arm64-apple-macosx/debug/ThinkCaptureAdapter.build/CapturePanelModel.swift.o",
+    "swiftmodule": "/Users/james/git/think/macos/.build/arm64-apple-macosx/debug/ThinkCaptureAdapter.build/CapturePanelModel~partial.swiftmodule",
+    "swift-dependencies": "/Users/james/git/think/macos/.build/arm64-apple-macosx/debug/ThinkCaptureAdapter.build/CapturePanelModel.swiftdeps",
+    "diagnostics": "/Users/james/git/think/macos/.build/arm64-apple-macosx/debug/ThinkCaptureAdapter.build/CapturePanelModel.dia"
+  },
+  "/Users/james/git/think/macos/Sources/ThinkCaptureAdapter/CaptureTypes.swift": {
+    "dependencies": "/Users/james/git/think/macos/.build/arm64-apple-macosx/debug/ThinkCaptureAdapter.build/CaptureTypes.d",
+    "object": "/Users/james/git/think/macos/.build/arm64-apple-macosx/debug/ThinkCaptureAdapter.build/CaptureTypes.swift.o",
+    "swiftmodule": "/Users/james/git/think/macos/.build/arm64-apple-macosx/debug/ThinkCaptureAdapter.build/CaptureTypes~partial.swiftmodule",
+    "swift-dependencies": "/Users/james/git/think/macos/.build/arm64-apple-macosx/debug/ThinkCaptureAdapter.build/CaptureTypes.swiftdeps",
+    "diagnostics": "/Users/james/git/think/macos/.build/arm64-apple-macosx/debug/ThinkCaptureAdapter.build/CaptureTypes.dia"
+  },
+  "/Users/james/git/think/macos/Sources/ThinkCaptureAdapter/ThinkCLIAdapter.swift": {
+    "dependencies": "/Users/james/git/think/macos/.build/arm64-apple-macosx/debug/ThinkCaptureAdapter.build/ThinkCLIAdapter.d",
+    "object": "/Users/james/git/think/macos/.build/arm64-apple-macosx/debug/ThinkCaptureAdapter.build/ThinkCLIAdapter.swift.o",
+    "swiftmodule": "/Users/james/git/think/macos/.build/arm64-apple-macosx/debug/ThinkCaptureAdapter.build/ThinkCLIAdapter~partial.swiftmodule",
+    "swift-dependencies": "/Users/james/git/think/macos/.build/arm64-apple-macosx/debug/ThinkCaptureAdapter.build/ThinkCLIAdapter.swiftdeps",
+    "diagnostics": "/Users/james/git/think/macos/.build/arm64-apple-macosx/debug/ThinkCaptureAdapter.build/ThinkCLIAdapter.dia"
+  }
+}

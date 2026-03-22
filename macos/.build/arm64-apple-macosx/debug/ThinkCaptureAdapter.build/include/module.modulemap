@@ -1,0 +1,3 @@
+module ThinkCaptureAdapter {
+    header "/Users/james/git/think/macos/.build/arm64-apple-macosx/debug/ThinkCaptureAdapter.build/include/ThinkCaptureAdapter-Swift.h"
+}
