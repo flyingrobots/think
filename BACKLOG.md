@@ -202,6 +202,37 @@ Important constraint:
 
 - do not add crypto in a way that breaks the cheap, habitual capture path unless the unlock model is already solved cleanly
 
+### Provenance Sovereignty And Privacy Boundaries
+
+If `think` becomes a substrate for human and agent memory, its stored traces may become closer to autobiographical provenance than ordinary app telemetry.
+
+Important future questions:
+
+- when should a mind be treated as protected interior trace rather than routine infrastructure?
+- what should default opacity or sealing look like for sensitive minds?
+- how should replay, export, and inspection be capability-scoped and audited?
+- what would it mean to reclassify older traces as more sensitive after a system accumulates persistent identity or autobiographical memory?
+
+Design implications to preserve:
+
+- minimum-necessary introspective capture should beat capture-everything defaults
+- sensitive traces may need retroactive sealing or treatment as toxic assets
+- replay and inspection should eventually become attributable, scoped operations rather than ambient access
+
+### Shared Minds And Collective Ownership
+
+If `think` later supports shared minds, the storage model may need to represent jointly produced and jointly owned provenance rather than assuming one subject per repo.
+
+Possible future shape:
+
+- shared minds with explicit group ownership
+- group-held keys or threshold access for sensitive shared traces
+- explicit handoff, partition, or arbitration rules when a shared mind forks or splits
+
+Important constraint:
+
+- do not collapse shared cognition into a single implicit owner when provenance or obligations are actually collective
+
 ### Brainstorm Submodes
 
 Possible brainstorm flavors:

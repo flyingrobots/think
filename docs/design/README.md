@@ -1,6 +1,6 @@
 # Design Review Package
 
-Status: design approved; `M0`, `M1`, and `M2` complete; `M3` tests as spec in progress; agent-native CLI design under review
+Status: design approved; `M0`, `M1`, and `M2` complete; `M3` implementation in progress; agent-native CLI design under review
 
 This directory began as the pre-implementation design package for `think`.
 
@@ -88,4 +88,4 @@ After review, we should either:
 - approve the package and start writing spec tests, or
 - return with specific changes to hills, architecture boundaries, or milestone sequencing
 
-That review is now complete. Production implementation began after approval, and Milestones 1 and 2 have now been closed.
+That review is now complete. Production implementation began after approval, Milestones 1 and 2 have been closed, and Milestone 3 is now in implementation.

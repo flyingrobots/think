@@ -1,6 +1,13 @@
 import { ensureGitRepo, hasGitRepo, pushWarpRefs } from './git.js';
 import { getLocalRepoDir, getUpstreamUrl } from './paths.js';
-import { captureThought, GRAPH_NAME, listRecent, getStats } from './store.js';
+import {
+  captureThought,
+  GRAPH_NAME,
+  listRecent,
+  getStats,
+  startBrainstorm,
+  saveBrainstormResponse,
+} from './store.js';
 import { createVerboseReporter } from './verbose.js';
 
 export async function main(argv, { stdout, stderr }) {
@@ -32,20 +39,27 @@ export async function main(argv, { stdout, stderr }) {
       return 1;
     }
 
+    let exitCode = 0;
     if (command === 'recent') {
-      const exitCode = await runRecent(output, reporter);
-      reporter.event(exitCode === 0 ? 'cli.success' : 'cli.failure', { command, exitCode });
-      return exitCode;
+      exitCode = await runRecent(output, reporter);
+    } else if (command === 'stats') {
+      exitCode = await runStats(output, reporter, options);
+    } else if (command === 'brainstorm_start') {
+      exitCode = await runBrainstormStart(options.brainstorm, output, reporter);
+    } else if (command === 'brainstorm_reply') {
+      exitCode = await runBrainstormReply(
+        options.brainstormSession,
+        options.positionals.join(' '),
+        output,
+        reporter
+      );
+    } else {
+      const thought = options.positionals.length <= 1
+        ? (options.positionals[0] ?? '')
+        : options.positionals.join(' ');
+      exitCode = await runCapture(thought, output, reporter);
     }
 
-    if (command === 'stats') {
-      const exitCode = await runStats(output, reporter, options);
-      reporter.event(exitCode === 0 ? 'cli.success' : 'cli.failure', { command, exitCode });
-      return exitCode;
-    }
-
-    const thought = options.positionals.length <= 1 ? (options.positionals[0] ?? '') : options.positionals.join(' ');
-    const exitCode = await runCapture(thought, output, reporter);
     reporter.event(exitCode === 0 ? 'cli.success' : 'cli.failure', { command, exitCode });
     return exitCode;
   } catch (error) {
@@ -101,19 +115,13 @@ async function runCapture(thought, output, reporter) {
 
   const repoDir = getLocalRepoDir();
   const repoAlreadyExists = hasGitRepo(repoDir);
-  reporter.event('repo.ensure.start', {
-    repoAlreadyExists,
-  });
+  reporter.event('repo.ensure.start', { repoAlreadyExists });
   await ensureGitRepo(repoDir);
-  reporter.event(repoAlreadyExists ? 'repo.ensure.done' : 'repo.bootstrap.done', {
-    repoDir,
-  });
+  reporter.event(repoAlreadyExists ? 'repo.ensure.done' : 'repo.bootstrap.done', { repoDir });
 
   reporter.event('capture.local_save.start');
   const entry = await captureThought(repoDir, thought);
-  reporter.event('capture.local_save.done', {
-    entryId: entry.id,
-  });
+  reporter.event('capture.local_save.done', { entryId: entry.id });
 
   output.out('Saved locally', 'capture.status', {
     status: 'saved_locally',
@@ -135,6 +143,95 @@ async function runCapture(thought, output, reporter) {
   return 0;
 }
 
+async function runBrainstormStart(seedEntryId, output, reporter) {
+  const repoDir = getLocalRepoDir();
+  if (!hasGitRepo(repoDir)) {
+    output.error('Seed entry not found', 'brainstorm.seed_not_found', { seedEntryId });
+    return 1;
+  }
+
+  const session = await startBrainstorm(repoDir, seedEntryId);
+  if (!session) {
+    output.error('Seed entry not found', 'brainstorm.seed_not_found', { seedEntryId });
+    return 1;
+  }
+
+  const sessionPayload = {
+    sessionId: session.sessionId,
+    seedEntryId: session.seedEntryId,
+    contrastEntryId: session.contrastEntryId ?? null,
+    promptType: session.promptType,
+    maxSteps: session.maxSteps,
+    selectionReason: session.selectionReason,
+  };
+
+  reporter.event('brainstorm.session_started', sessionPayload);
+
+  if (session.contrastEntry) {
+    reporter.event('brainstorm.contrast', {
+      entryId: session.contrastEntry.id,
+      text: session.contrastEntry.text,
+      selectionReason: session.selectionReason,
+    });
+  }
+
+  reporter.event('brainstorm.prompt', {
+    sessionId: session.sessionId,
+    promptType: session.promptType,
+    question: session.question,
+  });
+
+  if (!output.json) {
+    const lines = ['Brainstorm'];
+    if (session.contrastEntry) {
+      lines.push(`Contrast: ${session.contrastEntry.text}`);
+      lines.push(`Why selected: ${session.selectionReason.text}`);
+    } else {
+      lines.push(`Constraint: ${session.selectionReason.text}`);
+    }
+    lines.push(`Question: ${session.question}`);
+    output.out(lines.join('\n'));
+  }
+
+  return 0;
+}
+
+async function runBrainstormReply(sessionId, response, output, reporter) {
+  if (response.trim() === '') {
+    output.error('Brainstorm response cannot be empty', 'brainstorm.validation_failed', {
+      reason: 'empty_response',
+    });
+    return 1;
+  }
+
+  const repoDir = getLocalRepoDir();
+  if (!hasGitRepo(repoDir)) {
+    output.error('Brainstorm session not found', 'brainstorm.session_not_found', { sessionId });
+    return 1;
+  }
+
+  const saved = await saveBrainstormResponse(repoDir, sessionId, response);
+  if (!saved) {
+    output.error('Brainstorm session not found', 'brainstorm.session_not_found', { sessionId });
+    return 1;
+  }
+
+  reporter.event('brainstorm.entry_saved', {
+    entryId: saved.id,
+    kind: saved.kind,
+    seedEntryId: saved.seedEntryId,
+    contrastEntryId: saved.contrastEntryId ?? null,
+    sessionId: saved.sessionId,
+    promptType: saved.promptType,
+  });
+
+  if (!output.json) {
+    output.out('Brainstorm saved');
+  }
+
+  return 0;
+}
+
 async function runRecent(output, reporter) {
   const repoDir = getLocalRepoDir();
 
@@ -148,9 +245,7 @@ async function runRecent(output, reporter) {
   }
 
   const entries = await listRecent(repoDir);
-  reporter.event('recent.done', {
-    count: entries.length,
-  });
+  reporter.event('recent.done', { count: entries.length });
   if (entries.length > 0) {
     if (output.json) {
       for (const [index, entry] of entries.entries()) {
@@ -176,6 +271,10 @@ function parseArgs(args) {
     json: false,
     stats: false,
     recent: false,
+    brainstormFlag: false,
+    brainstorm: null,
+    brainstormSessionFlag: false,
+    brainstormSession: null,
     from: null,
     to: null,
     since: null,
@@ -198,6 +297,18 @@ function parseArgs(args) {
         options.stats = true;
       } else if (arg === '--recent') {
         options.recent = true;
+      } else if (arg === '--brainstorm') {
+        options.brainstormFlag = true;
+        options.brainstorm = '';
+      } else if (arg.startsWith('--brainstorm=')) {
+        options.brainstormFlag = true;
+        options.brainstorm = arg.slice('--brainstorm='.length);
+      } else if (arg === '--brainstorm-session') {
+        options.brainstormSessionFlag = true;
+        options.brainstormSession = '';
+      } else if (arg.startsWith('--brainstorm-session=')) {
+        options.brainstormSessionFlag = true;
+        options.brainstormSession = arg.slice('--brainstorm-session='.length);
       } else if (arg.startsWith('--from=')) {
         options.from = arg.split('=')[1];
       } else if (arg.startsWith('--to=')) {
@@ -220,6 +331,12 @@ function parseArgs(args) {
 }
 
 function resolveCommand(options) {
+  if (options.brainstormSessionFlag) {
+    return 'brainstorm_reply';
+  }
+  if (options.brainstormFlag) {
+    return 'brainstorm_start';
+  }
   if (options.stats) {
     return 'stats';
   }
@@ -231,6 +348,16 @@ function resolveCommand(options) {
 
 function validateOptions(options, command) {
   const hasStatsFilter = Boolean(options.from || options.to || options.since || options.bucket);
+  const explicitCommands = [
+    options.recent,
+    options.stats,
+    options.brainstormFlag,
+    options.brainstormSessionFlag,
+  ].filter(Boolean).length;
+
+  if (explicitCommands > 1) {
+    return 'Commands cannot be combined';
+  }
 
   if (command === 'recent' && options.positionals.length > 0) {
     return '--recent does not take a thought';
@@ -238,6 +365,24 @@ function validateOptions(options, command) {
 
   if (command === 'stats' && options.positionals.length > 0) {
     return '--stats does not take a thought';
+  }
+
+  if (command === 'brainstorm_start') {
+    if (!options.brainstorm) {
+      return '--brainstorm requires a seed entry id';
+    }
+    if (options.positionals.length > 0) {
+      return '--brainstorm does not take a response';
+    }
+  }
+
+  if (command === 'brainstorm_reply') {
+    if (!options.brainstormSession) {
+      return '--brainstorm-session requires a session id';
+    }
+    if (options.positionals.length === 0) {
+      return '--brainstorm-session requires a response';
+    }
   }
 
   if (command !== 'stats' && hasStatsFilter) {
@@ -317,6 +462,9 @@ function resolveJsonStream(payload) {
       'backup.failure',
       'backup.timeout',
       'backup.retry',
+      'brainstorm.validation_failed',
+      'brainstorm.seed_not_found',
+      'brainstorm.session_not_found',
     ].includes(payload.event)
   ) {
     return 'stderr';

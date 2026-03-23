@@ -16,6 +16,8 @@ Release discipline:
 
 - `--json` mode for implemented CLI commands, with JSONL-only output on `stdout`
 - acceptance coverage for machine-readable capture, recent, stats, and validation-failure output
+- explicit M3 brainstorm plumbing via `--brainstorm=<seedEntryId>` and `--brainstorm-session=<sessionId> ...`
+- deterministic brainstorm receipts, constraint fallback, and separate stored brainstorm entries with preserved lineage
 
 ## [0.2.0] - 2026-03-22
 
