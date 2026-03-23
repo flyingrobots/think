@@ -12,6 +12,11 @@ Release discipline:
 
 ## [Unreleased]
 
+### Added
+
+- `--json` mode for implemented CLI commands, with JSONL-only output on `stdout`
+- acceptance coverage for machine-readable capture, recent, stats, and validation-failure output
+
 ## [0.2.0] - 2026-03-22
 
 Second milestone release for `think`.

@@ -34,6 +34,7 @@ In practice, that means:
 - keep default UX boring and legible
 - keep product language free of Git/WARP jargon
 - keep future intelligence out of the capture path until it is earned
+- keep every CLI command machine-readable through `--json`
 
 ## Architectural Principles
 
@@ -164,6 +165,7 @@ Tests should pin:
 - immutability boundaries
 - honest backup semantics
 - mode separation
+- `--json` output contracts for each CLI command
 
 They should not overfit:
 
@@ -217,6 +219,15 @@ Avoid exposing:
 - ref
 - repo
 - graph internals
+
+Every CLI command must also support `--json`.
+
+In `--json` mode:
+
+- 100% of command output must be JSONL
+- output should go to `stdout`
+- human-readable text should be suppressed
+- machine-readable rows should include real command data, not just trace noise
 
 If the system is doing something sophisticated under the hood, the default UX should still read as simple and trustworthy.
 

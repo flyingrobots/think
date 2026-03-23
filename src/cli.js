@@ -6,33 +6,41 @@ import { createVerboseReporter } from './verbose.js';
 export async function main(argv, { stdout, stderr }) {
   const options = parseArgs(argv.slice(2));
   const command = resolveCommand(options);
-  const reporter = createVerboseReporter(stderr, options.verbose);
+  const reporter = createVerboseReporter(
+    options.json ? stdout : stderr,
+    options.verbose || options.json
+  );
+  const output = createOutput({ stdout, stderr, reporter, json: options.json });
   const validationError = validateOptions(options, command);
 
   try {
     reporter.event('cli.start', { command });
 
     if (validationError) {
-      stderr.write(`${validationError}\n`);
-      reporter.event('cli.validation_failed', { command, message: validationError });
+      if (options.json) {
+        output.error(validationError, 'cli.validation_failed', { command });
+      } else {
+        output.error(validationError);
+        reporter.event('cli.validation_failed', { command, message: validationError });
+      }
       reporter.event('cli.failure', { command, exitCode: 1 });
       return 1;
     }
 
     if (command === 'recent') {
-      const exitCode = await runRecent(stdout, reporter);
+      const exitCode = await runRecent(output, reporter);
       reporter.event(exitCode === 0 ? 'cli.success' : 'cli.failure', { command, exitCode });
       return exitCode;
     }
 
     if (command === 'stats') {
-      const exitCode = await runStats(stdout, reporter, options);
+      const exitCode = await runStats(output, reporter, options);
       reporter.event(exitCode === 0 ? 'cli.success' : 'cli.failure', { command, exitCode });
       return exitCode;
     }
 
     const thought = options.positionals.length <= 1 ? (options.positionals[0] ?? '') : options.positionals.join(' ');
-    const exitCode = await runCapture(thought, stdout, stderr, reporter);
+    const exitCode = await runCapture(thought, output, reporter);
     reporter.event(exitCode === 0 ? 'cli.success' : 'cli.failure', { command, exitCode });
     return exitCode;
   } catch (error) {
@@ -40,39 +48,47 @@ export async function main(argv, { stdout, stderr }) {
       command,
       message: error instanceof Error ? error.message : String(error),
     });
-    stderr.write('Something went wrong\n');
+    output.error('Something went wrong', options.json ? undefined : null);
     return 1;
   }
 }
 
-async function runStats(stdout, reporter, options) {
+async function runStats(output, reporter, options) {
   const repoDir = getLocalRepoDir();
 
   reporter.event('stats.start', { options });
   if (!hasGitRepo(repoDir)) {
     reporter.event('stats.done', { total: 0, repoPresent: false });
-    stdout.write('Total thoughts: 0\n');
+    output.out('Total thoughts: 0', 'stats.total', { total: 0 });
     return 0;
   }
 
   const stats = await getStats(repoDir, options);
   reporter.event('stats.done', { total: stats.total });
 
-  stdout.write(`Total thoughts: ${stats.total}\n`);
+  output.out(`Total thoughts: ${stats.total}`, 'stats.total', { total: stats.total });
 
   if (stats.buckets) {
-    for (const bucket of stats.buckets) {
-      stdout.write(`${bucket.key}: ${bucket.count}\n`);
+    for (const [index, bucket] of stats.buckets.entries()) {
+      output.out(`${bucket.key}: ${bucket.count}`, 'stats.bucket', {
+        key: bucket.key,
+        count: bucket.count,
+        index,
+      });
     }
   }
 
   return 0;
 }
 
-async function runCapture(thought, stdout, stderr, reporter) {
+async function runCapture(thought, output, reporter) {
   if (thought.trim() === '') {
-    stderr.write('Thought cannot be empty\n');
-    reporter.event('capture.validation_failed', { reason: 'empty_thought' });
+    if (output.json) {
+      output.error('Thought cannot be empty', 'capture.validation_failed', { reason: 'empty_thought' });
+    } else {
+      output.error('Thought cannot be empty');
+      reporter.event('capture.validation_failed', { reason: 'empty_thought' });
+    }
     return 1;
   }
 
@@ -92,7 +108,10 @@ async function runCapture(thought, stdout, stderr, reporter) {
     entryId: entry.id,
   });
 
-  stdout.write('Saved locally\n');
+  output.out('Saved locally', 'capture.status', {
+    status: 'saved_locally',
+    entryId: entry.id,
+  });
 
   const upstreamUrl = getUpstreamUrl();
   if (!upstreamUrl) {
@@ -102,12 +121,14 @@ async function runCapture(thought, stdout, stderr, reporter) {
 
   reporter.event('backup.start');
   const backedUp = await pushWarpRefs(repoDir, upstreamUrl, GRAPH_NAME, { reporter });
-  stdout.write(backedUp ? 'Backed up\n' : 'Backup pending\n');
+  output.out(backedUp ? 'Backed up' : 'Backup pending', 'backup.status', {
+    status: backedUp ? 'backed_up' : 'pending',
+  });
   reporter.event(backedUp ? 'backup.success' : 'backup.pending');
   return 0;
 }
 
-async function runRecent(stdout, reporter) {
+async function runRecent(output, reporter) {
   const repoDir = getLocalRepoDir();
 
   reporter.event('recent.start');
@@ -124,7 +145,18 @@ async function runRecent(stdout, reporter) {
     count: entries.length,
   });
   if (entries.length > 0) {
-    stdout.write(`${entries.map(entry => entry.text).join('\n')}\n`);
+    if (output.json) {
+      for (const [index, entry] of entries.entries()) {
+        output.data('recent.entry', {
+          entryId: entry.id,
+          text: entry.text,
+          sortKey: entry.sortKey,
+          index,
+        });
+      }
+    } else {
+      output.out(entries.map(entry => entry.text).join('\n'));
+    }
   }
 
   return 0;
@@ -134,6 +166,7 @@ function parseArgs(args) {
   const positionals = [];
   const options = {
     verbose: false,
+    json: false,
     stats: false,
     recent: false,
     from: null,
@@ -152,6 +185,8 @@ function parseArgs(args) {
     if (parsingFlags && arg.startsWith('--')) {
       if (arg === '--verbose') {
         options.verbose = true;
+      } else if (arg === '--json') {
+        options.json = true;
       } else if (arg === '--stats') {
         options.stats = true;
       } else if (arg === '--recent') {
@@ -223,4 +258,39 @@ function validateOptions(options, command) {
   }
 
   return null;
+}
+
+function createOutput({ stdout, stderr, reporter, json }) {
+  return {
+    json,
+    out(message, eventName, data = {}) {
+      if (json) {
+        reporter.event(eventName ?? 'cli.output', {
+          ...data,
+          message,
+        });
+        return;
+      }
+
+      stdout.write(message.endsWith('\n') ? message : `${message}\n`);
+    },
+    error(message, eventName, data = {}) {
+      if (json) {
+        reporter.event(eventName ?? 'cli.error_output', {
+          ...data,
+          message,
+        });
+        return;
+      }
+
+      stderr.write(message.endsWith('\n') ? message : `${message}\n`);
+    },
+    data(eventName, data = {}) {
+      if (!json) {
+        return;
+      }
+
+      reporter.event(eventName, data);
+    },
+  };
 }
