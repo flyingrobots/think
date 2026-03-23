@@ -1,6 +1,6 @@
 # Roadmap And Milestones
 
-Status: `M0`, `M1`, and `M2` complete; `M3` implementation in progress; agent-native CLI design under review
+Status: `M0`, `M1`, and `M2` complete; `M3` implementation in progress; agent-native CLI and graph derivation designs under review
 
 ## Planning Frame
 
@@ -31,8 +31,9 @@ Some design notes are not standalone milestones, but they still shape how milest
 Current cross-cutting note under review:
 
 - [`0008-agent-native-cli.md`](./0008-agent-native-cli.md)
+- [`0009-graph-derivation-model.md`](./0009-graph-derivation-model.md)
 
-This note should constrain new CLI-facing work, especially `M3` brainstorm commands, without becoming a separate milestone.
+These notes should constrain new CLI-facing and graph-facing work, especially `M3` brainstorm commands and later `M4` derivation work, without becoming separate milestones.
 
 ## Milestone Flow
 

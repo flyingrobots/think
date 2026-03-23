@@ -1,6 +1,6 @@
 # Design Review Package
 
-Status: design approved; `M0`, `M1`, and `M2` complete; `M3` implementation in progress; agent-native CLI design under review
+Status: design approved; `M0`, `M1`, and `M2` complete; `M3` implementation in progress; agent-native CLI and graph derivation designs under review
 
 This directory began as the pre-implementation design package for `think`.
 
@@ -26,6 +26,7 @@ This review is meant to answer five questions:
 - [`0006-stats-command.md`](./0006-stats-command.md): read-only stats surface for habit validation without dashboard drift.
 - [`0007-m3-brainstorm-mode.md`](./0007-m3-brainstorm-mode.md): IBM Design Thinking frame for explicit, deterministic brainstorm sessions.
 - [`0008-agent-native-cli.md`](./0008-agent-native-cli.md): IBM Design Thinking frame for treating agents as first-class CLI consumers through a versioned JSONL plumbing contract.
+- [`0009-graph-derivation-model.md`](./0009-graph-derivation-model.md): technical graph model for raw capture, content identity, derived artifacts, sessions, and later mode outputs.
 - [`ROADMAP.md`](./ROADMAP.md): milestone sequence, hill mapping, exit criteria, and review checkpoints.
 - [`../retrospectives/m1-capture-core-and-upstream-backup.md`](../retrospectives/m1-capture-core-and-upstream-backup.md): closeout for the first implemented milestone and the remaining validation follow-through.
 - [`../retrospectives/m2-macos-capture-surface.md`](../retrospectives/m2-macos-capture-surface.md): closeout for the native menu bar app and hotkey capture surface.
@@ -43,6 +44,7 @@ flowchart TD
     R --> S["0006 Stats Command"]
     R --> B3["0007 M3 Brainstorm Mode"]
     R --> A8["0008 Agent-Native CLI"]
+    R --> G9["0009 Graph Derivation Model"]
     R --> RD["Roadmap and Milestones"]
     R --> BL["Backlog (deferred ideas)"]
     P --> A
@@ -54,10 +56,13 @@ flowchart TD
     M --> S
     M --> B3
     A --> A8
+    A --> G9
+    B3 --> G9
     T --> A8
     M2 --> RD
     B3 --> RD
     A8 --> RD
+    G9 --> RD
 ```
 
 ## Review Standard
