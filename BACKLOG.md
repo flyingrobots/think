@@ -180,6 +180,105 @@ Treat reflection responses as first-class entries rather than disposable chat.
 
 This is partly reflected in the current docs, but richer handling of meta-entries belongs here until the core capture loop is proven.
 
+## Deferred Deterministic Analysis Ideas
+
+These are strong non-LLM ideas, but they do not belong in `M3` brainstorm mode. They are better treated as later reflection / x-ray machinery.
+
+### Session Buckets
+
+Group captures by temporal proximity to create honest “human session” structure.
+
+Possible rule:
+
+- same session if captured within 5 minutes
+
+Good uses later:
+
+- reflection packs
+- replay artifacts
+- cluster disambiguation
+- brainstorm candidate selection
+
+### Multi-Signal Similarity Graph
+
+Build a deterministic graph using more than lexical overlap alone.
+
+Possible edge inputs:
+
+- TF-IDF or BM25-style lexical similarity
+- temporal session proximity
+- later, explicit brainstorm or reflection linkage
+
+The important rule:
+
+- do not claim this is “meaning”
+- present it as structural nearness with receipts
+
+### Community Detection
+
+Run Louvain or Leiden-style community detection over the later similarity graph.
+
+Possible uses:
+
+- x-ray neighborhoods
+- reflection packs
+- cluster-level replay
+
+Constraints:
+
+- keep the cluster explanation inspectable
+- never silently inject cluster meaning into capture or recent
+
+### Keyphrase Receipts
+
+Use deterministic keyphrase extraction such as TextRank to surface reflective handles.
+
+Good use:
+
+- weekly or cluster-level reflection receipts
+
+Bad use:
+
+- pretending to summarize the user’s mind for them
+
+The system should say:
+
+- “here are the statistical handles”
+
+not:
+
+- “here is what your week meant”
+
+### Cluster-Aware Novelty And Stability Metrics
+
+Track how an inferred thread changes over time without pretending adjacent edit distance is idea evolution.
+
+Better signals than raw Levenshtein drift:
+
+- keyword turnover
+- novelty of high-weight terms
+- re-entry cadence
+- distance from cluster centroid
+- activity over time
+
+### Structural Receipts
+
+Whenever later modes expose a cluster or link, show why it exists.
+
+Examples:
+
+- shared unusual terms
+- same session bucket
+- explicit brainstorm linkage
+
+This should stay explainable and deterministic.
+
+### Do Not Promote Early
+
+- raw adjacent-entry Levenshtein drift as the main evolution metric
+- lexical-only clustering presented as “understanding”
+- silent classification leaking into capture or recent
+
 ## Additional Cool Ideas To Track
 
 These are my additions. They fit the doctrine, but they are deferred on purpose.
