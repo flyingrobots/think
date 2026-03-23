@@ -174,3 +174,8 @@ When in doubt:
 - choose behavior over architecture
 - keep `recent` boring
 - protect the capture moment from intelligence creep
+
+## License
+
+`think` is licensed under the Apache License 2.0.
+See [LICENSE](/Users/james/git/think/LICENSE).
