@@ -24,6 +24,8 @@ Release discipline:
 - brainstorm seed picking no longer truncates choices arbitrarily and now echoes the full selected seed in the interactive shell
 - brainstorm now refuses low-signal status or narrative seeds instead of forcing every raw capture through a pressure-test prompt
 - ineligible brainstorm seeds now suggest one or two recent eligible alternatives
+- explicit brainstorm prompt-family selection via `--brainstorm-mode=challenge|constraint|sharpen`
+- interactive brainstorm sessions can now choose `challenge`, `constraint`, or `sharpen` instead of always accepting the default family
 
 ## [0.2.0] - 2026-03-22
 

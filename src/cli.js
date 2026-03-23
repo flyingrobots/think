@@ -4,6 +4,7 @@ import { initDefaultContext } from '@flyingrobots/bijou-node';
 import { ensureGitRepo, hasGitRepo, pushWarpRefs } from './git.js';
 import { getLocalRepoDir, getUpstreamUrl } from './paths.js';
 import {
+  BRAINSTORM_PROMPT_TYPES,
   captureThought,
   GRAPH_NAME,
   listBrainstormableRecent,
@@ -49,7 +50,9 @@ export async function main(argv, { stdout, stderr }) {
     } else if (command === 'stats') {
       exitCode = await runStats(output, reporter, options);
     } else if (command === 'brainstorm_start') {
-      exitCode = await runBrainstormStart(options.brainstorm, output, reporter);
+      exitCode = await runBrainstormStart(options.brainstorm, output, reporter, {
+        brainstormMode: options.brainstormMode,
+      });
     } else if (command === 'brainstorm_reply') {
       exitCode = await runBrainstormReply(
         options.brainstormSession,
@@ -147,9 +150,10 @@ async function runCapture(thought, output, reporter) {
   return 0;
 }
 
-async function runBrainstormStart(seedEntryId, output, reporter) {
+async function runBrainstormStart(seedEntryId, output, reporter, { brainstormMode } = {}) {
   const repoDir = getLocalRepoDir();
   let resolvedSeedEntryId = seedEntryId;
+  let resolvedPromptType = brainstormMode;
 
   if (!resolvedSeedEntryId) {
     const pickedSeedEntryId = await pickBrainstormSeed(repoDir, output, reporter);
@@ -162,7 +166,23 @@ async function runBrainstormStart(seedEntryId, output, reporter) {
     return 1;
   }
 
-  const result = await startBrainstorm(repoDir, resolvedSeedEntryId);
+  if (!resolvedPromptType && shouldUseInteractiveBrainstormShell(output)) {
+    resolvedPromptType = await pickBrainstormMode();
+    if (!resolvedPromptType) {
+      reporter.event('brainstorm.skipped', {
+        seedEntryId: resolvedSeedEntryId,
+        reason: 'no_prompt_type_selected',
+      });
+      if (!output.json) {
+        output.out('Brainstorm skipped');
+      }
+      return 0;
+    }
+  }
+
+  const result = await startBrainstorm(repoDir, resolvedSeedEntryId, {
+    promptType: resolvedPromptType,
+  });
   if (!result.ok && result.code === 'seed_not_found') {
     output.error('Seed entry not found', 'brainstorm.seed_not_found', { seedEntryId: resolvedSeedEntryId });
     return 1;
@@ -364,6 +384,7 @@ function parseArgs(args) {
     recent: false,
     brainstormFlag: false,
     brainstorm: null,
+    brainstormMode: null,
     brainstormSessionFlag: false,
     brainstormSession: null,
     from: null,
@@ -394,6 +415,8 @@ function parseArgs(args) {
       } else if (arg.startsWith('--brainstorm=')) {
         options.brainstormFlag = true;
         options.brainstorm = arg.slice('--brainstorm='.length);
+      } else if (arg.startsWith('--brainstorm-mode=')) {
+        options.brainstormMode = arg.slice('--brainstorm-mode='.length);
       } else if (arg === '--brainstorm-session') {
         options.brainstormSessionFlag = true;
         options.brainstormSession = '';
@@ -459,6 +482,9 @@ function validateOptions(options, command) {
   }
 
   if (command === 'brainstorm_start') {
+    if (options.brainstormMode && !BRAINSTORM_PROMPT_TYPES.includes(options.brainstormMode)) {
+      return 'Invalid --brainstorm-mode value';
+    }
     if (!options.brainstorm && !canInteractivelyPickBrainstormSeed(options)) {
       return '--brainstorm requires a seed entry id';
     }
@@ -474,6 +500,10 @@ function validateOptions(options, command) {
     if (options.positionals.length === 0) {
       return '--brainstorm-session requires a response';
     }
+  }
+
+  if (options.brainstormMode && command !== 'brainstorm_start') {
+    return '--brainstorm-mode requires --brainstorm';
   }
 
   if (command !== 'stats' && hasStatsFilter) {
@@ -565,6 +595,35 @@ async function suggestAlternativeSeeds(repoDir, excludedSeedEntryId) {
     }));
 }
 
+async function pickBrainstormMode() {
+  const ctx = initDefaultContext();
+  ctx.io.write(renderInteractiveModeIntro(ctx) + '\n');
+
+  return select({
+    title: 'Pressure mode',
+    maxVisible: 4,
+    options: [
+      {
+        value: 'challenge',
+        label: 'Challenge',
+        description: 'Test assumptions and failure modes',
+      },
+      {
+        value: 'constraint',
+        label: 'Constraint',
+        description: 'Force practical limits and scope',
+      },
+      {
+        value: 'sharpen',
+        label: 'Sharpen',
+        description: 'Clarify the core claim or next move',
+      },
+    ],
+    defaultValue: 'challenge',
+    ctx,
+  });
+}
+
 function formatIneligibleSeedMessage(eligibility, suggestedSeeds) {
   const lines = [
     eligibility.text,
@@ -585,6 +644,12 @@ function formatIneligibleSeedMessage(eligibility, suggestedSeeds) {
 function renderInteractiveSeedIntro(ctx) {
   const header = headerBox('Choose a seed thought', { ctx });
   const body = markdown('**Pick one recent capture that looks like an idea, question, or decision to pressure-test.**', { ctx });
+  return `${header}\n${body}`;
+}
+
+function renderInteractiveModeIntro(ctx) {
+  const header = headerBox('Choose a pressure mode', { ctx });
+  const body = markdown('**Choose how you want to push the seed thought.**', { ctx });
   return `${header}\n${body}`;
 }
 

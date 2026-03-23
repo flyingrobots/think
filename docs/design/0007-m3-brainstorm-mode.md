@@ -148,6 +148,15 @@ Bad default:
 
 - a second thought presented as wisdom just because the system found some weak overlap or convenient distance signal
 
+Human-facing brainstorm shells may still let the user choose a pressure family explicitly.
+Machine-facing callers may also request an explicit prompt family.
+
+That is acceptable as long as:
+
+- the prompt still comes from a small fixed bank
+- the chosen family is reflected honestly in receipts and lineage
+- the system does not pretend the family was inferred when it was actually requested
+
 ### Recombine Is Optional, Not Default
 
 Archive-driven recombination may still become useful later, but it should not be the default `M3` path.
@@ -191,6 +200,9 @@ Examples:
 - “What if this had to work offline?”
 - “What is the smallest shippable version of this?”
 - “What if this had to be explained in one sentence?”
+- “What is the actual core claim here?”
+- “What is the smallest concrete next move?”
+- “What should be cut from this idea?”
 
 This keeps the mode sparse and intentional.
 

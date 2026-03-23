@@ -110,6 +110,46 @@ test('think --brainstorm can deterministically use a seed-first constraint promp
   );
 });
 
+test('think --brainstorm can use an explicit sharpen prompt family', async () => {
+  const context = await createThinkContext();
+  const seedThought = 'We should make warp graph the thought substrate';
+  const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
+
+  const start = runThink(context, ['--verbose', `--brainstorm=${seedEntryId}`, '--brainstorm-mode=sharpen']);
+
+  assertSuccess(start, 'Expected brainstorm to support explicit sharpen mode selection.');
+  assertContains(start, 'Brainstorm', 'Expected brainstorm mode to remain explicit.');
+  assertContains(start, 'Mode: Sharpen', 'Expected brainstorm to identify the sharpen family clearly.');
+  assertContains(start, 'Why selected:', 'Expected brainstorm to explain why the question shape was chosen.');
+  assertContains(
+    start,
+    'What is the smallest concrete next move?',
+    'Expected explicit sharpen mode to use the deterministic sharpen prompt for this seed.'
+  );
+
+  const events = parseJsonLines(
+    start.stderr,
+    'Expected explicit sharpen brainstorm --verbose to emit valid JSONL trace events.'
+  );
+  const sessionStarted = getEvent(
+    events,
+    'brainstorm.session_started',
+    'Expected explicit sharpen brainstorm to emit session metadata.'
+  );
+
+  assert.equal(sessionStarted.seedEntryId, seedEntryId, 'Expected explicit sharpen mode to preserve the seed lineage.');
+  assert.equal(sessionStarted.contrastEntryId, null, 'Expected explicit sharpen mode to remain seed-first.');
+  assert.equal(sessionStarted.promptType, 'sharpen', 'Expected explicit brainstorm mode to preserve the requested prompt family.');
+  assert.deepEqual(
+    sessionStarted.selectionReason,
+    {
+      kind: 'requested_sharpen',
+      text: 'Used the requested sharpen prompt family for this brainstorm session.',
+    },
+    'Expected explicit sharpen mode to expose receipt-like prompt-family selection.'
+  );
+});
+
 test('think --brainstorm-session stores a separate derived entry with preserved seed-first lineage', async () => {
   const context = await createThinkContext();
   const seedThought = 'I want to make git-warp support replayable cognition';
@@ -191,6 +231,14 @@ test('think --brainstorm validates explicit session entry and stays read-only on
     `Expected invalid brainstorm start to remain read-only, but repo was created at ${context.localRepoDir}.`
   );
 
+  const strayMode = runThink(context, ['--brainstorm-mode=sharpen']);
+  assertFailure(strayMode, 'Expected --brainstorm-mode without --brainstorm to fail loudly.');
+  assertContains(
+    strayMode,
+    '--brainstorm-mode requires --brainstorm',
+    'Expected brainstorm mode selection to remain scoped to brainstorm start.'
+  );
+
   const seededContext = await createThinkContext();
   const { entryId: seedEntryId } = captureWithEntryId(seededContext, 'seed thought');
   const unexpectedResponse = runThink(seededContext, ['--brainstorm=' + seedEntryId, 'this should not be dropped']);
@@ -203,6 +251,14 @@ test('think --brainstorm validates explicit session entry and stays read-only on
     unexpectedResponse,
     '--brainstorm does not take a response',
     'Expected brainstorm start and brainstorm response to remain separate commands.'
+  );
+
+  const invalidMode = runThink(seededContext, ['--brainstorm=' + seedEntryId, '--brainstorm-mode=chaos']);
+  assertFailure(invalidMode, 'Expected invalid brainstorm prompt family selection to fail loudly.');
+  assertContains(
+    invalidMode,
+    'Invalid --brainstorm-mode value',
+    'Expected brainstorm mode selection to reject unknown prompt families.'
   );
 
   const missingResponse = runThink(seededContext, ['--brainstorm-session=brainstorm:missing']);

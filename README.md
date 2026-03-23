@@ -13,7 +13,7 @@ It is infrastructure for cheap, exact, replayable thought capture.
 ## Current Status
 
 `M0`, `M1`, and `M2` are complete.
-`M3` is next.
+`M3` is in progress.
 Current version: `0.2.0`.
 
 What exists today:
@@ -25,15 +25,16 @@ What exists today:
 - exact raw-text preservation
 - plain newest-first recent listing
 - best-effort upstream backup
+- first seeded brainstorm CLI flow via `--brainstorm` and `--brainstorm-session`
 - a native macOS menu bar app with a global hotkey capture panel
 - quiet menu bar feedback for saving, success, failure, and restart-needed state
 - executable acceptance tests for the implemented CLI and macOS behavior
 
 What does not exist yet:
 
-- brainstorm mode
 - reflection mode
 - x-ray mode
+- archive-driven brainstorm recombine mode
 - embeddings
 - clustering
 - dashboard UI
@@ -96,6 +97,9 @@ node ./bin/think.js --recent
 node ./bin/think.js --stats
 node ./bin/think.js --stats --bucket=day
 node ./bin/think.js --stats --since=7d
+node ./bin/think.js --brainstorm
+node ./bin/think.js --brainstorm=<seedEntryId> --brainstorm-mode=sharpen
+node ./bin/think.js --brainstorm-session=<sessionId> "push the idea further"
 ```
 
 If you install or link the package entrypoint, the intended commands are:
@@ -105,6 +109,8 @@ think "turkey is good in burritos"
 think --recent
 think --stats
 ```
+
+In a real TTY, bare `--brainstorm` opens an interactive seed picker. `--brainstorm-mode=challenge|constraint|sharpen` can be used to request a specific pressure family.
 
 `--recent` and `--stats` are read-only commands.
 They should not create local app state on their own.

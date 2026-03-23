@@ -5,6 +5,7 @@ import Plumbing from '@git-stunts/plumbing';
 import { GitGraphAdapter, WarpGraph } from '@git-stunts/git-warp';
 
 export const GRAPH_NAME = 'think';
+export const BRAINSTORM_PROMPT_TYPES = ['challenge', 'constraint', 'sharpen'];
 const ENTRY_PREFIX = 'entry:';
 const BRAINSTORM_SESSION_PREFIX = 'brainstorm:';
 const TEXT_MIME = 'text/plain; charset=utf-8';
@@ -18,6 +19,11 @@ const CONSTRAINT_PROMPTS = [
   'What if this had to work offline?',
   'What is the smallest shippable version of this?',
   'What if this had to be explained in one sentence?',
+];
+const SHARPEN_PROMPTS = [
+  'What is the actual core claim here?',
+  'What is the smallest concrete next move?',
+  'What should be cut from this idea?',
 ];
 const BRAINSTORM_MARKERS = [
   /\?/,
@@ -44,7 +50,7 @@ export async function captureThought(repoDir, thought) {
   return entry;
 }
 
-export async function startBrainstorm(repoDir, seedEntryId) {
+export async function startBrainstorm(repoDir, seedEntryId, { promptType = null } = {}) {
   const graph = await openGraph(repoDir);
   const seedEntry = await getStoredEntry(graph, seedEntryId);
 
@@ -66,7 +72,7 @@ export async function startBrainstorm(repoDir, seedEntryId) {
     };
   }
 
-  const promptPlan = selectBrainstormPrompt(seedEntry);
+  const promptPlan = selectBrainstormPrompt(seedEntry, promptType);
   const session = createBrainstormSession(graph.writerId, {
     seedEntryId,
     contrastEntryId: null,
@@ -358,8 +364,42 @@ function createBrainstormSession(writerId, {
   };
 }
 
-function selectBrainstormPrompt(seedEntry) {
+function selectBrainstormPrompt(seedEntry, requestedPromptType = null) {
   const normalized = normalizeSeed(seedEntry.text);
+
+  if (requestedPromptType === 'challenge') {
+    return {
+      promptType: 'challenge',
+      selectionReason: {
+        kind: 'requested_challenge',
+        text: 'Used the requested challenge prompt family for this brainstorm session.',
+      },
+      question: pickDeterministicPrompt(CHALLENGE_PROMPTS, normalized),
+    };
+  }
+
+  if (requestedPromptType === 'constraint') {
+    return {
+      promptType: 'constraint',
+      selectionReason: {
+        kind: 'requested_constraint',
+        text: 'Used the requested constraint prompt family for this brainstorm session.',
+      },
+      question: pickDeterministicPrompt(CONSTRAINT_PROMPTS, normalized),
+    };
+  }
+
+  if (requestedPromptType === 'sharpen') {
+    return {
+      promptType: 'sharpen',
+      selectionReason: {
+        kind: 'requested_sharpen',
+        text: 'Used the requested sharpen prompt family for this brainstorm session.',
+      },
+      question: pickDeterministicPrompt(SHARPEN_PROMPTS, normalized),
+    };
+  }
+
   const familyIndex = stableHash(normalized) % 2;
 
   if (familyIndex === 0) {
