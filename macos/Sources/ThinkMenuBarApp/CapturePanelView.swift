@@ -7,15 +7,44 @@ struct CapturePanelView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            TextField("", text: bindingForText())
-                .textFieldStyle(.plain)
-                .font(.system(size: 22))
-                .focused($textFieldFocused)
-                .onSubmit {
-                    Task { @MainActor in
-                        _ = await model.submit()
-                    }
+            HStack(alignment: .center, spacing: 16) {
+                ZStack {
+                    Circle()
+                        .fill(.white.opacity(0.14))
+
+                    Image(systemName: "brain.head.profile")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundStyle(Color.accentColor)
                 }
+                .frame(width: 48, height: 48)
+
+                TextField(model.configuration.placeholder ?? "", text: bindingForText())
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 24, weight: .medium))
+                    .submitLabel(.done)
+                    .defaultFocus($textFieldFocused, true)
+                    .focused($textFieldFocused)
+                    .disabled(model.isSubmitting)
+                    .onSubmit {
+                        submit()
+                    }
+
+                Button(action: submit) {
+                    Group {
+                        if model.isSubmitting {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Image(systemName: "arrow.up.circle.fill")
+                                .font(.system(size: 30, weight: .semibold))
+                        }
+                    }
+                    .frame(width: 34, height: 34)
+                    .foregroundStyle(model.canSubmit ? Color.accentColor : Color.secondary.opacity(0.6))
+                }
+                .buttonStyle(.plain)
+                .disabled(!model.canSubmit)
+            }
 
             if case .error(let message) = model.phase {
                 HStack(spacing: 12) {
@@ -33,11 +62,24 @@ struct CapturePanelView: View {
                         model.cancel()
                     }
                 }
+            } else {
+                HStack {
+                    Text(model.isSubmitting ? "Saving..." : "Press Return to capture. Esc cancels.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+                }
             }
         }
-        .padding(20)
+        .padding(22)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(.white.opacity(0.18), lineWidth: 1)
+        }
+        .shadow(color: .black.opacity(0.18), radius: 24, y: 10)
         .padding(12)
         .onAppear {
             applyFocusState(model.isTextFieldFocused)
@@ -57,7 +99,20 @@ struct CapturePanelView: View {
         )
     }
 
+    private func submit() {
+        Task { @MainActor in
+            _ = await model.submit()
+        }
+    }
+
     private func applyFocusState(_ focused: Bool) {
-        textFieldFocused = focused
+        guard focused else {
+            textFieldFocused = false
+            return
+        }
+
+        DispatchQueue.main.async {
+            textFieldFocused = true
+        }
     }
 }

@@ -4,7 +4,7 @@ import Foundation
 public struct CapturePanelConfiguration: Equatable {
     public let placeholder: String?
 
-    public init(placeholder: String? = nil) {
+    public init(placeholder: String? = "Type to capture a thought...") {
         self.placeholder = placeholder
     }
 }
@@ -19,6 +19,7 @@ public final class CapturePanelModel: ObservableObject {
     @Published public private(set) var phase: CapturePanelPhase = .hidden
     @Published public private(set) var text: String = ""
     @Published public private(set) var isTextFieldFocused = false
+    @Published public private(set) var isSubmitting = false
     public let configuration: CapturePanelConfiguration
 
     private let client: ThinkCapturing
@@ -32,6 +33,8 @@ public final class CapturePanelModel: ObservableObject {
     }
 
     public func toggle() {
+        guard !isSubmitting else { return }
+
         switch phase {
         case .hidden:
             phase = .ready
@@ -46,24 +49,45 @@ public final class CapturePanelModel: ObservableObject {
     }
 
     public func retry() {
+        isSubmitting = false
         phase = .ready
         isTextFieldFocused = true
     }
 
     public func cancel() {
+        guard !isSubmitting else { return }
+        resetAndHide()
+    }
+
+    public var canSubmit: Bool {
+        !normalizedText.isEmpty && !isSubmitting && phase == .ready
+    }
+
+    private var normalizedText: String {
+        text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func resetAndHide() {
         phase = .hidden
         text = ""
         isTextFieldFocused = false
+        isSubmitting = false
     }
 
     @MainActor
     @discardableResult
     public func submit() async -> CaptureResult? {
+        guard canSubmit else { return nil }
+
+        isSubmitting = true
+        isTextFieldFocused = false
+
         do {
             let result = try await client.capture(text: text)
-            cancel()
+            resetAndHide()
             return result
         } catch {
+            isSubmitting = false
             phase = .error(message: "Could not save thought")
             isTextFieldFocused = false
             return nil

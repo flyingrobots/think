@@ -3,7 +3,7 @@ import XCTest
 
 @MainActor
 final class CapturePanelModelTests: XCTestCase {
-    func testToggleOpensReadyPanelWithFocusAndNoPlaceholderByDefault() {
+    func testToggleOpensReadyPanelWithFocusAndHelpfulPlaceholderByDefault() {
         let model = CapturePanelModel(client: FakeCaptureClient())
 
         model.toggle()
@@ -11,7 +11,7 @@ final class CapturePanelModelTests: XCTestCase {
         XCTAssertEqual(model.phase, .ready)
         XCTAssertTrue(model.isTextFieldFocused)
         XCTAssertEqual(model.text, "")
-        XCTAssertNil(model.configuration.placeholder)
+        XCTAssertEqual(model.configuration.placeholder, "Type to capture a thought...")
     }
 
     func testSecondToggleHidesThePanel() {
@@ -52,6 +52,32 @@ final class CapturePanelModelTests: XCTestCase {
         XCTAssertEqual(client.receivedTexts, ["capture this"])
     }
 
+    func testSubmitMarksThePanelAsSubmittingUntilCaptureCompletes() async {
+        let client = ControlledCaptureClient()
+        let model = CapturePanelModel(client: client)
+
+        model.toggle()
+        model.updateText("capture this")
+
+        let submitTask = Task {
+            await model.submit()
+        }
+
+        await Task.yield()
+
+        XCTAssertTrue(model.isSubmitting)
+        XCTAssertFalse(model.isTextFieldFocused)
+        XCTAssertEqual(model.phase, .ready)
+        XCTAssertEqual(client.receivedTexts, ["capture this"])
+
+        client.succeed(with: CaptureResult(backupState: .pending))
+        let result = await submitTask.value
+
+        XCTAssertEqual(result, CaptureResult(backupState: .pending))
+        XCTAssertFalse(model.isSubmitting)
+        XCTAssertEqual(model.phase, .hidden)
+    }
+
     func testBackupPendingStillDismissesLikeSuccess() async {
         let client = FakeCaptureClient(result: .success(CaptureResult(backupState: .pending)))
         let model = CapturePanelModel(client: client)
@@ -76,6 +102,7 @@ final class CapturePanelModelTests: XCTestCase {
         XCTAssertEqual(model.phase, .error(message: "Could not save thought"))
         XCTAssertEqual(model.text, "retry me")
         XCTAssertFalse(model.isTextFieldFocused)
+        XCTAssertFalse(model.isSubmitting)
 
         model.retry()
 
@@ -107,5 +134,23 @@ private final class FakeCaptureClient: ThinkCapturing, @unchecked Sendable {
         case .failure(let error):
             throw error
         }
+    }
+}
+
+private final class ControlledCaptureClient: ThinkCapturing, @unchecked Sendable {
+    var receivedTexts: [String] = []
+    private var continuation: CheckedContinuation<CaptureResult, Error>?
+
+    func capture(text: String) async throws -> CaptureResult {
+        receivedTexts.append(text)
+
+        return try await withCheckedThrowingContinuation { continuation in
+            self.continuation = continuation
+        }
+    }
+
+    func succeed(with result: CaptureResult) {
+        continuation?.resume(returning: result)
+        continuation = nil
     }
 }

@@ -81,9 +81,9 @@ final class CapturePanelController {
         let visibleFrame = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1280, height: 800)
 
         let width = min(720, visibleFrame.width - 80)
-        let height: CGFloat = 150
+        let height: CGFloat = 176
         let x = visibleFrame.midX - (width / 2)
-        let y = visibleFrame.maxY - height - 120
+        let y = visibleFrame.midY - (height / 2)
 
         panel.setFrame(NSRect(x: x, y: y, width: width, height: height), display: false)
     }
@@ -94,7 +94,7 @@ private final class CapturePanelWindow: NSPanel {
 
     init() {
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 720, height: 150),
+            contentRect: NSRect(x: 0, y: 0, width: 720, height: 176),
             styleMask: [.titled, .fullSizeContentView],
             backing: .buffered,
             defer: false

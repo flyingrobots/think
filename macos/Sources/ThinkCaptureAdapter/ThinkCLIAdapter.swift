@@ -46,11 +46,16 @@ public final class ThinkCLIAdapter: ThinkCapturing, @unchecked Sendable {
     }
 
     public func capture(text: String) async throws -> CaptureResult {
-        let output = try runner.run(
-            executablePath: command.executablePath,
-            arguments: command.baseArguments + [text],
-            environment: command.environment
-        )
+        let runner = self.runner
+        let command = self.command
+
+        let output = try await Task.detached(priority: .userInitiated) {
+            try runner.run(
+                executablePath: command.executablePath,
+                arguments: command.baseArguments + [text],
+                environment: command.environment
+            )
+        }.value
 
         if output.status != 0 {
             throw CaptureFailure(message: minimalFailureMessage(from: output))

@@ -31,6 +31,10 @@ final class CaptureAppState: ObservableObject {
     }
 
     private static func makeClient() -> ThinkCapturing {
+        if ProcessInfo.processInfo.environment["THINK_CAPTURE_FORCE_ERROR"] == "1" {
+            return UnavailableCaptureClient(message: "Forced capture failure")
+        }
+
         do {
             return ThinkCLIAdapter(
                 runner: SystemProcessRunner(),
