@@ -1,4 +1,4 @@
-import { input, note, select } from '@flyingrobots/bijou';
+import { headerBox, input, markdown, select } from '@flyingrobots/bijou';
 import { initDefaultContext } from '@flyingrobots/bijou-node';
 
 import { ensureGitRepo, hasGitRepo, pushWarpRefs } from './git.js';
@@ -267,11 +267,7 @@ async function pickBrainstormSeed(repoDir, output, reporter) {
   }
 
   const ctx = initDefaultContext();
-  await note({
-    title: 'Choose a seed thought',
-    message: 'Pick one recent raw capture to pressure-test.',
-    ctx,
-  });
+  ctx.io.write(renderInteractiveSeedIntro(ctx) + '\n');
 
   return select({
     title: 'Seed thought',
@@ -288,18 +284,10 @@ async function pickBrainstormSeed(repoDir, output, reporter) {
 
 async function runInteractiveBrainstormShell(session, output, reporter) {
   const ctx = initDefaultContext();
-  const receiptLine = session.contrastEntry
-    ? `Contrast: ${session.contrastEntry.text}\nWhy selected: ${session.selectionReason.text}`
-    : `Constraint: ${session.selectionReason.text}`;
-
-  await note({
-    title: 'Brainstorm',
-    message: `${receiptLine}\nQuestion: ${session.question}`,
-    ctx,
-  });
+  ctx.io.write(renderInteractiveBrainstormIntro(session, ctx) + '\n');
 
   const response = await input({
-    title: 'Response',
+    title: 'Your response',
     placeholder: 'Push the idea somewhere sharper...',
     ctx,
   });
@@ -309,11 +297,8 @@ async function runInteractiveBrainstormShell(session, output, reporter) {
       sessionId: session.sessionId,
       reason: 'empty_response',
     });
-    await note({
-      title: 'Brainstorm skipped',
-      message: 'No brainstorm response was saved.',
-      ctx,
-    });
+    ctx.io.write(`${headerBox('Brainstorm skipped', { ctx })}\n`);
+    ctx.io.write(`${markdown('**No brainstorm response was saved.**', { ctx })}\n`);
     return 0;
   }
 
@@ -553,6 +538,36 @@ function truncateForPicker(text, maxWidth = 72) {
     return normalized;
   }
   return `${normalized.slice(0, maxWidth - 1)}…`;
+}
+
+function renderInteractiveSeedIntro(ctx) {
+  const header = headerBox('Choose a seed thought', { ctx });
+  const body = markdown('**Pick one recent raw capture to pressure-test.**', { ctx });
+  return `${header}\n${body}`;
+}
+
+function renderInteractiveBrainstormIntro(session, ctx) {
+  const header = headerBox('Brainstorm', { ctx });
+  const sections = session.contrastEntry
+    ? [
+        '### Contrast',
+        session.contrastEntry.text,
+        '',
+        '### Why Selected',
+        session.selectionReason.text,
+        '',
+        '# Question',
+        session.question,
+      ]
+    : [
+        '### Constraint',
+        session.selectionReason.text,
+        '',
+        '# Question',
+        session.question,
+      ];
+
+  return `${header}\n${markdown(sections.join('\n'), { ctx })}`;
 }
 
 function resolveJsonStream(payload) {
