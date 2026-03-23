@@ -335,21 +335,21 @@ These verbs can be refined later, but they should be chosen deliberately and reu
 
 ```mermaid
 flowchart LR
-    C["capture:<event-id>"] -->| "expresses" | T["thought:<fingerprint>"]
-    C -->| "captured_in" | S["session:<session-id>"]
-    A["artifact:<artifact-id>"] -->| "derived_from" | T
-    A2["artifact:<artifact-id>"] -->| "contextualizes" | C
+    C["capture:<event-id>"] -->|expresses| T["thought:<fingerprint>"]
+    C -->|captured_in| S["session:<session-id>"]
+    A["artifact:<artifact-id>"] -->|derived_from| T
+    A2["artifact:<artifact-id>"] -->|contextualizes| C
 ```
 
 ### Brainstorm Shape
 
 ```mermaid
 flowchart LR
-    C["capture:<event-id>"] -->| "expresses" | T["thought:<fingerprint>"]
-    SQ["artifact:seed-quality"] -->| "derived_from" | T
-    CE["artifact:brainstorm-eligibility"] -->| "contextualizes" | C
-    O["operation:<operation-id>"] -->| "seeded_by" | C
-    R["artifact:brainstorm-response"] -->| "produced" | O
+    C["capture:<event-id>"] -->|expresses| T["thought:<fingerprint>"]
+    SQ["artifact:seed-quality"] -->|derived_from| T
+    CE["artifact:brainstorm-eligibility"] -->|contextualizes| C
+    O["operation:<operation-id>"] -->|seeded_by| C
+    R["artifact:brainstorm-response"] -->|produced| O
 ```
 
 This makes the operational structure explicit:
@@ -456,7 +456,7 @@ Example future shape:
 
 ```mermaid
 flowchart LR
-    E1["artifact:brainstorm-eligibility-A"] -->| "pairs_with" | E2["artifact:brainstorm-eligibility-B"]
+    E1["artifact:brainstorm-eligibility-A"] -->|pairs_with| E2["artifact:brainstorm-eligibility-B"]
 ```
 
 Or, if the relationship itself needs richer provenance:
