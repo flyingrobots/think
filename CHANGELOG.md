@@ -19,6 +19,7 @@ Release discipline:
 - explicit M3 brainstorm plumbing via `--brainstorm=<seedEntryId>` and `--brainstorm-session=<sessionId> ...`
 - deterministic brainstorm receipts, constraint fallback, and separate stored brainstorm entries with preserved lineage
 - first Bijou-based interactive brainstorm shell for real TTY use, layered over the same M3 plumbing contract
+- interactive seed picking for bare `--brainstorm` in a real TTY, while `--brainstorm=<seedEntryId>` remains the explicit plumbing path
 
 ## [0.2.0] - 2026-03-22
 

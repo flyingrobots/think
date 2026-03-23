@@ -1,4 +1,4 @@
-import { input, note } from '@flyingrobots/bijou';
+import { input, note, select } from '@flyingrobots/bijou';
 import { initDefaultContext } from '@flyingrobots/bijou-node';
 
 import { ensureGitRepo, hasGitRepo, pushWarpRefs } from './git.js';
@@ -148,14 +148,22 @@ async function runCapture(thought, output, reporter) {
 
 async function runBrainstormStart(seedEntryId, output, reporter) {
   const repoDir = getLocalRepoDir();
-  if (!hasGitRepo(repoDir)) {
-    output.error('Seed entry not found', 'brainstorm.seed_not_found', { seedEntryId });
+  let resolvedSeedEntryId = seedEntryId;
+
+  if (!resolvedSeedEntryId) {
+    const pickedSeedEntryId = await pickBrainstormSeed(repoDir, output, reporter);
+    if (!pickedSeedEntryId) {
+      return 1;
+    }
+    resolvedSeedEntryId = pickedSeedEntryId;
+  } else if (!hasGitRepo(repoDir)) {
+    output.error('Seed entry not found', 'brainstorm.seed_not_found', { seedEntryId: resolvedSeedEntryId });
     return 1;
   }
 
-  const session = await startBrainstorm(repoDir, seedEntryId);
+  const session = await startBrainstorm(repoDir, resolvedSeedEntryId);
   if (!session) {
-    output.error('Seed entry not found', 'brainstorm.seed_not_found', { seedEntryId });
+    output.error('Seed entry not found', 'brainstorm.seed_not_found', { seedEntryId: resolvedSeedEntryId });
     return 1;
   }
 
@@ -237,6 +245,45 @@ async function runBrainstormReply(sessionId, response, output, reporter) {
   }
 
   return 0;
+}
+
+async function pickBrainstormSeed(repoDir, output, reporter) {
+  if (!isInteractiveBrainstormAvailable() || output.json) {
+    output.error('--brainstorm requires a seed entry id', 'cli.validation_failed', {
+      command: 'brainstorm_start',
+    });
+    return null;
+  }
+
+  if (!hasGitRepo(repoDir)) {
+    output.error('No raw captures available to brainstorm from', 'brainstorm.seed_not_found');
+    return null;
+  }
+
+  const recentEntries = (await listRecent(repoDir)).slice(0, 9);
+  if (recentEntries.length === 0) {
+    output.error('No raw captures available to brainstorm from', 'brainstorm.seed_not_found');
+    return null;
+  }
+
+  const ctx = initDefaultContext();
+  await note({
+    title: 'Choose a seed thought',
+    message: 'Pick one recent raw capture to pressure-test.',
+    ctx,
+  });
+
+  return select({
+    title: 'Seed thought',
+    maxVisible: 7,
+    options: recentEntries.map((entry, index) => ({
+      value: entry.id,
+      label: truncateForPicker(entry.text),
+      description: index === 0 ? 'most recent' : undefined,
+    })),
+    defaultValue: recentEntries[0].id,
+    ctx,
+  });
 }
 
 async function runInteractiveBrainstormShell(session, output, reporter) {
@@ -489,7 +536,19 @@ function createOutput({ stdout, stderr, reporter, json }) {
 }
 
 function shouldUseInteractiveBrainstormShell(output) {
-  return !output.json && process.stdin.isTTY === true && process.stdout.isTTY === true;
+  return !output.json && isInteractiveBrainstormAvailable();
+}
+
+function isInteractiveBrainstormAvailable() {
+  return process.stdin.isTTY === true && process.stdout.isTTY === true;
+}
+
+function truncateForPicker(text, maxWidth = 72) {
+  const normalized = String(text).replace(/\s+/g, ' ').trim();
+  if (normalized.length <= maxWidth) {
+    return normalized;
+  }
+  return `${normalized.slice(0, maxWidth - 1)}…`;
 }
 
 function resolveJsonStream(payload) {
