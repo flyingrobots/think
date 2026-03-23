@@ -89,10 +89,13 @@ The intended flow is:
 flowchart LR
     I["Ingress"] --> C["Raw capture written"]
     C --> Q["Derivation work queued or marked pending"]
-    Q --> D1["Fast derivations"]
-    D1 --> D2["Contextual derivations"]
+    Q --> D1A["Immediate identity completion"]
+    D1A --> D1B["Fast interpretive derivations"]
+    D1B --> D2["Contextual derivations"]
     D2 --> D3["Later batch derivations"]
 ```
+
+Pending derivation state is canonical; queue state is an implementation detail.
 
 ### Stage 0: Ingress
 
@@ -106,14 +109,27 @@ Ingress does one thing:
 
 - create the immutable raw capture event
 
-### Stage 1: Fast Local Derivations
+### Stage 1A: Immediate Identity Completion
 
-These should be cheap and deterministic enough to run immediately after capture when the local environment is healthy.
+These are first-priority post-ingress graph completion steps.
+
+They should run immediately after raw success when the local environment is healthy.
 
 Examples:
 
 - content fingerprinting
 - canonical thought-node linkage
+
+These are not part of the raw capture success contract, but they are stronger than optional enrichment.
+
+If raw capture succeeds, the system should immediately attempt this identity-completion step before moving on to broader derivation work.
+
+### Stage 1B: Fast Interpretive Derivations
+
+These should be cheap and deterministic enough to run immediately after identity completion when the local environment is healthy.
+
+Examples:
+
 - seed-quality assessment
 - lightweight lexical classification
 
@@ -268,6 +284,8 @@ This can be represented either by:
 
 The exact implementation can stay open, but the state itself should not be hand-waved.
 
+The exact mechanism can stay open, but the existence of incomplete derivation state must be explicit and queryable.
+
 ## Replay And Re-Derivation
 
 The pipeline should support re-derivation as a first-class operation.
@@ -279,6 +297,8 @@ That means later commands should be able to:
 - leave old artifacts intact as historical derivation results
 
 This is especially important because the graph model already treats derived artifacts as append-only provenance-bearing results.
+
+Re-derivation produces new artifact results; it does not overwrite prior derived artifacts in place, except for explicitly disposable caches.
 
 ## Session Note
 
@@ -299,7 +319,7 @@ The first implementation should stay boring.
 ### Phase 1
 
 - write raw capture synchronously
-- derive or link `thought:<fingerprint>` immediately after raw success
+- fingerprint and link `thought:<fingerprint>` as first-priority post-ingress graph completion immediately after raw success
 - leave other derivations as explicit best-effort post-ingress work
 
 ### Phase 2
