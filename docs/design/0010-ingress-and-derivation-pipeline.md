@@ -88,7 +88,7 @@ The intended flow is:
 ```mermaid
 flowchart LR
     I["Ingress"] --> C["Raw capture written"]
-    C --> Q["Derivation work queued or marked pending"]
+    C --> Q["Derivation pending state recorded"]
     Q --> D1A["Immediate identity completion"]
     D1A --> D1B["Fast interpretive derivations"]
     D1B --> D2["Contextual derivations"]
@@ -123,6 +123,8 @@ Examples:
 These are not part of the raw capture success contract, but they are stronger than optional enrichment.
 
 If raw capture succeeds, the system should immediately attempt this identity-completion step before moving on to broader derivation work.
+
+If immediate identity completion does not succeed, raw capture remains valid and the missing identity-completion work must remain recoverable through pending-state detection and replay.
 
 ### Stage 1B: Fast Interpretive Derivations
 
@@ -195,7 +197,7 @@ Those may be the same executable in a simple implementation, but they are not th
 
 ### Near-Term Recommendation
 
-Use an application-owned derivation worker model, not Git hooks.
+Use an application-owned derivation runtime, not Git hooks.
 
 That means:
 
@@ -282,13 +284,13 @@ This can be represented either by:
 - explicit pending work markers
 - or a deterministic “missing artifact implies pending” rule
 
-The exact implementation can stay open, but the state itself should not be hand-waved.
-
 The exact mechanism can stay open, but the existence of incomplete derivation state must be explicit and queryable.
 
 ## Replay And Re-Derivation
 
 The pipeline should support re-derivation as a first-class operation.
+
+Derivation steps should be designed to be idempotent where practical, so repeated replay does not corrupt state or require special cleanup.
 
 That means later commands should be able to:
 
