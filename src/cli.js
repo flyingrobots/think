@@ -262,7 +262,7 @@ async function pickBrainstormSeed(repoDir, output, reporter) {
     maxVisible: 7,
     options: recentEntries.map((entry, index) => ({
       value: entry.id,
-      label: truncateForPicker(entry.text),
+      label: normalizeForPicker(entry.text),
       description: index === 0 ? 'most recent' : undefined,
     })),
     defaultValue: recentEntries[0].id,
@@ -520,12 +520,8 @@ function canInteractivelyPickBrainstormSeed(options) {
   return !options.json && isInteractiveBrainstormAvailable();
 }
 
-function truncateForPicker(text, maxWidth = 72) {
-  const normalized = String(text).replace(/\s+/g, ' ').trim();
-  if (normalized.length <= maxWidth) {
-    return normalized;
-  }
-  return `${normalized.slice(0, maxWidth - 1)}…`;
+function normalizeForPicker(text) {
+  return String(text).replace(/\s+/g, ' ').trim();
 }
 
 function renderInteractiveSeedIntro(ctx) {
@@ -537,6 +533,9 @@ function renderInteractiveSeedIntro(ctx) {
 function renderInteractiveBrainstormIntro(session, ctx) {
   const header = headerBox('Brainstorm', { ctx });
   const sections = [
+    '## Seed',
+    session.seedEntry.text,
+    '',
     '## Mode',
     `**${capitalize(session.promptType)}**`,
     '',

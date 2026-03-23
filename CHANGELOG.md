@@ -21,6 +21,7 @@ Release discipline:
 - first Bijou-based interactive brainstorm shell for real TTY use, layered over the same M3 plumbing contract
 - interactive seed picking for bare `--brainstorm` in a real TTY, while `--brainstorm=<seedEntryId>` remains the explicit plumbing path
 - default brainstorm now uses seed-first deterministic challenge or constraint prompts instead of archive-guessed contrast
+- brainstorm seed picking no longer truncates choices arbitrarily and now echoes the full selected seed in the interactive shell
 
 ## [0.2.0] - 2026-03-22
 
