@@ -28,6 +28,7 @@ Without a tighter graph design, every new mode will be tempted to invent its own
 - ad hoc heuristics in the CLI layer
 - pairings without clear provenance
 - edge attachments used as a shortcut for underdesigned node models
+- content fingerprints used as if they were enough to identify every derivation forever
 
 The result would be a graph that is technically expressive but architecturally muddy.
 
@@ -68,11 +69,11 @@ Two identical strings captured at different times are two distinct capture event
 
 ### 3. Derived Interpretation Lives Outside Raw Capture
 
-Keywords, classifications, brainstormability, session membership, context, and x-ray structures are all derived artifacts.
+Keywords, classifications, seed-quality judgments, contextual eligibility, session structure, and x-ray artifacts are all derived artifacts.
 
 They should not be modeled as mutable truth baked into the raw capture node.
 
-### 4. Mode Logic Should Read The Derived Layer
+### 4. Modes Should Read The Derived Layer
 
 As the system grows, brainstorm, x-ray, and reflection should not each re-implement raw-text heuristics inside their UI or CLI adapters.
 
@@ -86,7 +87,7 @@ That does not mean edge attachments should be the first modeling move.
 Default rule:
 
 - prefer explicit nodes for first-class derived artifacts
-- use plain edges for relationship structure
+- use plain named edges for relationship structure
 - use edge attachments only when the edge itself is the primary subject of inspection
 
 ## Identity Model
@@ -129,129 +130,234 @@ Acceptable interim choice:
 The important decision is not the exact hash function.
 The important decision is that the content identity is stable and separate from the capture event.
 
-## Recommended Node Families
+## Canonical Payload Ownership
 
-### Raw Event Nodes
-
-- `capture:<event-id>`
-
-These represent:
-
-- one ingress event
-- one occurrence
-- one point in time
-
-### Canonical Content Nodes
+The canonical raw text bytes should be owned by the content node:
 
 - `thought:<fingerprint>`
 
-These represent:
+Recommended rule:
 
-- one exact raw text payload
-- stable content identity
+- `capture:<event-id>` holds event metadata
+- `thought:<fingerprint>` holds the canonical raw text payload
+- derived artifacts reference canonical content and must not become alternate authorities for the bytes
 
-The canonical raw text attachment should eventually live here rather than being duplicated conceptually across every derived artifact.
+Temporary denormalized copies are acceptable only as disposable caches.
+They must not become authoritative.
 
-### Content-Derived Artifact Nodes
+## Recommended Node Families
 
-These depend only on the raw text itself.
+The graph should stay small and typed.
+
+### Core Nodes
+
+- `capture:<event-id>`
+- `thought:<fingerprint>`
+- `session:<session-id>`
+- `artifact:<artifact-id>`
+- later, when needed:
+  - `operation:<operation-id>`
+
+This is intentionally less cute than encoding every semantic in the node id itself.
+IDs should stay stable.
+Semantics should live in typed fields and named edges.
+
+### Why `artifact:<artifact-id>` Instead Of `classification:<fingerprint>`
+
+Derived artifacts are not identified by input content alone.
+
+The same thought may produce multiple valid derived artifacts if any of these change:
+
+- derivation kind
+- derivation implementation
+- derivation version
+- schema version
+- optional config or threshold set
+
+So the durable identity rule is:
+
+- raw content fingerprint is part of provenance
+- it is not, by itself, the full identity of a derived artifact
+
+## Derived Artifact Categories
+
+Not all derived outputs are the same.
+
+### 1. Interpretive Artifacts
+
+These are text-oriented judgments or extractions.
 
 Examples:
 
-- `keywordset:<fingerprint>`
-- `classification:<fingerprint>`
-- `brainstormability:<fingerprint>`
+- keyword sets
+- lexical classification
+- intrinsic seed quality
 
-These are good candidates for content-addressed derivation because identical text should produce identical text-only analyses.
+These usually derive from:
 
-### Capture-Context Artifact Nodes
+- `thought:<fingerprint>`
 
-These depend on the occurrence and its surrounding context, not just the text bytes.
+### 2. Contextual Artifacts
 
-Examples:
-
-- `session-membership:<capture-id>`
-- `context:<capture-id>`
-
-These must not collapse across identical text, because the same sentence captured in different sessions may mean different things.
-
-### Mode Output Nodes
-
-These represent the outputs of explicit later modes.
+These depend on the occurrence and its neighbors, not just on the text bytes.
 
 Examples:
 
-- `brainstorm-session:<session-id>`
-- `brainstorm-response:<event-id>`
-- later:
-  - `xray-scan:<scan-id>`
-  - `reflection-session:<session-id>`
+- session-local context
+- contextual brainstorm eligibility
+- neighboring capture windows
+
+These usually derive from:
+
+- `capture:<event-id>`
+- `session:<session-id>`
+
+### 3. Operational Outputs
+
+These are outputs of an explicit mode run or system operation.
+
+Examples:
+
+- brainstorm response
+- x-ray scan
+- reflection pack
+
+These often depend on:
+
+- user choice
+- mode config
+- current graph neighborhood
+- runtime state
+
+They should not be conflated with interpretive artifacts.
+
+## Derived Artifact Identity
+
+A derived artifact is not identified by input content alone.
+
+It is identified by the combination of:
+
+- artifact kind
+- input identity
+- derivation implementation
+- derivation version
+- output schema version
+- optional config fingerprint when relevant
+
+Recommended minimum fields on every derived artifact node:
+
+- `kind`
+- `inputKind`
+- `inputId`
+- `deriver`
+- `deriverVersion`
+- `schemaVersion`
+- `createdAt`
+
+Optional fields when relevant:
+
+- `configFingerprint`
+- `status`
+- `reasonKind`
+- `reasonText`
+
+This is enough to keep provenance inspectable without introducing a separate derivation-run node too early.
+
+## Derivation Provenance
+
+For now, `think` should use a lightweight provenance model for derivations.
+
+Each derived artifact should record:
+
+- what it was derived from
+- how it was derived
+- when it was derived
+
+The recommended near-term representation is:
+
+- metadata on the artifact node itself
+
+Possible later expansion:
+
+- `derive-run:<id>` nodes for batch runs or reproducibility inspection
+
+That fuller provenance model is valuable, but it is not required for the first disciplined graph shape.
+
+## Brainstorm-Specific Split
+
+`brainstormability` is too overloaded as a single concept.
+
+It should be split into two concepts:
+
+### Intrinsic Seed Quality
+
+A text-oriented judgment such as:
+
+- idea-like
+- question-like
+- decision-like
+- tension-bearing
+
+This is a content-derived artifact.
+
+### Contextual Brainstorm Eligibility
+
+A context-sensitive judgment such as:
+
+- should this be shown now as a brainstorm candidate?
+- has it already been brainstormed recently?
+- is it too similar to other recent seeds?
+- is it legible in the current session context?
+
+This is a contextual artifact, not a pure content judgment.
+
+This split keeps the graph honest.
+The same text can have stable seed quality while having changing operational eligibility.
 
 ## Recommended Edge Families
 
-The graph should prefer a small set of semantically crisp relationships.
+The graph should use explicit named edges.
 
-### Capture To Content
+Graphs rot when edges remain vibes-based.
 
-```mermaid
-flowchart LR
-    C["capture:<event-id>"] --> T["thought:<fingerprint>"]
-```
+Recommended starting verbs:
 
-Meaning:
+- `capture --expresses--> thought`
+- `capture --captured_in--> session`
+- `artifact --derived_from--> thought`
+- `artifact --contextualizes--> capture`
+- `operation --seeded_by--> capture`
+- `operation --produced--> artifact`
 
-- this capture event refers to this exact content
+These verbs can be refined later, but they should be chosen deliberately and reused consistently.
 
-### Content To Content-Derived Artifact
-
-```mermaid
-flowchart LR
-    T["thought:<fingerprint>"] --> K["keywordset:<fingerprint>"]
-    T --> CL["classification:<fingerprint>"]
-    T --> B["brainstormability:<fingerprint>"]
-```
-
-Meaning:
-
-- these artifacts were derived from this exact text
-
-### Capture To Session
+### Core Shape
 
 ```mermaid
 flowchart LR
-    C["capture:<event-id>"] --> S["session:<session-id>"]
+    C["capture:<event-id>"] -->| "expresses" | T["thought:<fingerprint>"]
+    C -->| "captured_in" | S["session:<session-id>"]
+    A["artifact:<artifact-id>"] -->| "derived_from" | T
+    A2["artifact:<artifact-id>"] -->| "contextualizes" | C
 ```
 
-Meaning:
-
-- this occurrence belongs to this human session
-
-### Capture To Context Artifact
+### Brainstorm Shape
 
 ```mermaid
 flowchart LR
-    C["capture:<event-id>"] --> X["context:<capture-id>"]
+    C["capture:<event-id>"] -->| "expresses" | T["thought:<fingerprint>"]
+    SQ["artifact:seed-quality"] -->| "derived_from" | T
+    CE["artifact:brainstorm-eligibility"] -->| "contextualizes" | C
+    O["operation:<operation-id>"] -->| "seeded_by" | C
+    R["artifact:brainstorm-response"] -->| "produced" | O
 ```
 
-Meaning:
+This makes the operational structure explicit:
 
-- this occurrence has contextual derivations tied to its session and neighbors
-
-### Brainstorm Session Structure
-
-```mermaid
-flowchart LR
-    C["capture:<event-id>"] --> T["thought:<fingerprint>"]
-    T --> B["brainstormability:<fingerprint>"]
-    C --> BS["brainstorm-session:<session-id>"]
-    BS --> R["brainstorm-response:<event-id>"]
-```
-
-Meaning:
-
-- brainstorm begins from a capture event
-- eligibility can be assessed from content-derived artifacts
-- the brainstorm response is a separate later event
+- raw capture remains sacred
+- content judgments remain content-derived
+- eligibility can depend on context
+- brainstorm output is an operation result, not a reinterpretation of the raw node
 
 ## Post-Capture Derivation Pipeline
 
@@ -265,7 +371,7 @@ Examples:
 
 1. keyword extraction
 2. lightweight classification
-3. brainstormability assessment
+3. seed-quality assessment
 
 ### Fast Per-Capture Derivations
 
@@ -275,6 +381,7 @@ Examples:
 
 1. session assignment
 2. contextualization from surrounding captures
+3. brainstorm eligibility
 
 ### Later Batch Derivations
 
@@ -305,8 +412,8 @@ These should stay close to raw capture events.
 
 Brainstorm should:
 
-- display the raw text from the raw/canonical thought
-- use `brainstormability` and related derived artifacts to decide what is eligible
+- display the canonical raw text from the thought node
+- use seed-quality and brainstorm-eligibility artifacts to decide what is eligible
 - avoid ad hoc raw heuristics in the UI layer
 
 ### X-Ray And Reflection
@@ -329,15 +436,13 @@ Use node attachments for:
 
 ### Edge Attachments Are Reserved
 
-Do not use edge attachments just because they are available.
+Use edge attachments only when all three are true:
 
-Use them only when:
+1. the relation has durable payload
+2. that payload is inspected independently
+3. introducing a relation-node would be more awkward than clearer
 
-- the relationship itself is the thing being examined
-- the relationship needs its own durable payload
-- a plain relationship plus a node would be more awkward than necessary
-
-For current `M3`/`M4` work, edge attachments should not be the default modeling move.
+For current `M3` and early `M4` work, edge attachments should not be the default modeling move.
 
 ## Pairings And Comparable Thoughts
 
@@ -351,15 +456,15 @@ Example future shape:
 
 ```mermaid
 flowchart LR
-    B1["brainstormability:<fingerprint-A>"] --> P["pairing:<id>"]
-    B2["brainstormability:<fingerprint-B>"] --> P
+    E1["artifact:brainstorm-eligibility-A"] -->| "pairs_with" | E2["artifact:brainstorm-eligibility-B"]
 ```
 
-Or, if eventually justified:
+Or, if the relationship itself needs richer provenance:
 
 ```mermaid
 flowchart LR
-    B1["brainstormability:<fingerprint-A>"] -->| "pairs_with" | B2["brainstormability:<fingerprint-B>"]
+    E1["artifact:brainstorm-eligibility-A"] --> P["artifact:pairing"]
+    E2["artifact:brainstorm-eligibility-B"] --> P
 ```
 
 Important rule:
@@ -382,6 +487,7 @@ This note does not approve:
 
 - recursive graph payloads as a default modeling tool
 - making the content fingerprint the sole capture identifier
+- identifying derived artifacts by content fingerprint alone
 - mutable interpretation properties on raw capture nodes
 - full pairwise brainstorm pairing materialization
 - x-ray ontology design during `M3`
@@ -393,7 +499,7 @@ The immediate next architectural improvement should be:
 
 1. keep raw capture as immutable ingress events
 2. introduce a stable content identity
-3. move brainstorm eligibility out of ad hoc CLI-only logic and into explicit derived graph artifacts
+3. move brainstorm seed-quality and eligibility out of ad hoc CLI-only logic and into explicit derived graph artifacts
 4. let brainstorm read those artifacts instead of re-deciding from scratch in the prompt layer
 
 That is enough structure to improve `M3` without prematurely building all of `M4`.
