@@ -7,7 +7,15 @@ struct ThinkMenuBarApp: App {
     @StateObject private var appState = CaptureAppState()
 
     var body: some Scene {
-        MenuBarExtra("think", systemImage: "brain.head.profile") {
+        MenuBarExtra(menuBarTitle, systemImage: menuBarIcon) {
+            if appState.isRestartRecommended {
+                Button("Restart to load latest build") {
+                    appState.restartToLoadLatestBuild()
+                }
+
+                Divider()
+            }
+
             Button("New Thought") {
                 appState.togglePanel()
             }
@@ -19,5 +27,13 @@ struct ThinkMenuBarApp: App {
             }
         }
         .menuBarExtraStyle(.menu)
+    }
+
+    private var menuBarTitle: String {
+        appState.isRestartRecommended ? "think !" : "think"
+    }
+
+    private var menuBarIcon: String {
+        appState.isRestartRecommended ? "arrow.trianglehead.clockwise" : "brain.head.profile"
     }
 }

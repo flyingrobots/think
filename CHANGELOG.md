@@ -19,6 +19,7 @@ Release discipline:
 - stats filters via `--from`, `--to`, and `--since`
 - stats bucketing via `--bucket=hour|day|week`
 - deterministic clock injection for stats tests via `THINK_TEST_NOW`
+- menu bar restart cue when a newer local macOS build is detected on disk
 
 ## [0.1.0] - 2026-03-22
 

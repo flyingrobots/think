@@ -12,6 +12,10 @@ let package = Package(
             name: "ThinkCaptureAdapter",
             targets: ["ThinkCaptureAdapter"]
         ),
+        .library(
+            name: "ThinkMenuBarSupport",
+            targets: ["ThinkMenuBarSupport"]
+        ),
         .executable(
             name: "ThinkMenuBarApp",
             targets: ["ThinkMenuBarApp"]
@@ -21,13 +25,20 @@ let package = Package(
         .target(
             name: "ThinkCaptureAdapter"
         ),
+        .target(
+            name: "ThinkMenuBarSupport"
+        ),
         .executableTarget(
             name: "ThinkMenuBarApp",
-            dependencies: ["ThinkCaptureAdapter"]
+            dependencies: ["ThinkCaptureAdapter", "ThinkMenuBarSupport"]
         ),
         .testTarget(
             name: "ThinkCaptureAdapterTests",
             dependencies: ["ThinkCaptureAdapter"]
+        ),
+        .testTarget(
+            name: "ThinkMenuBarSupportTests",
+            dependencies: ["ThinkMenuBarSupport"]
         ),
     ]
 )
