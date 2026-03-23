@@ -1,6 +1,6 @@
 # Roadmap And Milestones
 
-Status: `M0`, `M1`, and `M2` complete; `M3` implementation in progress; agent-native CLI and graph derivation designs under review
+Status: `M0`, `M1`, and `M2` complete; `M3` implementation in progress; agent-native CLI, graph derivation, and ingress pipeline designs under review
 
 ## Planning Frame
 
@@ -28,12 +28,13 @@ Milestones exist to prove user value in sequence. They are not buckets for unrel
 
 Some design notes are not standalone milestones, but they still shape how milestone work should be built.
 
-Current cross-cutting note under review:
+Current cross-cutting notes under review:
 
 - [`0008-agent-native-cli.md`](./0008-agent-native-cli.md)
 - [`0009-graph-derivation-model.md`](./0009-graph-derivation-model.md)
+- [`0010-ingress-and-derivation-pipeline.md`](./0010-ingress-and-derivation-pipeline.md)
 
-These notes should constrain new CLI-facing and graph-facing work, especially `M3` brainstorm commands and later `M4` derivation work, without becoming separate milestones.
+These notes should constrain new CLI-facing, graph-facing, and derivation-orchestration work, especially `M3` brainstorm commands and later `M4` derivation work, without becoming separate milestones.
 
 ## Milestone Flow
 
