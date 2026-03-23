@@ -17,7 +17,7 @@ import {
 
 test('think --brainstorm starts an explicit seeded brainstorm with a deterministic seed-first challenge prompt', async () => {
   const context = await createThinkContext();
-  const seedThought = 'warp graph as thought substrate';
+  const seedThought = 'We should make warp graph the thought substrate';
   captureWithEntryId(context, 'turkey is good in burritos');
   const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
 
@@ -70,7 +70,7 @@ test('think --brainstorm starts an explicit seeded brainstorm with a determinist
 
 test('think --brainstorm can deterministically use a seed-first constraint prompt', async () => {
   const context = await createThinkContext();
-  const seedThought = 'git-warp is for replayable cognition';
+  const seedThought = 'I want to make git-warp support replayable cognition';
   captureWithEntryId(context, 'warp cognition needs better replay receipts');
   const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
 
@@ -112,7 +112,7 @@ test('think --brainstorm can deterministically use a seed-first constraint promp
 
 test('think --brainstorm-session stores a separate derived entry with preserved seed-first lineage', async () => {
   const context = await createThinkContext();
-  const seedThought = 'git-warp is for replayable cognition';
+  const seedThought = 'I want to make git-warp support replayable cognition';
   const otherRawThought = 'warp cognition needs better replay receipts';
   const answer = 'The replay model matters more if the system can pressure-test a thought without rewriting it.';
   const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
@@ -227,9 +227,73 @@ test('think --brainstorm fails clearly when the seed entry does not exist', asyn
   );
 });
 
+test('think --brainstorm refuses status-like seeds that are not pressure-testable ideas', async () => {
+  const context = await createThinkContext();
+  const seedThought = "I showed the thought log to ChatGPT, since it was Chat's idea in the first place.";
+  const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
+
+  const start = runThink(context, ['--brainstorm=' + seedEntryId]);
+
+  assertFailure(start, 'Expected brainstorm to refuse low-signal status or narrative notes.');
+  assertContains(
+    start,
+    'This entry looks more like a note than a pressure-testable idea.',
+    'Expected brainstorm to explain why the seed is being refused.'
+  );
+  assertContains(
+    start,
+    'Pick a different seed or capture a sharper claim first.',
+    'Expected brainstorm to redirect the user toward a better seed instead of faking depth.'
+  );
+});
+
+test('think --json --brainstorm refuses ineligible seeds with structured machine-readable errors', async () => {
+  const context = await createThinkContext();
+  const seedThought = "I showed the thought log to ChatGPT, since it was Chat's idea in the first place.";
+  const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
+
+  const start = runThink(context, ['--json', `--brainstorm=${seedEntryId}`]);
+
+  assertFailure(start, 'Expected JSON brainstorm to refuse ineligible seeds.');
+  assertJsonStreams(start);
+
+  const stdoutEvents = parseJsonLines(start.stdout, 'Expected stdout JSONL for the command start event.');
+  const stderrEvents = parseJsonLines(start.stderr, 'Expected stderr JSONL for the ineligible-seed failure.');
+
+  assert.deepEqual(
+    stdoutEvents.map(event => event.event),
+    ['cli.start'],
+    'Expected stdout to carry only the non-error start event for an ineligible brainstorm seed.'
+  );
+
+  assert.deepEqual(
+    stderrEvents.map(event => event.event),
+    ['brainstorm.seed_ineligible', 'cli.failure'],
+    'Expected ineligible brainstorm seeds to fail on stderr with machine-readable rows.'
+  );
+
+  const ineligible = getEvent(
+    stderrEvents,
+    'brainstorm.seed_ineligible',
+    'Expected JSON brainstorm to expose a structured ineligible-seed row.'
+  );
+
+  assert.equal(ineligible.seedEntryId, seedEntryId, 'Expected structured ineligible-seed failures to preserve the seed id.');
+  assert.deepEqual(
+    ineligible.reason,
+    {
+      eligible: false,
+      kind: 'not_pressure_testable',
+      text: 'This entry looks more like a note than a pressure-testable idea.',
+      suggestion: 'Pick a different seed or capture a sharper claim first.',
+    },
+    'Expected JSON brainstorm refusal to expose a deterministic eligibility reason.'
+  );
+});
+
 test('think --json --brainstorm emits only JSONL with seed-first session and prompt data', async () => {
   const context = await createThinkContext();
-  const seedThought = 'warp graph as thought substrate';
+  const seedThought = 'We should make warp graph the thought substrate';
   captureWithEntryId(context, 'warp graph needs better replay tooling');
   const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
 
@@ -287,7 +351,7 @@ test('think --json --brainstorm emits only JSONL with seed-first session and pro
 
 test('think --json --brainstorm-session emits only JSONL and preserves stored seed-first lineage', async () => {
   const context = await createThinkContext();
-  const seedThought = 'git-warp is for replayable cognition';
+  const seedThought = 'I want to make git-warp support replayable cognition';
   const answer = 'The replay model matters more if the system can pressure-test a thought without rewriting it.';
   const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
 

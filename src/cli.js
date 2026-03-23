@@ -6,6 +6,7 @@ import { getLocalRepoDir, getUpstreamUrl } from './paths.js';
 import {
   captureThought,
   GRAPH_NAME,
+  listBrainstormableRecent,
   listRecent,
   getStats,
   startBrainstorm,
@@ -161,11 +162,28 @@ async function runBrainstormStart(seedEntryId, output, reporter) {
     return 1;
   }
 
-  const session = await startBrainstorm(repoDir, resolvedSeedEntryId);
-  if (!session) {
+  const result = await startBrainstorm(repoDir, resolvedSeedEntryId);
+  if (!result.ok && result.code === 'seed_not_found') {
     output.error('Seed entry not found', 'brainstorm.seed_not_found', { seedEntryId: resolvedSeedEntryId });
     return 1;
   }
+  if (!result.ok && result.code === 'seed_ineligible') {
+    const message = `${result.eligibility.text} ${result.eligibility.suggestion}`;
+    if (output.json) {
+      output.error(message, 'brainstorm.seed_ineligible', {
+        seedEntryId: resolvedSeedEntryId,
+        reason: result.eligibility,
+      });
+    } else {
+      output.error(message);
+      reporter.event('brainstorm.seed_ineligible', {
+        seedEntryId: resolvedSeedEntryId,
+        reason: result.eligibility,
+      });
+    }
+    return 1;
+  }
+  const session = result;
 
   const sessionPayload = {
     sessionId: session.sessionId,
@@ -248,9 +266,18 @@ async function pickBrainstormSeed(repoDir, output, reporter) {
     return null;
   }
 
-  const recentEntries = (await listRecent(repoDir)).slice(0, 9);
+  const recentEntries = (await listBrainstormableRecent(repoDir)).slice(0, 9);
   if (recentEntries.length === 0) {
-    output.error('No raw captures available to brainstorm from', 'brainstorm.seed_not_found');
+    output.error(
+      'No pressure-testable captures available to brainstorm from',
+      'brainstorm.seed_ineligible',
+      {
+        reason: {
+          kind: 'no_brainstormable_recent_captures',
+          text: 'No recent captures looked like candidate ideas, questions, or decisions to pressure-test.',
+        },
+      }
+    );
     return null;
   }
 
@@ -526,7 +553,7 @@ function normalizeForPicker(text) {
 
 function renderInteractiveSeedIntro(ctx) {
   const header = headerBox('Choose a seed thought', { ctx });
-  const body = markdown('**Pick one recent raw capture to pressure-test.**', { ctx });
+  const body = markdown('**Pick one recent capture that looks like an idea, question, or decision to pressure-test.**', { ctx });
   return `${header}\n${body}`;
 }
 
@@ -575,6 +602,7 @@ function resolveJsonStream(payload) {
       'backup.retry',
       'brainstorm.validation_failed',
       'brainstorm.seed_not_found',
+      'brainstorm.seed_ineligible',
       'brainstorm.session_not_found',
     ].includes(payload.event)
   ) {

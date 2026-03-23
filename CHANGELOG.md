@@ -22,6 +22,7 @@ Release discipline:
 - interactive seed picking for bare `--brainstorm` in a real TTY, while `--brainstorm=<seedEntryId>` remains the explicit plumbing path
 - default brainstorm now uses seed-first deterministic challenge or constraint prompts instead of archive-guessed contrast
 - brainstorm seed picking no longer truncates choices arbitrarily and now echoes the full selected seed in the interactive shell
+- brainstorm now refuses low-signal status or narrative seeds instead of forcing every raw capture through a pressure-test prompt
 
 ## [0.2.0] - 2026-03-22
 

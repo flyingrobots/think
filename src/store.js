@@ -19,6 +19,10 @@ const CONSTRAINT_PROMPTS = [
   'What is the smallest shippable version of this?',
   'What if this had to be explained in one sentence?',
 ];
+const BRAINSTORM_MARKERS = [
+  /\?/,
+  /\b(i wonder|maybe|should|could|would|what if|how might|want to|need to|problem|question|decision|tradeoff|constraint|risk)\b/,
+];
 
 export async function captureThought(repoDir, thought) {
   const graph = await openGraph(repoDir);
@@ -45,7 +49,21 @@ export async function startBrainstorm(repoDir, seedEntryId) {
   const seedEntry = await getStoredEntry(graph, seedEntryId);
 
   if (!seedEntry || seedEntry.kind !== 'capture') {
-    return null;
+    return {
+      ok: false,
+      code: 'seed_not_found',
+    };
+  }
+
+  const eligibility = assessBrainstormability(seedEntry.text);
+  if (!eligibility.eligible) {
+    return {
+      ok: false,
+      code: 'seed_ineligible',
+      seedEntryId,
+      seedEntry,
+      eligibility,
+    };
   }
 
   const promptPlan = selectBrainstormPrompt(seedEntry);
@@ -80,6 +98,7 @@ export async function startBrainstorm(repoDir, seedEntryId) {
   });
 
   return {
+    ok: true,
     sessionId: session.id,
     seedEntryId: session.seedEntryId,
     contrastEntryId: session.contrastEntryId,
@@ -189,6 +208,31 @@ export async function listRecent(repoDir) {
       sortKey: entry.sortKey,
     }))
     .sort(compareEntriesNewestFirst);
+}
+
+export async function listBrainstormableRecent(repoDir) {
+  const recent = await listRecent(repoDir);
+  return recent.filter((entry) => assessBrainstormability(entry.text).eligible);
+}
+
+export function assessBrainstormability(text) {
+  const normalized = normalizeSeed(text);
+  const eligible = BRAINSTORM_MARKERS.some((pattern) => pattern.test(normalized));
+
+  if (eligible) {
+    return {
+      eligible: true,
+      kind: 'pressure_testable',
+      text: 'This entry looks like a candidate idea, question, or decision that can be pressure-tested.',
+    };
+  }
+
+  return {
+    eligible: false,
+    kind: 'not_pressure_testable',
+    text: 'This entry looks more like a note than a pressure-testable idea.',
+    suggestion: 'Pick a different seed or capture a sharper claim first.',
+  };
 }
 
 async function openGraph(repoDir) {

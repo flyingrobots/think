@@ -89,6 +89,28 @@ Brainstorm begins from a seed entry or seed thought.
 The system must know what is being pushed on.
 The user must not be dropped into a generic blank brainstorm canvas.
 
+### Seed Eligibility Gate
+
+Not every raw capture should be brainstormable.
+
+Brainstorm should only operate on seeds that look like candidate:
+
+- ideas
+- questions
+- problems
+- decisions
+- tensions
+
+Status notes, narrative notes, and observational captures are still valuable, but they should not be forced through brainstorm by default.
+
+If a seed is not pressure-testable, the system should:
+
+- refuse clearly
+- explain the refusal plainly
+- suggest picking a different seed or capturing a sharper claim first
+
+The interactive seed picker should prefer pressure-testable captures rather than offering every raw entry equally.
+
 ### Deterministic Pressure
 
 The default brainstorm engine should be deterministic and non-LLM.
@@ -324,13 +346,15 @@ If the mode starts doing any of that, it has crossed into `M4`.
 2. Does one prompt usually produce a sharper thought, not just more words?
 3. Can the user see why the system chose the question shape?
 4. Is the default prompt always relevant to the seed thought?
-5. Do brainstorm outputs remain clearly separate from raw capture?
-6. Does the mode avoid chatbot energy?
-7. Would the user use this to pressure-test a real idea, not just to play with the system?
+5. Does the system refuse low-signal seeds instead of inventing fake depth?
+6. Do brainstorm outputs remain clearly separate from raw capture?
+7. Does the mode avoid chatbot energy?
+8. Would the user use this to pressure-test a real idea, not just to play with the system?
 
 ## Exit Criteria
 
 - brainstorm mode is explicit and seeded
+- brainstorm refuses seeds that are not pressure-testable
 - the first prompt engine is deterministic and inspectable
 - the system exposes deterministic receipts for prompt selection
 - brainstorm produces separate derived entries with preserved lineage
