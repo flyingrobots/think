@@ -18,6 +18,7 @@ Release discipline:
 - acceptance coverage for machine-readable capture, recent, stats, and validation-failure output
 - explicit M3 brainstorm plumbing via `--brainstorm=<seedEntryId>` and `--brainstorm-session=<sessionId> ...`
 - deterministic brainstorm receipts, constraint fallback, and separate stored brainstorm entries with preserved lineage
+- first Bijou-based interactive brainstorm shell for real TTY use, layered over the same M3 plumbing contract
 
 ## [0.2.0] - 2026-03-22
 

@@ -1,3 +1,6 @@
+import { input, note } from '@flyingrobots/bijou';
+import { initDefaultContext } from '@flyingrobots/bijou-node';
+
 import { ensureGitRepo, hasGitRepo, pushWarpRefs } from './git.js';
 import { getLocalRepoDir, getUpstreamUrl } from './paths.js';
 import {
@@ -181,6 +184,10 @@ async function runBrainstormStart(seedEntryId, output, reporter) {
     question: session.question,
   });
 
+  if (shouldUseInteractiveBrainstormShell(output)) {
+    return runInteractiveBrainstormShell(session, output, reporter);
+  }
+
   if (!output.json) {
     const lines = ['Brainstorm'];
     if (session.contrastEntry) {
@@ -230,6 +237,40 @@ async function runBrainstormReply(sessionId, response, output, reporter) {
   }
 
   return 0;
+}
+
+async function runInteractiveBrainstormShell(session, output, reporter) {
+  const ctx = initDefaultContext();
+  const receiptLine = session.contrastEntry
+    ? `Contrast: ${session.contrastEntry.text}\nWhy selected: ${session.selectionReason.text}`
+    : `Constraint: ${session.selectionReason.text}`;
+
+  await note({
+    title: 'Brainstorm',
+    message: `${receiptLine}\nQuestion: ${session.question}`,
+    ctx,
+  });
+
+  const response = await input({
+    title: 'Response',
+    placeholder: 'Push the idea somewhere sharper...',
+    ctx,
+  });
+
+  if (response.trim() === '') {
+    reporter.event('brainstorm.skipped', {
+      sessionId: session.sessionId,
+      reason: 'empty_response',
+    });
+    await note({
+      title: 'Brainstorm skipped',
+      message: 'No brainstorm response was saved.',
+      ctx,
+    });
+    return 0;
+  }
+
+  return runBrainstormReply(session.sessionId, response, output, reporter);
 }
 
 async function runRecent(output, reporter) {
@@ -445,6 +486,10 @@ function createOutput({ stdout, stderr, reporter, json }) {
       reporter.event(eventName, data);
     },
   };
+}
+
+function shouldUseInteractiveBrainstormShell(output) {
+  return !output.json && process.stdin.isTTY === true && process.stdout.isTTY === true;
 }
 
 function resolveJsonStream(payload) {
