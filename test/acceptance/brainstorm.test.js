@@ -18,7 +18,7 @@ import {
 test('think --brainstorm starts an explicit seeded brainstorm with deterministic contrast receipts', async () => {
   const context = await createThinkContext();
   const seedThought = 'warp graph as thought substrate';
-  const contrastThought = 'turkey is good in burritos';
+  const contrastThought = 'warp graph needs better replay tooling';
   const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
   const { entryId: contrastEntryId } = captureWithEntryId(context, contrastThought);
 
@@ -56,15 +56,21 @@ test('think --brainstorm starts an explicit seeded brainstorm with deterministic
   assert.equal(typeof sessionStarted.sessionId, 'string', 'Expected brainstorm to expose a reusable session id.');
   assert.ok(sessionStarted.selectionReason, 'Expected brainstorm to emit deterministic selection receipts.');
   assert.equal(
-    typeof sessionStarted.selectionReason.kind,
-    'string',
-    'Expected brainstorm selection receipts to include a deterministic reason kind.'
+    sessionStarted.selectionReason.kind,
+    'shared_terms',
+    'Expected brainstorm to explain contrast selection through shared structural terms.'
+  );
+  assert.equal(
+    sessionStarted.selectionReason.text,
+    'Shares terms: warp, graph',
+    'Expected brainstorm to expose the specific shared terms that justified the contrast.'
   );
 });
 
 test('think --brainstorm falls back to a constraint prompt when contrast is weak or unavailable', async () => {
   const context = await createThinkContext();
   const { entryId: seedEntryId } = captureWithEntryId(context, 'single lonely idea');
+  captureWithEntryId(context, 'turkey is good in burritos');
 
   const start = runThink(context, ['--verbose', `--brainstorm=${seedEntryId}`]);
 
@@ -101,7 +107,7 @@ test('think --brainstorm falls back to a constraint prompt when contrast is weak
 test('think --brainstorm-session stores a separate derived entry with preserved lineage', async () => {
   const context = await createThinkContext();
   const seedThought = 'git-warp is for replayable cognition';
-  const contrastThought = 'turkey is good in burritos';
+  const contrastThought = 'warp cognition needs better replay receipts';
   const answer = 'The replay model matters more if the system can pressure-test a thought without rewriting it.';
   const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
   const { entryId: contrastEntryId } = captureWithEntryId(context, contrastThought);
@@ -218,7 +224,7 @@ test('think --brainstorm fails clearly when the seed entry does not exist', asyn
 test('think --json --brainstorm emits only JSONL with receipts and prompt data', async () => {
   const context = await createThinkContext();
   const seedThought = 'warp graph as thought substrate';
-  const contrastThought = 'turkey is good in burritos';
+  const contrastThought = 'warp graph needs better replay tooling';
   const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
   const { entryId: contrastEntryId } = captureWithEntryId(context, contrastThought);
 
@@ -274,7 +280,7 @@ test('think --json --brainstorm emits only JSONL with receipts and prompt data',
 test('think --json --brainstorm-session emits only JSONL and preserves stored lineage', async () => {
   const context = await createThinkContext();
   const seedThought = 'git-warp is for replayable cognition';
-  const contrastThought = 'turkey is good in burritos';
+  const contrastThought = 'warp cognition needs better replay receipts';
   const answer = 'The replay model matters more if the system can pressure-test a thought without rewriting it.';
   const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
   const { entryId: contrastEntryId } = captureWithEntryId(context, contrastThought);

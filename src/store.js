@@ -9,6 +9,62 @@ const ENTRY_PREFIX = 'entry:';
 const BRAINSTORM_SESSION_PREFIX = 'brainstorm:';
 const TEXT_MIME = 'text/plain; charset=utf-8';
 const MAX_BRAINSTORM_STEPS = 3;
+const MIN_SHARED_TERMS_FOR_CONTRAST = 2;
+const BRAINSTORM_STOPWORDS = new Set([
+  'about',
+  'after',
+  'again',
+  'agent',
+  'agents',
+  'along',
+  'also',
+  'because',
+  'being',
+  'capture',
+  'captures',
+  'continue',
+  'could',
+  'first',
+  'from',
+  'have',
+  'idea',
+  'ideas',
+  'just',
+  'later',
+  'mode',
+  'modes',
+  'more',
+  'most',
+  'need',
+  'needs',
+  'other',
+  'place',
+  'really',
+  'said',
+  'same',
+  'should',
+  'since',
+  'something',
+  'still',
+  'that',
+  'their',
+  'there',
+  'these',
+  'thing',
+  'think',
+  'thought',
+  'thoughts',
+  'this',
+  'through',
+  'using',
+  'want',
+  'what',
+  'when',
+  'with',
+  'work',
+  'works',
+  'would',
+]);
 
 export async function captureThought(repoDir, thought) {
   const graph = await openGraph(repoDir);
@@ -309,28 +365,68 @@ function createBrainstormSession(writerId, {
 }
 
 function selectBrainstormPrompt(seedEntry, candidateCaptures) {
-  if (candidateCaptures.length === 0) {
+  const bestContrast = selectMeaningfulContrast(seedEntry, candidateCaptures);
+
+  if (!bestContrast) {
     return {
       promptType: 'constraint',
       contrastEntry: null,
       selectionReason: {
         kind: 'contrast_unavailable',
-        text: 'No other raw capture was available, so brainstorm fell back to a sharpening constraint.',
+        text: 'No structurally meaningful contrast was available, so brainstorm fell back to a sharpening constraint.',
       },
       question: 'What constraint would make this idea sharper right now?',
     };
   }
 
-  const contrastEntry = candidateCaptures[0];
+  const contrastEntry = bestContrast.entry;
+  const sharedTerms = bestContrast.sharedTerms.slice(0, 3);
   return {
     promptType: 'contrast',
     contrastEntry,
     selectionReason: {
-      kind: 'most_recent_other_capture',
-      text: 'Selected the most recent other raw capture as a deterministic contrast.',
+      kind: 'shared_terms',
+      text: `Shares terms: ${sharedTerms.join(', ')}`,
     },
     question: `What changes if you apply the logic of "${contrastEntry.text}" to "${seedEntry.text}"?`,
   };
+}
+
+function selectMeaningfulContrast(seedEntry, candidateCaptures) {
+  const seedTerms = extractLoadBearingTerms(seedEntry.text);
+  if (seedTerms.size === 0) {
+    return null;
+  }
+
+  let best = null;
+  for (const candidate of candidateCaptures) {
+    const candidateTerms = extractLoadBearingTerms(candidate.text);
+    const sharedTerms = [...seedTerms].filter(term => candidateTerms.has(term));
+
+    if (sharedTerms.length < MIN_SHARED_TERMS_FOR_CONTRAST) {
+      continue;
+    }
+
+    if (!best || sharedTerms.length > best.sharedTerms.length) {
+      best = {
+        entry: candidate,
+        sharedTerms,
+      };
+    }
+  }
+
+  return best;
+}
+
+function extractLoadBearingTerms(text) {
+  return new Set(
+    String(text)
+      .toLowerCase()
+      .split(/[^a-z0-9]+/g)
+      .filter(Boolean)
+      .filter(term => term.length >= 4)
+      .filter(term => !BRAINSTORM_STOPWORDS.has(term))
+  );
 }
 
 function compareEntriesNewestFirst(left, right) {

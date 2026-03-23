@@ -135,6 +135,10 @@ Early acceptable signals:
 - same session with clear topical difference
 - explicit later linkage
 
+Practical implication for early implementation:
+
+- if no candidate clears a meaningful shared-handle threshold, the system should prefer constraint mode over fake contrast
+
 Bad default:
 
 - a completely unrelated entry presented as wisdom just because it is distant
