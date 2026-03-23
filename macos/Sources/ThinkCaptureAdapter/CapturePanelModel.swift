@@ -12,7 +12,12 @@ public struct CapturePanelConfiguration: Equatable {
 public enum CapturePanelPhase: Equatable {
     case hidden
     case ready
-    case error(message: String)
+}
+
+public enum CaptureSubmissionEvent: Equatable {
+    case started(text: String)
+    case succeeded(result: CaptureResult)
+    case failed(retryText: String, message: String)
 }
 
 public final class CapturePanelModel: ObservableObject {
@@ -21,6 +26,7 @@ public final class CapturePanelModel: ObservableObject {
     @Published public private(set) var isTextFieldFocused = false
     @Published public private(set) var isSubmitting = false
     public let configuration: CapturePanelConfiguration
+    public var onSubmissionEvent: ((CaptureSubmissionEvent) -> Void)?
 
     private let client: ThinkCapturing
 
@@ -39,7 +45,7 @@ public final class CapturePanelModel: ObservableObject {
         case .hidden:
             phase = .ready
             isTextFieldFocused = true
-        case .ready, .error:
+        case .ready:
             cancel()
         }
     }
@@ -77,19 +83,29 @@ public final class CapturePanelModel: ObservableObject {
     @MainActor
     @discardableResult
     public func submit() async -> CaptureResult? {
-        guard canSubmit else { return nil }
+        await submit(text: text)
+    }
 
+    @MainActor
+    @discardableResult
+    public func submit(text submittedText: String) async -> CaptureResult? {
+        let normalizedText = submittedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedText.isEmpty, !isSubmitting else { return nil }
+
+        let rawText = submittedText
         isSubmitting = true
-        isTextFieldFocused = false
+        resetAndHide()
+        isSubmitting = true
+        onSubmissionEvent?(.started(text: rawText))
 
         do {
-            let result = try await client.capture(text: text)
-            resetAndHide()
+            let result = try await client.capture(text: rawText)
+            isSubmitting = false
+            onSubmissionEvent?(.succeeded(result: result))
             return result
         } catch {
             isSubmitting = false
-            phase = .error(message: "Could not save thought")
-            isTextFieldFocused = false
+            onSubmissionEvent?(.failed(retryText: rawText, message: "Could not save thought"))
             return nil
         }
     }

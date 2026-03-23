@@ -42,7 +42,7 @@ final class CapturePanelController {
                 switch phase {
                 case .hidden:
                     self.hidePanel()
-                case .ready, .error:
+                case .ready:
                     self.showPanelIfNeeded()
                 }
             }

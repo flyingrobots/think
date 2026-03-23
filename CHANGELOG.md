@@ -20,6 +20,7 @@ Release discipline:
 - stats bucketing via `--bucket=hour|day|week`
 - deterministic clock injection for stats tests via `THINK_TEST_NOW`
 - menu bar restart cue when a newer local macOS build is detected on disk
+- menu bar capture now dismisses immediately on submit and uses the menu bar icon for saving / success / failure state
 
 ## [0.1.0] - 2026-03-22
 

@@ -8,6 +8,19 @@ struct ThinkMenuBarApp: App {
 
     var body: some Scene {
         MenuBarExtra(menuBarTitle, systemImage: menuBarIcon) {
+            if let statusMessage {
+                Text(statusMessage)
+                    .foregroundStyle(.secondary)
+
+                if appState.captureMenuState == .failed {
+                    Button("Retry failed capture") {
+                        appState.retryFailedCapture()
+                    }
+                }
+
+                Divider()
+            }
+
             if appState.isRestartRecommended {
                 Button("Restart to load latest build") {
                     appState.restartToLoadLatestBuild()
@@ -29,11 +42,31 @@ struct ThinkMenuBarApp: App {
         .menuBarExtraStyle(.menu)
     }
 
-    private var menuBarTitle: String {
-        appState.isRestartRecommended ? "think !" : "think"
-    }
+    private var menuBarTitle: String { "think" }
 
     private var menuBarIcon: String {
-        appState.isRestartRecommended ? "arrow.trianglehead.clockwise" : "brain.head.profile"
+        switch appState.captureMenuState {
+        case .saving:
+            return "arrow.up.circle.fill"
+        case .saved:
+            return "checkmark.circle.fill"
+        case .failed:
+            return "exclamationmark.triangle.fill"
+        case .idle:
+            return appState.isRestartRecommended ? "arrow.trianglehead.clockwise" : "brain.head.profile"
+        }
+    }
+
+    private var statusMessage: String? {
+        switch appState.captureMenuState {
+        case .idle:
+            return nil
+        case .saving:
+            return "Saving thought..."
+        case .saved:
+            return "Thought captured."
+        case .failed:
+            return "Could not save thought."
+        }
     }
 }

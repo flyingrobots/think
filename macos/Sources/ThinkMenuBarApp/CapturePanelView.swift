@@ -24,21 +24,13 @@ struct CapturePanelView: View {
                     .submitLabel(.done)
                     .defaultFocus($textFieldFocused, true)
                     .focused($textFieldFocused)
-                    .disabled(model.isSubmitting)
                     .onSubmit {
                         submit()
                     }
 
                 Button(action: submit) {
-                    Group {
-                        if model.isSubmitting {
-                            ProgressView()
-                                .controlSize(.small)
-                        } else {
-                            Image(systemName: "arrow.up.circle.fill")
-                                .font(.system(size: 30, weight: .semibold))
-                        }
-                    }
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 30, weight: .semibold))
                     .frame(width: 34, height: 34)
                     .foregroundStyle(model.canSubmit ? Color.accentColor : Color.secondary.opacity(0.6))
                 }
@@ -46,30 +38,12 @@ struct CapturePanelView: View {
                 .disabled(!model.canSubmit)
             }
 
-            if case .error(let message) = model.phase {
-                HStack(spacing: 12) {
-                    Text(message)
-                        .font(.caption)
-                        .foregroundStyle(.red)
+            HStack {
+                Text("Press Return or click send. Esc cancels.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
-                    Spacer()
-
-                    Button("Retry") {
-                        model.retry()
-                    }
-
-                    Button("Cancel") {
-                        model.cancel()
-                    }
-                }
-            } else {
-                HStack {
-                    Text(model.isSubmitting ? "Saving..." : "Press Return to capture. Esc cancels.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    Spacer()
-                }
+                Spacer()
             }
         }
         .padding(22)

@@ -4,10 +4,18 @@ import Foundation
 import ThinkCaptureAdapter
 import ThinkMenuBarSupport
 
+enum CaptureMenuState: Equatable {
+    case idle
+    case saving
+    case saved
+    case failed
+}
+
 @MainActor
 final class CaptureAppState: ObservableObject {
     let model: CapturePanelModel
     @Published private(set) var isRestartRecommended = false
+    @Published private(set) var captureMenuState: CaptureMenuState = .idle
 
     private let panelController: CapturePanelController
     private let hotKeyMonitor: GlobalHotKeyMonitor
@@ -15,6 +23,8 @@ final class CaptureAppState: ObservableObject {
         snapshot: BuildUpdateBootstrapper.makeDefaultSnapshot()
     )
     private var updatePollingTask: Task<Void, Never>?
+    private var statusResetTask: Task<Void, Never>?
+    private var lastFailedText: String?
 
     init() {
         let client = CaptureAppState.makeClient()
@@ -29,12 +39,23 @@ final class CaptureAppState: ObservableObject {
             }
         }
 
+        self.model.onSubmissionEvent = { [weak self] event in
+            self?.handleSubmissionEvent(event)
+        }
         self.hotKeyMonitor.start()
         self.updatePollingTask = startUpdatePolling()
     }
 
     func togglePanel() {
         model.toggle()
+    }
+
+    func retryFailedCapture() {
+        guard let lastFailedText, !model.isSubmitting else { return }
+
+        Task { @MainActor in
+            _ = await model.submit(text: lastFailedText)
+        }
     }
 
     func restartToLoadLatestBuild() {
@@ -57,6 +78,7 @@ final class CaptureAppState: ObservableObject {
 
     deinit {
         updatePollingTask?.cancel()
+        statusResetTask?.cancel()
     }
 
     private static func makeClient() -> ThinkCapturing {
@@ -91,6 +113,29 @@ final class CaptureAppState: ObservableObject {
                     isRestartRecommended = shouldRecommendRestart
                 }
             }
+        }
+    }
+
+    private func handleSubmissionEvent(_ event: CaptureSubmissionEvent) {
+        switch event {
+        case .started(let text):
+            statusResetTask?.cancel()
+            lastFailedText = text
+            captureMenuState = .saving
+        case .succeeded:
+            statusResetTask?.cancel()
+            lastFailedText = nil
+            captureMenuState = .saved
+            statusResetTask = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(2))
+                await MainActor.run {
+                    self?.captureMenuState = .idle
+                }
+            }
+        case .failed(let retryText, _):
+            statusResetTask?.cancel()
+            lastFailedText = retryText
+            captureMenuState = .failed
         }
     }
 }

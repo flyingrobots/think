@@ -52,7 +52,7 @@ final class CapturePanelModelTests: XCTestCase {
         XCTAssertEqual(client.receivedTexts, ["capture this"])
     }
 
-    func testSubmitMarksThePanelAsSubmittingUntilCaptureCompletes() async {
+    func testSubmitHidesThePanelImmediatelyAndMarksItAsSubmittingUntilCaptureCompletes() async {
         let client = ControlledCaptureClient()
         let model = CapturePanelModel(client: client)
 
@@ -66,8 +66,9 @@ final class CapturePanelModelTests: XCTestCase {
         await Task.yield()
 
         XCTAssertTrue(model.isSubmitting)
+        XCTAssertEqual(model.phase, .hidden)
+        XCTAssertEqual(model.text, "")
         XCTAssertFalse(model.isTextFieldFocused)
-        XCTAssertEqual(model.phase, .ready)
         XCTAssertEqual(client.receivedTexts, ["capture this"])
 
         client.succeed(with: CaptureResult(backupState: .pending))
@@ -90,25 +91,30 @@ final class CapturePanelModelTests: XCTestCase {
         XCTAssertEqual(model.phase, .hidden)
     }
 
-    func testFailureShowsMinimalErrorAndAllowsRetry() async {
+    func testFailureKeepsPanelDismissedAndEmitsRetryableFailureEvent() async {
         let client = FakeCaptureClient(result: .failure(CaptureFailure(message: "full stderr dump should not leak")))
         let model = CapturePanelModel(client: client)
+        var receivedEvents: [CaptureSubmissionEvent] = []
+        model.onSubmissionEvent = { event in
+            receivedEvents.append(event)
+        }
 
         model.toggle()
         model.updateText("retry me")
         let result = await model.submit()
 
         XCTAssertNil(result)
-        XCTAssertEqual(model.phase, .error(message: "Could not save thought"))
-        XCTAssertEqual(model.text, "retry me")
+        XCTAssertEqual(model.phase, .hidden)
+        XCTAssertEqual(model.text, "")
         XCTAssertFalse(model.isTextFieldFocused)
         XCTAssertFalse(model.isSubmitting)
-
-        model.retry()
-
-        XCTAssertEqual(model.phase, .ready)
-        XCTAssertTrue(model.isTextFieldFocused)
-        XCTAssertEqual(model.text, "retry me")
+        XCTAssertEqual(
+            receivedEvents,
+            [
+                .started(text: "retry me"),
+                .failed(retryText: "retry me", message: "Could not save thought"),
+            ]
+        )
     }
 }
 
