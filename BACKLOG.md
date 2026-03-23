@@ -154,6 +154,54 @@ This is a good future confidence test for the local-first durability claim.
 
 These came out of the earlier product-shaping conversation and are worth preserving without promoting yet.
 
+### Multiple Minds
+
+Break the assumption that the thought store is always a single repo at `~/.think/repo`.
+
+Possible future shape:
+
+- support multiple named minds backed by separate thought repos
+- allow an explicit active/default mind for normal capture
+- make it possible for a human operator and one or more agents to have distinct minds
+- allow deliberate shared minds later without making accidental cross-contamination easy
+
+Important constraints:
+
+- do not make warm-path capture depend on choosing among many minds every time
+- do not let an agent silently write into the human's default mind unless that is explicitly intended
+- keep provenance explicit about which mind/repo an entry belongs to
+
+### Agent-Owned Minds
+
+If `think` becomes agent-native, an agent may need its own thought repo rather than writing into the operator's personal mind.
+
+Why this matters:
+
+- it preserves separate provenance
+- it avoids polluting a human's private archive with machine-originated thought
+- it makes replayable agent memory possible even if the agent itself does not retain direct conversational memory
+
+Possible future questions:
+
+- should agents have one mind each, or share a team/workspace mind?
+- what does controlled sharing or handoff between minds look like?
+- how explicit should the human be about whether a session writes to a human mind, agent mind, or shared mind?
+
+### Cryptographic Protection
+
+If multiple minds or sensitive private archives exist, the storage and backup model will probably need stronger cryptographic protection than plain local Git plus private remote.
+
+Possible future shape:
+
+- per-mind encryption or key-wrapping
+- encrypted backup to remote
+- explicit unlock model for local and agent access
+- boring, auditable key custody
+
+Important constraint:
+
+- do not add crypto in a way that breaks the cheap, habitual capture path unless the unlock model is already solved cleanly
+
 ### Brainstorm Submodes
 
 Possible brainstorm flavors:
