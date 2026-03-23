@@ -13,23 +13,34 @@ It is not a commitment list. It is a pressure-release valve for good ideas that 
 - No item here should be promoted ahead of proving daily capture habit.
 - Items may move into roadmap milestones only after design review or playback says they are earned.
 
-## Post-M1 Follow-Through
+## Post-M2 Follow-Through
 
-Milestone 1 is implemented. The remaining gaps are product-validation and operational follow-through, not core capture functionality.
+Milestones 1 and 2 are implemented and closed. The remaining gaps here are validation, instrumentation, and a few focused operational improvements.
 
-These should stay visible without being confused for unfinished Milestone 1 implementation work.
+These should stay visible without being confused for unfinished milestone implementation work.
 
-### Validate Capture Habit
+### Validate Daily Capture Habit
 
-- Use the CLI enough to learn whether capture is actually becoming habitual.
+- Use the hotkey path enough to learn whether it has actually displaced the CLI for normal Mac capture.
 - Track whether notable thoughts are being captured immediately rather than “later.”
-- Watch for hesitation, self-censorship, or a tendency to avoid capture during real work.
+- Watch for hesitation, self-censorship, or moments where the panel still feels like opening an app instead of dropping into a field.
+- Compare capture source mix over time in a way that helps product judgment rather than vanity analytics.
 
-### Measure The Latency Budget
+### Measure Capture Latency Honestly
 
 - Add a small benchmark harness for warm-path local capture.
-- Check whether the implementation still fits the stated local capture budget.
+- Add lightweight instrumentation for the macOS capture loop:
+  - hotkey to panel visible
+  - submit to panel hidden
+  - submit to local save complete
+- Decide later whether any latency aggregates belong in `think --stats`; if they do, keep them factual and boring.
 - Keep this as measurement and regression detection, not a flaky timing assertion in the deterministic suite.
+
+### Tune Hotkey Ergonomics
+
+- Allow the macOS app to override the default global hotkey while keeping a sane built-in default.
+- Keep preference plumbing lightweight; do not add a settings window until it is clearly earned.
+- If configuration is added, include basic validation and collision awareness.
 
 ### Improve Upstream Provisioning
 
@@ -45,7 +56,7 @@ These came directly out of the design review and should stay visible.
 
 - Track re-entry friction explicitly during playbacks.
 - Add a lightweight way to mark an entry as interesting during reflection, not during capture.
-- Keep CLI and macOS overlay first-class even as other ingress surfaces appear.
+- Keep CLI and the macOS capture surface first-class even as other ingress surfaces appear.
 
 ### COULD
 
@@ -173,6 +184,36 @@ This is partly reflected in the current docs, but richer handling of meta-entrie
 
 These are my additions. They fit the doctrine, but they are deferred on purpose.
 
+### Capture Latency Ledger
+
+Track timing data around the capture loop so regressions stop hiding inside “feels fast enough.”
+
+Potential dimensions:
+
+- hotkey to panel visible
+- panel visible to first keystroke
+- submit to panel hidden
+- submit to local save complete
+
+Constraints:
+
+- no noisy telemetry UI in the capture path
+- no dashboard drift
+- use the data to sharpen product judgment, not to gamify usage
+
+### Optional Capture Sounds
+
+Add a very small optional sound layer for trust-building:
+
+- subtle success cue
+- subtle failure cue
+
+Constraints:
+
+- must not slow the capture path
+- must not become naggy or theatrical
+- should remain optional if it ever ships
+
 ### Capture Recovery Queue
 
 If upstream backup fails, keep a visible but quiet backlog of pending backups that can flush later without bothering the user during capture.
@@ -221,16 +262,16 @@ Look for differences by ingress source:
 
 Only useful later, once there is enough volume and only if it improves product understanding rather than adding vanity analytics.
 
-### Configurable Hotkey
+### Hotkey Recorder
 
-The macOS capture surface should probably allow the user to override the default global hotkey.
+If configurable hotkeys ship, use a focused recorder flow instead of a settings-heavy surface.
 
 Constraints:
 
-- do not add a full settings window early
-- keep a sane built-in default
-- treat this as lightweight preference plumbing, not a control-panel feature
-- do not couple this to multi-step key chords unless there is a real need
+- one narrow responsibility
+- basic collision detection
+- no preference sprawl
+- no panel clutter
 
 ### Writer Provenance Views
 
