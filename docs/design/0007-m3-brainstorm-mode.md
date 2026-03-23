@@ -77,7 +77,9 @@ No:
 Brainstorm commands must also honor the standing CLI machine contract:
 
 - `--json` must be supported
-- `--json` output must be 100% JSONL on `stdout`
+- `--json` output must remain 100% JSONL across `stdout` and `stderr`
+- `stdout` should carry ordinary brainstorm data rows
+- `stderr` should carry structured warnings and errors
 - machine-readable rows must include real brainstorm data, not just trace noise
 
 ### Seeded Session

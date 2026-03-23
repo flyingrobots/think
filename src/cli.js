@@ -7,7 +7,12 @@ export async function main(argv, { stdout, stderr }) {
   const options = parseArgs(argv.slice(2));
   const command = resolveCommand(options);
   const reporter = createVerboseReporter(
-    options.json ? stdout : stderr,
+    options.json
+      ? (payload) => {
+          const stream = resolveJsonStream(payload) === 'stderr' ? stderr : stdout;
+          stream.write(`${JSON.stringify(payload)}\n`);
+        }
+      : stderr,
     options.verbose || options.json
   );
   const output = createOutput({ stdout, stderr, reporter, json: options.json });
@@ -48,7 +53,9 @@ export async function main(argv, { stdout, stderr }) {
       command,
       message: error instanceof Error ? error.message : String(error),
     });
-    output.error('Something went wrong', options.json ? undefined : null);
+    if (!options.json) {
+      output.error('Something went wrong');
+    }
     return 1;
   }
 }
@@ -293,4 +300,27 @@ function createOutput({ stdout, stderr, reporter, json }) {
       reporter.event(eventName, data);
     },
   };
+}
+
+function resolveJsonStream(payload) {
+  if (payload.event === 'backup.status' && payload.status === 'pending') {
+    return 'stderr';
+  }
+
+  if (
+    [
+      'cli.validation_failed',
+      'cli.failure',
+      'cli.error',
+      'capture.validation_failed',
+      'backup.pending',
+      'backup.failure',
+      'backup.timeout',
+      'backup.retry',
+    ].includes(payload.event)
+  ) {
+    return 'stderr';
+  }
+
+  return 'stdout';
 }

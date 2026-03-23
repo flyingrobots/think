@@ -20,7 +20,7 @@ What exists today:
 
 - raw CLI capture via `think "..."` or `node ./bin/think.js "..."`
 - explicit read-only CLI surfaces via `think --recent` and `think --stats`
-- machine-readable CLI output via `--json`, with JSONL-only output for every implemented command
+- machine-readable CLI output via `--json`, with JSONL-only streams for every implemented command
 - first-run bootstrap of a private local repo under `~/.think/repo`
 - exact raw-text preservation
 - plain newest-first recent listing
@@ -121,7 +121,10 @@ For trace output during a command, use `--verbose`. This emits JSONL progress ev
 think --verbose "trace this capture"
 ```
 
-For machine-readable command output, use `--json`. In `--json` mode, all command output is emitted as JSONL on `stdout` and human-readable text is suppressed:
+For machine-readable command output, use `--json`. In `--json` mode, all command output is emitted as JSONL and human-readable text is suppressed:
+
+- `stdout` carries ordinary data and success rows
+- `stderr` carries structured warnings and errors
 
 ```bash
 think --json "capture this as JSONL"

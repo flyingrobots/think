@@ -63,7 +63,9 @@ final class CapturePanelModelTests: XCTestCase {
             await model.submit()
         }
 
-        await Task.yield()
+        await waitUntil {
+            model.isSubmitting && client.receivedTexts == ["capture this"]
+        }
 
         XCTAssertTrue(model.isSubmitting)
         XCTAssertEqual(model.phase, .hidden)
@@ -115,6 +117,20 @@ final class CapturePanelModelTests: XCTestCase {
                 .failed(retryText: "retry me", message: "Could not save thought"),
             ]
         )
+    }
+}
+
+@MainActor
+private func waitUntil(
+    maxYields: Int = 20,
+    predicate: () -> Bool
+) async {
+    for _ in 0..<maxYields {
+        if predicate() {
+            return
+        }
+
+        await Task.yield()
     }
 }
 

@@ -225,7 +225,8 @@ Every CLI command must also support `--json`.
 In `--json` mode:
 
 - 100% of command output must be JSONL
-- output should go to `stdout`
+- `stdout` should carry ordinary data rows
+- `stderr` should carry structured warnings and errors
 - human-readable text should be suppressed
 - machine-readable rows should include real command data, not just trace noise
 

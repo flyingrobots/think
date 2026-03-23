@@ -3,7 +3,16 @@ import XCTest
 
 final class ThinkCLIAdapterTests: XCTestCase {
     func testCaptureUsesConfiguredCommandAndPassesThoughtAsSingleArgument() async throws {
-        let runner = RecordingRunner(output: ProcessOutput(status: 0, stdout: "Saved locally\n", stderr: ""))
+        let runner = RecordingRunner(output: ProcessOutput(
+            status: 0,
+            stdout: jsonLines(
+                ["event": "cli.start"],
+                ["event": "capture.status", "status": "saved_locally"],
+                ["event": "backup.skipped"],
+                ["event": "cli.success"]
+            ),
+            stderr: ""
+        ))
         let adapter = ThinkCLIAdapter(
             runner: runner,
             command: ThinkCLICommand(
@@ -16,13 +25,22 @@ final class ThinkCLIAdapterTests: XCTestCase {
         _ = try await adapter.capture(text: "one thought")
 
         XCTAssertEqual(runner.executablePath, "/usr/bin/env")
-        XCTAssertEqual(runner.arguments, ["node", "/repo/bin/think.js", "one thought"])
+        XCTAssertEqual(runner.arguments, ["node", "/repo/bin/think.js", "--json", "one thought"])
         XCTAssertEqual(runner.environment, ["HOME": "/tmp/think-home"])
     }
 
     func testSavedLocallyOnlyMapsToSkippedBackupState() async throws {
         let adapter = ThinkCLIAdapter(
-            runner: RecordingRunner(output: ProcessOutput(status: 0, stdout: "Saved locally\n", stderr: "")),
+            runner: RecordingRunner(output: ProcessOutput(
+                status: 0,
+                stdout: jsonLines(
+                    ["event": "cli.start"],
+                    ["event": "capture.status", "status": "saved_locally"],
+                    ["event": "backup.skipped"],
+                    ["event": "cli.success"]
+                ),
+                stderr: ""
+            )),
             command: ThinkCLICommand(executablePath: "/usr/bin/env")
         )
 
@@ -33,7 +51,16 @@ final class ThinkCLIAdapterTests: XCTestCase {
 
     func testBackedUpMapsToBackedUpState() async throws {
         let adapter = ThinkCLIAdapter(
-            runner: RecordingRunner(output: ProcessOutput(status: 0, stdout: "Saved locally\nBacked up\n", stderr: "")),
+            runner: RecordingRunner(output: ProcessOutput(
+                status: 0,
+                stdout: jsonLines(
+                    ["event": "cli.start"],
+                    ["event": "capture.status", "status": "saved_locally"],
+                    ["event": "backup.status", "status": "backed_up"],
+                    ["event": "cli.success"]
+                ),
+                stderr: ""
+            )),
             command: ThinkCLICommand(executablePath: "/usr/bin/env")
         )
 
@@ -44,7 +71,20 @@ final class ThinkCLIAdapterTests: XCTestCase {
 
     func testBackupPendingMapsToPendingWithoutFailure() async throws {
         let adapter = ThinkCLIAdapter(
-            runner: RecordingRunner(output: ProcessOutput(status: 0, stdout: "Saved locally\nBackup pending\n", stderr: "")),
+            runner: RecordingRunner(output: ProcessOutput(
+                status: 0,
+                stdout: jsonLines(
+                    ["event": "cli.start"],
+                    ["event": "capture.status", "status": "saved_locally"],
+                    ["event": "backup.start"],
+                    ["event": "cli.success"]
+                ),
+                stderr: jsonLines(
+                    ["event": "backup.timeout", "timeoutMs": 1500],
+                    ["event": "backup.failure", "reason": "timed out"],
+                    ["event": "backup.status", "status": "pending"]
+                )
+            )),
             command: ThinkCLICommand(executablePath: "/usr/bin/env")
         )
 
@@ -55,7 +95,14 @@ final class ThinkCLIAdapterTests: XCTestCase {
 
     func testNonZeroExitBecomesMinimalCaptureFailure() async {
         let adapter = ThinkCLIAdapter(
-            runner: RecordingRunner(output: ProcessOutput(status: 1, stdout: "", stderr: "Thought cannot be empty\n")),
+            runner: RecordingRunner(output: ProcessOutput(
+                status: 1,
+                stdout: jsonLines(["event": "cli.start"]),
+                stderr: jsonLines(
+                    ["event": "cli.validation_failed", "message": "Thought cannot be empty"],
+                    ["event": "cli.failure", "exitCode": 1]
+                )
+            )),
             command: ThinkCLICommand(executablePath: "/usr/bin/env")
         )
 
@@ -64,6 +111,22 @@ final class ThinkCLIAdapterTests: XCTestCase {
             XCTFail("Expected capture to fail")
         } catch let error as CaptureFailure {
             XCTAssertEqual(error.message, "Thought cannot be empty")
+        } catch {
+            XCTFail("Expected CaptureFailure, got \(error)")
+        }
+    }
+
+    func testMalformedJSONBecomesCaptureFailure() async {
+        let adapter = ThinkCLIAdapter(
+            runner: RecordingRunner(output: ProcessOutput(status: 0, stdout: "Saved locally\n", stderr: "")),
+            command: ThinkCLICommand(executablePath: "/usr/bin/env")
+        )
+
+        do {
+            _ = try await adapter.capture(text: "bad json")
+            XCTFail("Expected malformed JSON output to fail")
+        } catch let error as CaptureFailure {
+            XCTAssertEqual(error.message, "Could not decode think JSON output")
         } catch {
             XCTFail("Expected CaptureFailure, got \(error)")
         }
@@ -91,4 +154,12 @@ private final class RecordingRunner: ProcessRunning, @unchecked Sendable {
         self.environment = environment
         return output
     }
+}
+
+private func jsonLines(_ objects: [String: Any]...) -> String {
+    objects.map { object in
+        let data = try! JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+        return String(decoding: data, as: UTF8.self)
+    }
+    .joined(separator: "\n") + "\n"
 }

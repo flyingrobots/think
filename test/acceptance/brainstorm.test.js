@@ -225,7 +225,8 @@ test('think --json --brainstorm emits only JSONL with receipts and prompt data',
   const start = runThink(context, ['--json', `--brainstorm=${seedEntryId}`]);
 
   assertSuccess(start, 'Expected --json brainstorm start to succeed.');
-  assertJsonOnly(start);
+  assertJsonStreams(start);
+  assert.equal((start.stderr || '').trim(), '', 'Expected successful JSON brainstorm start to keep stderr quiet.');
 
   const events = parseJsonLines(
     start.stdout,
@@ -280,7 +281,8 @@ test('think --json --brainstorm-session emits only JSONL and preserves stored li
 
   const start = runThink(context, ['--json', `--brainstorm=${seedEntryId}`]);
   assertSuccess(start, 'Expected JSON brainstorm start to succeed before answering.');
-  assertJsonOnly(start);
+  assertJsonStreams(start);
+  assert.equal((start.stderr || '').trim(), '', 'Expected successful JSON brainstorm start to keep stderr quiet.');
 
   const sessionStarted = getEvent(
     parseJsonLines(start.stdout),
@@ -294,7 +296,8 @@ test('think --json --brainstorm-session emits only JSONL and preserves stored li
   );
 
   assertSuccess(continueResult, 'Expected JSON brainstorm response capture to succeed.');
-  assertJsonOnly(continueResult);
+  assertJsonStreams(continueResult);
+  assert.equal((continueResult.stderr || '').trim(), '', 'Expected successful JSON brainstorm response to keep stderr quiet.');
 
   const events = parseJsonLines(
     continueResult.stdout,
@@ -330,21 +333,25 @@ test('think --json brainstorm validation failures stay fully machine-readable', 
   const result = runThink(context, ['--json', '--brainstorm']);
 
   assertFailure(result, 'Expected invalid JSON brainstorm start to fail loudly.');
-  assertJsonOnly(result);
+  assertJsonStreams(result);
 
-  const events = parseJsonLines(
-    result.stdout,
-    'Expected JSON brainstorm validation failures to emit valid JSONL on stdout.'
+  const stdoutEvents = parseJsonLines(result.stdout, 'Expected stdout JSONL when present.');
+  const stderrEvents = parseJsonLines(result.stderr, 'Expected stderr JSONL for structured brainstorm validation failures.');
+
+  assert.deepEqual(
+    stdoutEvents.map(event => event.event),
+    ['cli.start'],
+    'Expected stdout to carry only the non-error start event for a failed JSON brainstorm command.'
   );
 
   assert.deepEqual(
-    events.map(event => event.event),
-    ['cli.start', 'cli.validation_failed', 'cli.failure'],
-    'Expected JSON brainstorm validation failures to remain fully machine-readable.'
+    stderrEvents.map(event => event.event),
+    ['cli.validation_failed', 'cli.failure'],
+    'Expected brainstorm validation failures to move to stderr while remaining machine-readable.'
   );
 
   const validation = getEvent(
-    events,
+    stderrEvents,
     'cli.validation_failed',
     'Expected JSON brainstorm validation to include a structured error row.'
   );
@@ -383,12 +390,12 @@ function getEvent(events, name, message) {
   return event;
 }
 
-function assertJsonOnly(result) {
-  assert.equal(
-    (result.stderr || '').trim(),
-    '',
-    `Expected stderr to stay empty in --json mode.\nstderr:\n${result.stderr}`
-  );
+function assertJsonStreams(result) {
+  if ((result.stdout || '').trim() !== '') {
+    parseJsonLines(result.stdout, 'Expected stdout to contain only JSONL when present in --json mode.');
+  }
 
-  parseJsonLines(result.stdout, 'Expected stdout to contain only JSONL in --json mode.');
+  if ((result.stderr || '').trim() !== '') {
+    parseJsonLines(result.stderr, 'Expected stderr to contain only JSONL when present in --json mode.');
+  }
 }

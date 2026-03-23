@@ -6,11 +6,18 @@ export function createVerboseReporter(stream, enabled) {
         return;
       }
 
-      stream.write(`${JSON.stringify({
+      const payload = {
         ts: new Date().toISOString(),
         event: name,
         ...data,
-      })}\n`);
+      };
+
+      if (typeof stream === 'function') {
+        stream(payload);
+        return;
+      }
+
+      stream.write(`${JSON.stringify(payload)}\n`);
     },
   };
 }
