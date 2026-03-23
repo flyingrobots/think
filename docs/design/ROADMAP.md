@@ -1,6 +1,6 @@
 # Roadmap And Milestones
 
-Status: `M0`, `M1`, and `M2` complete; `M3` tests as spec in progress
+Status: `M0`, `M1`, and `M2` complete; `M3` tests as spec in progress; agent-native CLI design under review
 
 ## Planning Frame
 
@@ -22,6 +22,17 @@ Milestones exist to prove user value in sequence. They are not buckets for unrel
 2. Prove real usage before building ontology.
 3. Keep the local-first path excellent before expanding ingress options.
 4. Add infrastructure only when it serves a hill directly.
+5. Treat the agent-facing JSONL contract as a real product boundary, not as incidental debug output.
+
+## Cross-Cutting Design Notes
+
+Some design notes are not standalone milestones, but they still shape how milestone work should be built.
+
+Current cross-cutting note under review:
+
+- [`0008-agent-native-cli.md`](./0008-agent-native-cli.md)
+
+This note should constrain new CLI-facing work, especially `M3` brainstorm commands, without becoming a separate milestone.
 
 ## Milestone Flow
 

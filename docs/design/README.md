@@ -1,6 +1,6 @@
 # Design Review Package
 
-Status: design approved; `M0`, `M1`, and `M2` complete; `M3` tests as spec in progress
+Status: design approved; `M0`, `M1`, and `M2` complete; `M3` tests as spec in progress; agent-native CLI design under review
 
 This directory began as the pre-implementation design package for `think`.
 
@@ -25,6 +25,7 @@ This review is meant to answer five questions:
 - [`0005-m2-macos-capture-surface.md`](./0005-m2-macos-capture-surface.md): IBM Design Thinking frame and interaction doctrine for the menu bar app and transient capture panel.
 - [`0006-stats-command.md`](./0006-stats-command.md): read-only stats surface for habit validation without dashboard drift.
 - [`0007-m3-brainstorm-mode.md`](./0007-m3-brainstorm-mode.md): IBM Design Thinking frame for explicit, deterministic brainstorm sessions.
+- [`0008-agent-native-cli.md`](./0008-agent-native-cli.md): IBM Design Thinking frame for treating agents as first-class CLI consumers through a versioned JSONL plumbing contract.
 - [`ROADMAP.md`](./ROADMAP.md): milestone sequence, hill mapping, exit criteria, and review checkpoints.
 - [`../retrospectives/m1-capture-core-and-upstream-backup.md`](../retrospectives/m1-capture-core-and-upstream-backup.md): closeout for the first implemented milestone and the remaining validation follow-through.
 - [`../retrospectives/m2-macos-capture-surface.md`](../retrospectives/m2-macos-capture-surface.md): closeout for the native menu bar app and hotkey capture surface.
@@ -41,6 +42,7 @@ flowchart TD
     R --> M2["0005 M2 macOS Capture Surface"]
     R --> S["0006 Stats Command"]
     R --> B3["0007 M3 Brainstorm Mode"]
+    R --> A8["0008 Agent-Native CLI"]
     R --> RD["Roadmap and Milestones"]
     R --> BL["Backlog (deferred ideas)"]
     P --> A
@@ -51,8 +53,11 @@ flowchart TD
     M --> M2
     M --> S
     M --> B3
+    A --> A8
+    T --> A8
     M2 --> RD
     B3 --> RD
+    A8 --> RD
 ```
 
 ## Review Standard
