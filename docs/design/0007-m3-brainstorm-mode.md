@@ -74,6 +74,12 @@ No:
 - ambient suggestions in the menu bar panel
 - “you may also like” behavior in recent
 
+Brainstorm commands must also honor the standing CLI machine contract:
+
+- `--json` must be supported
+- `--json` output must be 100% JSONL on `stdout`
+- machine-readable rows must include real brainstorm data, not just trace noise
+
 ### Seeded Session
 
 Brainstorm begins from a seed entry or seed thought.

@@ -215,6 +215,147 @@ test('think --brainstorm fails clearly when the seed entry does not exist', asyn
   );
 });
 
+test('think --json --brainstorm emits only JSONL with receipts and prompt data', async () => {
+  const context = await createThinkContext();
+  const seedThought = 'warp graph as thought substrate';
+  const contrastThought = 'turkey is good in burritos';
+  const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
+  const { entryId: contrastEntryId } = captureWithEntryId(context, contrastThought);
+
+  const start = runThink(context, ['--json', `--brainstorm=${seedEntryId}`]);
+
+  assertSuccess(start, 'Expected --json brainstorm start to succeed.');
+  assertJsonOnly(start);
+
+  const events = parseJsonLines(
+    start.stdout,
+    'Expected --json brainstorm start to emit valid JSONL on stdout.'
+  );
+
+  assert.deepEqual(
+    events.map(event => event.event),
+    [
+      'cli.start',
+      'brainstorm.session_started',
+      'brainstorm.contrast',
+      'brainstorm.prompt',
+      'cli.success',
+    ],
+    'Expected --json brainstorm start to emit machine-readable session, receipt, and prompt rows.'
+  );
+
+  const sessionStarted = getEvent(
+    events,
+    'brainstorm.session_started',
+    'Expected --json brainstorm start to expose session metadata.'
+  );
+  const contrast = getEvent(
+    events,
+    'brainstorm.contrast',
+    'Expected --json brainstorm start to expose the chosen contrast entry.'
+  );
+  const prompt = getEvent(
+    events,
+    'brainstorm.prompt',
+    'Expected --json brainstorm start to expose the prompt row.'
+  );
+
+  assert.equal(sessionStarted.seedEntryId, seedEntryId, 'Expected JSON brainstorm to preserve the seed lineage.');
+  assert.equal(sessionStarted.contrastEntryId, contrastEntryId, 'Expected JSON brainstorm to preserve the contrast lineage.');
+  assert.equal(sessionStarted.promptType, 'contrast', 'Expected JSON brainstorm to preserve the prompt family.');
+  assert.equal(contrast.entryId, contrastEntryId, 'Expected JSON brainstorm contrast row to identify the contrast entry.');
+  assert.equal(contrast.text, contrastThought, 'Expected JSON brainstorm contrast row to expose the contrast text.');
+  assert.ok(contrast.selectionReason, 'Expected JSON brainstorm contrast row to expose deterministic selection receipts.');
+  assert.equal(prompt.promptType, 'contrast', 'Expected JSON brainstorm prompt row to expose the prompt family.');
+  assert.equal(typeof prompt.question, 'string', 'Expected JSON brainstorm prompt row to expose the question text.');
+});
+
+test('think --json --brainstorm-session emits only JSONL and preserves stored lineage', async () => {
+  const context = await createThinkContext();
+  const seedThought = 'git-warp is for replayable cognition';
+  const contrastThought = 'turkey is good in burritos';
+  const answer = 'The replay model matters more if the system can pressure-test a thought without rewriting it.';
+  const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
+  const { entryId: contrastEntryId } = captureWithEntryId(context, contrastThought);
+
+  const start = runThink(context, ['--json', `--brainstorm=${seedEntryId}`]);
+  assertSuccess(start, 'Expected JSON brainstorm start to succeed before answering.');
+  assertJsonOnly(start);
+
+  const sessionStarted = getEvent(
+    parseJsonLines(start.stdout),
+    'brainstorm.session_started',
+    'Expected JSON brainstorm start to emit a reusable session id.'
+  );
+
+  const continueResult = runThink(
+    context,
+    ['--json', `--brainstorm-session=${sessionStarted.sessionId}`, answer]
+  );
+
+  assertSuccess(continueResult, 'Expected JSON brainstorm response capture to succeed.');
+  assertJsonOnly(continueResult);
+
+  const events = parseJsonLines(
+    continueResult.stdout,
+    'Expected --json brainstorm response to emit valid JSONL on stdout.'
+  );
+
+  assert.deepEqual(
+    events.map(event => event.event),
+    [
+      'cli.start',
+      'brainstorm.entry_saved',
+      'cli.success',
+    ],
+    'Expected JSON brainstorm response to emit only structured save rows.'
+  );
+
+  const saved = getEvent(
+    events,
+    'brainstorm.entry_saved',
+    'Expected JSON brainstorm response to expose the saved derived entry.'
+  );
+
+  assert.equal(saved.kind, 'brainstorm', 'Expected JSON brainstorm responses to be stored as brainstorm entries.');
+  assert.equal(saved.seedEntryId, seedEntryId, 'Expected JSON brainstorm response to preserve the seed lineage.');
+  assert.equal(saved.contrastEntryId, contrastEntryId, 'Expected JSON brainstorm response to preserve the contrast lineage.');
+  assert.equal(saved.sessionId, sessionStarted.sessionId, 'Expected JSON brainstorm response to remain in the same session.');
+  assert.equal(saved.promptType, 'contrast', 'Expected JSON brainstorm response to preserve the prompt family.');
+});
+
+test('think --json brainstorm validation failures stay fully machine-readable', async () => {
+  const context = await createThinkContext();
+
+  const result = runThink(context, ['--json', '--brainstorm']);
+
+  assertFailure(result, 'Expected invalid JSON brainstorm start to fail loudly.');
+  assertJsonOnly(result);
+
+  const events = parseJsonLines(
+    result.stdout,
+    'Expected JSON brainstorm validation failures to emit valid JSONL on stdout.'
+  );
+
+  assert.deepEqual(
+    events.map(event => event.event),
+    ['cli.start', 'cli.validation_failed', 'cli.failure'],
+    'Expected JSON brainstorm validation failures to remain fully machine-readable.'
+  );
+
+  const validation = getEvent(
+    events,
+    'cli.validation_failed',
+    'Expected JSON brainstorm validation to include a structured error row.'
+  );
+
+  assert.equal(
+    validation.message,
+    '--brainstorm requires a seed entry id',
+    'Expected JSON brainstorm validation to preserve the same error contract.'
+  );
+});
+
 function captureWithEntryId(context, thought, extraEnv = {}) {
   const capture = runThink(context, ['--verbose', thought], extraEnv);
 
@@ -240,4 +381,14 @@ function getEvent(events, name, message) {
   const event = events.find(candidate => candidate.event === name);
   assert.ok(event, message);
   return event;
+}
+
+function assertJsonOnly(result) {
+  assert.equal(
+    (result.stderr || '').trim(),
+    '',
+    `Expected stderr to stay empty in --json mode.\nstderr:\n${result.stderr}`
+  );
+
+  parseJsonLines(result.stdout, 'Expected stdout to contain only JSONL in --json mode.');
 }
