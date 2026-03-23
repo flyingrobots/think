@@ -108,6 +108,7 @@ If a seed is not pressure-testable, the system should:
 - refuse clearly
 - explain the refusal plainly
 - suggest picking a different seed or capturing a sharper claim first
+- offer one or two recent eligible alternatives when it can do so honestly
 
 The interactive seed picker should prefer pressure-testable captures rather than offering every raw entry equally.
 

@@ -168,17 +168,20 @@ async function runBrainstormStart(seedEntryId, output, reporter) {
     return 1;
   }
   if (!result.ok && result.code === 'seed_ineligible') {
-    const message = `${result.eligibility.text} ${result.eligibility.suggestion}`;
+    const suggestedSeeds = await suggestAlternativeSeeds(repoDir, resolvedSeedEntryId);
+    const message = formatIneligibleSeedMessage(result.eligibility, suggestedSeeds);
     if (output.json) {
       output.error(message, 'brainstorm.seed_ineligible', {
         seedEntryId: resolvedSeedEntryId,
         reason: result.eligibility,
+        suggestedSeeds,
       });
     } else {
       output.error(message);
       reporter.event('brainstorm.seed_ineligible', {
         seedEntryId: resolvedSeedEntryId,
         reason: result.eligibility,
+        suggestedSeeds,
       });
     }
     return 1;
@@ -549,6 +552,34 @@ function canInteractivelyPickBrainstormSeed(options) {
 
 function normalizeForPicker(text) {
   return String(text).replace(/\s+/g, ' ').trim();
+}
+
+async function suggestAlternativeSeeds(repoDir, excludedSeedEntryId) {
+  const recentEntries = await listBrainstormableRecent(repoDir);
+  return recentEntries
+    .filter((entry) => entry.id !== excludedSeedEntryId)
+    .slice(0, 2)
+    .map((entry) => ({
+      entryId: entry.id,
+      text: normalizeForPicker(entry.text),
+    }));
+}
+
+function formatIneligibleSeedMessage(eligibility, suggestedSeeds) {
+  const lines = [
+    eligibility.text,
+    eligibility.suggestion,
+  ];
+
+  if (suggestedSeeds.length > 0) {
+    lines.push('');
+    lines.push('Try one of these instead:');
+    for (const seed of suggestedSeeds) {
+      lines.push(`- ${seed.text}`);
+    }
+  }
+
+  return lines.join('\n');
 }
 
 function renderInteractiveSeedIntro(ctx) {

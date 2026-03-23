@@ -23,6 +23,7 @@ Release discipline:
 - default brainstorm now uses seed-first deterministic challenge or constraint prompts instead of archive-guessed contrast
 - brainstorm seed picking no longer truncates choices arbitrarily and now echoes the full selected seed in the interactive shell
 - brainstorm now refuses low-signal status or narrative seeds instead of forcing every raw capture through a pressure-test prompt
+- ineligible brainstorm seeds now suggest one or two recent eligible alternatives
 
 ## [0.2.0] - 2026-03-22
 

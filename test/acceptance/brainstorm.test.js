@@ -230,7 +230,11 @@ test('think --brainstorm fails clearly when the seed entry does not exist', asyn
 test('think --brainstorm refuses status-like seeds that are not pressure-testable ideas', async () => {
   const context = await createThinkContext();
   const seedThought = "I showed the thought log to ChatGPT, since it was Chat's idea in the first place.";
+  const alternativeOne = 'We should make warp graph the thought substrate';
+  const alternativeTwo = 'I want to make git-warp support replayable cognition';
   const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
+  captureWithEntryId(context, alternativeOne);
+  captureWithEntryId(context, alternativeTwo);
 
   const start = runThink(context, ['--brainstorm=' + seedEntryId]);
 
@@ -245,12 +249,23 @@ test('think --brainstorm refuses status-like seeds that are not pressure-testabl
     'Pick a different seed or capture a sharper claim first.',
     'Expected brainstorm to redirect the user toward a better seed instead of faking depth.'
   );
+  assertContains(
+    start,
+    'Try one of these instead:',
+    'Expected brainstorm refusal to suggest better seeds instead of dead-ending.'
+  );
+  assertContains(start, alternativeOne, 'Expected brainstorm refusal to suggest recent eligible alternatives.');
+  assertContains(start, alternativeTwo, 'Expected brainstorm refusal to suggest recent eligible alternatives.');
 });
 
 test('think --json --brainstorm refuses ineligible seeds with structured machine-readable errors', async () => {
   const context = await createThinkContext();
   const seedThought = "I showed the thought log to ChatGPT, since it was Chat's idea in the first place.";
+  const alternativeOne = 'We should make warp graph the thought substrate';
+  const alternativeTwo = 'I want to make git-warp support replayable cognition';
   const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
+  const { entryId: alternativeOneId } = captureWithEntryId(context, alternativeOne);
+  const { entryId: alternativeTwoId } = captureWithEntryId(context, alternativeTwo);
 
   const start = runThink(context, ['--json', `--brainstorm=${seedEntryId}`]);
 
@@ -288,6 +303,20 @@ test('think --json --brainstorm refuses ineligible seeds with structured machine
       suggestion: 'Pick a different seed or capture a sharper claim first.',
     },
     'Expected JSON brainstorm refusal to expose a deterministic eligibility reason.'
+  );
+  assert.deepEqual(
+    ineligible.suggestedSeeds,
+    [
+      {
+        entryId: alternativeTwoId,
+        text: alternativeTwo,
+      },
+      {
+        entryId: alternativeOneId,
+        text: alternativeOne,
+      },
+    ],
+    'Expected JSON brainstorm refusal to surface recent eligible alternatives in newest-first order.'
   );
 });
 
