@@ -20,7 +20,7 @@ Release discipline:
 - deterministic brainstorm receipts, constraint fallback, and separate stored brainstorm entries with preserved lineage
 - first Bijou-based interactive brainstorm shell for real TTY use, layered over the same M3 plumbing contract
 - interactive seed picking for bare `--brainstorm` in a real TTY, while `--brainstorm=<seedEntryId>` remains the explicit plumbing path
-- brainstorm contrast selection now fails closed to constraint mode unless it can justify a meaningful shared-handle contrast
+- default brainstorm now uses seed-first deterministic challenge or constraint prompts instead of archive-guessed contrast
 
 ## [0.2.0] - 2026-03-22
 

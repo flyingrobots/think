@@ -39,7 +39,7 @@ Who:
 
 What:
 
-- they enter brainstorm mode with a seed thought, receive one sharp deterministic prompt based on honest structural contrast or tension, respond, and leave with a new derived entry that preserves the lineage of the session
+- they enter brainstorm mode with a seed thought, receive one sharp deterministic challenge or constraint prompt, respond, and leave with a new derived entry that preserves the lineage of the session
 
 Wow:
 
@@ -89,69 +89,70 @@ Brainstorm begins from a seed entry or seed thought.
 The system must know what is being pushed on.
 The user must not be dropped into a generic blank brainstorm canvas.
 
-### Deterministic Sparring
+### Deterministic Pressure
 
 The default brainstorm engine should be deterministic and non-LLM.
 
 The core shape:
 
 1. select seed thought `A`
-2. select a structurally useful counterpoint `B`
+2. choose a sharp prompt family from the seed alone
 3. apply one fixed prompt template
 4. capture the user’s response as a brainstorm entry
 
-This makes brainstorm a sparring mode rather than a generation mode.
+This makes brainstorm a pressure mode rather than a generation mode.
 
-### Controlled Contrast
+### Challenge And Constraint First
 
-The most promising default stimulus is not “nearest thought.”
-It is “usefully contrasting thought.”
+The first implementation should not depend on the system guessing another relevant thought from the archive.
 
-Potential later selection signals:
+The best default prompt families are:
 
-- far lexical neighbor
-- same-session contrast
-- unresolved prior branch
+- `challenge`
+- `constraint`
 
 The important constraint for `M3`:
 
-- keep the selection logic simple and inspectable
-- always be able to explain why `B` was chosen
+- keep the prompt selection logic simple and inspectable
+- always be able to explain why the question shape was chosen
 - make that explanation deterministic and receipt-like rather than narrative
-- if no meaningful contrast exists, fall back to a constraint prompt instead of inventing weak juxtaposition
 
-### Contrast Quality Threshold
+Good default:
 
-“Far” is not good enough on its own.
-
-The contrast candidate should be:
-
-- sufficiently distant to create tension
-- but still structurally interesting rather than random junk
-
-Early acceptable signals:
-
-- some shared term or context
-- same session with clear topical difference
-- explicit later linkage
-
-Practical implication for early implementation:
-
-- if no candidate clears a meaningful shared-handle threshold, the system should prefer constraint mode over fake contrast
+- a seed-first question that is always relevant to the seed thought
 
 Bad default:
 
-- a completely unrelated entry presented as wisdom just because it is distant
+- a second thought presented as wisdom just because the system found some weak overlap or convenient distance signal
+
+### Recombine Is Optional, Not Default
+
+Archive-driven recombination may still become useful later, but it should not be the default `M3` path.
+
+If recombine is added later, it should be:
+
+- explicit
+- explainable
+- skippable
+- grounded in stronger structure than casual overlap
+
+Examples of acceptable later recombine signals:
+
+- explicit user request
+- same session with clear tension
+- explicit later linkage
+- stronger later `M4` structure once it exists
+
+Until then, default brainstorm should remain seed-first.
 
 ### Receipt Surface
 
-Whenever brainstorm presents a contrast or prompt, it should also show why it was selected.
+Whenever brainstorm presents a prompt, it should also show why it was selected.
 
 Examples:
 
-- “Captured in the same session”
-- “Shares rare term: warp”
-- “Chosen as a distant neighbor in vocabulary space”
+- “Used a deterministic challenge prompt from the seed thought alone.”
+- “Used a deterministic constraint prompt from the seed thought alone.”
 
 This is part of the product, not a debugging detail.
 
@@ -161,10 +162,12 @@ Prompting should come from a small, explicit bank of sharp question shapes.
 
 Examples:
 
-- “What changes if you apply the logic of B to A?”
-- “What assumption in A breaks when contrasted with B?”
-- “Are A and B solving the same problem from opposite directions?”
-- “What would sharpen A under the constraint implied by B?”
+- “What assumption is hiding here?”
+- “What would make this false in practice?”
+- “What part of this is probably wishful thinking?”
+- “What if this had to work offline?”
+- “What is the smallest shippable version of this?”
+- “What if this had to be explained in one sentence?”
 
 This keeps the mode sparse and intentional.
 
@@ -203,8 +206,8 @@ If the mode starts trying to “understand” the whole archive, it is drifting 
 
 ```mermaid
 flowchart LR
-    S["Seed entry"] --> C["Choose contrast or counterpoint"]
-    C --> P["Apply fixed prompt template"]
+    S["Seed entry"] --> F["Choose challenge or constraint family"]
+    F --> P["Apply fixed prompt template"]
     P --> R["User responds"]
     R --> D["Store brainstorm entry separately"]
     D --> N["Optionally continue or exit"]
@@ -212,7 +215,7 @@ flowchart LR
 
 The intelligence here is mostly:
 
-- structural choice
+- prompt-family choice
 - prompt sharpness
 - user response
 
@@ -245,9 +248,9 @@ It does not need to:
 
 Likely useful first families:
 
-### Contrast
+### Challenge
 
-- make the user compare the seed to a far or surprising neighbor
+- attack a hidden assumption or weak claim
 
 ### Constraint
 
@@ -256,18 +259,15 @@ Likely useful first families:
 Examples:
 
 - “What if this had to work offline?”
+- “What is the smallest shippable version of this?”
 - “What if this had to be explainable in one sentence?”
-
-### Challenge
-
-- attack a hidden assumption or weak claim
 
 ### Recombine
 
 - ask whether two apparently separate ideas are actually related
 
-These are good candidate families.
-They do not all need to ship in the first implementation.
+Challenge and constraint are the correct defaults.
+Recombine is a later, more failure-prone mode and does not need to ship in the first implementation.
 
 ## Non-LLM Position
 
@@ -283,7 +283,7 @@ For `M3`, that means:
 
 - no LLM dependency is required
 - prompt generation should not depend on a model
-- session usefulness should come from sharp contrast and good questions, not synthetic fluency
+- session usefulness should come from sharp challenge/constraint prompts and good questions, not synthetic fluency
 
 ## Boundaries With M4
 
@@ -315,15 +315,15 @@ If the mode starts doing any of that, it has crossed into `M4`.
 - brainstorm starts surfacing too many choices and becomes menu-driven
 - brainstorm leaks into capture
 - brainstorm outputs become a replacement for raw entries rather than a separate layer
-- the contrast logic gets too clever to explain
+- archive-selection logic gets too clever to explain
 - the system mistakes deterministic structure for actual understanding
 
 ## Playback Questions
 
 1. Does brainstorm feel deliberately entered rather than ambient?
 2. Does one prompt usually produce a sharper thought, not just more words?
-3. Can the user see why the system chose the contrast thought or question shape?
-4. Does the system fall back gracefully when contrast is weak?
+3. Can the user see why the system chose the question shape?
+4. Is the default prompt always relevant to the seed thought?
 5. Do brainstorm outputs remain clearly separate from raw capture?
 6. Does the mode avoid chatbot energy?
 7. Would the user use this to pressure-test a real idea, not just to play with the system?
@@ -332,7 +332,7 @@ If the mode starts doing any of that, it has crossed into `M4`.
 
 - brainstorm mode is explicit and seeded
 - the first prompt engine is deterministic and inspectable
-- the system exposes deterministic receipts for prompt or contrast selection
+- the system exposes deterministic receipts for prompt selection
 - brainstorm produces separate derived entries with preserved lineage
 - raw capture remains untouched
 - brainstorm is sharp enough to generate useful follow-on thoughts

@@ -178,14 +178,6 @@ async function runBrainstormStart(seedEntryId, output, reporter) {
 
   reporter.event('brainstorm.session_started', sessionPayload);
 
-  if (session.contrastEntry) {
-    reporter.event('brainstorm.contrast', {
-      entryId: session.contrastEntry.id,
-      text: session.contrastEntry.text,
-      selectionReason: session.selectionReason,
-    });
-  }
-
   reporter.event('brainstorm.prompt', {
     sessionId: session.sessionId,
     promptType: session.promptType,
@@ -198,12 +190,8 @@ async function runBrainstormStart(seedEntryId, output, reporter) {
 
   if (!output.json) {
     const lines = ['Brainstorm'];
-    if (session.contrastEntry) {
-      lines.push(`Contrast: ${session.contrastEntry.text}`);
-      lines.push(`Why selected: ${session.selectionReason.text}`);
-    } else {
-      lines.push(`Constraint: ${session.selectionReason.text}`);
-    }
+    lines.push(`Mode: ${capitalize(session.promptType)}`);
+    lines.push(`Why selected: ${session.selectionReason.text}`);
     lines.push(`Question: ${session.question}`);
     output.out(lines.join('\n'));
   }
@@ -548,26 +536,27 @@ function renderInteractiveSeedIntro(ctx) {
 
 function renderInteractiveBrainstormIntro(session, ctx) {
   const header = headerBox('Brainstorm', { ctx });
-  const sections = session.contrastEntry
-    ? [
-        '### Contrast',
-        session.contrastEntry.text,
-        '',
-        '### Why Selected',
-        session.selectionReason.text,
-        '',
-        '# Question',
-        session.question,
-      ]
-    : [
-        '### Constraint',
-        session.selectionReason.text,
-        '',
-        '# Question',
-        session.question,
-      ];
+  const sections = [
+    '## Mode',
+    `**${capitalize(session.promptType)}**`,
+    '',
+    '## Why This Question',
+    session.selectionReason.text,
+    '',
+    '## Question',
+    `**${session.question}**`,
+  ];
 
   return `${header}\n${markdown(sections.join('\n'), { ctx })}`;
+}
+
+function capitalize(value) {
+  const text = String(value || '');
+  if (text.length === 0) {
+    return text;
+  }
+
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 function resolveJsonStream(payload) {

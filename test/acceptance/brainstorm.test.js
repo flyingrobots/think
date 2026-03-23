@@ -15,21 +15,25 @@ import {
   parseJsonLines,
 } from '../support/assertions.js';
 
-test('think --brainstorm starts an explicit seeded brainstorm with deterministic contrast receipts', async () => {
+test('think --brainstorm starts an explicit seeded brainstorm with a deterministic seed-first challenge prompt', async () => {
   const context = await createThinkContext();
   const seedThought = 'warp graph as thought substrate';
-  const contrastThought = 'warp graph needs better replay tooling';
+  captureWithEntryId(context, 'turkey is good in burritos');
   const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
-  const { entryId: contrastEntryId } = captureWithEntryId(context, contrastThought);
 
   const start = runThink(context, ['--verbose', `--brainstorm=${seedEntryId}`]);
 
   assertSuccess(start, 'Expected seeded brainstorm start to succeed.');
   assertContains(start, 'Brainstorm', 'Expected brainstorm mode to identify itself explicitly.');
-  assertContains(start, 'Contrast:', 'Expected brainstorm to surface a contrast receipt.');
-  assertContains(start, contrastThought, 'Expected brainstorm to reveal the selected contrast entry.');
-  assertContains(start, 'Why selected:', 'Expected brainstorm to explain why the contrast was chosen.');
+  assertContains(start, 'Mode: Challenge', 'Expected brainstorm to identify the prompt family clearly.');
+  assertContains(start, 'Why selected:', 'Expected brainstorm to explain why the question was chosen.');
   assertContains(start, 'Question:', 'Expected brainstorm to present one sharp prompt.');
+  assertContains(
+    start,
+    'What would make this false in practice?',
+    'Expected brainstorm to ask the deterministic challenge prompt for this seed thought.'
+  );
+  assertNotContains(start, 'Contrast:', 'Default brainstorm should not guess another thought to contrast against.');
   assertNotContains(start, 'cluster', 'Brainstorm should not leak clustering language.');
   assertNotContains(start, 'keyword', 'Brainstorm should not leak keyword extraction.');
   assertNotContains(start, 'summary', 'Brainstorm should not summarize the archive.');
@@ -48,69 +52,71 @@ test('think --brainstorm starts an explicit seeded brainstorm with deterministic
   assert.equal(sessionStarted.seedEntryId, seedEntryId, 'Expected brainstorm to preserve the seed lineage.');
   assert.equal(
     sessionStarted.contrastEntryId,
-    contrastEntryId,
-    'Expected brainstorm to identify the chosen contrast entry.'
+    null,
+    'Expected default brainstorm to omit contrast lineage rather than pretending another thought is relevant.'
   );
-  assert.equal(sessionStarted.promptType, 'contrast', 'Expected contrast to be the default brainstorm prompt family.');
+  assert.equal(sessionStarted.promptType, 'challenge', 'Expected this seed to deterministically map to challenge mode.');
   assert.equal(sessionStarted.maxSteps, 3, 'Expected brainstorm sessions to stay bounded.');
   assert.equal(typeof sessionStarted.sessionId, 'string', 'Expected brainstorm to expose a reusable session id.');
-  assert.ok(sessionStarted.selectionReason, 'Expected brainstorm to emit deterministic selection receipts.');
-  assert.equal(
-    sessionStarted.selectionReason.kind,
-    'shared_terms',
-    'Expected brainstorm to explain contrast selection through shared structural terms.'
-  );
-  assert.equal(
-    sessionStarted.selectionReason.text,
-    'Shares terms: warp, graph',
-    'Expected brainstorm to expose the specific shared terms that justified the contrast.'
+  assert.deepEqual(
+    sessionStarted.selectionReason,
+    {
+      kind: 'seed_only_challenge',
+      text: 'Used a deterministic challenge prompt from the seed thought alone.',
+    },
+    'Expected brainstorm to emit deterministic seed-first selection receipts.'
   );
 });
 
-test('think --brainstorm falls back to a constraint prompt when contrast is weak or unavailable', async () => {
+test('think --brainstorm can deterministically use a seed-first constraint prompt', async () => {
   const context = await createThinkContext();
-  const { entryId: seedEntryId } = captureWithEntryId(context, 'single lonely idea');
-  captureWithEntryId(context, 'turkey is good in burritos');
+  const seedThought = 'git-warp is for replayable cognition';
+  captureWithEntryId(context, 'warp cognition needs better replay receipts');
+  const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
 
   const start = runThink(context, ['--verbose', `--brainstorm=${seedEntryId}`]);
 
-  assertSuccess(start, 'Expected brainstorm to remain usable even when no good contrast exists.');
-  assertContains(start, 'Brainstorm', 'Expected fallback brainstorm to remain explicit.');
-  assertContains(start, 'Constraint:', 'Expected brainstorm to fall back to a constraint prompt.');
-  assertContains(start, 'Question:', 'Expected fallback brainstorm to still ask one sharp question.');
-  assertNotContains(start, 'Contrast:', 'Expected constraint fallback to avoid pretending a contrast exists.');
+  assertSuccess(start, 'Expected brainstorm to remain usable for a deterministic constraint prompt.');
+  assertContains(start, 'Brainstorm', 'Expected brainstorm mode to remain explicit.');
+  assertContains(start, 'Mode: Constraint', 'Expected brainstorm to identify the constraint family clearly.');
+  assertContains(start, 'Why selected:', 'Expected brainstorm to explain why the question was chosen.');
+  assertContains(
+    start,
+    'What is the smallest shippable version of this?',
+    'Expected brainstorm to ask the deterministic constraint prompt for this seed thought.'
+  );
+  assertNotContains(start, 'Contrast:', 'Constraint mode should not pretend it picked a contrast thought.');
 
   const events = parseJsonLines(
     start.stderr,
-    'Expected fallback brainstorm --verbose to emit valid JSONL trace events.'
+    'Expected deterministic constraint brainstorm --verbose to emit valid JSONL trace events.'
   );
   const sessionStarted = getEvent(
     events,
     'brainstorm.session_started',
-    'Expected fallback brainstorm to emit session metadata.'
+    'Expected constraint brainstorm to emit session metadata.'
   );
 
-  assert.equal(sessionStarted.seedEntryId, seedEntryId, 'Expected fallback brainstorm to preserve the seed lineage.');
-  assert.equal(
-    sessionStarted.contrastEntryId ?? null,
-    null,
-    'Expected fallback brainstorm to omit a contrast lineage id when no contrast was chosen.'
-  );
-  assert.equal(sessionStarted.promptType, 'constraint', 'Expected missing contrast to fall back to constraint mode.');
-  assert.equal(
-    sessionStarted.selectionReason?.kind,
-    'contrast_unavailable',
-    'Expected fallback brainstorm to expose a deterministic fallback reason.'
+  assert.equal(sessionStarted.seedEntryId, seedEntryId, 'Expected constraint brainstorm to preserve the seed lineage.');
+  assert.equal(sessionStarted.contrastEntryId, null, 'Expected seed-first constraint prompts to omit contrast lineage.');
+  assert.equal(sessionStarted.promptType, 'constraint', 'Expected this seed to deterministically map to constraint mode.');
+  assert.deepEqual(
+    sessionStarted.selectionReason,
+    {
+      kind: 'seed_only_constraint',
+      text: 'Used a deterministic constraint prompt from the seed thought alone.',
+    },
+    'Expected brainstorm to expose deterministic seed-only constraint receipts.'
   );
 });
 
-test('think --brainstorm-session stores a separate derived entry with preserved lineage', async () => {
+test('think --brainstorm-session stores a separate derived entry with preserved seed-first lineage', async () => {
   const context = await createThinkContext();
   const seedThought = 'git-warp is for replayable cognition';
-  const contrastThought = 'warp cognition needs better replay receipts';
+  const otherRawThought = 'warp cognition needs better replay receipts';
   const answer = 'The replay model matters more if the system can pressure-test a thought without rewriting it.';
   const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
-  const { entryId: contrastEntryId } = captureWithEntryId(context, contrastThought);
+  captureWithEntryId(context, otherRawThought);
 
   const start = runThink(context, ['--verbose', `--brainstorm=${seedEntryId}`]);
   assertSuccess(start, 'Expected brainstorm start to succeed before answering.');
@@ -148,21 +154,21 @@ test('think --brainstorm-session stores a separate derived entry with preserved 
   assert.equal(saved.seedEntryId, seedEntryId, 'Expected brainstorm entry to preserve the seed lineage.');
   assert.equal(
     saved.contrastEntryId,
-    contrastEntryId,
-    'Expected brainstorm entry to preserve the contrast lineage.'
+    null,
+    'Expected default brainstorm entries to stay seed-first instead of carrying fake contrast lineage.'
   );
   assert.equal(
     saved.sessionId,
     sessionStarted.sessionId,
     'Expected brainstorm response to remain attached to the original session.'
   );
-  assert.equal(saved.promptType, 'contrast', 'Expected brainstorm response to preserve the prompt family.');
+  assert.equal(saved.promptType, 'constraint', 'Expected brainstorm response to preserve the prompt family.');
   assert.equal(typeof saved.entryId, 'string', 'Expected brainstorm response to expose its own entry id.');
 
   const recent = runThink(context, ['--recent']);
   assertSuccess(recent, 'Expected recent to remain usable after brainstorm activity.');
   assertContains(recent, seedThought, 'Expected recent to keep showing raw capture entries.');
-  assertContains(recent, contrastThought, 'Expected recent to keep showing raw capture entries.');
+  assertContains(recent, otherRawThought, 'Expected recent to keep showing raw capture entries.');
   assertNotContains(
     recent,
     answer,
@@ -178,7 +184,7 @@ test('think --brainstorm validates explicit session entry and stays read-only on
   assertContains(
     missingSeed,
     '--brainstorm requires a seed entry id',
-    'Expected brainstorm mode to require explicit seeding.'
+    'Expected brainstorm mode to require explicit seeding outside interactive TTY use.'
   );
   assert.ok(
     !existsSync(context.localRepoDir),
@@ -221,12 +227,11 @@ test('think --brainstorm fails clearly when the seed entry does not exist', asyn
   );
 });
 
-test('think --json --brainstorm emits only JSONL with receipts and prompt data', async () => {
+test('think --json --brainstorm emits only JSONL with seed-first session and prompt data', async () => {
   const context = await createThinkContext();
   const seedThought = 'warp graph as thought substrate';
-  const contrastThought = 'warp graph needs better replay tooling';
+  captureWithEntryId(context, 'warp graph needs better replay tooling');
   const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
-  const { entryId: contrastEntryId } = captureWithEntryId(context, contrastThought);
 
   const start = runThink(context, ['--json', `--brainstorm=${seedEntryId}`]);
 
@@ -244,22 +249,16 @@ test('think --json --brainstorm emits only JSONL with receipts and prompt data',
     [
       'cli.start',
       'brainstorm.session_started',
-      'brainstorm.contrast',
       'brainstorm.prompt',
       'cli.success',
     ],
-    'Expected --json brainstorm start to emit machine-readable session, receipt, and prompt rows.'
+    'Expected --json brainstorm start to emit machine-readable session and prompt rows without fake contrast rows.'
   );
 
   const sessionStarted = getEvent(
     events,
     'brainstorm.session_started',
     'Expected --json brainstorm start to expose session metadata.'
-  );
-  const contrast = getEvent(
-    events,
-    'brainstorm.contrast',
-    'Expected --json brainstorm start to expose the chosen contrast entry.'
   );
   const prompt = getEvent(
     events,
@@ -268,22 +267,29 @@ test('think --json --brainstorm emits only JSONL with receipts and prompt data',
   );
 
   assert.equal(sessionStarted.seedEntryId, seedEntryId, 'Expected JSON brainstorm to preserve the seed lineage.');
-  assert.equal(sessionStarted.contrastEntryId, contrastEntryId, 'Expected JSON brainstorm to preserve the contrast lineage.');
-  assert.equal(sessionStarted.promptType, 'contrast', 'Expected JSON brainstorm to preserve the prompt family.');
-  assert.equal(contrast.entryId, contrastEntryId, 'Expected JSON brainstorm contrast row to identify the contrast entry.');
-  assert.equal(contrast.text, contrastThought, 'Expected JSON brainstorm contrast row to expose the contrast text.');
-  assert.ok(contrast.selectionReason, 'Expected JSON brainstorm contrast row to expose deterministic selection receipts.');
-  assert.equal(prompt.promptType, 'contrast', 'Expected JSON brainstorm prompt row to expose the prompt family.');
-  assert.equal(typeof prompt.question, 'string', 'Expected JSON brainstorm prompt row to expose the question text.');
+  assert.equal(sessionStarted.contrastEntryId, null, 'Expected JSON brainstorm to omit contrast lineage in default mode.');
+  assert.equal(sessionStarted.promptType, 'challenge', 'Expected JSON brainstorm to preserve the deterministic prompt family.');
+  assert.deepEqual(
+    sessionStarted.selectionReason,
+    {
+      kind: 'seed_only_challenge',
+      text: 'Used a deterministic challenge prompt from the seed thought alone.',
+    },
+    'Expected JSON brainstorm to expose deterministic seed-first selection receipts.'
+  );
+  assert.equal(prompt.promptType, 'challenge', 'Expected JSON brainstorm prompt row to expose the prompt family.');
+  assert.equal(
+    prompt.question,
+    'What would make this false in practice?',
+    'Expected JSON brainstorm prompt row to expose the deterministic question text.'
+  );
 });
 
-test('think --json --brainstorm-session emits only JSONL and preserves stored lineage', async () => {
+test('think --json --brainstorm-session emits only JSONL and preserves stored seed-first lineage', async () => {
   const context = await createThinkContext();
   const seedThought = 'git-warp is for replayable cognition';
-  const contrastThought = 'warp cognition needs better replay receipts';
   const answer = 'The replay model matters more if the system can pressure-test a thought without rewriting it.';
   const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
-  const { entryId: contrastEntryId } = captureWithEntryId(context, contrastThought);
 
   const start = runThink(context, ['--json', `--brainstorm=${seedEntryId}`]);
   assertSuccess(start, 'Expected JSON brainstorm start to succeed before answering.');
@@ -328,9 +334,9 @@ test('think --json --brainstorm-session emits only JSONL and preserves stored li
 
   assert.equal(saved.kind, 'brainstorm', 'Expected JSON brainstorm responses to be stored as brainstorm entries.');
   assert.equal(saved.seedEntryId, seedEntryId, 'Expected JSON brainstorm response to preserve the seed lineage.');
-  assert.equal(saved.contrastEntryId, contrastEntryId, 'Expected JSON brainstorm response to preserve the contrast lineage.');
+  assert.equal(saved.contrastEntryId, null, 'Expected JSON brainstorm response to omit fake contrast lineage.');
   assert.equal(saved.sessionId, sessionStarted.sessionId, 'Expected JSON brainstorm response to remain in the same session.');
-  assert.equal(saved.promptType, 'contrast', 'Expected JSON brainstorm response to preserve the prompt family.');
+  assert.equal(saved.promptType, 'constraint', 'Expected JSON brainstorm response to preserve the prompt family.');
 });
 
 test('think --json brainstorm validation failures stay fully machine-readable', async () => {

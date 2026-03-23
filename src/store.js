@@ -9,62 +9,16 @@ const ENTRY_PREFIX = 'entry:';
 const BRAINSTORM_SESSION_PREFIX = 'brainstorm:';
 const TEXT_MIME = 'text/plain; charset=utf-8';
 const MAX_BRAINSTORM_STEPS = 3;
-const MIN_SHARED_TERMS_FOR_CONTRAST = 2;
-const BRAINSTORM_STOPWORDS = new Set([
-  'about',
-  'after',
-  'again',
-  'agent',
-  'agents',
-  'along',
-  'also',
-  'because',
-  'being',
-  'capture',
-  'captures',
-  'continue',
-  'could',
-  'first',
-  'from',
-  'have',
-  'idea',
-  'ideas',
-  'just',
-  'later',
-  'mode',
-  'modes',
-  'more',
-  'most',
-  'need',
-  'needs',
-  'other',
-  'place',
-  'really',
-  'said',
-  'same',
-  'should',
-  'since',
-  'something',
-  'still',
-  'that',
-  'their',
-  'there',
-  'these',
-  'thing',
-  'think',
-  'thought',
-  'thoughts',
-  'this',
-  'through',
-  'using',
-  'want',
-  'what',
-  'when',
-  'with',
-  'work',
-  'works',
-  'would',
-]);
+const CHALLENGE_PROMPTS = [
+  'What assumption is hiding here?',
+  'What would make this false in practice?',
+  'What part of this is probably wishful thinking?',
+];
+const CONSTRAINT_PROMPTS = [
+  'What if this had to work offline?',
+  'What is the smallest shippable version of this?',
+  'What if this had to be explained in one sentence?',
+];
 
 export async function captureThought(repoDir, thought) {
   const graph = await openGraph(repoDir);
@@ -94,14 +48,10 @@ export async function startBrainstorm(repoDir, seedEntryId) {
     return null;
   }
 
-  const otherCaptures = (await listEntriesByKind(graph, 'capture'))
-    .filter(entry => entry.id !== seedEntryId)
-    .sort(compareEntriesNewestFirst);
-
-  const promptPlan = selectBrainstormPrompt(seedEntry, otherCaptures);
+  const promptPlan = selectBrainstormPrompt(seedEntry);
   const session = createBrainstormSession(graph.writerId, {
     seedEntryId,
-    contrastEntryId: promptPlan.contrastEntry?.id ?? null,
+    contrastEntryId: null,
     promptType: promptPlan.promptType,
     question: promptPlan.question,
     selectionReason: promptPlan.selectionReason,
@@ -138,7 +88,7 @@ export async function startBrainstorm(repoDir, seedEntryId) {
     maxSteps: session.maxSteps,
     selectionReason: session.selectionReason,
     seedEntry,
-    contrastEntry: promptPlan.contrastEntry ?? null,
+    contrastEntry: null,
   };
 }
 
@@ -364,69 +314,48 @@ function createBrainstormSession(writerId, {
   };
 }
 
-function selectBrainstormPrompt(seedEntry, candidateCaptures) {
-  const bestContrast = selectMeaningfulContrast(seedEntry, candidateCaptures);
+function selectBrainstormPrompt(seedEntry) {
+  const normalized = normalizeSeed(seedEntry.text);
+  const familyIndex = stableHash(normalized) % 2;
 
-  if (!bestContrast) {
+  if (familyIndex === 0) {
+    const question = pickDeterministicPrompt(CHALLENGE_PROMPTS, normalized);
     return {
-      promptType: 'constraint',
-      contrastEntry: null,
+      promptType: 'challenge',
       selectionReason: {
-        kind: 'contrast_unavailable',
-        text: 'No structurally meaningful contrast was available, so brainstorm fell back to a sharpening constraint.',
+        kind: 'seed_only_challenge',
+        text: 'Used a deterministic challenge prompt from the seed thought alone.',
       },
-      question: 'What constraint would make this idea sharper right now?',
+      question,
     };
   }
 
-  const contrastEntry = bestContrast.entry;
-  const sharedTerms = bestContrast.sharedTerms.slice(0, 3);
+  const question = pickDeterministicPrompt(CONSTRAINT_PROMPTS, normalized);
   return {
-    promptType: 'contrast',
-    contrastEntry,
+    promptType: 'constraint',
     selectionReason: {
-      kind: 'shared_terms',
-      text: `Shares terms: ${sharedTerms.join(', ')}`,
+      kind: 'seed_only_constraint',
+      text: 'Used a deterministic constraint prompt from the seed thought alone.',
     },
-    question: `What changes if you apply the logic of "${contrastEntry.text}" to "${seedEntry.text}"?`,
+    question,
   };
 }
 
-function selectMeaningfulContrast(seedEntry, candidateCaptures) {
-  const seedTerms = extractLoadBearingTerms(seedEntry.text);
-  if (seedTerms.size === 0) {
-    return null;
-  }
-
-  let best = null;
-  for (const candidate of candidateCaptures) {
-    const candidateTerms = extractLoadBearingTerms(candidate.text);
-    const sharedTerms = [...seedTerms].filter(term => candidateTerms.has(term));
-
-    if (sharedTerms.length < MIN_SHARED_TERMS_FOR_CONTRAST) {
-      continue;
-    }
-
-    if (!best || sharedTerms.length > best.sharedTerms.length) {
-      best = {
-        entry: candidate,
-        sharedTerms,
-      };
-    }
-  }
-
-  return best;
+function pickDeterministicPrompt(prompts, normalizedSeed) {
+  const index = stableHash(normalizedSeed) % prompts.length;
+  return prompts[index];
 }
 
-function extractLoadBearingTerms(text) {
-  return new Set(
-    String(text)
-      .toLowerCase()
-      .split(/[^a-z0-9]+/g)
-      .filter(Boolean)
-      .filter(term => term.length >= 4)
-      .filter(term => !BRAINSTORM_STOPWORDS.has(term))
-  );
+function normalizeSeed(text) {
+  return String(text).trim().toLowerCase();
+}
+
+function stableHash(value) {
+  let hash = 0;
+  for (const char of value) {
+    hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  }
+  return hash;
 }
 
 function compareEntriesNewestFirst(left, right) {
