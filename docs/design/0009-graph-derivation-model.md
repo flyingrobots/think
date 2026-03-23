@@ -107,7 +107,8 @@ This answers:
 - when was this captured?
 - by which ingress?
 - by which writer?
-- in which session did it occur?
+
+It does not assume that session membership is known at capture time.
 
 ### Content Identity
 
@@ -147,7 +148,7 @@ They must not become authoritative.
 
 ## Recommended Node Families
 
-The graph should stay small and typed.
+The graph should stay small, disciplined, and explicitly typed through schema fields and edge verbs.
 
 ### Core Nodes
 
@@ -160,7 +161,7 @@ The graph should stay small and typed.
 
 This is intentionally less cute than encoding every semantic in the node id itself.
 IDs should stay stable.
-Semantics should live in typed fields and named edges.
+Semantics should live in explicit schema fields and named edges.
 
 ### Why `artifact:<artifact-id>` Instead Of `classification:<fingerprint>`
 
@@ -178,6 +179,20 @@ So the durable identity rule is:
 
 - raw content fingerprint is part of provenance
 - it is not, by itself, the full identity of a derived artifact
+
+### Artifact Kinds Must Stay Contracted
+
+`artifact:<artifact-id>` must not become a miscellaneous blob with a `kind` field.
+
+Every artifact kind should have a defined payload contract.
+
+At minimum, each kind should have:
+
+- required fields
+- allowed provenance inputs
+- clear ownership of its payload
+
+The generic `artifact` identity is a discipline tool, not permission to store arbitrary semi-structured drift.
 
 ## Derived Artifact Categories
 
@@ -247,8 +262,8 @@ It is identified by the combination of:
 Recommended minimum fields on every derived artifact node:
 
 - `kind`
-- `inputKind`
-- `inputId`
+- `primaryInputKind`
+- `primaryInputId`
 - `deriver`
 - `deriverVersion`
 - `schemaVersion`
@@ -260,6 +275,8 @@ Optional fields when relevant:
 - `status`
 - `reasonKind`
 - `reasonText`
+
+A derived artifact is not identified by input content alone and should not be mutated in place to represent a later derivation result.
 
 This is enough to keep provenance inspectable without introducing a separate derivation-run node too early.
 
@@ -276,12 +293,25 @@ Each derived artifact should record:
 The recommended near-term representation is:
 
 - metadata on the artifact node itself
+- one or more named provenance edges to the graph objects it depends on
+
+An artifact may have multiple provenance edges when its derivation depends on more than one graph object.
+The named edge should reflect the role of that dependency rather than pretending there is only one exclusive input.
 
 Possible later expansion:
 
 - `derive-run:<id>` nodes for batch runs or reproducibility inspection
 
 That fuller provenance model is valuable, but it is not required for the first disciplined graph shape.
+
+### Derived Artifacts Are Append-Only
+
+Derived artifacts should be append-only records of a specific derivation result.
+
+If derivation logic changes:
+
+- produce a new artifact
+- do not mutate an old artifact in place and pretend it always meant the new thing
 
 ## Brainstorm-Specific Split
 
@@ -331,6 +361,9 @@ Recommended starting verbs:
 
 These verbs can be refined later, but they should be chosen deliberately and reused consistently.
 
+Artifacts may carry more than one provenance edge when they depend on multiple graph objects.
+The `captured_in` edge does not imply that session membership is known at ingress; it may be added later by session attribution.
+
 ### Core Shape
 
 ```mermaid
@@ -359,6 +392,10 @@ This makes the operational structure explicit:
 - eligibility can depend on context
 - brainstorm output is an operation result, not a reinterpretation of the raw node
 
+## Operation Nodes
+
+An `operation:<operation-id>` node represents a concrete system run or user-invoked mode execution whose outputs should remain inspectable as distinct operational results rather than being collapsed into timeless derivations.
+
 ## Post-Capture Derivation Pipeline
 
 The graph should support a derivation pipeline that runs after ingress.
@@ -379,7 +416,7 @@ These depend on occurrence context.
 
 Examples:
 
-1. session assignment
+1. session attribution
 2. contextualization from surrounding captures
 3. brainstorm eligibility
 
@@ -458,6 +495,8 @@ Example future shape:
 flowchart LR
     E1["artifact:brainstorm-eligibility-A"] -->|pairs_with| E2["artifact:brainstorm-eligibility-B"]
 ```
+
+Direct `pairs_with` edges should be treated as a convenience cache, not as the canonical source of pairing truth, unless the pairing model is later formalized as stable and reproducible.
 
 Or, if the relationship itself needs richer provenance:
 
