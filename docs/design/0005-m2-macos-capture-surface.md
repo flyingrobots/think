@@ -1,6 +1,6 @@
 # 0005 M2 macOS Capture Surface
 
-Status: draft for review
+Status: complete
 
 ## Purpose
 
@@ -40,7 +40,7 @@ Who:
 
 What:
 
-- they press one global hotkey, type one thought into an already-focused field, press Enter, and the panel disappears immediately after capture using the exact same core behavior as the CLI
+- they press one global hotkey, type one thought into an already-focused field, press Enter, and the panel disappears immediately while the same core capture behavior as the CLI continues underneath
 
 Wow:
 
@@ -89,13 +89,17 @@ No:
 
 ### Zero-State Surface
 
-The default panel should contain as little as possible:
+The panel should contain as little as possible while still being self-explanatory.
+
+Allowed:
 
 - a text field
+- a minimal placeholder
+- a minimal identity cue
+- a minimal send affordance
 
-No:
+Not allowed:
 
-- placeholder text by default
 - recent thoughts
 - suggestions
 - concept matching
@@ -103,12 +107,12 @@ No:
 - settings surface
 - dashboard elements
 
-### Auto-Dismiss On Success
+### Auto-Dismiss On Submit
 
-The panel should dismiss on Enter after the capture succeeds locally.
+The panel should dismiss immediately once submit begins.
 
 It should not linger to celebrate.
-It should not expose an observable “saving” phase in the normal path.
+It should not expose an observable “saving” phase inside the panel.
 
 ### No Retrieval Before Write
 
@@ -118,9 +122,9 @@ Milestone 2 must not violate Milestone 1 doctrine.
 
 ### Barely-There Status
 
-The safest default is likely no visible status in the panel after submit.
+The panel should not become a status surface.
 
-If status exists, it should be:
+If status exists, it should live in the menu bar and be:
 
 - ephemeral
 - quiet
@@ -145,13 +149,13 @@ The app must behave sanely under desktop reality:
 - the panel appears on the correct monitor
 - the panel is not trapped behind other windows
 - opening the panel does not produce focus races with the app the user was in
+- the running app can indicate when a newly built local version should be restarted
 
 ## Strict Constraints
 
 These are non-negotiable constraints for M2:
 
-- no placeholder text by default
-- no visible save step in the success path
+- no visible save step inside the panel success path
 - no retrieval-before-write
 - no settings UI
 - no history view
@@ -177,9 +181,10 @@ flowchart LR
     P --> F["Text field is already focused"]
     F --> T["User types raw thought"]
     T --> E["User presses Enter"]
-    E --> C["Shared capture core saves thought"]
-    C --> D["Panel dismisses immediately"]
-    D --> R["User resumes original task"]
+    E --> D["Panel dismisses immediately"]
+    D --> C["Shared capture core saves thought"]
+    C --> M["Menu bar carries quiet feedback"]
+    M --> R["User resumes original task"]
 ```
 
 ## System Shape
@@ -290,17 +295,20 @@ There should be very few states.
 stateDiagram-v2
     [*] --> Hidden
     Hidden --> Ready: "Hotkey pressed"
-    Ready --> Hidden: "Enter and local save succeeds"
-    Ready --> Error: "Local save fails"
-    Error --> Hidden: "Dismiss"
-    Error --> Ready: "Retry"
+    Ready --> Hidden: "Enter pressed"
+    Hidden --> Saving: "Menu bar shows saving state"
+    Saving --> Hidden: "Save succeeds"
+    Saving --> Failed: "Local save fails"
+    Failed --> Saving: "Retry from menu bar"
+    Failed --> Hidden: "Dismiss status / continue working"
 ```
 
 Interpretation:
 
 - `Ready` should dominate normal use
-- successful save should collapse directly into `Hidden`
-- `Error` should exist, but it should be the exceptional path
+- the panel should collapse directly into `Hidden`
+- save feedback should be carried by the menu bar, not the panel
+- failure should remain exceptional and retryable
 
 ## Failure Handling
 
@@ -308,7 +316,8 @@ The system should preserve trust without adding ceremony.
 
 Rules:
 
-- local save failure may block dismissal and show a minimal retryable error
+- local save failure should not force the panel to remain open
+- retry should be possible from a minimal menu bar surface
 - error UI must stay minimal: no stack traces, no advanced controls, no giant surfaces
 - backup pending must not behave like capture failure
 - unreachable upstream must not drag visible network anxiety into the panel
@@ -330,11 +339,12 @@ Not in Milestone 2:
 
 1. Does the experience feel like “a thought appearing in a text field” rather than opening an app?
 2. Is the text field always focused immediately?
-3. Does Enter dismiss the panel in one motion after local success?
-4. Is the hotkey path already preferred over the CLI for normal desktop use?
-5. Did any retrieval-before-write behavior sneak into the surface?
-6. Did the menu bar UI stay thin and non-administrative?
-7. Does the panel behave correctly across monitor and focus edge cases?
+3. Does Enter dismiss the panel in one motion without waiting for visible save completion?
+4. Does the menu bar provide just enough feedback to build trust without slowing capture down?
+5. Is the hotkey path already preferred over the CLI for normal desktop use?
+6. Did any retrieval-before-write behavior sneak into the surface?
+7. Did the menu bar UI stay thin and non-administrative?
+8. Does the panel behave correctly across monitor and focus edge cases?
 
 ## Exit Criteria
 

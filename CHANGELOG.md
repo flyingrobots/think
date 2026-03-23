@@ -12,6 +12,10 @@ Release discipline:
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-03-22
+
+Second milestone release for `think`.
+
 ### Added
 
 - explicit read-only CLI flags: `think --recent` and `think --stats`
@@ -19,8 +23,15 @@ Release discipline:
 - stats filters via `--from`, `--to`, and `--since`
 - stats bucketing via `--bucket=hour|day|week`
 - deterministic clock injection for stats tests via `THINK_TEST_NOW`
+- native macOS menu bar app and global hotkey capture surface
+- transient macOS capture panel built as a thin adapter over the existing CLI capture core
 - menu bar restart cue when a newer local macOS build is detected on disk
 - menu bar capture now dismisses immediately on submit and uses the menu bar icon for saving / success / failure state
+
+### Notes
+
+- `M2` is complete
+- `M3` is next
 
 ## [0.1.0] - 2026-03-22
 

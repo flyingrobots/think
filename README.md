@@ -12,9 +12,9 @@ It is infrastructure for cheap, exact, replayable thought capture.
 
 ## Current Status
 
-`M0` and `M1` are complete.
-`M2` tests-as-spec are now in progress.
-Current version: `0.1.0`.
+`M0`, `M1`, and `M2` are complete.
+`M3` is next.
+Current version: `0.2.0`.
 
 What exists today:
 
@@ -24,12 +24,12 @@ What exists today:
 - exact raw-text preservation
 - plain newest-first recent listing
 - best-effort upstream backup
-- executable acceptance tests for the implemented behavior
+- a native macOS menu bar app with a global hotkey capture panel
+- quiet menu bar feedback for saving, success, failure, and restart-needed state
+- executable acceptance tests for the implemented CLI and macOS behavior
 
 What does not exist yet:
 
-- macOS menu bar app
-- global hotkey capture panel
 - brainstorm mode
 - reflection mode
 - x-ray mode
@@ -68,7 +68,7 @@ If capture feels like “using a system” instead of “writing a thought down,
 
 The current shape is:
 
-- direct writer: CLI
+- direct writers: CLI and macOS menu bar app
 - local store: `~/.think/repo`
 - day-one backup model: best-effort upstream push after local success
 - read surfaces: plain `--recent` and plain `--stats`
@@ -111,14 +111,33 @@ They should not create local app state on their own.
 To enable day-one backup, set `THINK_UPSTREAM_URL` to a reachable Git remote or bare repo path before capture:
 
 ```bash
-THINK_UPSTREAM_URL=/path/to/private-upstream.git node ./bin/think.js "backup this too"
+THINK_UPSTREAM_URL=/path/to/private-upstream.git think "backup this too"
 ```
 
 For trace output during a command, use `--verbose`. This emits JSONL progress events on `stderr` while preserving the normal human-facing message on `stdout`:
 
 ```bash
-node ./bin/think.js --verbose "trace this capture"
+think --verbose "trace this capture"
 ```
+
+### macOS App
+
+Launch the native menu bar app from the repo root:
+
+```bash
+npm run macos
+```
+
+The current default hotkey is `Command` + `Shift` + `I`.
+
+The panel is intentionally thin:
+
+- hotkey
+- type
+- Enter
+- gone
+
+The menu bar icon then carries the save lifecycle so the panel can disappear immediately without losing confirmation.
 
 ## Tests Are The Spec
 
@@ -133,14 +152,15 @@ There is no prose-spec layer between design and tests.
 Acceptance tests live under [test/acceptance](/Users/james/git/think/test/acceptance).
 Reusable fixtures live under [test/fixtures](/Users/james/git/think/test/fixtures).
 Shared assertions live under [test/support](/Users/james/git/think/test/support).
+Swift menu bar tests live under [macos/Tests](/Users/james/git/think/macos/Tests).
 
-Run the acceptance suite with:
+Run the full suite with:
 
 ```bash
 npm test
 ```
 
-The current Milestone 1 suite is green for the implemented raw-capture CLI path. Later-mode behavior remains intentionally deferred until those modes exist.
+The current `M1` and `M2` suites are green for the implemented behavior.
 
 ## Repo Guide
 
@@ -153,6 +173,7 @@ Start with these:
 - [docs/design/0006-stats-command.md](/Users/james/git/think/docs/design/0006-stats-command.md)
 - [docs/design/ROADMAP.md](/Users/james/git/think/docs/design/ROADMAP.md)
 - [docs/retrospectives/m1-capture-core-and-upstream-backup.md](/Users/james/git/think/docs/retrospectives/m1-capture-core-and-upstream-backup.md)
+- [docs/retrospectives/m2-macos-capture-surface.md](/Users/james/git/think/docs/retrospectives/m2-macos-capture-surface.md)
 - [BACKLOG.md](/Users/james/git/think/BACKLOG.md)
 
 Important implementation files:
@@ -162,6 +183,7 @@ Important implementation files:
 - [src/store.js](/Users/james/git/think/src/store.js)
 - [src/git.js](/Users/james/git/think/src/git.js)
 - [src/paths.js](/Users/james/git/think/src/paths.js)
+- [macos/Sources/ThinkMenuBarApp/ThinkMenuBarApp.swift](/Users/james/git/think/macos/Sources/ThinkMenuBarApp/ThinkMenuBarApp.swift)
 
 ## Development Standard
 

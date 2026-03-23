@@ -1,6 +1,6 @@
 # Design Review Package
 
-Status: design approved; `M0` and `M1` complete; `M2` tests-as-spec in progress
+Status: design approved; `M0`, `M1`, and `M2` complete
 
 This directory began as the pre-implementation design package for `think`.
 
@@ -26,6 +26,7 @@ This review is meant to answer five questions:
 - [`0006-stats-command.md`](./0006-stats-command.md): read-only stats surface for habit validation without dashboard drift.
 - [`ROADMAP.md`](./ROADMAP.md): milestone sequence, hill mapping, exit criteria, and review checkpoints.
 - [`../retrospectives/m1-capture-core-and-upstream-backup.md`](../retrospectives/m1-capture-core-and-upstream-backup.md): closeout for the first implemented milestone and the remaining validation follow-through.
+- [`../retrospectives/m2-macos-capture-surface.md`](../retrospectives/m2-macos-capture-surface.md): closeout for the native menu bar app and hotkey capture surface.
 - [`BACKLOG.md`](../../BACKLOG.md): deferred ideas, cool ideas, and parking-lot items that should not silently become approved scope.
 
 ## Review Package Map
@@ -78,4 +79,4 @@ After review, we should either:
 - approve the package and start writing spec tests, or
 - return with specific changes to hills, architecture boundaries, or milestone sequencing
 
-That review is now complete. Production implementation began after approval, and Milestone 1 has been closed at the implementation/specification level.
+That review is now complete. Production implementation began after approval, and Milestones 1 and 2 have now been closed.
