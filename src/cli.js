@@ -456,7 +456,7 @@ function validateOptions(options, command) {
   }
 
   if (command === 'brainstorm_start') {
-    if (!options.brainstorm) {
+    if (!options.brainstorm && !canInteractivelyPickBrainstormSeed(options)) {
       return '--brainstorm requires a seed entry id';
     }
     if (options.positionals.length > 0) {
@@ -541,6 +541,10 @@ function shouldUseInteractiveBrainstormShell(output) {
 
 function isInteractiveBrainstormAvailable() {
   return process.stdin.isTTY === true && process.stdout.isTTY === true;
+}
+
+function canInteractivelyPickBrainstormSeed(options) {
+  return !options.json && isInteractiveBrainstormAvailable();
 }
 
 function truncateForPicker(text, maxWidth = 72) {
