@@ -1,6 +1,6 @@
 # 0007 M3 Brainstorm Mode
 
-Status: draft for review
+Status: approved for tests
 
 ## Purpose
 
@@ -108,6 +108,40 @@ Potential later selection signals:
 The important constraint for `M3`:
 
 - keep the selection logic simple and inspectable
+- always be able to explain why `B` was chosen
+- make that explanation deterministic and receipt-like rather than narrative
+- if no meaningful contrast exists, fall back to a constraint prompt instead of inventing weak juxtaposition
+
+### Contrast Quality Threshold
+
+“Far” is not good enough on its own.
+
+The contrast candidate should be:
+
+- sufficiently distant to create tension
+- but still structurally interesting rather than random junk
+
+Early acceptable signals:
+
+- some shared term or context
+- same session with clear topical difference
+- explicit later linkage
+
+Bad default:
+
+- a completely unrelated entry presented as wisdom just because it is distant
+
+### Receipt Surface
+
+Whenever brainstorm presents a contrast or prompt, it should also show why it was selected.
+
+Examples:
+
+- “Captured in the same session”
+- “Shares rare term: warp”
+- “Chosen as a distant neighbor in vocabulary space”
+
+This is part of the product, not a debugging detail.
 
 ### Prompt Templates, Not Freeform Narration
 
@@ -128,9 +162,10 @@ Brainstorm outputs must be stored separately from raw captures.
 
 They should preserve:
 
-- seed reference
-- contrast reference when used
-- brainstorm session identity
+- `seedEntryId`
+- `contrastEntryId` when used
+- `sessionId`
+- `promptType`
 
 They must not:
 
@@ -180,9 +215,19 @@ Minimum useful session shape:
 - one seed
 - one prompt
 - one response
-- optional one-step continuation
+- optional continuation up to 2-3 total steps max
 
 This keeps the mode from becoming chat sprawl.
+
+### Early Termination Is Success
+
+A brainstorm session is successful if it produces one sharper follow-on entry.
+
+It does not need to:
+
+- complete a fixed flow
+- exhaust all prompt types
+- continue until the system runs out of things to ask
 
 ## Prompt Families
 
@@ -241,6 +286,17 @@ These ideas are valuable, but they belong in later reflection / x-ray work, not 
 Brainstorm should push an idea.
 Reflection and x-ray should reveal structure.
 
+## No Mode Bleed Rule
+
+During brainstorm, the system must not surface:
+
+- cluster UI
+- keyword extraction
+- summaries
+- reflection narration
+
+If the mode starts doing any of that, it has crossed into `M4`.
+
 ## Risks
 
 - brainstorm becomes autocomplete in a nicer coat
@@ -255,17 +311,20 @@ Reflection and x-ray should reveal structure.
 1. Does brainstorm feel deliberately entered rather than ambient?
 2. Does one prompt usually produce a sharper thought, not just more words?
 3. Can the user see why the system chose the contrast thought or question shape?
-4. Do brainstorm outputs remain clearly separate from raw capture?
-5. Does the mode avoid chatbot energy?
-6. Would the user use this to pressure-test a real idea, not just to play with the system?
+4. Does the system fall back gracefully when contrast is weak?
+5. Do brainstorm outputs remain clearly separate from raw capture?
+6. Does the mode avoid chatbot energy?
+7. Would the user use this to pressure-test a real idea, not just to play with the system?
 
 ## Exit Criteria
 
 - brainstorm mode is explicit and seeded
 - the first prompt engine is deterministic and inspectable
+- the system exposes deterministic receipts for prompt or contrast selection
 - brainstorm produces separate derived entries with preserved lineage
 - raw capture remains untouched
 - brainstorm is sharp enough to generate useful follow-on thoughts
+- sessions remain bounded
 - no reflection, clustering, or x-ray behavior leaks into the milestone
 
 ## Decision Rule

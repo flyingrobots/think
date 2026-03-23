@@ -1,6 +1,6 @@
 # Design Review Package
 
-Status: design approved; `M0`, `M1`, and `M2` complete; `M3` design in progress
+Status: design approved; `M0`, `M1`, and `M2` complete; `M3` tests as spec in progress
 
 This directory began as the pre-implementation design package for `think`.
 

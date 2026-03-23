@@ -1,6 +1,6 @@
 # Roadmap And Milestones
 
-Status: `M0`, `M1`, and `M2` complete; `M3` design in progress
+Status: `M0`, `M1`, and `M2` complete; `M3` tests as spec in progress
 
 ## Planning Frame
 
@@ -14,7 +14,7 @@ Milestones exist to prove user value in sequence. They are not buckets for unrel
 - `M1: Capture core and upstream backup` is complete from an implementation/specification standpoint.
 - `M1` still has follow-through validation work around real-world usage and latency measurement.
 - `M2: macOS capture surface` is complete.
-- `M3: Brainstorm Mode` is now in design.
+- `M3: Brainstorm Mode` is now in tests as spec.
 
 ## Planning Principles
 
