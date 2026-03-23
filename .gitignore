@@ -14,6 +14,7 @@ Icon?
 .idea/
 .vscode/
 .obsidian/
+.audit_reports/*
 
 # Dependencies
 node_modules/
