@@ -21,7 +21,7 @@ What exists today:
 - raw CLI capture via `think "..."` or `node ./bin/think.js "..."`
 - explicit read-only CLI surfaces via `think --recent` and `think --stats`
 - machine-readable CLI output via `--json`, with JSONL-only streams for every implemented command
-- first-run bootstrap of a private local repo under `~/.think/repo`
+- first-run bootstrap of a private local repo, defaulting to `~/.think/repo`
 - exact raw-text preservation
 - plain newest-first recent listing
 - best-effort upstream backup
@@ -72,7 +72,7 @@ If capture feels like “using a system” instead of “writing a thought down,
 The current shape is:
 
 - direct writers: CLI and macOS menu bar app
-- local store: `~/.think/repo`
+- local store: configurable via `THINK_REPO_DIR`, defaulting to `~/.think/repo`
 - day-one backup model: best-effort upstream push after local success
 - read surfaces: plain `--recent` and plain `--stats`
 
@@ -122,6 +122,12 @@ To enable day-one backup, set `THINK_UPSTREAM_URL` to a reachable Git remote or 
 THINK_UPSTREAM_URL=/path/to/private-upstream.git think "backup this too"
 ```
 
+To target a different local thought repo, set `THINK_REPO_DIR`. If unset, `think` still uses the default private repo at `~/.think/repo`:
+
+```bash
+THINK_REPO_DIR=/path/to/another-mind think "route this elsewhere"
+```
+
 For trace output during a command, use `--verbose`. This emits JSONL progress events on `stderr` while preserving the normal human-facing message on `stdout`:
 
 ```bash
@@ -157,6 +163,8 @@ The panel is intentionally thin:
 - gone
 
 The menu bar icon then carries the save lifecycle so the panel can disappear immediately without losing confirmation.
+
+The macOS app also records local prompt-UX telemetry as JSONL, without storing prompt text, so timing and abandonment patterns can be reviewed later. By default this lives at `~/.think/metrics/prompt-ux.jsonl`. Set `THINK_PROMPT_METRICS_FILE` to override the file location.
 
 ## Tests Are The Spec
 

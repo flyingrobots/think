@@ -13,9 +13,9 @@ It is not a commitment list. It is a pressure-release valve for good ideas that 
 - No item here should be promoted ahead of proving daily capture habit.
 - Items may move into roadmap milestones only after design review or playback says they are earned.
 
-## Post-M2 Follow-Through
+## Operational Follow-Through Before Or Alongside M4
 
-Milestones 1 and 2 are implemented and closed. The remaining gaps here are validation, instrumentation, and a few focused operational improvements.
+Milestones 1, 2, and 3 are implemented and closed. The remaining gaps here are validation, instrumentation, and a few focused operational improvements.
 
 These should stay visible without being confused for unfinished milestone implementation work.
 
@@ -29,10 +29,13 @@ These should stay visible without being confused for unfinished milestone implem
 ### Measure Capture Latency Honestly
 
 - Add a small benchmark harness for warm-path local capture.
-- Add lightweight instrumentation for the macOS capture loop:
+- Keep the macOS prompt telemetry factual and boring:
   - hotkey to panel visible
+  - time spent typing
+  - abandoned-empty vs abandoned-started vs submitted
   - submit to panel hidden
   - submit to local save complete
+- Add a simple read/report surface over the prompt telemetry so the data can actually inform product judgment.
 - Decide later whether any latency aggregates belong in `think --stats`; if they do, keep them factual and boring.
 - Keep this as measurement and regression detection, not a flaky timing assertion in the deterministic suite.
 
@@ -47,6 +50,11 @@ These should stay visible without being confused for unfinished milestone implem
 - Make day-one upstream setup more operator-friendly.
 - Reduce the amount of manual repo/bootstrap work needed to get private backup running.
 - Keep this boring and explicit; do not turn it into hosted-service scope creep.
+
+### Tidy Backlog Routing
+
+- Keep follow-through tasks distinct from milestone deliverables so `M4` does not inherit stale `M1`/`M2` wording.
+- When a deferred item is clearly shaping `M4` or later, call that out rather than leaving it as an orphaned idea.
 
 ## Deferred From Design Review
 
@@ -119,6 +127,16 @@ Example:
 
 - “You said this two weeks ago. Still true?”
 
+### Menu Bar Daily Report
+
+Expose a lightweight daily report from the macOS menu bar app, likely by opening a local web view with charts over prompt telemetry and recent usage.
+
+Constraints:
+
+- treat this as a read surface, not a control panel
+- favor honest benchmark and usage views over vanity analytics
+- keep it clearly separate from the capture moment
+
 ### Golden Transcript Test
 
 Keep a canonical end-to-end “thinking trace” fixture:
@@ -170,6 +188,23 @@ Important constraints:
 - do not make warm-path capture depend on choosing among many minds every time
 - do not let an agent silently write into the human's default mind unless that is explicitly intended
 - keep provenance explicit about which mind/repo an entry belongs to
+- keep the current config-driven repo path as a low-level escape hatch, not the full multi-mind UX
+
+### Holding Area And Mind Routing
+
+If `think` later supports multiple minds, raw ingress may need a neutral local holding area before later derivation or routing assigns a thought to a more specific mind.
+
+Possible future shape:
+
+- capture into a local holding area first
+- run derivation/context assignment later
+- route or copy into a target mind only once the assignment is explicit
+
+Important constraints:
+
+- raw capture must still remain cheap and immediate
+- delayed routing must not create ambiguity about where the authoritative raw event lives
+- mind routing should not silently replace explicit targeting when the user or agent already knows the correct destination
 
 ### Agent-Owned Minds
 

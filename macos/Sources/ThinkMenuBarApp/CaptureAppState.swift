@@ -17,6 +17,8 @@ final class CaptureAppState: ObservableObject {
     @Published private(set) var isRestartRecommended = false
     @Published private(set) var captureMenuState: CaptureMenuState = .idle
 
+    private let metricsRecorder: PromptUXMetricsRecorder
+    private let metricsTracker: PromptUXMetricsTracker
     private let panelController: CapturePanelController
     private let hotKeyMonitor: GlobalHotKeyMonitor
     private var buildUpdateTracker = BuildUpdateTracker(
@@ -29,24 +31,51 @@ final class CaptureAppState: ObservableObject {
     init() {
         let client = CaptureAppState.makeClient()
         let model = CapturePanelModel(client: client)
-
-        self.model = model
-        self.panelController = CapturePanelController(model: model)
-        self.hotKeyMonitor = GlobalHotKeyMonitor { [weak model] in
-            guard let model else { return }
+        let metricsRecorder = PromptUXMetricsRecorder()
+        let metricsTracker = PromptUXMetricsTracker { event in
+            Task {
+                await metricsRecorder.record(event)
+            }
+        }
+        let panelController = CapturePanelController(model: model)
+        let hotKeyMonitor = GlobalHotKeyMonitor {
             Task { @MainActor in
+                if model.phase == .hidden {
+                    metricsTracker.beginPrompt(trigger: .hotkey)
+                }
                 model.toggle()
             }
         }
 
+        self.model = model
+        self.metricsRecorder = metricsRecorder
+        self.metricsTracker = metricsTracker
+        self.panelController = panelController
+        self.hotKeyMonitor = hotKeyMonitor
+
         self.model.onSubmissionEvent = { [weak self] event in
             self?.handleSubmissionEvent(event)
+        }
+        self.model.onTextChanged = { [weak self] previous, current in
+            self?.metricsTracker.noteTextChange(from: previous, to: current)
+        }
+        self.model.onSubmitInitiated = { [weak self] in
+            self?.metricsTracker.markSubmitInitiated()
+        }
+        self.panelController.onPanelDidShow = { [weak self] in
+            self?.metricsTracker.markVisible()
+        }
+        self.panelController.onPanelDidHide = { [weak self] in
+            self?.metricsTracker.markHidden()
         }
         self.hotKeyMonitor.start()
         self.updatePollingTask = startUpdatePolling()
     }
 
-    func togglePanel() {
+    func togglePanel(trigger: PromptUXTriggerSource = .menu) {
+        if model.phase == .hidden {
+            metricsTracker.beginPrompt(trigger: trigger)
+        }
         model.toggle()
     }
 
@@ -122,10 +151,11 @@ final class CaptureAppState: ObservableObject {
             statusResetTask?.cancel()
             lastFailedText = text
             captureMenuState = .saving
-        case .succeeded:
+        case .succeeded(let result):
             statusResetTask?.cancel()
             lastFailedText = nil
             captureMenuState = .saved
+            metricsTracker.markCaptureSucceeded(backupState: backupStateName(result.backupState))
             statusResetTask = Task { [weak self] in
                 try? await Task.sleep(for: .seconds(2))
                 await MainActor.run {
@@ -136,6 +166,18 @@ final class CaptureAppState: ObservableObject {
             statusResetTask?.cancel()
             lastFailedText = retryText
             captureMenuState = .failed
+            metricsTracker.markCaptureFailed()
+        }
+    }
+
+    private func backupStateName(_ backupState: BackupState) -> String {
+        switch backupState {
+        case .skipped:
+            return "skipped"
+        case .backedUp:
+            return "backed_up"
+        case .pending:
+            return "pending"
         }
     }
 }

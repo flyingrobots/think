@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { existsSync } from 'node:fs';
+import path from 'node:path';
 
 import {
   runThink,
@@ -81,6 +82,32 @@ test('capture does not require retrieval-before-write or conceptual confirmation
   assertNotContains(capture, 'previous', 'Capture should not require inspecting previous thoughts before save.');
   assertNotContains(capture, 'confirm', 'Capture should not ask for conceptual confirmation before save.');
   assertNotContains(capture, 'match', 'Capture should not prompt about conceptual matches before save.');
+});
+
+test('THINK_REPO_DIR overrides the default local repo path', async () => {
+  const context = await createThinkContext();
+  const customRepoDir = path.join(context.homeDir, 'minds', 'operator');
+  const thought = 'custom repo path thought';
+
+  const capture = runThink(context, [thought], {
+    THINK_REPO_DIR: customRepoDir,
+  });
+
+  assertSuccess(capture, 'Expected capture with THINK_REPO_DIR override to succeed.');
+  assert.ok(
+    existsSync(customRepoDir),
+    `Expected custom local repo dir to be created at ${customRepoDir}.`
+  );
+  assert.ok(
+    !existsSync(context.localRepoDir),
+    `Expected default repo dir ${context.localRepoDir} to remain unused when THINK_REPO_DIR is set.`
+  );
+
+  const recent = runThink(context, ['--recent'], {
+    THINK_REPO_DIR: customRepoDir,
+  });
+  assertSuccess(recent, 'Expected --recent to read from the configured local repo dir.');
+  assertContains(recent, thought, 'Expected the capture in the configured repo dir to be readable.');
 });
 
 test('reachable upstream reports local save first and backup second', async () => {

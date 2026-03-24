@@ -64,7 +64,7 @@ flowchart TD
 ### Git/WARP repo
 
 - The system of record.
-- Private local repo under `~/.think/repo` for the first implementation.
+- Private local repo, defaulting to `~/.think/repo`, for the first implementation.
 - Private upstream GitHub repo on day one for backup and eventual rendezvous.
 
 ## Hexagonal Boundary
@@ -113,7 +113,7 @@ flowchart LR
 
 ### Local
 
-- Path: `~/.think/repo`
+- Path: configurable, defaulting to `~/.think/repo`
 - Purpose: authoritative local system of record
 - Characteristics:
   - private

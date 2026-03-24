@@ -27,6 +27,8 @@ public final class CapturePanelModel: ObservableObject {
     @Published public private(set) var isSubmitting = false
     public let configuration: CapturePanelConfiguration
     public var onSubmissionEvent: ((CaptureSubmissionEvent) -> Void)?
+    public var onTextChanged: ((String, String) -> Void)?
+    public var onSubmitInitiated: (() -> Void)?
 
     private let client: ThinkCapturing
 
@@ -51,7 +53,9 @@ public final class CapturePanelModel: ObservableObject {
     }
 
     public func updateText(_ newText: String) {
+        let previous = text
         text = newText
+        onTextChanged?(previous, newText)
     }
 
     public func retry() {
@@ -93,6 +97,7 @@ public final class CapturePanelModel: ObservableObject {
         guard !normalizedText.isEmpty, !isSubmitting else { return nil }
 
         let rawText = submittedText
+        onSubmitInitiated?()
         isSubmitting = true
         resetAndHide()
         isSubmitting = true

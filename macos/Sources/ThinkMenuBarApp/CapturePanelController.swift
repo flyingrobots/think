@@ -9,6 +9,8 @@ final class CapturePanelController {
     private let panel: CapturePanelWindow
     private var cancellables: Set<AnyCancellable> = []
     private var previousApplication: NSRunningApplication?
+    var onPanelDidShow: (() -> Void)?
+    var onPanelDidHide: (() -> Void)?
 
     init(model: CapturePanelModel) {
         self.model = model
@@ -61,12 +63,14 @@ final class CapturePanelController {
         panel.centerTextFieldOnOpen = true
         panel.makeKeyAndOrderFront(nil)
         panel.orderFrontRegardless()
+        onPanelDidShow?()
     }
 
     private func hidePanel() {
         guard panel.isVisible else { return }
 
         panel.orderOut(nil)
+        onPanelDidHide?()
 
         if let previousApplication, previousApplication != NSRunningApplication.current {
             previousApplication.activate()

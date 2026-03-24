@@ -10,6 +10,11 @@ export function getThinkDir() {
 }
 
 export function getLocalRepoDir() {
+  const configuredRepoDir = (process.env.THINK_REPO_DIR || '').trim();
+  if (configuredRepoDir) {
+    return path.resolve(configuredRepoDir);
+  }
+
   return path.join(getThinkDir(), 'repo');
 }
 
