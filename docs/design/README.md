@@ -1,6 +1,6 @@
 # Design Review Package
 
-Status: design approved; `M0`, `M1`, `M2`, and `M3` complete; `M4` next; agent-native CLI, graph derivation, ingress pipeline, and brainstorm-mode split designs under review
+Status: design approved; `M0`, `M1`, `M2`, and `M3` complete; `M4` design in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode designs under review
 
 This directory began as the pre-implementation design package for `think`.
 
@@ -29,6 +29,7 @@ This review is meant to answer five questions:
 - [`0009-graph-derivation-model.md`](./0009-graph-derivation-model.md): technical graph model for raw capture, content identity, derived artifacts, sessions, and later mode outputs.
 - [`0010-ingress-and-derivation-pipeline.md`](./0010-ingress-and-derivation-pipeline.md): technical note for when derivation runs, which process owns it, and why Git hooks are not the correctness path.
 - [`0011-pressure-test-and-spitball.md`](./0011-pressure-test-and-spitball.md): product note separating deterministic pressure-testing from future explicit LLM-assisted spitballing.
+- [`0012-m4-reentry-browse-inspect.md`](./0012-m4-reentry-browse-inspect.md): product note defining the next human read surfaces as `recent`, `browse`, and `inspect`.
 - [`ROADMAP.md`](./ROADMAP.md): milestone sequence, hill mapping, exit criteria, and review checkpoints.
 - [`../retrospectives/m1-capture-core-and-upstream-backup.md`](../retrospectives/m1-capture-core-and-upstream-backup.md): closeout for the first implemented milestone and the remaining validation follow-through.
 - [`../retrospectives/m2-macos-capture-surface.md`](../retrospectives/m2-macos-capture-surface.md): closeout for the native menu bar app and hotkey capture surface.
@@ -50,6 +51,7 @@ flowchart TD
     R --> G9["0009 Graph Derivation Model"]
     R --> P10["0010 Ingress And Derivation Pipeline"]
     R --> P11["0011 Pressure-Test And Spitball"]
+    R --> P12["0012 M4 Reentry, Browse, And Inspect"]
     R --> RD["Roadmap and Milestones"]
     R --> BL["Backlog (deferred ideas)"]
     P --> A
@@ -64,8 +66,10 @@ flowchart TD
     A --> G9
     A --> P10
     M --> P11
+    M --> P12
     B3 --> G9
     B3 --> P11
+    P11 --> P12
     G9 --> P10
     T --> A8
     T --> P10
@@ -75,6 +79,7 @@ flowchart TD
     G9 --> RD
     P10 --> RD
     P11 --> RD
+    P12 --> RD
 ```
 
 ## Review Standard
@@ -105,4 +110,4 @@ After review, we should either:
 - approve the package and start writing spec tests, or
 - return with specific changes to hills, architecture boundaries, or milestone sequencing
 
-That review is now complete. Production implementation began after approval, Milestones 1 through 3 have been closed, and Milestone 4 is next.
+That review is now complete. Production implementation began after approval, Milestones 1 through 3 have been closed, and Milestone 4 design is now underway.

@@ -1,6 +1,6 @@
 # Roadmap And Milestones
 
-Status: `M0`, `M1`, `M2`, and `M3` complete; `M4` next; agent-native CLI, graph derivation, ingress pipeline, and brainstorm-mode split designs under review
+Status: `M0`, `M1`, `M2`, and `M3` complete; `M4` design in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode designs under review
 
 ## Planning Frame
 
@@ -15,7 +15,7 @@ Milestones exist to prove user value in sequence. They are not buckets for unrel
 - `M1` still has follow-through validation work around real-world usage and latency measurement.
 - `M2: macOS capture surface` is complete.
 - `M3: Brainstorm Mode` is complete.
-- `M4: Reflection and X-Ray` is next.
+- `M4: Reentry, Browse, and Inspect` is in design.
 
 ## Planning Principles
 
@@ -35,8 +35,9 @@ Current cross-cutting notes under review:
 - [`0009-graph-derivation-model.md`](./0009-graph-derivation-model.md)
 - [`0010-ingress-and-derivation-pipeline.md`](./0010-ingress-and-derivation-pipeline.md)
 - [`0011-pressure-test-and-spitball.md`](./0011-pressure-test-and-spitball.md)
+- [`0012-m4-reentry-browse-inspect.md`](./0012-m4-reentry-browse-inspect.md)
 
-These notes should constrain new CLI-facing, graph-facing, and derivation-orchestration work, especially `M3` brainstorm commands and later `M4` derivation work, without becoming separate milestones.
+These notes should constrain new CLI-facing, graph-facing, derivation-orchestration, and read-surface work without becoming separate milestones.
 
 ## Milestone Flow
 
@@ -45,7 +46,7 @@ flowchart LR
     M0["M0: Design lock"] --> M1["M1: Capture core and upstream backup"]
     M1 --> M2["M2: macOS capture surface"]
     M2 --> M3["M3: Brainstorm Mode"]
-    M3 --> M4["M4: Reflection and X-Ray"]
+    M3 --> M4["M4: Reentry, Browse, and Inspect"]
     M4 --> M5["M5: Additional ingress surfaces"]
 ```
 
@@ -194,11 +195,11 @@ Exit criteria:
 - brainstorm is entered deliberately and never ambushes plain capture
 - the shipped deterministic surface remains honest about being reflect / pressure-test rather than fake generative brainstorming
 
-## Milestone 4: Reflection And X-Ray
+## Milestone 4: Reentry, Browse, And Inspect
 
 Goal:
 
-- add richer read modes that revisit captures without violating raw-entry immutability
+- add richer read modes that revisit captures without violating raw-entry immutability or collapsing into one clever surface
 
 Primary hill support:
 
@@ -207,22 +208,23 @@ Primary hill support:
 Deliverables:
 
 - richer `recent` or reentry flow
-- first reflective dialogue prototype
-- first explicit x-ray mode prototype
+- first explicit `browse` prototype
+- first explicit `inspect` prototype
 - sync-first read posture where useful
-- scoped materialization policy for deeper modes
+- scoped materialization policy for deeper read modes
 
 Playback:
 
 - user can return to old captures and see them in context
-- dialogue mode helps the user earn insight rather than spoon-feeding it
-- x-ray mode provides receipts when the user wants to inspect structure directly
+- browse mode helps the user navigate the archive without being prompted at
+- inspect mode provides receipts when the user wants to inspect structure directly
 - derived structure remains clearly separate from raw capture
 
 Exit criteria:
 
 - no mutation of raw entries
-- reflective modes improve understanding without adding capture friction
+- `recent` remains boring and trustworthy
+- browse and inspect improve understanding without adding capture friction
 
 ## Milestone 5: Additional Ingress Surfaces
 
