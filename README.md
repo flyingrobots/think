@@ -12,9 +12,9 @@ It is infrastructure for cheap, exact, replayable thought capture.
 
 ## Current Status
 
-`M0`, `M1`, and `M2` are complete.
-`M3` is in progress.
-Current version: `0.2.0`.
+`M0`, `M1`, `M2`, and `M3` are complete.
+`M4` is next.
+Current version: `0.3.0`.
 
 What exists today:
 
@@ -32,8 +32,9 @@ What exists today:
 
 What does not exist yet:
 
-- reflection mode
+- richer reflection dialogue mode
 - x-ray mode
+- explicit LLM-assisted spitball mode
 - archive-driven brainstorm recombine mode
 - embeddings
 - clustering
@@ -179,6 +180,7 @@ npm test
 ```
 
 The current `M1` and `M2` suites are green for the implemented behavior.
+The current `M3` reflect/brainstorm suite is green for the implemented behavior.
 
 ## Repo Guide
 
@@ -192,6 +194,7 @@ Start with these:
 - [docs/design/ROADMAP.md](/Users/james/git/think/docs/design/ROADMAP.md)
 - [docs/retrospectives/m1-capture-core-and-upstream-backup.md](/Users/james/git/think/docs/retrospectives/m1-capture-core-and-upstream-backup.md)
 - [docs/retrospectives/m2-macos-capture-surface.md](/Users/james/git/think/docs/retrospectives/m2-macos-capture-surface.md)
+- [docs/retrospectives/m3-reflect-mode.md](/Users/james/git/think/docs/retrospectives/m3-reflect-mode.md)
 - [BACKLOG.md](/Users/james/git/think/BACKLOG.md)
 
 Important implementation files:

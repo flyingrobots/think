@@ -1,6 +1,6 @@
 # Design Review Package
 
-Status: design approved; `M0`, `M1`, and `M2` complete; `M3` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, and brainstorm-mode split designs under review
+Status: design approved; `M0`, `M1`, `M2`, and `M3` complete; `M4` next; agent-native CLI, graph derivation, ingress pipeline, and brainstorm-mode split designs under review
 
 This directory began as the pre-implementation design package for `think`.
 
@@ -32,6 +32,7 @@ This review is meant to answer five questions:
 - [`ROADMAP.md`](./ROADMAP.md): milestone sequence, hill mapping, exit criteria, and review checkpoints.
 - [`../retrospectives/m1-capture-core-and-upstream-backup.md`](../retrospectives/m1-capture-core-and-upstream-backup.md): closeout for the first implemented milestone and the remaining validation follow-through.
 - [`../retrospectives/m2-macos-capture-surface.md`](../retrospectives/m2-macos-capture-surface.md): closeout for the native menu bar app and hotkey capture surface.
+- [`../retrospectives/m3-reflect-mode.md`](../retrospectives/m3-reflect-mode.md): closeout for the first explicit post-capture reflect mode and the pressure-test/spitball split it uncovered.
 - [`BACKLOG.md`](../../BACKLOG.md): deferred ideas, cool ideas, and parking-lot items that should not silently become approved scope.
 
 ## Review Package Map
@@ -104,4 +105,4 @@ After review, we should either:
 - approve the package and start writing spec tests, or
 - return with specific changes to hills, architecture boundaries, or milestone sequencing
 
-That review is now complete. Production implementation began after approval, Milestones 1 and 2 have been closed, and Milestone 3 is now in implementation.
+That review is now complete. Production implementation began after approval, Milestones 1 through 3 have been closed, and Milestone 4 is next.

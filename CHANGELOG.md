@@ -12,20 +12,30 @@ Release discipline:
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-03-23
+
+Third milestone release for `think`.
+
 ### Added
 
 - `--json` mode for implemented CLI commands, with JSONL-only output on `stdout`
 - acceptance coverage for machine-readable capture, recent, stats, and validation-failure output
 - explicit M3 reflect plumbing via `--reflect=<seedEntryId>` and `--reflect-session=<sessionId> ...`, with `--brainstorm*` retained as compatibility aliases
-- deterministic brainstorm receipts, constraint fallback, and separate stored brainstorm entries with preserved lineage
-- first Bijou-based interactive brainstorm shell for real TTY use, layered over the same M3 plumbing contract
+- deterministic brainstorm receipts, separate stored derived entries, and preserved seed/session lineage
+- first Bijou-based interactive reflect shell for real TTY use, layered over the same M3 plumbing contract
 - interactive seed picking for bare `--reflect` in a real TTY, while seeded explicit start remains the plumbing path
-- default brainstorm now uses seed-first deterministic challenge or constraint prompts instead of archive-guessed contrast
-- brainstorm seed picking no longer truncates choices arbitrarily and now echoes the full selected seed in the interactive shell
-- brainstorm now refuses low-signal status or narrative seeds instead of forcing every raw capture through a pressure-test prompt
-- ineligible brainstorm seeds now suggest one or two recent eligible alternatives
+- seed-first deterministic challenge and constraint prompts instead of archive-guessed contrast
+- reflect seed picking no longer truncates choices arbitrarily and now echoes the full selected seed in the interactive shell
+- reflect now refuses low-signal status or narrative seeds instead of forcing every raw capture through a pressure-test prompt
+- ineligible reflect seeds now suggest one or two recent eligible alternatives
 - explicit reflect prompt-family selection via `--reflect-mode=challenge|constraint|sharpen`
-- interactive brainstorm sessions can now choose `challenge`, `constraint`, or `sharpen` instead of always accepting the default family
+- user-facing deterministic naming now surfaces the mode as `Reflect`
+
+### Notes
+
+- `M3` is complete
+- `M4` is next
+- the milestone clarified that deterministic pressure-testing and future LLM-assisted spitballing are different product jobs
 
 ## [0.2.0] - 2026-03-22
 

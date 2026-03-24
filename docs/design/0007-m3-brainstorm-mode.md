@@ -1,8 +1,10 @@
 # 0007 M3 Brainstorm Mode
 
-Status: approved for tests
+Status: implemented and closed
 
 Note: the milestone keeps the historical `brainstorm` label, but the current deterministic user-facing surface may be presented as `Reflect` to avoid overselling it as generative ideation.
+
+Retrospective: [../retrospectives/m3-reflect-mode.md](../retrospectives/m3-reflect-mode.md)
 
 ## Purpose
 

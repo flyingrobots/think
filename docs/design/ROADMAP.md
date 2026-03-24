@@ -1,6 +1,6 @@
 # Roadmap And Milestones
 
-Status: `M0`, `M1`, and `M2` complete; `M3` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, and brainstorm-mode split designs under review
+Status: `M0`, `M1`, `M2`, and `M3` complete; `M4` next; agent-native CLI, graph derivation, ingress pipeline, and brainstorm-mode split designs under review
 
 ## Planning Frame
 
@@ -14,7 +14,8 @@ Milestones exist to prove user value in sequence. They are not buckets for unrel
 - `M1: Capture core and upstream backup` is complete from an implementation/specification standpoint.
 - `M1` still has follow-through validation work around real-world usage and latency measurement.
 - `M2: macOS capture surface` is complete.
-- `M3: Brainstorm Mode` is now in implementation.
+- `M3: Brainstorm Mode` is complete.
+- `M4: Reflection and X-Ray` is next.
 
 ## Planning Principles
 
@@ -161,6 +162,11 @@ Exit criteria:
 
 ## Milestone 3: Brainstorm Mode
 
+Status:
+
+- complete
+  - shipped user-facing deterministic surface: `Reflect`
+
 Goal:
 
 - add an explicit session-based mode that helps the user expand and pressure-test an idea without corrupting raw capture
@@ -171,20 +177,22 @@ Primary hill support:
 
 Deliverables:
 
-- `think brainstorm ...` or equivalent seeded mode
+- `think --reflect ...` or equivalent seeded mode
 - question-led interaction instead of generic idea spam
 - brainstorm outputs stored separately from raw capture entries
+- compatibility path for the older `--brainstorm*` CLI flags
 
 Playback:
 
 - the mode helps the user sharpen or reframe an idea
-- the mode feels like a thinking partner rather than autocomplete
+- the mode feels like a deliberate push rather than autocomplete or chat
 - raw capture remains the default and is not interrupted by brainstorming behavior
 
 Exit criteria:
 
 - brainstorm mode produces new useful entries
 - brainstorm is entered deliberately and never ambushes plain capture
+- the shipped deterministic surface remains honest about being reflect / pressure-test rather than fake generative brainstorming
 
 ## Milestone 4: Reflection And X-Ray
 
