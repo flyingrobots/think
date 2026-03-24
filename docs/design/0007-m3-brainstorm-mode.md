@@ -2,6 +2,8 @@
 
 Status: approved for tests
 
+Note: the milestone keeps the historical `brainstorm` label, but the current deterministic user-facing surface may be presented as `Reflect` to avoid overselling it as generative ideation.
+
 ## Purpose
 
 Define Milestone 3 using an IBM Design Thinking style frame so `think` can add a real brainstorm mode without corrupting raw capture, recent, or the thin macOS capture surface.

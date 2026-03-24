@@ -16,15 +16,15 @@ Release discipline:
 
 - `--json` mode for implemented CLI commands, with JSONL-only output on `stdout`
 - acceptance coverage for machine-readable capture, recent, stats, and validation-failure output
-- explicit M3 brainstorm plumbing via `--brainstorm=<seedEntryId>` and `--brainstorm-session=<sessionId> ...`
+- explicit M3 reflect plumbing via `--reflect=<seedEntryId>` and `--reflect-session=<sessionId> ...`, with `--brainstorm*` retained as compatibility aliases
 - deterministic brainstorm receipts, constraint fallback, and separate stored brainstorm entries with preserved lineage
 - first Bijou-based interactive brainstorm shell for real TTY use, layered over the same M3 plumbing contract
-- interactive seed picking for bare `--brainstorm` in a real TTY, while `--brainstorm=<seedEntryId>` remains the explicit plumbing path
+- interactive seed picking for bare `--reflect` in a real TTY, while seeded explicit start remains the plumbing path
 - default brainstorm now uses seed-first deterministic challenge or constraint prompts instead of archive-guessed contrast
 - brainstorm seed picking no longer truncates choices arbitrarily and now echoes the full selected seed in the interactive shell
 - brainstorm now refuses low-signal status or narrative seeds instead of forcing every raw capture through a pressure-test prompt
 - ineligible brainstorm seeds now suggest one or two recent eligible alternatives
-- explicit brainstorm prompt-family selection via `--brainstorm-mode=challenge|constraint|sharpen`
+- explicit reflect prompt-family selection via `--reflect-mode=challenge|constraint|sharpen`
 - interactive brainstorm sessions can now choose `challenge`, `constraint`, or `sharpen` instead of always accepting the default family
 
 ## [0.2.0] - 2026-03-22

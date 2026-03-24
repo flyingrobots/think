@@ -15,16 +15,16 @@ import {
   parseJsonLines,
 } from '../support/assertions.js';
 
-test('think --brainstorm starts an explicit seeded brainstorm with a deterministic seed-first challenge prompt', async () => {
+test('think --reflect starts an explicit seeded reflect session with a deterministic seed-first challenge prompt', async () => {
   const context = await createThinkContext();
   const seedThought = 'We should make warp graph the thought substrate';
   captureWithEntryId(context, 'turkey is good in burritos');
   const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
 
-  const start = runThink(context, ['--verbose', `--brainstorm=${seedEntryId}`]);
+  const start = runThink(context, ['--verbose', `--reflect=${seedEntryId}`]);
 
   assertSuccess(start, 'Expected seeded brainstorm start to succeed.');
-  assertContains(start, 'Brainstorm', 'Expected brainstorm mode to identify itself explicitly.');
+  assertContains(start, 'Reflect', 'Expected the deterministic mode to identify itself explicitly.');
   assertContains(start, 'Mode: Challenge', 'Expected brainstorm to identify the prompt family clearly.');
   assertContains(start, 'Why selected:', 'Expected brainstorm to explain why the question was chosen.');
   assertContains(start, 'Question:', 'Expected brainstorm to present one sharp prompt.');
@@ -37,7 +37,6 @@ test('think --brainstorm starts an explicit seeded brainstorm with a determinist
   assertNotContains(start, 'cluster', 'Brainstorm should not leak clustering language.');
   assertNotContains(start, 'keyword', 'Brainstorm should not leak keyword extraction.');
   assertNotContains(start, 'summary', 'Brainstorm should not summarize the archive.');
-  assertNotContains(start, 'reflect', 'Brainstorm should not narrate reflection mode.');
 
   const events = parseJsonLines(
     start.stderr,
@@ -77,7 +76,7 @@ test('think --brainstorm can deterministically use a seed-first constraint promp
   const start = runThink(context, ['--verbose', `--brainstorm=${seedEntryId}`]);
 
   assertSuccess(start, 'Expected brainstorm to remain usable for a deterministic constraint prompt.');
-  assertContains(start, 'Brainstorm', 'Expected brainstorm mode to remain explicit.');
+  assertContains(start, 'Reflect', 'Expected the deterministic mode to remain explicit.');
   assertContains(start, 'Mode: Constraint', 'Expected brainstorm to identify the constraint family clearly.');
   assertContains(start, 'Why selected:', 'Expected brainstorm to explain why the question was chosen.');
   assertContains(
@@ -110,15 +109,15 @@ test('think --brainstorm can deterministically use a seed-first constraint promp
   );
 });
 
-test('think --brainstorm can use an explicit sharpen prompt family', async () => {
+test('think --reflect can use an explicit sharpen prompt family', async () => {
   const context = await createThinkContext();
   const seedThought = 'We should make warp graph the thought substrate';
   const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
 
-  const start = runThink(context, ['--verbose', `--brainstorm=${seedEntryId}`, '--brainstorm-mode=sharpen']);
+  const start = runThink(context, ['--verbose', `--reflect=${seedEntryId}`, '--reflect-mode=sharpen']);
 
   assertSuccess(start, 'Expected brainstorm to support explicit sharpen mode selection.');
-  assertContains(start, 'Brainstorm', 'Expected brainstorm mode to remain explicit.');
+  assertContains(start, 'Reflect', 'Expected the deterministic mode to remain explicit.');
   assertContains(start, 'Mode: Sharpen', 'Expected brainstorm to identify the sharpen family clearly.');
   assertContains(start, 'Why selected:', 'Expected brainstorm to explain why the question shape was chosen.');
   assertContains(
@@ -158,7 +157,7 @@ test('think --brainstorm-session stores a separate derived entry with preserved 
   const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
   captureWithEntryId(context, otherRawThought);
 
-  const start = runThink(context, ['--verbose', `--brainstorm=${seedEntryId}`]);
+  const start = runThink(context, ['--verbose', `--reflect=${seedEntryId}`]);
   assertSuccess(start, 'Expected brainstorm start to succeed before answering.');
 
   const sessionStarted = getEvent(
@@ -169,11 +168,11 @@ test('think --brainstorm-session stores a separate derived entry with preserved 
 
   const continueResult = runThink(
     context,
-    ['--verbose', `--brainstorm-session=${sessionStarted.sessionId}`, answer]
+    ['--verbose', `--reflect-session=${sessionStarted.sessionId}`, answer]
   );
 
   assertSuccess(continueResult, 'Expected brainstorm response capture to succeed.');
-  assertContains(continueResult, 'Brainstorm saved', 'Expected brainstorm responses to report a clear save result.');
+  assertContains(continueResult, 'Reflect saved', 'Expected reflect responses to report a clear save result.');
   assertNotContains(continueResult, 'commit', 'Brainstorm save UX should avoid Git terminology.');
   assertNotContains(continueResult, 'push', 'Brainstorm save UX should avoid Git terminology.');
   assertNotContains(continueResult, 'pull', 'Brainstorm save UX should avoid Git terminology.');
@@ -219,29 +218,29 @@ test('think --brainstorm-session stores a separate derived entry with preserved 
 test('think --brainstorm validates explicit session entry and stays read-only on invalid start', async () => {
   const context = await createThinkContext();
 
-  const missingSeed = runThink(context, ['--brainstorm']);
+  const missingSeed = runThink(context, ['--reflect']);
   assertFailure(missingSeed, 'Expected --brainstorm without a seed id to fail loudly.');
   assertContains(
     missingSeed,
-    '--brainstorm requires a seed entry id',
-    'Expected brainstorm mode to require explicit seeding outside interactive TTY use.'
+    '--reflect requires a seed entry id',
+    'Expected reflect mode to require explicit seeding outside interactive TTY use.'
   );
   assert.ok(
     !existsSync(context.localRepoDir),
     `Expected invalid brainstorm start to remain read-only, but repo was created at ${context.localRepoDir}.`
   );
 
-  const strayMode = runThink(context, ['--brainstorm-mode=sharpen']);
+  const strayMode = runThink(context, ['--reflect-mode=sharpen']);
   assertFailure(strayMode, 'Expected --brainstorm-mode without --brainstorm to fail loudly.');
   assertContains(
     strayMode,
-    '--brainstorm-mode requires --brainstorm',
-    'Expected brainstorm mode selection to remain scoped to brainstorm start.'
+    '--reflect-mode requires --reflect or --brainstorm',
+    'Expected reflect mode selection to remain scoped to reflect or brainstorm start.'
   );
 
   const seededContext = await createThinkContext();
   const { entryId: seedEntryId } = captureWithEntryId(seededContext, 'seed thought');
-  const unexpectedResponse = runThink(seededContext, ['--brainstorm=' + seedEntryId, 'this should not be dropped']);
+  const unexpectedResponse = runThink(seededContext, ['--reflect=' + seedEntryId, 'this should not be dropped']);
 
   assertFailure(
     unexpectedResponse,
@@ -249,31 +248,31 @@ test('think --brainstorm validates explicit session entry and stays read-only on
   );
   assertContains(
     unexpectedResponse,
-    '--brainstorm does not take a response',
-    'Expected brainstorm start and brainstorm response to remain separate commands.'
+    '--reflect does not take a response',
+    'Expected reflect start and reflect response to remain separate commands.'
   );
 
-  const invalidMode = runThink(seededContext, ['--brainstorm=' + seedEntryId, '--brainstorm-mode=chaos']);
+  const invalidMode = runThink(seededContext, ['--reflect=' + seedEntryId, '--reflect-mode=chaos']);
   assertFailure(invalidMode, 'Expected invalid brainstorm prompt family selection to fail loudly.');
   assertContains(
     invalidMode,
-    'Invalid --brainstorm-mode value',
+    'Invalid --reflect-mode value',
     'Expected brainstorm mode selection to reject unknown prompt families.'
   );
 
-  const missingResponse = runThink(seededContext, ['--brainstorm-session=brainstorm:missing']);
+  const missingResponse = runThink(seededContext, ['--reflect-session=brainstorm:missing']);
   assertFailure(missingResponse, 'Expected brainstorm session continuation without a response to fail.');
   assertContains(
     missingResponse,
-    '--brainstorm-session requires a response',
+    '--reflect-session requires a response',
     'Expected brainstorm continuation to require an explicit response payload.'
   );
 });
 
-test('think --brainstorm fails clearly when the seed entry does not exist', async () => {
+test('think --reflect fails clearly when the seed entry does not exist', async () => {
   const context = await createThinkContext();
 
-  const start = runThink(context, ['--brainstorm=entry:missing-seed']);
+  const start = runThink(context, ['--reflect=entry:missing-seed']);
 
   assertFailure(start, 'Expected brainstorm to fail loudly when the seed entry is missing.');
   assertContains(start, 'Seed entry not found', 'Expected a clear missing-seed error.');
@@ -283,7 +282,7 @@ test('think --brainstorm fails clearly when the seed entry does not exist', asyn
   );
 });
 
-test('think --brainstorm refuses status-like seeds that are not pressure-testable ideas', async () => {
+test('think --reflect refuses status-like seeds that are not pressure-testable ideas', async () => {
   const context = await createThinkContext();
   const seedThought = "I showed the thought log to ChatGPT, since it was Chat's idea in the first place.";
   const alternativeOne = 'We should make warp graph the thought substrate';
@@ -292,7 +291,7 @@ test('think --brainstorm refuses status-like seeds that are not pressure-testabl
   captureWithEntryId(context, alternativeOne);
   captureWithEntryId(context, alternativeTwo);
 
-  const start = runThink(context, ['--brainstorm=' + seedEntryId]);
+  const start = runThink(context, ['--reflect=' + seedEntryId]);
 
   assertFailure(start, 'Expected brainstorm to refuse low-signal status or narrative notes.');
   assertContains(
@@ -488,10 +487,10 @@ test('think --json --brainstorm-session emits only JSONL and preserves stored se
   assert.equal(saved.promptType, 'constraint', 'Expected JSON brainstorm response to preserve the prompt family.');
 });
 
-test('think --json brainstorm validation failures stay fully machine-readable', async () => {
+test('think --json reflect validation failures stay fully machine-readable', async () => {
   const context = await createThinkContext();
 
-  const result = runThink(context, ['--json', '--brainstorm']);
+  const result = runThink(context, ['--json', '--reflect']);
 
   assertFailure(result, 'Expected invalid JSON brainstorm start to fail loudly.');
   assertJsonStreams(result);
@@ -519,8 +518,8 @@ test('think --json brainstorm validation failures stay fully machine-readable', 
 
   assert.equal(
     validation.message,
-    '--brainstorm requires a seed entry id',
-    'Expected JSON brainstorm validation to preserve the same error contract.'
+    '--reflect requires a seed entry id',
+    'Expected JSON reflect validation to preserve the same error contract.'
   );
 });
 

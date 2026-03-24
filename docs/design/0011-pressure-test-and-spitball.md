@@ -193,6 +193,8 @@ The cleanest shape is:
 - `pressure-test` as the deterministic backbone
 - `spitball` as the future explicit LLM-assisted ideation layer
 
+In the user-facing product language, the deterministic backbone may simply be presented as `Reflect`.
+
 That may appear in the UX either as:
 
 - two named modes

@@ -25,7 +25,7 @@ What exists today:
 - exact raw-text preservation
 - plain newest-first recent listing
 - best-effort upstream backup
-- first seeded brainstorm CLI flow via `--brainstorm` and `--brainstorm-session`
+- first seeded reflect CLI flow via `--reflect` and `--reflect-session`
 - a native macOS menu bar app with a global hotkey capture panel
 - quiet menu bar feedback for saving, success, failure, and restart-needed state
 - executable acceptance tests for the implemented CLI and macOS behavior
@@ -97,9 +97,9 @@ node ./bin/think.js --recent
 node ./bin/think.js --stats
 node ./bin/think.js --stats --bucket=day
 node ./bin/think.js --stats --since=7d
-node ./bin/think.js --brainstorm
-node ./bin/think.js --brainstorm=<seedEntryId> --brainstorm-mode=sharpen
-node ./bin/think.js --brainstorm-session=<sessionId> "push the idea further"
+node ./bin/think.js --reflect
+node ./bin/think.js --reflect=<seedEntryId> --reflect-mode=sharpen
+node ./bin/think.js --reflect-session=<sessionId> "push the idea further"
 ```
 
 If you install or link the package entrypoint, the intended commands are:
@@ -110,7 +110,7 @@ think --recent
 think --stats
 ```
 
-In a real TTY, bare `--brainstorm` opens an interactive seed picker. `--brainstorm-mode=challenge|constraint|sharpen` can be used to request a specific pressure family.
+In a real TTY, bare `--reflect` opens an interactive seed picker. `--reflect-mode=challenge|constraint|sharpen` can be used to request a specific pressure family. The older `--brainstorm*` flags still work as compatibility aliases.
 
 `--recent` and `--stats` are read-only commands.
 They should not create local app state on their own.

@@ -174,7 +174,7 @@ async function runBrainstormStart(seedEntryId, output, reporter, { brainstormMod
         reason: 'no_prompt_type_selected',
       });
       if (!output.json) {
-        output.out('Brainstorm skipped');
+        output.out('Reflect skipped');
       }
       return 0;
     }
@@ -230,7 +230,7 @@ async function runBrainstormStart(seedEntryId, output, reporter, { brainstormMod
   }
 
   if (!output.json) {
-    const lines = ['Brainstorm'];
+    const lines = ['Reflect'];
     lines.push(`Mode: ${capitalize(session.promptType)}`);
     lines.push(`Why selected: ${session.selectionReason.text}`);
     lines.push(`Question: ${session.question}`);
@@ -242,7 +242,7 @@ async function runBrainstormStart(seedEntryId, output, reporter, { brainstormMod
 
 async function runBrainstormReply(sessionId, response, output, reporter) {
   if (response.trim() === '') {
-    output.error('Brainstorm response cannot be empty', 'brainstorm.validation_failed', {
+    output.error('Reflect response cannot be empty', 'brainstorm.validation_failed', {
       reason: 'empty_response',
     });
     return 1;
@@ -250,13 +250,13 @@ async function runBrainstormReply(sessionId, response, output, reporter) {
 
   const repoDir = getLocalRepoDir();
   if (!hasGitRepo(repoDir)) {
-    output.error('Brainstorm session not found', 'brainstorm.session_not_found', { sessionId });
+    output.error('Reflect session not found', 'brainstorm.session_not_found', { sessionId });
     return 1;
   }
 
   const saved = await saveBrainstormResponse(repoDir, sessionId, response);
   if (!saved) {
-    output.error('Brainstorm session not found', 'brainstorm.session_not_found', { sessionId });
+    output.error('Reflect session not found', 'brainstorm.session_not_found', { sessionId });
     return 1;
   }
 
@@ -270,7 +270,7 @@ async function runBrainstormReply(sessionId, response, output, reporter) {
   });
 
   if (!output.json) {
-    output.out('Brainstorm saved');
+    output.out('Reflect saved');
   }
 
   return 0;
@@ -278,7 +278,7 @@ async function runBrainstormReply(sessionId, response, output, reporter) {
 
 async function pickBrainstormSeed(repoDir, output, reporter) {
   if (!isInteractiveBrainstormAvailable() || output.json) {
-    output.error('--brainstorm requires a seed entry id', 'cli.validation_failed', {
+    output.error('--reflect requires a seed entry id', 'cli.validation_failed', {
       command: 'brainstorm_start',
     });
     return null;
@@ -409,20 +409,28 @@ function parseArgs(args) {
         options.stats = true;
       } else if (arg === '--recent') {
         options.recent = true;
-      } else if (arg === '--brainstorm') {
+      } else if (arg === '--brainstorm' || arg === '--reflect') {
         options.brainstormFlag = true;
         options.brainstorm = '';
       } else if (arg.startsWith('--brainstorm=')) {
         options.brainstormFlag = true;
         options.brainstorm = arg.slice('--brainstorm='.length);
+      } else if (arg.startsWith('--reflect=')) {
+        options.brainstormFlag = true;
+        options.brainstorm = arg.slice('--reflect='.length);
       } else if (arg.startsWith('--brainstorm-mode=')) {
         options.brainstormMode = arg.slice('--brainstorm-mode='.length);
-      } else if (arg === '--brainstorm-session') {
+      } else if (arg.startsWith('--reflect-mode=')) {
+        options.brainstormMode = arg.slice('--reflect-mode='.length);
+      } else if (arg === '--brainstorm-session' || arg === '--reflect-session') {
         options.brainstormSessionFlag = true;
         options.brainstormSession = '';
       } else if (arg.startsWith('--brainstorm-session=')) {
         options.brainstormSessionFlag = true;
         options.brainstormSession = arg.slice('--brainstorm-session='.length);
+      } else if (arg.startsWith('--reflect-session=')) {
+        options.brainstormSessionFlag = true;
+        options.brainstormSession = arg.slice('--reflect-session='.length);
       } else if (arg.startsWith('--from=')) {
         options.from = arg.split('=')[1];
       } else if (arg.startsWith('--to=')) {
@@ -483,27 +491,27 @@ function validateOptions(options, command) {
 
   if (command === 'brainstorm_start') {
     if (options.brainstormMode && !BRAINSTORM_PROMPT_TYPES.includes(options.brainstormMode)) {
-      return 'Invalid --brainstorm-mode value';
+      return 'Invalid --reflect-mode value';
     }
     if (!options.brainstorm && !canInteractivelyPickBrainstormSeed(options)) {
-      return '--brainstorm requires a seed entry id';
+      return '--reflect requires a seed entry id';
     }
     if (options.positionals.length > 0) {
-      return '--brainstorm does not take a response';
+      return '--reflect does not take a response';
     }
   }
 
   if (command === 'brainstorm_reply') {
     if (!options.brainstormSession) {
-      return '--brainstorm-session requires a session id';
+      return '--reflect-session requires a session id';
     }
     if (options.positionals.length === 0) {
-      return '--brainstorm-session requires a response';
+      return '--reflect-session requires a response';
     }
   }
 
   if (options.brainstormMode && command !== 'brainstorm_start') {
-    return '--brainstorm-mode requires --brainstorm';
+    return '--reflect-mode requires --reflect or --brainstorm';
   }
 
   if (command !== 'stats' && hasStatsFilter) {
@@ -642,19 +650,19 @@ function formatIneligibleSeedMessage(eligibility, suggestedSeeds) {
 }
 
 function renderInteractiveSeedIntro(ctx) {
-  const header = headerBox('Choose a seed thought', { ctx });
-  const body = markdown('**Pick one recent capture that looks like an idea, question, or decision to pressure-test.**', { ctx });
+  const header = headerBox('Choose a thought to reflect on', { ctx });
+  const body = markdown('**Pick one recent capture that looks like an idea, question, or decision to reflect on.**', { ctx });
   return `${header}\n${body}`;
 }
 
 function renderInteractiveModeIntro(ctx) {
-  const header = headerBox('Choose a pressure mode', { ctx });
+  const header = headerBox('Choose how to reflect', { ctx });
   const body = markdown('**Choose how you want to push the seed thought.**', { ctx });
   return `${header}\n${body}`;
 }
 
 function renderInteractiveBrainstormIntro(session, ctx) {
-  const header = headerBox('Brainstorm', { ctx });
+  const header = headerBox('Reflect', { ctx });
   const sections = [
     '## Seed',
     session.seedEntry.text,
