@@ -1,6 +1,6 @@
 # Roadmap And Milestones
 
-Status: `M0`, `M1`, and `M2` complete; `M3` implementation in progress; agent-native CLI, graph derivation, and ingress pipeline designs under review
+Status: `M0`, `M1`, and `M2` complete; `M3` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, and brainstorm-mode split designs under review
 
 ## Planning Frame
 
@@ -33,6 +33,7 @@ Current cross-cutting notes under review:
 - [`0008-agent-native-cli.md`](./0008-agent-native-cli.md)
 - [`0009-graph-derivation-model.md`](./0009-graph-derivation-model.md)
 - [`0010-ingress-and-derivation-pipeline.md`](./0010-ingress-and-derivation-pipeline.md)
+- [`0011-pressure-test-and-spitball.md`](./0011-pressure-test-and-spitball.md)
 
 These notes should constrain new CLI-facing, graph-facing, and derivation-orchestration work, especially `M3` brainstorm commands and later `M4` derivation work, without becoming separate milestones.
 

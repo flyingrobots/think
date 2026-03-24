@@ -244,6 +244,23 @@ Possible brainstorm flavors:
 
 These should only appear if they make brainstorm sharper rather than more menu-driven.
 
+### LLM-Assisted Spitball Mode
+
+If `think` later uses an LLM for idea generation, it should not silently replace deterministic pressure-testing.
+
+Keep the split explicit:
+
+- pressure-test for deterministic challenge / constraint / sharpening
+- spitball for bounded, seed-first, LLM-assisted idea branching
+
+Important constraints:
+
+- explicit entry only
+- no ambient model suggestions after capture
+- no archive-wide opaque retrieval by default
+- derived outputs stay separate from raw capture
+- context supplied to the model should be inspectable and receipt-like
+
 ### Dialogue With Receipts
 
 Reflection should feel like a mentor with receipts:
