@@ -15,7 +15,7 @@ Release discipline:
 ### Added
 
 - config-driven local thought repo targeting via `THINK_REPO_DIR`, while keeping `~/.think/repo` as the default
-- macOS prompt-UX telemetry capture as local JSONL, including visibility, typing, abandonment, submit-to-hide, and submit-to-local-save timings without storing prompt text
+- macOS prompt-UX telemetry capture as buffered local JSONL session summaries, including visibility, typing, abandonment, submit-to-hide, and submit-to-local-save timings without storing prompt text
 
 ## [0.3.0] - 2026-03-23
 

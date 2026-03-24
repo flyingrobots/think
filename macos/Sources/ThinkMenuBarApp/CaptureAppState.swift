@@ -41,6 +41,9 @@ final class CaptureAppState: ObservableObject {
         let hotKeyMonitor = GlobalHotKeyMonitor {
             Task { @MainActor in
                 if model.phase == .hidden {
+                    Task {
+                        await metricsRecorder.suspendFlushes()
+                    }
                     metricsTracker.beginPrompt(trigger: .hotkey)
                 }
                 model.toggle()
@@ -66,7 +69,13 @@ final class CaptureAppState: ObservableObject {
             self?.metricsTracker.markVisible()
         }
         self.panelController.onPanelDidHide = { [weak self] in
-            self?.metricsTracker.markHidden()
+            guard let self else { return }
+            self.metricsTracker.markHidden()
+            if !self.model.isSubmitting {
+                Task {
+                    await self.metricsRecorder.resumeFlushes()
+                }
+            }
         }
         self.hotKeyMonitor.start()
         self.updatePollingTask = startUpdatePolling()
@@ -74,6 +83,9 @@ final class CaptureAppState: ObservableObject {
 
     func togglePanel(trigger: PromptUXTriggerSource = .menu) {
         if model.phase == .hidden {
+            Task {
+                await metricsRecorder.suspendFlushes()
+            }
             metricsTracker.beginPrompt(trigger: trigger)
         }
         model.toggle()
@@ -156,6 +168,9 @@ final class CaptureAppState: ObservableObject {
             lastFailedText = nil
             captureMenuState = .saved
             metricsTracker.markCaptureSucceeded(backupState: backupStateName(result.backupState))
+            Task {
+                await metricsRecorder.resumeFlushes()
+            }
             statusResetTask = Task { [weak self] in
                 try? await Task.sleep(for: .seconds(2))
                 await MainActor.run {
@@ -167,6 +182,9 @@ final class CaptureAppState: ObservableObject {
             lastFailedText = retryText
             captureMenuState = .failed
             metricsTracker.markCaptureFailed()
+            Task {
+                await metricsRecorder.resumeFlushes()
+            }
         }
     }
 

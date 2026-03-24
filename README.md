@@ -164,7 +164,7 @@ The panel is intentionally thin:
 
 The menu bar icon then carries the save lifecycle so the panel can disappear immediately without losing confirmation.
 
-The macOS app also records local prompt-UX telemetry as JSONL, without storing prompt text, so timing and abandonment patterns can be reviewed later. By default this lives at `~/.think/metrics/prompt-ux.jsonl`. Set `THINK_PROMPT_METRICS_FILE` to override the file location.
+The macOS app also records buffered local prompt-UX telemetry summaries as JSONL, without storing prompt text, so timing and abandonment patterns can be reviewed later. By default this lives at `~/.think/metrics/prompt-ux.jsonl`. Set `THINK_PROMPT_METRICS_FILE` to override the file location.
 
 ## Tests Are The Spec
 

@@ -16,15 +16,15 @@ public enum PromptUXCaptureOutcome: String, Codable, Equatable, Sendable {
     case failed
 }
 
-public struct PromptUXMetricsEvent: Codable, Equatable, Sendable {
+public struct PromptUXMetricsRecord: Codable, Equatable, Sendable {
     public let ts: String
     public let event: String
     public let sessionId: String
-    public let trigger: PromptUXTriggerSource?
-    public let dismissalOutcome: PromptUXDismissalOutcome?
+    public let trigger: PromptUXTriggerSource
+    public let dismissalOutcome: PromptUXDismissalOutcome
     public let captureOutcome: PromptUXCaptureOutcome?
-    public let startedTyping: Bool?
-    public let editCount: Int?
+    public let startedTyping: Bool
+    public let editCount: Int
     public let triggerToVisibleMs: Int?
     public let typingDurationMs: Int?
     public let submitToHideMs: Int?
@@ -33,13 +33,13 @@ public struct PromptUXMetricsEvent: Codable, Equatable, Sendable {
 
     public init(
         ts: String,
-        event: String,
+        event: String = "prompt.session",
         sessionId: String,
-        trigger: PromptUXTriggerSource? = nil,
-        dismissalOutcome: PromptUXDismissalOutcome? = nil,
+        trigger: PromptUXTriggerSource,
+        dismissalOutcome: PromptUXDismissalOutcome,
         captureOutcome: PromptUXCaptureOutcome? = nil,
-        startedTyping: Bool? = nil,
-        editCount: Int? = nil,
+        startedTyping: Bool,
+        editCount: Int,
         triggerToVisibleMs: Int? = nil,
         typingDurationMs: Int? = nil,
         submitToHideMs: Int? = nil,
@@ -63,7 +63,7 @@ public struct PromptUXMetricsEvent: Codable, Equatable, Sendable {
 }
 
 public protocol PromptUXMetricsRecording: Sendable {
-    func record(_ event: PromptUXMetricsEvent) async
+    func record(_ record: PromptUXMetricsRecord) async
 }
 
 public enum PromptUXMetricsPathResolver {
@@ -88,47 +88,121 @@ public actor PromptUXMetricsRecorder: PromptUXMetricsRecording {
     private let fileURL: URL
     private let fileManager: FileManager
     private let encoder: JSONEncoder
+    private let flushDelayNanoseconds: UInt64
+    private let flushBatchSize: Int
+
+    private var buffer: [PromptUXMetricsRecord] = []
+    private var flushSuspendedCount = 0
+    private var scheduledFlushTask: Task<Void, Never>?
 
     public init(
         fileURL: URL = PromptUXMetricsPathResolver.defaultFileURL(),
-        fileManager: FileManager = .default
+        fileManager: FileManager = .default,
+        flushDelayNanoseconds: UInt64 = 750_000_000,
+        flushBatchSize: Int = 8
     ) {
         self.fileURL = fileURL
         self.fileManager = fileManager
+        self.flushDelayNanoseconds = flushDelayNanoseconds
+        self.flushBatchSize = flushBatchSize
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         self.encoder = encoder
     }
 
-    public func record(_ event: PromptUXMetricsEvent) async {
-        let directoryURL = fileURL.deletingLastPathComponent()
+    public func record(_ record: PromptUXMetricsRecord) async {
+        buffer.append(record)
+        scheduleFlushIfNeeded()
+    }
 
-        do {
-            try fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
-            if !fileManager.fileExists(atPath: fileURL.path) {
-                fileManager.createFile(atPath: fileURL.path, contents: nil)
+    public func suspendFlushes() {
+        flushSuspendedCount += 1
+    }
+
+    public func resumeFlushes() async {
+        if flushSuspendedCount > 0 {
+            flushSuspendedCount -= 1
+        }
+
+        scheduleFlushIfNeeded()
+    }
+
+    public func flushNow() async {
+        await flushBufferIfPossible()
+    }
+
+    private var isFlushSuspended: Bool {
+        flushSuspendedCount > 0
+    }
+
+    private func scheduleFlushIfNeeded() {
+        guard !buffer.isEmpty, !isFlushSuspended else { return }
+
+        if buffer.count >= flushBatchSize {
+            scheduledFlushTask?.cancel()
+            scheduledFlushTask = nil
+            Task {
+                await flushBufferIfPossible()
             }
-
-            var line = try encoder.encode(event)
-            line.append(0x0A)
-
-            let handle = try FileHandle(forWritingTo: fileURL)
-            try handle.seekToEnd()
-            try handle.write(contentsOf: line)
-            try handle.close()
-        } catch {
             return
         }
+
+        guard scheduledFlushTask == nil else { return }
+        let delay = flushDelayNanoseconds
+
+        scheduledFlushTask = Task {
+            try? await Task.sleep(nanoseconds: delay)
+            await flushBufferIfPossible()
+            clearScheduledFlushTask()
+        }
+    }
+
+    private func clearScheduledFlushTask() {
+        scheduledFlushTask = nil
+    }
+
+    private func flushBufferIfPossible() async {
+        guard !buffer.isEmpty, !isFlushSuspended else { return }
+
+        let records = buffer
+        buffer.removeAll(keepingCapacity: true)
+
+        do {
+            try persist(records)
+        } catch {
+            buffer.insert(contentsOf: records, at: 0)
+        }
+    }
+
+    private func persist(_ records: [PromptUXMetricsRecord]) throws {
+        let directoryURL = fileURL.deletingLastPathComponent()
+
+        try fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        if !fileManager.fileExists(atPath: fileURL.path) {
+            fileManager.createFile(atPath: fileURL.path, contents: nil)
+        }
+
+        var payload = Data()
+        for record in records {
+            var line = try encoder.encode(record)
+            line.append(0x0A)
+            payload.append(line)
+        }
+
+        let handle = try FileHandle(forWritingTo: fileURL)
+        try handle.seekToEnd()
+        try handle.write(contentsOf: payload)
+        try handle.close()
     }
 }
 
 public final class PromptUXMetricsTracker {
     public typealias Clock = () -> Date
-    public typealias Emit = (PromptUXMetricsEvent) -> Void
+    public typealias Emit = (PromptUXMetricsRecord) -> Void
 
-    private var session: PromptSession?
     private let clock: Clock
     private let emit: Emit
+    private var session: PromptSession?
 
     public init(
         clock: @escaping Clock = Date.init,
@@ -150,19 +224,8 @@ public final class PromptUXMetricsTracker {
         guard var session else { return }
         guard session.visibleAt == nil else { return }
 
-        let visibleAt = clock()
-        session.visibleAt = visibleAt
+        session.visibleAt = clock()
         self.session = session
-
-        emit(
-            PromptUXMetricsEvent(
-                ts: isoString(for: visibleAt),
-                event: "prompt.visible",
-                sessionId: session.id,
-                trigger: session.trigger,
-                triggerToVisibleMs: milliseconds(from: session.triggerAt, to: visibleAt)
-            )
-        )
     }
 
     public func noteTextChange(from oldValue: String, to newValue: String) {
@@ -189,55 +252,67 @@ public final class PromptUXMetricsTracker {
     public func markHidden() {
         guard var session else { return }
 
-        let hiddenAt = clock()
-        session.hiddenAt = hiddenAt
+        session.hiddenAt = clock()
         self.session = session
 
-        let dismissalOutcome = dismissalOutcome(for: session)
-        emit(
-            PromptUXMetricsEvent(
-                ts: isoString(for: hiddenAt),
-                event: "prompt.dismissed",
-                sessionId: session.id,
-                trigger: session.trigger,
-                dismissalOutcome: dismissalOutcome,
-                startedTyping: session.editCount > 0,
-                editCount: session.editCount,
-                typingDurationMs: typingDuration(for: session, endingAt: session.submitAt ?? hiddenAt),
-                submitToHideMs: session.submitAt.map { milliseconds(from: $0, to: hiddenAt) }
-            )
-        )
-
-        if dismissalOutcome != .submitted {
+        if session.submitAt == nil {
+            emit(makeRecord(from: session, captureOutcome: nil, backupState: nil, completedAt: session.hiddenAt!))
             self.session = nil
         }
     }
 
     public func markCaptureSucceeded(backupState: String) {
-        recordCaptureResult(outcome: .succeeded, backupState: backupState)
+        emitCaptureResult(outcome: .succeeded, backupState: backupState)
     }
 
     public func markCaptureFailed() {
-        recordCaptureResult(outcome: .failed, backupState: nil)
+        emitCaptureResult(outcome: .failed, backupState: nil)
     }
 
-    private func recordCaptureResult(outcome: PromptUXCaptureOutcome, backupState: String?) {
-        guard let session, let submitAt = session.submitAt else { return }
+    private func emitCaptureResult(outcome: PromptUXCaptureOutcome, backupState: String?) {
+        guard let session, let hiddenAt = session.hiddenAt else { return }
 
         let completedAt = clock()
-        emit(
-            PromptUXMetricsEvent(
-                ts: isoString(for: completedAt),
-                event: "capture.local_result",
-                sessionId: session.id,
-                trigger: session.trigger,
-                captureOutcome: outcome,
-                submitToLocalCaptureMs: milliseconds(from: submitAt, to: completedAt),
-                backupState: backupState
-            )
+        let record = makeRecord(
+            from: session,
+            captureOutcome: outcome,
+            backupState: backupState,
+            completedAt: completedAt,
+            hiddenAtOverride: hiddenAt
         )
-
+        emit(record)
         self.session = nil
+    }
+
+    private func makeRecord(
+        from session: PromptSession,
+        captureOutcome: PromptUXCaptureOutcome?,
+        backupState: String?,
+        completedAt: Date,
+        hiddenAtOverride: Date? = nil
+    ) -> PromptUXMetricsRecord {
+        let hiddenAt = hiddenAtOverride ?? session.hiddenAt
+        let dismissalOutcome = dismissalOutcome(for: session)
+        let typingEnd = session.submitAt ?? hiddenAt ?? completedAt
+
+        return PromptUXMetricsRecord(
+            ts: isoString(for: completedAt),
+            sessionId: session.id,
+            trigger: session.trigger,
+            dismissalOutcome: dismissalOutcome,
+            captureOutcome: captureOutcome,
+            startedTyping: session.editCount > 0,
+            editCount: session.editCount,
+            triggerToVisibleMs: session.visibleAt.map { milliseconds(from: session.triggerAt, to: $0) },
+            typingDurationMs: session.firstEditAt.map { milliseconds(from: $0, to: typingEnd) },
+            submitToHideMs: hiddenAt.flatMap { hidden in
+                session.submitAt.map { milliseconds(from: $0, to: hidden) }
+            },
+            submitToLocalCaptureMs: captureOutcome == nil
+                ? nil
+                : session.submitAt.map { milliseconds(from: $0, to: completedAt) },
+            backupState: backupState
+        )
     }
 
     private func dismissalOutcome(for session: PromptSession) -> PromptUXDismissalOutcome {
@@ -248,16 +323,11 @@ public final class PromptUXMetricsTracker {
         return session.editCount > 0 ? .abandonedStarted : .abandonedEmpty
     }
 
-    private func typingDuration(for session: PromptSession, endingAt end: Date) -> Int? {
-        guard let firstEditAt = session.firstEditAt else {
-            return nil
-        }
-
-        return milliseconds(from: firstEditAt, to: end)
-    }
-
     private func isoString(for date: Date) -> String {
-        ISO8601DateFormatter().string(from: date)
+        let formatter = ISO8601DateFormatter()
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.string(from: date)
     }
 
     private func milliseconds(from start: Date, to end: Date) -> Int {
