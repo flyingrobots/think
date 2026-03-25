@@ -54,6 +54,28 @@ These are different read jobs.
 
 They should not be collapsed into one clever surface.
 
+## Surface Decision
+
+M4 should now assume two layers:
+
+- plumbing read commands that remain explicit, scriptable, and JSONL-capable
+- a human-facing read shell that makes browsing and inspection feel deliberate rather than mechanical
+
+That read shell should not replace the plumbing.
+It should sit on top of it.
+
+The approved direction is:
+
+- keep `--recent`, `--browse`, and `--inspect` as the explicit command surface
+- adopt a Bijou-based TUI as the first deliberate human browse/inspect shell
+- keep the TUI optional and explicit rather than ambient
+
+This preserves the standing product doctrine:
+
+- capture stays sacred
+- machine contracts stay real
+- richer human reading can still become pleasant on screen
+
 ## Mode 1: Recent
 
 `recent` remains the first return surface.
@@ -95,12 +117,17 @@ Possible behaviors:
 - expose provenance or placement context without forcing interpretation
 - allow the user to jump from a viewed thought into `Reflect`
 
+The first human-facing `browse` shell should be a Bijou TUI.
+That is now an explicit design direction, not just one possible implementation.
+
 Important constraints:
 
 - no prompt injection by default
 - no fake narration
 - no hiding raw text behind a summary surface
-- no assumption that browsing must become a TUI or dashboard immediately
+- no graph fireworks
+- no dashboard homepage
+- no attempt to absorb capture into the TUI
 
 The defining feeling should be:
 
@@ -139,6 +166,9 @@ Important constraints:
 - no hidden heuristics presented as truth
 - every structural claim should have receipts
 - this mode should reveal machinery rather than hiding it
+
+In the first M4 shell, `inspect` should likely appear as an explicit pane or toggle within the Bijou browser rather than as a separate full-screen product.
+The standalone `--inspect=<entryId>` command still matters for plain CLI and agent-native use.
 
 The defining feeling should be:
 
@@ -191,6 +221,7 @@ The smallest coherent slice now looks like:
 1. strengthen `recent` as a trustworthy reentry surface
 2. add the first explicit `browse` prototype
 3. add the first explicit `inspect` prototype
+4. add the first explicit Bijou read shell over `browse` and `inspect`
 
 That is a better sequence than trying to jump directly to a dialogue-heavy “reflection” mode whose job is still ambiguous.
 
@@ -199,11 +230,34 @@ That is a better sequence than trying to jump directly to a dialogue-heavy “re
 - richer `recent` filters by count, time window, and fuzzy text
 - a first browser surface over stored thoughts
 - an explicit `inspect` command or view for provenance and derived structure
+- a Bijou-based TUI shell for browse and inspect
 - clear receipts for any displayed connections or groupings
+
+## First Bijou Slice
+
+The first TUI slice should stay intentionally narrow:
+
+- open explicitly from `--browse` in a real TTY when no `entryId` is provided
+- center one raw thought at a time
+- support older/newer navigation
+- expose an inspect pane or toggle for raw metadata and derived receipts
+- allow a jump into `Reflect` from the selected thought
+
+It should not start with:
+
+- graph maps
+- ambient recommendations
+- editable dashboards
+- capture inside the TUI
+- LLM-assisted chat
+
+The TUI is being adopted here because M4 is the first milestone whose core job is on-screen navigation and inspection.
+It is not a general permission slip to move the whole product into a terminal application.
 
 ## Playback Questions
 
 - can the user find a prior thought they care about quickly?
+- does the first Bijou shell feel like navigation rather than terminal theater?
 - does `browse` feel like navigation rather than product cleverness?
 - does `inspect` help the user trust the system more?
 - do these read modes stay separate from capture and `Reflect`?
@@ -215,5 +269,6 @@ That is a better sequence than trying to jump directly to a dialogue-heavy “re
 - `recent` becomes more useful without becoming a mini-dashboard
 - `browse` exists as a real navigation surface
 - `inspect` exists as a real machinery-facing surface with receipts
+- the Bijou read shell proves helpful without trying to become the whole product
 - no new read mode adds friction to capture
 - no silent “smartness” leaks into the default read path

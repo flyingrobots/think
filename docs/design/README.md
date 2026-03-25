@@ -1,6 +1,6 @@
 # Design Review Package
 
-Status: design approved; `M0`, `M1`, `M2`, and `M3` complete; `M4` design in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode designs under review
+Status: design approved; `M0`, `M1`, `M2`, and `M3` complete; `M4` design in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode and Bijou read-shell designs under review
 
 This directory began as the pre-implementation design package for `think`.
 
@@ -30,6 +30,7 @@ This review is meant to answer five questions:
 - [`0010-ingress-and-derivation-pipeline.md`](./0010-ingress-and-derivation-pipeline.md): technical note for when derivation runs, which process owns it, and why Git hooks are not the correctness path.
 - [`0011-pressure-test-and-spitball.md`](./0011-pressure-test-and-spitball.md): product note separating deterministic pressure-testing from future explicit LLM-assisted spitballing.
 - [`0012-m4-reentry-browse-inspect.md`](./0012-m4-reentry-browse-inspect.md): product note defining the next human read surfaces as `recent`, `browse`, and `inspect`.
+- [`0013-m4-bijou-read-shell.md`](./0013-m4-bijou-read-shell.md): IBM Design Thinking style product note for adopting a Bijou TUI as the first explicit human browse/inspect shell for M4.
 - [`ROADMAP.md`](./ROADMAP.md): milestone sequence, hill mapping, exit criteria, and review checkpoints.
 - [`../retrospectives/m1-capture-core-and-upstream-backup.md`](../retrospectives/m1-capture-core-and-upstream-backup.md): closeout for the first implemented milestone and the remaining validation follow-through.
 - [`../retrospectives/m2-macos-capture-surface.md`](../retrospectives/m2-macos-capture-surface.md): closeout for the native menu bar app and hotkey capture surface.
@@ -52,6 +53,7 @@ flowchart TD
     R --> P10["0010 Ingress And Derivation Pipeline"]
     R --> P11["0011 Pressure-Test And Spitball"]
     R --> P12["0012 M4 Reentry, Browse, And Inspect"]
+    R --> P13["0013 M4 Bijou Read Shell"]
     R --> RD["Roadmap and Milestones"]
     R --> BL["Backlog (deferred ideas)"]
     P --> A
@@ -67,9 +69,11 @@ flowchart TD
     A --> P10
     M --> P11
     M --> P12
+    M --> P13
     B3 --> G9
     B3 --> P11
     P11 --> P12
+    P12 --> P13
     G9 --> P10
     T --> A8
     T --> P10
@@ -80,6 +84,7 @@ flowchart TD
     P10 --> RD
     P11 --> RD
     P12 --> RD
+    P13 --> RD
 ```
 
 ## Review Standard

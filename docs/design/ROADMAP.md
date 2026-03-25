@@ -1,6 +1,6 @@
 # Roadmap And Milestones
 
-Status: `M0`, `M1`, `M2`, and `M3` complete; `M4` design in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode designs under review
+Status: `M0`, `M1`, `M2`, and `M3` complete; `M4` design in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode and Bijou read-shell designs under review
 
 ## Planning Frame
 
@@ -36,6 +36,7 @@ Current cross-cutting notes under review:
 - [`0010-ingress-and-derivation-pipeline.md`](./0010-ingress-and-derivation-pipeline.md)
 - [`0011-pressure-test-and-spitball.md`](./0011-pressure-test-and-spitball.md)
 - [`0012-m4-reentry-browse-inspect.md`](./0012-m4-reentry-browse-inspect.md)
+- [`0013-m4-bijou-read-shell.md`](./0013-m4-bijou-read-shell.md)
 
 These notes should constrain new CLI-facing, graph-facing, derivation-orchestration, and read-surface work without becoming separate milestones.
 
@@ -209,6 +210,7 @@ Deliverables:
 - richer `recent` or reentry flow
 - first explicit `browse` prototype
 - first explicit `inspect` prototype
+- first explicit Bijou read shell for human browse/inspect flow
 - sync-first read posture where useful
 - scoped materialization policy for deeper read modes
 
@@ -217,6 +219,7 @@ Playback:
 - user can return to old captures and see them in context
 - browse mode helps the user navigate the archive without being prompted at
 - inspect mode provides receipts when the user wants to inspect structure directly
+- the first read shell feels like navigation rather than terminal theater
 - derived structure remains clearly separate from raw capture
 
 Exit criteria:
@@ -224,6 +227,7 @@ Exit criteria:
 - no mutation of raw entries
 - `recent` remains boring and trustworthy
 - browse and inspect improve understanding without adding capture friction
+- the Bijou read shell remains optional porcelain over the explicit CLI contract
 
 ## Milestone 5: Additional Ingress Surfaces
 
