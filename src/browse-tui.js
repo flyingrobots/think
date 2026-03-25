@@ -1,6 +1,7 @@
 import { initDefaultContext } from '@flyingrobots/bijou-node';
 import { parseAnsiToSurface } from '@flyingrobots/bijou';
 import {
+  composite,
   commandPalette,
   createCommandPaletteState,
   cpFilter,
@@ -17,6 +18,7 @@ import {
   pageUp,
   quit,
   run,
+  drawer,
   viewport,
 } from '@flyingrobots/bijou-tui';
 
@@ -482,21 +484,7 @@ function attachScriptPayload(effect, rawAction) {
 function renderBrowseModel(model) {
   const layout = resolveLayout(model);
   const help = resolveHelpLine(model);
-  const bodyChildren = [
-    {
-      flex: 1,
-      content: (paneWidth, paneHeight) => renderThoughtPane(model, paneWidth, paneHeight),
-    },
-  ];
-
-  if (model.panelMode !== 'none') {
-    bodyChildren.push({
-      basis: layout.panelHeight,
-      content: (paneWidth, paneHeight) => renderBottomPanel(model, paneWidth, paneHeight),
-    });
-  }
-
-  return flex(
+  const background = flex(
     { direction: 'column', width: model.columns, height: model.rows },
     {
       basis: 1,
@@ -509,9 +497,12 @@ function renderBrowseModel(model) {
           direction: 'column',
           width,
           height,
-          gap: model.panelMode === 'none' ? 0 : 1,
+          gap: 0,
         },
-        ...bodyChildren
+        {
+          flex: 1,
+          content: (paneWidth, paneHeight) => renderThoughtPane(model, paneWidth, paneHeight),
+        }
       ),
     },
     {
@@ -519,6 +510,27 @@ function renderBrowseModel(model) {
       content: styleDim(truncatePlain(help, model.columns)),
     }
   );
+
+  if (model.panelMode === 'none') {
+    return background;
+  }
+
+  const overlay = drawer({
+    anchor: 'bottom',
+    title: resolveDrawerTitle(model.panelMode),
+    content: renderDrawerContent(model, layout),
+    screenWidth: model.columns,
+    screenHeight: model.rows,
+    region: {
+      row: 1,
+      col: 0,
+      width: model.columns,
+      height: layout.bodyHeight,
+    },
+    height: layout.panelHeight,
+  });
+
+  return composite(background, [overlay]);
 }
 
 function renderThoughtPane(model, width, height) {
@@ -551,12 +563,15 @@ function renderBottomPanel(model, width, height) {
   }
 }
 
+function renderDrawerContent(model, layout) {
+  const innerWidth = Math.max(1, model.columns - 4);
+  const innerHeight = Math.max(1, layout.panelHeight - 2);
+  return renderBottomPanel(model, innerWidth, innerHeight);
+}
+
 function renderInspectPane(model, width, height) {
   const inspectEntry = currentInspectEntry(model);
-  const lines = [
-    styleSection('INSPECT'),
-    '',
-  ];
+  const lines = [];
 
   if (!inspectEntry) {
     lines.push(styleDim(
@@ -595,10 +610,7 @@ function renderInspectPane(model, width, height) {
 }
 
 function renderLogPane(model, width, height) {
-  const lines = [
-    styleSection('THOUGHT LOG'),
-    '',
-  ];
+  const lines = [];
 
   for (const [index, entry] of model.entries.entries()) {
     const prefix = index === model.currentIndex ? styleTitle('>') : styleDim(' ');
@@ -616,15 +628,11 @@ function renderLogPane(model, width, height) {
 }
 
 function renderJumpPane(model, width, height) {
-  const lines = [
-    styleSection('JUMP'),
-    '',
-    commandPalette(model.jumpPalette, {
-      width,
-      showCategory: false,
-      showShortcut: false,
-    }),
-  ];
+  const lines = [commandPalette(model.jumpPalette, {
+    width,
+    showCategory: false,
+    showShortcut: false,
+  })];
 
   return viewport({
     width,
@@ -664,13 +672,8 @@ function getCurrentViewportState(model) {
 
 function resolveLayout(model) {
   const bodyHeight = Math.max(1, model.rows - 2);
-  const panelHeight = model.panelMode === 'none'
-    ? 0
-    : resolvePanelHeight(bodyHeight);
-  const thoughtHeight = Math.max(
-    1,
-    bodyHeight - panelHeight - (model.panelMode === 'none' ? 0 : 1)
-  );
+  const panelHeight = resolvePanelHeight(bodyHeight);
+  const thoughtHeight = bodyHeight;
 
   return {
     bodyHeight,
@@ -725,6 +728,19 @@ function resolveHelpLine(model) {
   }
 
   return helpShort(browseKeymap);
+}
+
+function resolveDrawerTitle(panelMode) {
+  switch (panelMode) {
+    case 'inspect':
+      return 'INSPECT';
+    case 'log':
+      return 'THOUGHT LOG';
+    case 'jump':
+      return 'JUMP';
+    default:
+      return '';
+  }
 }
 
 function wrapParagraphs(text, width) {
