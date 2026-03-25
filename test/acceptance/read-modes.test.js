@@ -440,6 +440,151 @@ test('think --browse can hand the selected thought into reflect from the scripte
   assertContains(inspect, 'Reflect:', 'Expected the reflect handoff to appear as a derived receipt on the seed thought.');
 });
 
+test('think --browse surfaces session identity for the current thought without replacing the reader-first view', async () => {
+  const context = await createThinkContext();
+  const base = Date.UTC(2026, 2, 25, 10, 0, 0);
+
+  captureWithEntryId(context, 'session one older thought', { THINK_TEST_NOW: String(base) });
+  captureWithEntryId(context, 'session one middle thought', { THINK_TEST_NOW: String(base + 60_000) });
+  const { entryId: currentEntryId } = captureWithEntryId(
+    context,
+    'session one boundary thought',
+    { THINK_TEST_NOW: String(base + 120_000) }
+  );
+  captureWithEntryId(context, 'session two newer thought', { THINK_TEST_NOW: String(base + 600_000) });
+
+  const browse = runThink(
+    context,
+    ['--browse'],
+    {
+      THINK_TEST_INTERACTIVE: '1',
+      THINK_TEST_BROWSE_SCRIPT: JSON.stringify({
+        seedEntryId: currentEntryId,
+        actions: ['quit'],
+      }),
+    }
+  );
+
+  assertSuccess(browse, 'Expected scripted browse TUI to succeed for session-context browse.');
+  assertContains(browse, 'Session:', 'Expected browse metadata to expose the current thought session identity.');
+  assertContains(
+    browse,
+    'session:',
+    'Expected browse metadata to expose an explicit session id rather than vague context language.'
+  );
+  assertContains(
+    browse,
+    'session one boundary thought',
+    'Expected the reader-first browse view to keep the current thought visually primary.'
+  );
+});
+
+test('think --browse can reveal a summon-only session drawer that excludes out-of-session thoughts', async () => {
+  const context = await createThinkContext();
+  const base = Date.UTC(2026, 2, 25, 10, 0, 0);
+
+  const { entryId: olderEntryId } = captureWithEntryId(
+    context,
+    'session one older thought',
+    { THINK_TEST_NOW: String(base) }
+  );
+  const { entryId: currentEntryId } = captureWithEntryId(
+    context,
+    'session one current thought',
+    { THINK_TEST_NOW: String(base + 60_000) }
+  );
+  const { entryId: sameSessionNewerId } = captureWithEntryId(
+    context,
+    'session one newer thought',
+    { THINK_TEST_NOW: String(base + 120_000) }
+  );
+  captureWithEntryId(context, 'session two newer thought', { THINK_TEST_NOW: String(base + 600_000) });
+
+  const browse = runThink(
+    context,
+    ['--browse'],
+    {
+      THINK_TEST_INTERACTIVE: '1',
+      THINK_TEST_BROWSE_SCRIPT: JSON.stringify({
+        seedEntryId: currentEntryId,
+        actions: ['session', 'quit'],
+      }),
+    }
+  );
+
+  assertSuccess(browse, 'Expected scripted browse session drawer flow to succeed.');
+  assertContains(browse, 'SESSION', 'Expected browse to expose a dedicated session drawer on demand.');
+  assertContains(browse, olderEntryId, 'Expected the session drawer to expose older entries in the same session.');
+  assertContains(browse, sameSessionNewerId, 'Expected the session drawer to expose newer entries in the same session.');
+  assertNotContains(
+    browse,
+    'session two newer thought',
+    'Expected the session drawer to exclude thoughts from different sessions.'
+  );
+});
+
+test('think --json --browse emits explicit session context and session-nearby rows without mislabeling out-of-session thoughts', async () => {
+  const context = await createThinkContext();
+  const base = Date.UTC(2026, 2, 25, 10, 0, 0);
+
+  const { entryId: olderEntryId } = captureWithEntryId(
+    context,
+    'session one older thought',
+    { THINK_TEST_NOW: String(base) }
+  );
+  const { entryId: currentEntryId } = captureWithEntryId(
+    context,
+    'session one current thought',
+    { THINK_TEST_NOW: String(base + 60_000) }
+  );
+  const { entryId: sameSessionNewerId } = captureWithEntryId(
+    context,
+    'session one newer thought',
+    { THINK_TEST_NOW: String(base + 120_000) }
+  );
+  const { entryId: differentSessionNewerId } = captureWithEntryId(
+    context,
+    'session two newer thought',
+    { THINK_TEST_NOW: String(base + 600_000) }
+  );
+
+  const browse = runThink(context, ['--json', `--browse=${currentEntryId}`]);
+
+  assertSuccess(browse, 'Expected JSON browse to succeed for session-context browse.');
+  assertJsonStreams(browse);
+  assert.equal((browse.stderr || '').trim(), '', 'Expected successful JSON browse to keep stderr quiet.');
+
+  const events = parseJsonLines(
+    browse.stdout,
+    'Expected JSON browse with session context to emit valid JSONL.'
+  );
+
+  const contextRow = getEvent(
+    events,
+    'browse.context',
+    'Expected JSON browse to emit an explicit session-context row.'
+  );
+  assert.equal(contextRow.entryId, currentEntryId, 'Expected browse context to preserve the selected capture entry id.');
+  assert.match(contextRow.sessionId, /^session:/, 'Expected browse context to expose an explicit session id.');
+  assert.equal(typeof contextRow.reasonKind, 'string', 'Expected browse context to expose reason kind.');
+  assert.equal(typeof contextRow.reasonText, 'string', 'Expected browse context to expose reason text.');
+
+  const sessionEntries = events.filter((event) => event.event === 'browse.session_entry');
+  assert.deepEqual(
+    sessionEntries.map((event) => event.entryId),
+    [sameSessionNewerId, olderEntryId],
+    'Expected JSON browse to expose only same-session neighbors in newest-first session order.'
+  );
+  assert.ok(
+    sessionEntries.every((event) => event.sessionId === contextRow.sessionId),
+    'Expected every session-nearby row to preserve the same explicit session id.'
+  );
+  assert.ok(
+    sessionEntries.every((event) => event.entryId !== differentSessionNewerId),
+    'Expected JSON browse not to mislabel out-of-session thoughts as session-nearby.'
+  );
+});
+
 test('think --inspect exposes exact raw entry metadata without narration', async () => {
   const context = await createThinkContext();
   const thought = 'inspect should reveal the exact stored thought';
