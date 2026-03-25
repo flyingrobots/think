@@ -326,9 +326,169 @@ async function pickReflectSeed(repoDir, output, reporter) {
   });
 }
 
-async function runInteractiveReflectShell(session, output, reporter) {
+async function pickBrowseSeed(repoDir, output) {
+  const recentEntries = (await listRecent(repoDir)).slice(0, 9);
+  if (recentEntries.length === 0) {
+    output.error('No raw captures available to browse', 'browse.entry_not_found');
+    return null;
+  }
+
+  const scripted = getBrowseTestScript();
+  if (scripted) {
+    writeShellBlock(renderInteractiveBrowseSeedIntro(), output);
+    return scripted.seedEntryId ?? recentEntries[0].id;
+  }
+
   const ctx = initDefaultContext();
-  ctx.io.write(renderInteractiveReflectIntro(session, ctx) + '\n');
+  ctx.io.write(renderInteractiveBrowseSeedIntro(ctx) + '\n');
+
+  return select({
+    title: 'Thought',
+    maxVisible: 7,
+    options: recentEntries.map((entry, index) => ({
+      value: entry.id,
+      label: normalizeForPicker(entry.text),
+      description: index === 0 ? 'most recent' : undefined,
+    })),
+    defaultValue: recentEntries[0].id,
+    ctx,
+  });
+}
+
+async function pickBrowseAction(browseWindow, { inspectVisible }) {
+  const options = [];
+
+  if (browseWindow.newer) {
+    options.push({
+      value: 'newer',
+      label: 'Newer',
+      description: normalizeForPicker(browseWindow.newer.text),
+    });
+  }
+
+  if (browseWindow.older) {
+    options.push({
+      value: 'older',
+      label: 'Older',
+      description: normalizeForPicker(browseWindow.older.text),
+    });
+  }
+
+  options.push({
+    value: 'inspect',
+    label: inspectVisible ? 'Hide inspect' : 'Inspect',
+    description: inspectVisible ? 'Hide metadata and receipts' : 'Show metadata and receipts',
+  });
+  options.push({
+    value: 'reflect',
+    label: 'Reflect',
+    description: 'Pressure-test this thought',
+  });
+  options.push({
+    value: 'quit',
+    label: 'Quit',
+    description: 'Exit browse',
+  });
+
+  const scripted = getBrowseTestScript();
+  if (scripted) {
+    return scripted.actions.shift() ?? 'quit';
+  }
+
+  const ctx = initDefaultContext();
+  return select({
+    title: 'Action',
+    maxVisible: 6,
+    options,
+    defaultValue: options[0].value,
+    ctx,
+  });
+}
+
+async function runReflectFromBrowse(seedEntryId, output, reporter, scriptedAction = null) {
+  const repoDir = getLocalRepoDir();
+  let promptType = null;
+
+  if (scriptedAction && typeof scriptedAction === 'object' && scriptedAction.mode) {
+    promptType = scriptedAction.mode;
+  } else {
+    promptType = await pickReflectMode();
+  }
+
+  if (!promptType) {
+    reporter.event('reflect.skipped', {
+      seedEntryId,
+      reason: 'no_prompt_type_selected',
+    });
+    if (!output.json) {
+      output.out('Reflect skipped');
+    }
+    return 0;
+  }
+
+  const result = await startReflect(repoDir, seedEntryId, { promptType });
+  if (!result.ok && result.code === 'seed_not_found') {
+    output.error('Seed entry not found', 'reflect.seed_not_found', { seedEntryId });
+    return 1;
+  }
+  if (!result.ok && result.code === 'seed_ineligible') {
+    const suggestedSeeds = await suggestAlternativeReflectSeeds(repoDir, seedEntryId);
+    const message = formatIneligibleSeedMessage(result.eligibility, suggestedSeeds);
+    output.error(message, 'reflect.seed_ineligible', {
+      seedEntryId,
+      reason: result.eligibility,
+      suggestedSeeds,
+    });
+    return 1;
+  }
+
+  const session = result;
+  const sessionPayload = {
+    sessionId: session.sessionId,
+    seedEntryId: session.seedEntryId,
+    contrastEntryId: session.contrastEntryId ?? null,
+    promptType: session.promptType,
+    maxSteps: session.maxSteps,
+    selectionReason: session.selectionReason,
+  };
+
+  reporter.event('reflect.session_started', sessionPayload);
+  reporter.event('reflect.prompt', {
+    sessionId: session.sessionId,
+    promptType: session.promptType,
+    question: session.question,
+  });
+
+  writeShellBlock(renderInteractiveReflectIntro(session), output);
+
+  let response = '';
+  if (scriptedAction && typeof scriptedAction === 'object') {
+    response = scriptedAction.response ?? '';
+  } else {
+    const ctx = initDefaultContext();
+    response = await input({
+      title: 'Your response',
+      placeholder: 'Push the idea somewhere sharper...',
+      ctx,
+    });
+  }
+
+  if (response.trim() === '') {
+    reporter.event('reflect.skipped', {
+      sessionId: session.sessionId,
+      reason: 'empty_response',
+    });
+    writeShellBlock(renderInteractiveReflectSkipped(), output);
+    return 0;
+  }
+
+  return runReflectReply(session.sessionId, response, output, reporter);
+}
+
+async function runInteractiveReflectShell(session, output, reporter) {
+  writeShellBlock(renderInteractiveReflectIntro(session), output);
+
+  const ctx = initDefaultContext();
 
   const response = await input({
     title: 'Your response',
@@ -341,8 +501,7 @@ async function runInteractiveReflectShell(session, output, reporter) {
       sessionId: session.sessionId,
       reason: 'empty_response',
     });
-    ctx.io.write(`${headerBox('Reflect skipped', { ctx })}\n`);
-    ctx.io.write(`${markdown('**No reflect response was saved.**', { ctx })}\n`);
+    writeShellBlock(renderInteractiveReflectSkipped(ctx), output);
     return 0;
   }
 
@@ -390,7 +549,7 @@ async function runRecent(output, reporter, options) {
 async function runBrowse(entryId, output, reporter) {
   if (!entryId) {
     if (shouldUseInteractiveBrowseShell(output)) {
-      output.error('Interactive browse shell is not implemented yet', 'browse.shell_unavailable');
+      return runInteractiveBrowseShell(output, reporter);
     } else {
       output.error('--browse requires an entry id outside interactive TTY use', 'cli.validation_failed', {
         command: 'browse',
@@ -445,6 +604,80 @@ async function runBrowse(entryId, output, reporter) {
   }
   output.out(lines.join('\n'));
   return 0;
+}
+
+async function runInteractiveBrowseShell(output, reporter) {
+  const repoDir = getLocalRepoDir();
+
+  if (!hasGitRepo(repoDir)) {
+    output.error('No raw captures available to browse', 'browse.entry_not_found');
+    return 1;
+  }
+
+  const seedEntryId = await pickBrowseSeed(repoDir, output);
+  if (!seedEntryId) {
+    return 1;
+  }
+
+  reporter.event('browse.shell_started', { seedEntryId });
+
+  let currentEntryId = seedEntryId;
+  let inspectVisible = false;
+
+  while (true) {
+    const browseWindow = await getBrowseWindow(repoDir, currentEntryId);
+    if (!browseWindow) {
+      output.error('Browse entry not found', 'browse.entry_not_found', { entryId: currentEntryId });
+      return 1;
+    }
+
+    const inspectEntry = inspectVisible
+      ? await inspectRawEntry(repoDir, currentEntryId)
+      : null;
+
+    writeShellBlock(renderInteractiveBrowseView(browseWindow, inspectEntry), output);
+
+    const action = await pickBrowseAction(browseWindow, { inspectVisible });
+    const actionType = typeof action === 'string' ? action : action?.type;
+
+    reporter.event('browse.shell_action', {
+      action: actionType ?? 'quit',
+      entryId: currentEntryId,
+      inspectVisible,
+    });
+
+    if (!actionType || actionType === 'quit') {
+      reporter.event('browse.shell_finished', { entryId: currentEntryId });
+      return 0;
+    }
+
+    if (actionType === 'older') {
+      currentEntryId = browseWindow.older.id;
+      inspectVisible = false;
+      continue;
+    }
+
+    if (actionType === 'newer') {
+      currentEntryId = browseWindow.newer.id;
+      inspectVisible = false;
+      continue;
+    }
+
+    if (actionType === 'inspect') {
+      inspectVisible = !inspectVisible;
+      continue;
+    }
+
+    if (actionType === 'reflect') {
+      const exitCode = await runReflectFromBrowse(currentEntryId, output, reporter, action);
+      reporter.event('browse.shell_finished', {
+        entryId: currentEntryId,
+        exitCode,
+        reflected: true,
+      });
+      return exitCode;
+    }
+  }
 }
 
 async function runInspect(entryId, output, reporter) {
@@ -787,6 +1020,10 @@ function shouldUseInteractiveBrowseShell(output) {
 }
 
 function isInteractiveReflectAvailable() {
+  if (process.env.THINK_TEST_INTERACTIVE === '1') {
+    return true;
+  }
+
   return process.stdin.isTTY === true && process.stdout.isTTY === true;
 }
 
@@ -865,6 +1102,12 @@ function renderInteractiveSeedIntro(ctx) {
   return `${header}\n${body}`;
 }
 
+function renderInteractiveBrowseSeedIntro(ctx = initDefaultContext()) {
+  const header = headerBox('Choose a thought to browse', { ctx });
+  const body = markdown('**Pick one recent raw capture to open in the browse shell.**', { ctx });
+  return `${header}\n${body}`;
+}
+
 function renderInteractiveModeIntro(ctx) {
   const header = headerBox('Choose how to reflect', { ctx });
   const body = markdown('**Choose how you want to push the seed thought.**', { ctx });
@@ -888,6 +1131,66 @@ function renderInteractiveReflectIntro(session, ctx) {
   ];
 
   return `${header}\n${markdown(sections.join('\n'), { ctx })}`;
+}
+
+function renderInteractiveReflectSkipped(ctx = initDefaultContext()) {
+  return `${headerBox('Reflect skipped', { ctx })}\n${markdown('**No reflect response was saved.**', { ctx })}`;
+}
+
+function renderInteractiveBrowseView(browseWindow, inspectEntry, ctx = initDefaultContext()) {
+  const header = headerBox('Browse', { ctx });
+  const lines = [
+    `Current: ${browseWindow.current.text}`,
+  ];
+
+  if (browseWindow.newer) {
+    lines.push(`Newer: ${browseWindow.newer.text}`);
+  }
+
+  if (browseWindow.older) {
+    lines.push(`Older: ${browseWindow.older.text}`);
+  }
+
+  if (inspectEntry) {
+    lines.push('Inspect:');
+    lines.push(`Thought ID: ${inspectEntry.thoughtId}`);
+    lines.push(`Entry ID: ${inspectEntry.entryId}`);
+    lines.push(`Kind: ${inspectEntry.kind}`);
+    lines.push(`Sort Key: ${inspectEntry.sortKey}`);
+    lines.push('Derived receipts:');
+
+    if (inspectEntry.derivedReceipts.length === 0) {
+      lines.push('none');
+    } else {
+      for (const receipt of inspectEntry.derivedReceipts) {
+        lines.push(
+          `Reflect: ${receipt.entryId} (${receipt.promptType}, ${receipt.relation}, session ${receipt.sessionId})`
+        );
+      }
+    }
+  }
+
+  return `${header}\n${lines.join('\n')}`;
+}
+
+function writeShellBlock(content, output) {
+  if (!content) {
+    return;
+  }
+
+  output.out(content);
+}
+
+function getBrowseTestScript() {
+  if (!process.env.THINK_TEST_BROWSE_SCRIPT) {
+    return null;
+  }
+
+  if (!globalThis.__thinkBrowseTestScript) {
+    globalThis.__thinkBrowseTestScript = JSON.parse(process.env.THINK_TEST_BROWSE_SCRIPT);
+  }
+
+  return globalThis.__thinkBrowseTestScript;
 }
 
 function capitalize(value) {
