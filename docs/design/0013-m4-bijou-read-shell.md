@@ -184,10 +184,11 @@ The first shell should keep the scope brutally tight:
 
 Nice-to-have later, not first:
 
-- session-nearby navigation
 - explicit linked-thought jumps
 - graph neighborhood views
 - multiple panes
+
+The next slice after the first shell should likely be session-context browse driven by explicit `session_attribution` receipts rather than by inferred related-thought logic.
 
 ## Read-Shell Doctrine
 

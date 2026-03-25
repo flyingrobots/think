@@ -262,22 +262,18 @@ That is a better sequence than trying to jump directly to a dialogue-heavy “re
 
 ## Immediate Next Slice
 
-The next M4 slice should not be another navigation trick in the TUI.
+The first real derivation bundle now exists.
 
-It should be:
-
-1. the first real derivation bundle
-2. improved `inspect` receipts on top of that bundle
-3. later browse affordances that consume those receipts honestly
+The next M4 slice should make `browse` consume that bundle honestly.
 
 That means the next implementation pressure should be:
 
-- canonical stored thought identity
-- first seed-quality artifact
-- first session-attribution artifact
-- explicit human and JSON inspect receipts for those artifacts
-- clear receipts for any displayed connections or groupings
-- explicit agent-usable command paths for every meaningful read action exposed in the human shell
+- session-context browse over `session_attribution`
+- explicit human and JSON browse receipts for session context
+- clearer session-nearby movement without replacing the reader-first default
+- continued agent parity for any meaningful browse behavior exposed in the shell
+
+See [`0016-m4-session-context-browse.md`](./0016-m4-session-context-browse.md).
 
 ## First Bijou Slice
 
