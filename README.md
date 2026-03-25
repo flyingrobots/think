@@ -118,7 +118,7 @@ think --stats
 `--count=<n>` limits `--recent` to the newest `n` raw captures. `--query=<text>` filters `--recent` by case-insensitive text match.
 
 `--browse=<entryId>` shows one raw capture with its immediate newer and older neighbors.
-In a real TTY, bare `--browse` opens the first Bijou browse shell so you can pick a thought, navigate older/newer, inspect receipts, and jump into `Reflect` without memorizing an `entryId`.
+In a real TTY, bare `--browse` opens a full-screen Bijou browse TUI on the newest raw capture. Use `j`/`k` or the arrow keys to move older and newer, `i` to reveal inspect receipts, `r` to jump into `Reflect`, and `q` to quit.
 
 `--inspect=<entryId>` exposes the exact stored raw entry metadata without summarizing or narrating it. When direct derived reflect descendants exist, it also shows canonical content identity and direct derived receipts.
 

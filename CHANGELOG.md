@@ -20,7 +20,7 @@ Release discipline:
 - `--count=<n>` and `--query=<text>` for tighter raw reentry without turning `recent` into a dashboard
 - first explicit `--browse=<entryId>` read surface for navigating one raw thought with its immediate newer and older neighbors
 - first explicit `--inspect=<entryId>` read surface for exposing exact raw entry metadata without narration
-- first Bijou browse shell for bare `--browse` in a real TTY, including seed picking, older/newer navigation, inspect pane output, and reflect handoff
+- first full-screen Bijou browse TUI for bare `--browse` in a real TTY, including direct navigation, inspect pane output, and reflect handoff
 - canonical `thought:<fingerprint>` identity exposed in `inspect`
 - direct derived reflect receipts exposed in human and JSON inspect output
 

@@ -1,6 +1,7 @@
 import { headerBox, input, markdown, select } from '@flyingrobots/bijou';
 import { initDefaultContext } from '@flyingrobots/bijou-node';
 
+import { runBrowseTui, runBrowseTuiScript } from './browse-tui.js';
 import { ensureGitRepo, hasGitRepo, pushWarpRefs } from './git.js';
 import { getLocalRepoDir, getUpstreamUrl } from './paths.js';
 import {
@@ -326,85 +327,6 @@ async function pickReflectSeed(repoDir, output, reporter) {
   });
 }
 
-async function pickBrowseSeed(repoDir, output) {
-  const recentEntries = (await listRecent(repoDir)).slice(0, 9);
-  if (recentEntries.length === 0) {
-    output.error('No raw captures available to browse', 'browse.entry_not_found');
-    return null;
-  }
-
-  const scripted = getBrowseTestScript();
-  if (scripted) {
-    writeShellBlock(renderInteractiveBrowseSeedIntro(), output);
-    return scripted.seedEntryId ?? recentEntries[0].id;
-  }
-
-  const ctx = initDefaultContext();
-  ctx.io.write(renderInteractiveBrowseSeedIntro(ctx) + '\n');
-
-  return select({
-    title: 'Thought',
-    maxVisible: 7,
-    options: recentEntries.map((entry, index) => ({
-      value: entry.id,
-      label: normalizeForPicker(entry.text),
-      description: index === 0 ? 'most recent' : undefined,
-    })),
-    defaultValue: recentEntries[0].id,
-    ctx,
-  });
-}
-
-async function pickBrowseAction(browseWindow, { inspectVisible }) {
-  const options = [];
-
-  if (browseWindow.newer) {
-    options.push({
-      value: 'newer',
-      label: 'Newer',
-      description: normalizeForPicker(browseWindow.newer.text),
-    });
-  }
-
-  if (browseWindow.older) {
-    options.push({
-      value: 'older',
-      label: 'Older',
-      description: normalizeForPicker(browseWindow.older.text),
-    });
-  }
-
-  options.push({
-    value: 'inspect',
-    label: inspectVisible ? 'Hide inspect' : 'Inspect',
-    description: inspectVisible ? 'Hide metadata and receipts' : 'Show metadata and receipts',
-  });
-  options.push({
-    value: 'reflect',
-    label: 'Reflect',
-    description: 'Pressure-test this thought',
-  });
-  options.push({
-    value: 'quit',
-    label: 'Quit',
-    description: 'Exit browse',
-  });
-
-  const scripted = getBrowseTestScript();
-  if (scripted) {
-    return scripted.actions.shift() ?? 'quit';
-  }
-
-  const ctx = initDefaultContext();
-  return select({
-    title: 'Action',
-    maxVisible: 6,
-    options,
-    defaultValue: options[0].value,
-    ctx,
-  });
-}
-
 async function runReflectFromBrowse(seedEntryId, output, reporter, scriptedAction = null) {
   const repoDir = getLocalRepoDir();
   let promptType = null;
@@ -614,70 +536,68 @@ async function runInteractiveBrowseShell(output, reporter) {
     return 1;
   }
 
-  const seedEntryId = await pickBrowseSeed(repoDir, output);
-  if (!seedEntryId) {
+  const entries = await listRecent(repoDir);
+  if (entries.length === 0) {
+    output.error('No raw captures available to browse', 'browse.entry_not_found');
     return 1;
   }
 
-  reporter.event('browse.shell_started', { seedEntryId });
+  const scripted = getBrowseTestScript();
+  const initialEntryId = scripted?.seedEntryId ?? entries[0].id;
+  const inspectById = new Map();
+  for (const entry of entries) {
+    inspectById.set(entry.id, await inspectRawEntry(repoDir, entry.id));
+  }
 
-  let currentEntryId = seedEntryId;
-  let inspectVisible = false;
+  reporter.event('browse.shell_started', { seedEntryId: initialEntryId });
 
-  while (true) {
-    const browseWindow = await getBrowseWindow(repoDir, currentEntryId);
-    if (!browseWindow) {
-      output.error('Browse entry not found', 'browse.entry_not_found', { entryId: currentEntryId });
-      return 1;
-    }
-
-    const inspectEntry = inspectVisible
-      ? await inspectRawEntry(repoDir, currentEntryId)
-      : null;
-
-    writeShellBlock(renderInteractiveBrowseView(browseWindow, inspectEntry), output);
-
-    const action = await pickBrowseAction(browseWindow, { inspectVisible });
-    const actionType = typeof action === 'string' ? action : action?.type;
-
-    reporter.event('browse.shell_action', {
-      action: actionType ?? 'quit',
-      entryId: currentEntryId,
-      inspectVisible,
+  if (scripted) {
+    const result = runBrowseTuiScript({
+      entries,
+      inspectById,
+      initialEntryId,
+      actions: scripted.actions ?? [],
     });
 
-    if (!actionType || actionType === 'quit') {
-      reporter.event('browse.shell_finished', { entryId: currentEntryId });
-      return 0;
-    }
+    output.out(result.output);
 
-    if (actionType === 'older') {
-      currentEntryId = browseWindow.older.id;
-      inspectVisible = false;
-      continue;
-    }
-
-    if (actionType === 'newer') {
-      currentEntryId = browseWindow.newer.id;
-      inspectVisible = false;
-      continue;
-    }
-
-    if (actionType === 'inspect') {
-      inspectVisible = !inspectVisible;
-      continue;
-    }
-
-    if (actionType === 'reflect') {
-      const exitCode = await runReflectFromBrowse(currentEntryId, output, reporter, action);
+    if (result.effect?.type === 'reflect') {
+      const exitCode = await runReflectFromBrowse(
+        result.effect.entryId,
+        output,
+        reporter,
+        result.effect.scriptedAction ?? null
+      );
       reporter.event('browse.shell_finished', {
-        entryId: currentEntryId,
+        entryId: result.effect.entryId,
         exitCode,
         reflected: true,
       });
       return exitCode;
     }
+
+    reporter.event('browse.shell_finished', { entryId: initialEntryId });
+    return 0;
   }
+
+  const effect = await runBrowseTui({
+    entries,
+    inspectById,
+    initialEntryId,
+  });
+
+  if (effect?.type === 'reflect') {
+    const exitCode = await runReflectFromBrowse(effect.entryId, output, reporter);
+    reporter.event('browse.shell_finished', {
+      entryId: effect.entryId,
+      exitCode,
+      reflected: true,
+    });
+    return exitCode;
+  }
+
+  reporter.event('browse.shell_finished', { entryId: initialEntryId });
+  return 0;
 }
 
 async function runInspect(entryId, output, reporter) {
@@ -1102,19 +1022,13 @@ function renderInteractiveSeedIntro(ctx) {
   return `${header}\n${body}`;
 }
 
-function renderInteractiveBrowseSeedIntro(ctx = initDefaultContext()) {
-  const header = headerBox('Choose a thought to browse', { ctx });
-  const body = markdown('**Pick one recent raw capture to open in the browse shell.**', { ctx });
-  return `${header}\n${body}`;
-}
-
 function renderInteractiveModeIntro(ctx) {
   const header = headerBox('Choose how to reflect', { ctx });
   const body = markdown('**Choose how you want to push the seed thought.**', { ctx });
   return `${header}\n${body}`;
 }
 
-function renderInteractiveReflectIntro(session, ctx) {
+function renderInteractiveReflectIntro(session, ctx = initDefaultContext()) {
   const header = headerBox('Reflect', { ctx });
   const sections = [
     '## Seed',
@@ -1135,42 +1049,6 @@ function renderInteractiveReflectIntro(session, ctx) {
 
 function renderInteractiveReflectSkipped(ctx = initDefaultContext()) {
   return `${headerBox('Reflect skipped', { ctx })}\n${markdown('**No reflect response was saved.**', { ctx })}`;
-}
-
-function renderInteractiveBrowseView(browseWindow, inspectEntry, ctx = initDefaultContext()) {
-  const header = headerBox('Browse', { ctx });
-  const lines = [
-    `Current: ${browseWindow.current.text}`,
-  ];
-
-  if (browseWindow.newer) {
-    lines.push(`Newer: ${browseWindow.newer.text}`);
-  }
-
-  if (browseWindow.older) {
-    lines.push(`Older: ${browseWindow.older.text}`);
-  }
-
-  if (inspectEntry) {
-    lines.push('Inspect:');
-    lines.push(`Thought ID: ${inspectEntry.thoughtId}`);
-    lines.push(`Entry ID: ${inspectEntry.entryId}`);
-    lines.push(`Kind: ${inspectEntry.kind}`);
-    lines.push(`Sort Key: ${inspectEntry.sortKey}`);
-    lines.push('Derived receipts:');
-
-    if (inspectEntry.derivedReceipts.length === 0) {
-      lines.push('none');
-    } else {
-      for (const receipt of inspectEntry.derivedReceipts) {
-        lines.push(
-          `Reflect: ${receipt.entryId} (${receipt.promptType}, ${receipt.relation}, session ${receipt.sessionId})`
-        );
-      }
-    }
-  }
-
-  return `${header}\n${lines.join('\n')}`;
 }
 
 function writeShellBlock(content, output) {

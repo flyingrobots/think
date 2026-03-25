@@ -265,7 +265,7 @@ test('think --json --browse emits JSONL rows for the current raw thought and its
   );
 });
 
-test('think --browse opens the scripted interactive shell, navigates older and newer, and exits cleanly', async () => {
+test('think --browse opens the scripted browse TUI, navigates older and newer, and exits cleanly', async () => {
   const context = await createThinkContext();
   const olderThought = 'older thought about warp receipts';
   const currentThought = 'current thought about warp replay';
@@ -287,8 +287,9 @@ test('think --browse opens the scripted interactive shell, navigates older and n
     }
   );
 
-  assertSuccess(browse, 'Expected scripted interactive browse shell to succeed.');
-  assertContains(browse, 'Choose a thought to browse', 'Expected the shell to start with an explicit browse picker.');
+  assertSuccess(browse, 'Expected scripted browse TUI to succeed.');
+  assertContains(browse, 'THINK BROWSE', 'Expected bare --browse to open a real browse screen.');
+  assertNotContains(browse, 'Choose a thought to browse', 'Expected the browse TUI not to fall back to prompt-picker UX.');
   assertContains(browse, currentThought, 'Expected the shell to show the selected current thought.');
   assertContains(browse, olderThought, 'Expected the shell to reach the older neighbor after scripted navigation.');
   assertContains(browse, newerThought, 'Expected the shell to return to the newer/current neighborhood after scripted navigation.');
@@ -302,7 +303,7 @@ test('think --browse opens the scripted interactive shell, navigates older and n
   assertNotContains(recent, newerEntryId, 'Expected browse shell usage not to leak entry ids into recent output.');
 });
 
-test('think --browse can reveal inspect receipts inside the scripted interactive shell', async () => {
+test('think --browse can reveal inspect receipts inside the scripted browse TUI', async () => {
   const context = await createThinkContext();
   const seedThought = 'We should make warp graph the thought substrate';
   const reflectAnswer = 'The substrate only matters if browse can reveal the same inspect receipts honestly.';
@@ -336,13 +337,13 @@ test('think --browse can reveal inspect receipts inside the scripted interactive
     }
   );
 
-  assertSuccess(browse, 'Expected scripted interactive browse inspect to succeed.');
+  assertSuccess(browse, 'Expected scripted browse inspect to succeed.');
   assertContains(browse, 'Thought ID:', 'Expected the browse shell inspect pane to expose canonical content identity.');
-  assertContains(browse, 'Derived receipts:', 'Expected the browse shell inspect pane to expose derived receipts.');
+  assertContains(browse, 'RECEIPTS', 'Expected the browse shell inspect pane to expose derived receipts.');
   assertContains(browse, saved.entryId, 'Expected the browse shell inspect pane to expose the direct reflect descendant.');
 });
 
-test('think --browse can hand the selected thought into reflect from the scripted interactive shell', async () => {
+test('think --browse can hand the selected thought into reflect from the scripted browse TUI', async () => {
   const context = await createThinkContext();
   const seedThought = 'We should make warp graph the thought substrate';
   const reflectAnswer = 'Browse should let me hand off directly into reflect without guessing ids.';
@@ -366,7 +367,7 @@ test('think --browse can hand the selected thought into reflect from the scripte
     }
   );
 
-  assertSuccess(browse, 'Expected scripted browse shell reflect handoff to succeed.');
+  assertSuccess(browse, 'Expected scripted browse reflect handoff to succeed.');
   assertContains(browse, 'Reflect', 'Expected the shell to hand off into reflect explicitly.');
   assertContains(browse, 'Reflect saved', 'Expected the shell reflect handoff to save a derived reflect entry.');
 
