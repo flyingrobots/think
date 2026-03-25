@@ -30,7 +30,7 @@ Third milestone release for `think`.
 - `--json` mode for implemented CLI commands, with JSONL-only output on `stdout`
 - acceptance coverage for machine-readable capture, recent, stats, and validation-failure output
 - explicit M3 reflect plumbing via `--reflect=<seedEntryId>` and `--reflect-session=<sessionId> ...`, with `--brainstorm*` retained as compatibility aliases
-- deterministic brainstorm receipts, separate stored derived entries, and preserved seed/session lineage
+- deterministic reflect receipts, separate stored derived entries, and preserved seed/session lineage
 - first Bijou-based interactive reflect shell for real TTY use, layered over the same M3 plumbing contract
 - interactive seed picking for bare `--reflect` in a real TTY, while seeded explicit start remains the plumbing path
 - seed-first deterministic challenge and constraint prompts instead of archive-guessed contrast

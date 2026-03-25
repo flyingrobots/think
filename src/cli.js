@@ -4,16 +4,16 @@ import { initDefaultContext } from '@flyingrobots/bijou-node';
 import { ensureGitRepo, hasGitRepo, pushWarpRefs } from './git.js';
 import { getLocalRepoDir, getUpstreamUrl } from './paths.js';
 import {
-  BRAINSTORM_PROMPT_TYPES,
+  REFLECT_PROMPT_TYPES,
   captureThought,
   GRAPH_NAME,
   getBrowseWindow,
   inspectRawEntry,
-  listBrainstormableRecent,
+  listReflectableRecent,
   listRecent,
   getStats,
-  startBrainstorm,
-  saveBrainstormResponse,
+  startReflect,
+  saveReflectResponse,
 } from './store.js';
 import { createVerboseReporter } from './verbose.js';
 
@@ -55,13 +55,13 @@ export async function main(argv, { stdout, stderr }) {
       exitCode = await runInspect(options.inspect, output, reporter);
     } else if (command === 'stats') {
       exitCode = await runStats(output, reporter, options);
-    } else if (command === 'brainstorm_start') {
-      exitCode = await runBrainstormStart(options.brainstorm, output, reporter, {
-        brainstormMode: options.brainstormMode,
+    } else if (command === 'reflect_start') {
+      exitCode = await runReflectStart(options.reflect, output, reporter, {
+        reflectMode: options.reflectMode,
       });
-    } else if (command === 'brainstorm_reply') {
-      exitCode = await runBrainstormReply(
-        options.brainstormSession,
+    } else if (command === 'reflect_reply') {
+      exitCode = await runReflectReply(
+        options.reflectSession,
         options.positionals.join(' '),
         output,
         reporter
@@ -156,26 +156,26 @@ async function runCapture(thought, output, reporter) {
   return 0;
 }
 
-async function runBrainstormStart(seedEntryId, output, reporter, { brainstormMode } = {}) {
+async function runReflectStart(seedEntryId, output, reporter, { reflectMode } = {}) {
   const repoDir = getLocalRepoDir();
   let resolvedSeedEntryId = seedEntryId;
-  let resolvedPromptType = brainstormMode;
+  let resolvedPromptType = reflectMode;
 
   if (!resolvedSeedEntryId) {
-    const pickedSeedEntryId = await pickBrainstormSeed(repoDir, output, reporter);
+    const pickedSeedEntryId = await pickReflectSeed(repoDir, output, reporter);
     if (!pickedSeedEntryId) {
       return 1;
     }
     resolvedSeedEntryId = pickedSeedEntryId;
   } else if (!hasGitRepo(repoDir)) {
-    output.error('Seed entry not found', 'brainstorm.seed_not_found', { seedEntryId: resolvedSeedEntryId });
+    output.error('Seed entry not found', 'reflect.seed_not_found', { seedEntryId: resolvedSeedEntryId });
     return 1;
   }
 
-  if (!resolvedPromptType && shouldUseInteractiveBrainstormShell(output)) {
-    resolvedPromptType = await pickBrainstormMode();
+  if (!resolvedPromptType && shouldUseInteractiveReflectShell(output)) {
+    resolvedPromptType = await pickReflectMode();
     if (!resolvedPromptType) {
-      reporter.event('brainstorm.skipped', {
+      reporter.event('reflect.skipped', {
         seedEntryId: resolvedSeedEntryId,
         reason: 'no_prompt_type_selected',
       });
@@ -186,25 +186,25 @@ async function runBrainstormStart(seedEntryId, output, reporter, { brainstormMod
     }
   }
 
-  const result = await startBrainstorm(repoDir, resolvedSeedEntryId, {
+  const result = await startReflect(repoDir, resolvedSeedEntryId, {
     promptType: resolvedPromptType,
   });
   if (!result.ok && result.code === 'seed_not_found') {
-    output.error('Seed entry not found', 'brainstorm.seed_not_found', { seedEntryId: resolvedSeedEntryId });
+    output.error('Seed entry not found', 'reflect.seed_not_found', { seedEntryId: resolvedSeedEntryId });
     return 1;
   }
   if (!result.ok && result.code === 'seed_ineligible') {
-    const suggestedSeeds = await suggestAlternativeSeeds(repoDir, resolvedSeedEntryId);
+    const suggestedSeeds = await suggestAlternativeReflectSeeds(repoDir, resolvedSeedEntryId);
     const message = formatIneligibleSeedMessage(result.eligibility, suggestedSeeds);
     if (output.json) {
-      output.error(message, 'brainstorm.seed_ineligible', {
+      output.error(message, 'reflect.seed_ineligible', {
         seedEntryId: resolvedSeedEntryId,
         reason: result.eligibility,
         suggestedSeeds,
       });
     } else {
       output.error(message);
-      reporter.event('brainstorm.seed_ineligible', {
+      reporter.event('reflect.seed_ineligible', {
         seedEntryId: resolvedSeedEntryId,
         reason: result.eligibility,
         suggestedSeeds,
@@ -223,16 +223,16 @@ async function runBrainstormStart(seedEntryId, output, reporter, { brainstormMod
     selectionReason: session.selectionReason,
   };
 
-  reporter.event('brainstorm.session_started', sessionPayload);
+  reporter.event('reflect.session_started', sessionPayload);
 
-  reporter.event('brainstorm.prompt', {
+  reporter.event('reflect.prompt', {
     sessionId: session.sessionId,
     promptType: session.promptType,
     question: session.question,
   });
 
-  if (shouldUseInteractiveBrainstormShell(output)) {
-    return runInteractiveBrainstormShell(session, output, reporter);
+  if (shouldUseInteractiveReflectShell(output)) {
+    return runInteractiveReflectShell(session, output, reporter);
   }
 
   if (!output.json) {
@@ -246,9 +246,9 @@ async function runBrainstormStart(seedEntryId, output, reporter, { brainstormMod
   return 0;
 }
 
-async function runBrainstormReply(sessionId, response, output, reporter) {
+async function runReflectReply(sessionId, response, output, reporter) {
   if (response.trim() === '') {
-    output.error('Reflect response cannot be empty', 'brainstorm.validation_failed', {
+    output.error('Reflect response cannot be empty', 'reflect.validation_failed', {
       reason: 'empty_response',
     });
     return 1;
@@ -256,17 +256,17 @@ async function runBrainstormReply(sessionId, response, output, reporter) {
 
   const repoDir = getLocalRepoDir();
   if (!hasGitRepo(repoDir)) {
-    output.error('Reflect session not found', 'brainstorm.session_not_found', { sessionId });
+    output.error('Reflect session not found', 'reflect.session_not_found', { sessionId });
     return 1;
   }
 
-  const saved = await saveBrainstormResponse(repoDir, sessionId, response);
+  const saved = await saveReflectResponse(repoDir, sessionId, response);
   if (!saved) {
-    output.error('Reflect session not found', 'brainstorm.session_not_found', { sessionId });
+    output.error('Reflect session not found', 'reflect.session_not_found', { sessionId });
     return 1;
   }
 
-  reporter.event('brainstorm.entry_saved', {
+  reporter.event('reflect.entry_saved', {
     entryId: saved.id,
     kind: saved.kind,
     seedEntryId: saved.seedEntryId,
@@ -282,28 +282,28 @@ async function runBrainstormReply(sessionId, response, output, reporter) {
   return 0;
 }
 
-async function pickBrainstormSeed(repoDir, output, reporter) {
-  if (!isInteractiveBrainstormAvailable() || output.json) {
+async function pickReflectSeed(repoDir, output, reporter) {
+  if (!isInteractiveReflectAvailable() || output.json) {
     output.error('--reflect requires a seed entry id', 'cli.validation_failed', {
-      command: 'brainstorm_start',
+      command: 'reflect_start',
     });
     return null;
   }
 
   if (!hasGitRepo(repoDir)) {
-    output.error('No raw captures available to brainstorm from', 'brainstorm.seed_not_found');
+    output.error('No raw captures available to reflect from', 'reflect.seed_not_found');
     return null;
   }
 
-  const recentEntries = (await listBrainstormableRecent(repoDir)).slice(0, 9);
+  const recentEntries = (await listReflectableRecent(repoDir)).slice(0, 9);
   if (recentEntries.length === 0) {
     output.error(
-      'No pressure-testable captures available to brainstorm from',
-      'brainstorm.seed_ineligible',
+      'No pressure-testable captures available to reflect from',
+      'reflect.seed_ineligible',
       {
         reason: {
-          kind: 'no_brainstormable_recent_captures',
-          text: 'No recent captures looked like candidate ideas, questions, or decisions to pressure-test.',
+          kind: 'no_reflectable_recent_captures',
+          text: 'No recent captures looked like candidate ideas, questions, or decisions to reflect on.',
         },
       }
     );
@@ -326,9 +326,9 @@ async function pickBrainstormSeed(repoDir, output, reporter) {
   });
 }
 
-async function runInteractiveBrainstormShell(session, output, reporter) {
+async function runInteractiveReflectShell(session, output, reporter) {
   const ctx = initDefaultContext();
-  ctx.io.write(renderInteractiveBrainstormIntro(session, ctx) + '\n');
+  ctx.io.write(renderInteractiveReflectIntro(session, ctx) + '\n');
 
   const response = await input({
     title: 'Your response',
@@ -337,16 +337,16 @@ async function runInteractiveBrainstormShell(session, output, reporter) {
   });
 
   if (response.trim() === '') {
-    reporter.event('brainstorm.skipped', {
+    reporter.event('reflect.skipped', {
       sessionId: session.sessionId,
       reason: 'empty_response',
     });
-    ctx.io.write(`${headerBox('Brainstorm skipped', { ctx })}\n`);
-    ctx.io.write(`${markdown('**No brainstorm response was saved.**', { ctx })}\n`);
+    ctx.io.write(`${headerBox('Reflect skipped', { ctx })}\n`);
+    ctx.io.write(`${markdown('**No reflect response was saved.**', { ctx })}\n`);
     return 0;
   }
 
-  return runBrainstormReply(session.sessionId, response, output, reporter);
+  return runReflectReply(session.sessionId, response, output, reporter);
 }
 
 async function runRecent(output, reporter, options) {
@@ -479,11 +479,11 @@ function parseArgs(args) {
     json: false,
     stats: false,
     recent: false,
-    brainstormFlag: false,
-    brainstorm: null,
-    brainstormMode: null,
-    brainstormSessionFlag: false,
-    brainstormSession: null,
+    reflectFlag: false,
+    reflect: null,
+    reflectMode: null,
+    reflectSessionFlag: false,
+    reflectSession: null,
     browseFlag: false,
     browse: null,
     inspectFlag: false,
@@ -533,29 +533,29 @@ function parseArgs(args) {
         options.inspectFlag = true;
         options.inspect = arg.slice('--inspect='.length);
       } else if (arg === '--brainstorm' || arg === '--reflect') {
-        options.brainstormFlag = true;
-        options.brainstorm = '';
+        options.reflectFlag = true;
+        options.reflect = '';
       } else if (arg.startsWith('--brainstorm=')) {
-        options.brainstormFlag = true;
-        options.brainstorm = arg.slice('--brainstorm='.length);
+        options.reflectFlag = true;
+        options.reflect = arg.slice('--brainstorm='.length);
       } else if (arg.startsWith('--reflect=')) {
-        options.brainstormFlag = true;
-        options.brainstorm = arg.slice('--reflect='.length);
+        options.reflectFlag = true;
+        options.reflect = arg.slice('--reflect='.length);
       } else if (arg.startsWith('--mode=')) {
-        options.brainstormMode = arg.slice('--mode='.length);
+        options.reflectMode = arg.slice('--mode='.length);
       } else if (arg.startsWith('--brainstorm-mode=')) {
-        options.brainstormMode = arg.slice('--brainstorm-mode='.length);
+        options.reflectMode = arg.slice('--brainstorm-mode='.length);
       } else if (arg.startsWith('--reflect-mode=')) {
-        options.brainstormMode = arg.slice('--reflect-mode='.length);
+        options.reflectMode = arg.slice('--reflect-mode='.length);
       } else if (arg === '--brainstorm-session' || arg === '--reflect-session') {
-        options.brainstormSessionFlag = true;
-        options.brainstormSession = '';
+        options.reflectSessionFlag = true;
+        options.reflectSession = '';
       } else if (arg.startsWith('--brainstorm-session=')) {
-        options.brainstormSessionFlag = true;
-        options.brainstormSession = arg.slice('--brainstorm-session='.length);
+        options.reflectSessionFlag = true;
+        options.reflectSession = arg.slice('--brainstorm-session='.length);
       } else if (arg.startsWith('--reflect-session=')) {
-        options.brainstormSessionFlag = true;
-        options.brainstormSession = arg.slice('--reflect-session='.length);
+        options.reflectSessionFlag = true;
+        options.reflectSession = arg.slice('--reflect-session='.length);
       } else if (arg.startsWith('--from=')) {
         options.from = arg.split('=')[1];
       } else if (arg.startsWith('--to=')) {
@@ -578,11 +578,11 @@ function parseArgs(args) {
 }
 
 function resolveCommand(options) {
-  if (options.brainstormSessionFlag) {
-    return 'brainstorm_reply';
+  if (options.reflectSessionFlag) {
+    return 'reflect_reply';
   }
-  if (options.brainstormFlag) {
-    return 'brainstorm_start';
+  if (options.reflectFlag) {
+    return 'reflect_start';
   }
   if (options.browseFlag) {
     return 'browse';
@@ -606,8 +606,8 @@ function validateOptions(options, command) {
     options.browseFlag,
     options.inspectFlag,
     options.stats,
-    options.brainstormFlag,
-    options.brainstormSessionFlag,
+    options.reflectFlag,
+    options.reflectSessionFlag,
   ].filter(Boolean).length;
   const hasRecentFilter = options.recentCount !== null || options.recentQuery !== null;
 
@@ -654,11 +654,11 @@ function validateOptions(options, command) {
     return '--stats does not take a thought';
   }
 
-  if (command === 'brainstorm_start') {
-    if (options.brainstormMode && !BRAINSTORM_PROMPT_TYPES.includes(options.brainstormMode)) {
+  if (command === 'reflect_start') {
+    if (options.reflectMode && !REFLECT_PROMPT_TYPES.includes(options.reflectMode)) {
       return 'Invalid --mode value';
     }
-    if (!options.brainstorm && !canInteractivelyPickBrainstormSeed(options)) {
+    if (!options.reflect && !canInteractivelyPickReflectSeed(options)) {
       return '--reflect requires a seed entry id';
     }
     if (options.positionals.length > 0) {
@@ -666,8 +666,8 @@ function validateOptions(options, command) {
     }
   }
 
-  if (command === 'brainstorm_reply') {
-    if (!options.brainstormSession) {
+  if (command === 'reflect_reply') {
+    if (!options.reflectSession) {
       return '--reflect-session requires a session id';
     }
     if (options.positionals.length === 0) {
@@ -675,7 +675,7 @@ function validateOptions(options, command) {
     }
   }
 
-  if (options.brainstormMode && command !== 'brainstorm_start') {
+  if (options.reflectMode && command !== 'reflect_start') {
     return '--mode requires --reflect or --brainstorm';
   }
 
@@ -741,24 +741,24 @@ function createOutput({ stdout, stderr, reporter, json }) {
   };
 }
 
-function shouldUseInteractiveBrainstormShell(output) {
-  return !output.json && isInteractiveBrainstormAvailable();
+function shouldUseInteractiveReflectShell(output) {
+  return !output.json && isInteractiveReflectAvailable();
 }
 
-function isInteractiveBrainstormAvailable() {
+function isInteractiveReflectAvailable() {
   return process.stdin.isTTY === true && process.stdout.isTTY === true;
 }
 
-function canInteractivelyPickBrainstormSeed(options) {
-  return !options.json && isInteractiveBrainstormAvailable();
+function canInteractivelyPickReflectSeed(options) {
+  return !options.json && isInteractiveReflectAvailable();
 }
 
 function normalizeForPicker(text) {
   return String(text).replace(/\s+/g, ' ').trim();
 }
 
-async function suggestAlternativeSeeds(repoDir, excludedSeedEntryId) {
-  const recentEntries = await listBrainstormableRecent(repoDir);
+async function suggestAlternativeReflectSeeds(repoDir, excludedSeedEntryId) {
+  const recentEntries = await listReflectableRecent(repoDir);
   return recentEntries
     .filter((entry) => entry.id !== excludedSeedEntryId)
     .slice(0, 2)
@@ -768,7 +768,7 @@ async function suggestAlternativeSeeds(repoDir, excludedSeedEntryId) {
     }));
 }
 
-async function pickBrainstormMode() {
+async function pickReflectMode() {
   const ctx = initDefaultContext();
   ctx.io.write(renderInteractiveModeIntro(ctx) + '\n');
 
@@ -826,7 +826,7 @@ function renderInteractiveModeIntro(ctx) {
   return `${header}\n${body}`;
 }
 
-function renderInteractiveBrainstormIntro(session, ctx) {
+function renderInteractiveReflectIntro(session, ctx) {
   const header = headerBox('Reflect', { ctx });
   const sections = [
     '## Seed',
@@ -869,10 +869,10 @@ function resolveJsonStream(payload) {
       'backup.failure',
       'backup.timeout',
       'backup.retry',
-      'brainstorm.validation_failed',
-      'brainstorm.seed_not_found',
-      'brainstorm.seed_ineligible',
-      'brainstorm.session_not_found',
+      'reflect.validation_failed',
+      'reflect.seed_not_found',
+      'reflect.seed_ineligible',
+      'reflect.session_not_found',
       'browse.entry_not_found',
       'inspect.entry_not_found',
     ].includes(payload.event)

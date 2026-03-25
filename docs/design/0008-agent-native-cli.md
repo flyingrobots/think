@@ -217,10 +217,9 @@ Examples:
 - `stats.total`
 - `stats.bucket`
 - later:
-  - `brainstorm.session_started`
-  - `brainstorm.contrast`
-  - `brainstorm.prompt`
-  - `brainstorm.entry_saved`
+  - `reflect.session_started`
+  - `reflect.prompt`
+  - `reflect.entry_saved`
 
 ### Sequence Contracts
 

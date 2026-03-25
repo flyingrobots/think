@@ -5,11 +5,12 @@ import Plumbing from '@git-stunts/plumbing';
 import { GitGraphAdapter, WarpGraph } from '@git-stunts/git-warp';
 
 export const GRAPH_NAME = 'think';
-export const BRAINSTORM_PROMPT_TYPES = ['challenge', 'constraint', 'sharpen'];
+export const REFLECT_PROMPT_TYPES = ['challenge', 'constraint', 'sharpen'];
 const ENTRY_PREFIX = 'entry:';
-const BRAINSTORM_SESSION_PREFIX = 'brainstorm:';
+const REFLECT_SESSION_PREFIX = 'reflect:';
+const LEGACY_BRAINSTORM_SESSION_PREFIX = 'brainstorm:';
 const TEXT_MIME = 'text/plain; charset=utf-8';
-const MAX_BRAINSTORM_STEPS = 3;
+const MAX_REFLECT_STEPS = 3;
 const CHALLENGE_PROMPTS = [
   'What assumption is hiding here?',
   'What would make this false in practice?',
@@ -25,7 +26,7 @@ const SHARPEN_PROMPTS = [
   'What is the smallest concrete next move?',
   'What should be cut from this idea?',
 ];
-const BRAINSTORM_MARKERS = [
+const REFLECT_MARKERS = [
   /\?/,
   /\b(i wonder|maybe|should|could|would|what if|how might|want to|need to|problem|question|decision|tradeoff|constraint|risk)\b/,
 ];
@@ -50,7 +51,7 @@ export async function captureThought(repoDir, thought) {
   return entry;
 }
 
-export async function startBrainstorm(repoDir, seedEntryId, { promptType = null } = {}) {
+export async function startReflect(repoDir, seedEntryId, { promptType = null } = {}) {
   const graph = await openGraph(repoDir);
   const seedEntry = await getStoredEntry(graph, seedEntryId);
 
@@ -61,7 +62,7 @@ export async function startBrainstorm(repoDir, seedEntryId, { promptType = null 
     };
   }
 
-  const eligibility = assessBrainstormability(seedEntry.text);
+  const eligibility = assessReflectability(seedEntry.text);
   if (!eligibility.eligible) {
     return {
       ok: false,
@@ -72,8 +73,8 @@ export async function startBrainstorm(repoDir, seedEntryId, { promptType = null 
     };
   }
 
-  const promptPlan = selectBrainstormPrompt(seedEntry, promptType);
-  const session = createBrainstormSession(graph.writerId, {
+  const promptPlan = selectReflectPrompt(seedEntry, promptType);
+  const session = createReflectSession(graph.writerId, {
     seedEntryId,
     contrastEntryId: null,
     promptType: promptPlan.promptType,
@@ -117,17 +118,17 @@ export async function startBrainstorm(repoDir, seedEntryId, { promptType = null 
   };
 }
 
-export async function saveBrainstormResponse(repoDir, sessionId, response) {
+export async function saveReflectResponse(repoDir, sessionId, response) {
   const graph = await openGraph(repoDir);
-  const session = await getBrainstormSession(graph, sessionId);
+  const session = await getReflectSession(graph, sessionId);
 
   if (!session) {
     return null;
   }
 
   const entry = createEntry(response, graph.writerId, {
-    kind: 'brainstorm',
-    source: 'brainstorm',
+    kind: 'reflect',
+    source: 'reflect',
   });
 
   entry.seedEntryId = session.seedEntryId;
@@ -226,9 +227,9 @@ export async function listRecent(repoDir, { count = null, query = null } = {}) {
   return filtered.slice(0, count);
 }
 
-export async function listBrainstormableRecent(repoDir) {
+export async function listReflectableRecent(repoDir) {
   const recent = await listRecent(repoDir);
-  return recent.filter((entry) => assessBrainstormability(entry.text).eligible);
+  return recent.filter((entry) => assessReflectability(entry.text).eligible);
 }
 
 export async function getBrowseWindow(repoDir, entryId) {
@@ -263,9 +264,9 @@ export async function inspectRawEntry(repoDir, entryId) {
   };
 }
 
-export function assessBrainstormability(text) {
+export function assessReflectability(text) {
   const normalized = normalizeSeed(text);
-  const eligible = BRAINSTORM_MARKERS.some((pattern) => pattern.test(normalized));
+  const eligible = REFLECT_MARKERS.some((pattern) => pattern.test(normalized));
 
   if (eligible) {
     return {
@@ -325,9 +326,9 @@ async function getStoredEntry(graph, nodeId) {
   };
 }
 
-async function getBrainstormSession(graph, sessionId) {
+async function getReflectSession(graph, sessionId) {
   const session = await getStoredEntry(graph, sessionId);
-  if (!session || session.kind !== 'brainstorm_session') {
+  if (!session || (session.kind !== 'reflect_session' && session.kind !== 'brainstorm_session')) {
     return null;
   }
 
@@ -339,7 +340,11 @@ async function listEntriesByKind(graph, kind) {
   const entries = [];
 
   for (const nodeId of nodeIds) {
-    if (!nodeId.startsWith(ENTRY_PREFIX) && !nodeId.startsWith(BRAINSTORM_SESSION_PREFIX)) {
+    if (
+      !nodeId.startsWith(ENTRY_PREFIX)
+      && !nodeId.startsWith(REFLECT_SESSION_PREFIX)
+      && !nodeId.startsWith(LEGACY_BRAINSTORM_SESSION_PREFIX)
+    ) {
       continue;
     }
 
@@ -377,7 +382,7 @@ function createEntry(text, writerId, { kind, source }) {
   };
 }
 
-function createBrainstormSession(writerId, {
+function createReflectSession(writerId, {
   seedEntryId,
   contrastEntryId,
   promptType,
@@ -390,9 +395,9 @@ function createBrainstormSession(writerId, {
   const sortKey = `${String(timestamp.getTime()).padStart(13, '0')}-${unique}`;
 
   return {
-    id: `${BRAINSTORM_SESSION_PREFIX}${unique}`,
-    kind: 'brainstorm_session',
-    source: 'brainstorm',
+    id: `${REFLECT_SESSION_PREFIX}${unique}`,
+    kind: 'reflect_session',
+    source: 'reflect',
     channel: 'cli',
     writerId,
     createdAt,
@@ -402,11 +407,11 @@ function createBrainstormSession(writerId, {
     promptType,
     question,
     selectionReason,
-    maxSteps: MAX_BRAINSTORM_STEPS,
+    maxSteps: MAX_REFLECT_STEPS,
   };
 }
 
-function selectBrainstormPrompt(seedEntry, requestedPromptType = null) {
+function selectReflectPrompt(seedEntry, requestedPromptType = null) {
   const normalized = normalizeSeed(seedEntry.text);
 
   if (requestedPromptType === 'challenge') {
@@ -414,7 +419,7 @@ function selectBrainstormPrompt(seedEntry, requestedPromptType = null) {
       promptType: 'challenge',
       selectionReason: {
         kind: 'requested_challenge',
-        text: 'Used the requested challenge prompt family for this brainstorm session.',
+        text: 'Used the requested challenge prompt family for this reflect session.',
       },
       question: pickDeterministicPrompt(CHALLENGE_PROMPTS, normalized),
     };
@@ -425,7 +430,7 @@ function selectBrainstormPrompt(seedEntry, requestedPromptType = null) {
       promptType: 'constraint',
       selectionReason: {
         kind: 'requested_constraint',
-        text: 'Used the requested constraint prompt family for this brainstorm session.',
+        text: 'Used the requested constraint prompt family for this reflect session.',
       },
       question: pickDeterministicPrompt(CONSTRAINT_PROMPTS, normalized),
     };
@@ -436,7 +441,7 @@ function selectBrainstormPrompt(seedEntry, requestedPromptType = null) {
       promptType: 'sharpen',
       selectionReason: {
         kind: 'requested_sharpen',
-        text: 'Used the requested sharpen prompt family for this brainstorm session.',
+        text: 'Used the requested sharpen prompt family for this reflect session.',
       },
       question: pickDeterministicPrompt(SHARPEN_PROMPTS, normalized),
     };

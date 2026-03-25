@@ -19,7 +19,7 @@ It means the product needs a sharper conceptual split.
 
 ## Problem Statement
 
-`think` currently has the beginnings of a seeded brainstorm mode.
+`think` currently has the beginnings of a seeded reflect mode.
 
 What live usage showed is:
 

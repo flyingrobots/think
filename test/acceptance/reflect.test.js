@@ -44,7 +44,7 @@ test('think --reflect starts an explicit seeded reflect session with a determini
   );
   const sessionStarted = getEvent(
     events,
-    'brainstorm.session_started',
+    'reflect.session_started',
     'Expected brainstorm start to emit session metadata.'
   );
 
@@ -67,7 +67,7 @@ test('think --reflect starts an explicit seeded reflect session with a determini
   );
 });
 
-test('think --brainstorm can deterministically use a seed-first constraint prompt', async () => {
+test('think --brainstorm remains a compatibility alias for a seed-first reflect constraint prompt', async () => {
   const context = await createThinkContext();
   const seedThought = 'I want to make git-warp support replayable cognition';
   captureWithEntryId(context, 'warp cognition needs better replay receipts');
@@ -92,8 +92,8 @@ test('think --brainstorm can deterministically use a seed-first constraint promp
   );
   const sessionStarted = getEvent(
     events,
-    'brainstorm.session_started',
-    'Expected constraint brainstorm to emit session metadata.'
+    'reflect.session_started',
+    'Expected constraint reflect session to emit session metadata.'
   );
 
   assert.equal(sessionStarted.seedEntryId, seedEntryId, 'Expected constraint brainstorm to preserve the seed lineage.');
@@ -105,7 +105,7 @@ test('think --brainstorm can deterministically use a seed-first constraint promp
       kind: 'seed_only_constraint',
       text: 'Used a deterministic constraint prompt from the seed thought alone.',
     },
-    'Expected brainstorm to expose deterministic seed-only constraint receipts.'
+    'Expected reflect to expose deterministic seed-only constraint receipts.'
   );
 });
 
@@ -132,7 +132,7 @@ test('think --reflect can use an explicit sharpen prompt family', async () => {
   );
   const sessionStarted = getEvent(
     events,
-    'brainstorm.session_started',
+    'reflect.session_started',
     'Expected explicit sharpen brainstorm to emit session metadata.'
   );
 
@@ -143,13 +143,13 @@ test('think --reflect can use an explicit sharpen prompt family', async () => {
     sessionStarted.selectionReason,
     {
       kind: 'requested_sharpen',
-      text: 'Used the requested sharpen prompt family for this brainstorm session.',
+      text: 'Used the requested sharpen prompt family for this reflect session.',
     },
     'Expected explicit sharpen mode to expose receipt-like prompt-family selection.'
   );
 });
 
-test('think --brainstorm-session stores a separate derived entry with preserved seed-first lineage', async () => {
+test('think --reflect-session stores a separate derived entry with preserved seed-first lineage', async () => {
   const context = await createThinkContext();
   const seedThought = 'I want to make git-warp support replayable cognition';
   const otherRawThought = 'warp cognition needs better replay receipts';
@@ -162,7 +162,7 @@ test('think --brainstorm-session stores a separate derived entry with preserved 
 
   const sessionStarted = getEvent(
     parseJsonLines(start.stderr),
-    'brainstorm.session_started',
+    'reflect.session_started',
     'Expected brainstorm start to emit a reusable session id.'
   );
 
@@ -185,11 +185,11 @@ test('think --brainstorm-session stores a separate derived entry with preserved 
   );
   const saved = getEvent(
     continueEvents,
-    'brainstorm.entry_saved',
+    'reflect.entry_saved',
     'Expected brainstorm response to emit stored-entry lineage metadata.'
   );
 
-  assert.equal(saved.kind, 'brainstorm', 'Expected brainstorm responses to be stored as derived brainstorm entries.');
+  assert.equal(saved.kind, 'reflect', 'Expected reflect responses to be stored as derived reflect entries.');
   assert.equal(saved.seedEntryId, seedEntryId, 'Expected brainstorm entry to preserve the seed lineage.');
   assert.equal(
     saved.contrastEntryId,
@@ -215,11 +215,11 @@ test('think --brainstorm-session stores a separate derived entry with preserved 
   );
 });
 
-test('think --brainstorm validates explicit session entry and stays read-only on invalid start', async () => {
+test('think --reflect validates explicit session entry and stays read-only on invalid start', async () => {
   const context = await createThinkContext();
 
   const missingSeed = runThink(context, ['--reflect']);
-  assertFailure(missingSeed, 'Expected --brainstorm without a seed id to fail loudly.');
+  assertFailure(missingSeed, 'Expected --reflect without a seed id to fail loudly.');
   assertContains(
     missingSeed,
     '--reflect requires a seed entry id',
@@ -231,7 +231,7 @@ test('think --brainstorm validates explicit session entry and stays read-only on
   );
 
   const strayMode = runThink(context, ['--mode=sharpen']);
-  assertFailure(strayMode, 'Expected --mode without --brainstorm to fail loudly.');
+  assertFailure(strayMode, 'Expected --mode without --reflect to fail loudly.');
   assertContains(
     strayMode,
     '--mode requires --reflect or --brainstorm',
@@ -260,7 +260,7 @@ test('think --brainstorm validates explicit session entry and stays read-only on
     'Expected brainstorm mode selection to reject unknown prompt families.'
   );
 
-  const missingResponse = runThink(seededContext, ['--reflect-session=brainstorm:missing']);
+  const missingResponse = runThink(seededContext, ['--reflect-session=reflect:missing']);
   assertFailure(missingResponse, 'Expected brainstorm session continuation without a response to fail.');
   assertContains(
     missingResponse,
@@ -313,7 +313,7 @@ test('think --reflect refuses status-like seeds that are not pressure-testable i
   assertContains(start, alternativeTwo, 'Expected brainstorm refusal to suggest recent eligible alternatives.');
 });
 
-test('think --json --brainstorm refuses ineligible seeds with structured machine-readable errors', async () => {
+test('think --json --reflect refuses ineligible seeds with structured machine-readable errors', async () => {
   const context = await createThinkContext();
   const seedThought = "I showed the thought log to ChatGPT, since it was Chat's idea in the first place.";
   const alternativeOne = 'We should make warp graph the thought substrate';
@@ -322,7 +322,7 @@ test('think --json --brainstorm refuses ineligible seeds with structured machine
   const { entryId: alternativeOneId } = captureWithEntryId(context, alternativeOne);
   const { entryId: alternativeTwoId } = captureWithEntryId(context, alternativeTwo);
 
-  const start = runThink(context, ['--json', `--brainstorm=${seedEntryId}`]);
+  const start = runThink(context, ['--json', `--reflect=${seedEntryId}`]);
 
   assertFailure(start, 'Expected JSON brainstorm to refuse ineligible seeds.');
   assertJsonStreams(start);
@@ -338,13 +338,13 @@ test('think --json --brainstorm refuses ineligible seeds with structured machine
 
   assert.deepEqual(
     stderrEvents.map(event => event.event),
-    ['brainstorm.seed_ineligible', 'cli.failure'],
+    ['reflect.seed_ineligible', 'cli.failure'],
     'Expected ineligible brainstorm seeds to fail on stderr with machine-readable rows.'
   );
 
   const ineligible = getEvent(
     stderrEvents,
-    'brainstorm.seed_ineligible',
+    'reflect.seed_ineligible',
     'Expected JSON brainstorm to expose a structured ineligible-seed row.'
   );
 
@@ -375,13 +375,13 @@ test('think --json --brainstorm refuses ineligible seeds with structured machine
   );
 });
 
-test('think --json --brainstorm emits only JSONL with seed-first session and prompt data', async () => {
+test('think --json --reflect emits only JSONL with seed-first session and prompt data', async () => {
   const context = await createThinkContext();
   const seedThought = 'We should make warp graph the thought substrate';
   captureWithEntryId(context, 'warp graph needs better replay tooling');
   const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
 
-  const start = runThink(context, ['--json', `--brainstorm=${seedEntryId}`]);
+  const start = runThink(context, ['--json', `--reflect=${seedEntryId}`]);
 
   assertSuccess(start, 'Expected --json brainstorm start to succeed.');
   assertJsonStreams(start);
@@ -396,8 +396,8 @@ test('think --json --brainstorm emits only JSONL with seed-first session and pro
     events.map(event => event.event),
     [
       'cli.start',
-      'brainstorm.session_started',
-      'brainstorm.prompt',
+      'reflect.session_started',
+      'reflect.prompt',
       'cli.success',
     ],
     'Expected --json brainstorm start to emit machine-readable session and prompt rows without fake contrast rows.'
@@ -405,12 +405,12 @@ test('think --json --brainstorm emits only JSONL with seed-first session and pro
 
   const sessionStarted = getEvent(
     events,
-    'brainstorm.session_started',
+    'reflect.session_started',
     'Expected --json brainstorm start to expose session metadata.'
   );
   const prompt = getEvent(
     events,
-    'brainstorm.prompt',
+    'reflect.prompt',
     'Expected --json brainstorm start to expose the prompt row.'
   );
 
@@ -433,26 +433,26 @@ test('think --json --brainstorm emits only JSONL with seed-first session and pro
   );
 });
 
-test('think --json --brainstorm-session emits only JSONL and preserves stored seed-first lineage', async () => {
+test('think --json --reflect-session emits only JSONL and preserves stored seed-first lineage', async () => {
   const context = await createThinkContext();
   const seedThought = 'I want to make git-warp support replayable cognition';
   const answer = 'The replay model matters more if the system can pressure-test a thought without rewriting it.';
   const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
 
-  const start = runThink(context, ['--json', `--brainstorm=${seedEntryId}`]);
+  const start = runThink(context, ['--json', `--reflect=${seedEntryId}`]);
   assertSuccess(start, 'Expected JSON brainstorm start to succeed before answering.');
   assertJsonStreams(start);
   assert.equal((start.stderr || '').trim(), '', 'Expected successful JSON brainstorm start to keep stderr quiet.');
 
   const sessionStarted = getEvent(
     parseJsonLines(start.stdout),
-    'brainstorm.session_started',
+    'reflect.session_started',
     'Expected JSON brainstorm start to emit a reusable session id.'
   );
 
   const continueResult = runThink(
     context,
-    ['--json', `--brainstorm-session=${sessionStarted.sessionId}`, answer]
+    ['--json', `--reflect-session=${sessionStarted.sessionId}`, answer]
   );
 
   assertSuccess(continueResult, 'Expected JSON brainstorm response capture to succeed.');
@@ -468,7 +468,7 @@ test('think --json --brainstorm-session emits only JSONL and preserves stored se
     events.map(event => event.event),
     [
       'cli.start',
-      'brainstorm.entry_saved',
+      'reflect.entry_saved',
       'cli.success',
     ],
     'Expected JSON brainstorm response to emit only structured save rows.'
@@ -476,11 +476,11 @@ test('think --json --brainstorm-session emits only JSONL and preserves stored se
 
   const saved = getEvent(
     events,
-    'brainstorm.entry_saved',
+    'reflect.entry_saved',
     'Expected JSON brainstorm response to expose the saved derived entry.'
   );
 
-  assert.equal(saved.kind, 'brainstorm', 'Expected JSON brainstorm responses to be stored as brainstorm entries.');
+  assert.equal(saved.kind, 'reflect', 'Expected JSON reflect responses to be stored as reflect entries.');
   assert.equal(saved.seedEntryId, seedEntryId, 'Expected JSON brainstorm response to preserve the seed lineage.');
   assert.equal(saved.contrastEntryId, null, 'Expected JSON brainstorm response to omit fake contrast lineage.');
   assert.equal(saved.sessionId, sessionStarted.sessionId, 'Expected JSON brainstorm response to remain in the same session.');

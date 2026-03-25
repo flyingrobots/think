@@ -180,19 +180,19 @@ Deliverables:
 
 - `think --reflect ...` or equivalent seeded mode
 - question-led interaction instead of generic idea spam
-- brainstorm outputs stored separately from raw capture entries
+- reflect outputs stored separately from raw capture entries
 - compatibility path for the older `--brainstorm*` CLI flags
 
 Playback:
 
 - the mode helps the user sharpen or reframe an idea
 - the mode feels like a deliberate push rather than autocomplete or chat
-- raw capture remains the default and is not interrupted by brainstorming behavior
+- raw capture remains the default and is not interrupted by reflect behavior
 
 Exit criteria:
 
-- brainstorm mode produces new useful entries
-- brainstorm is entered deliberately and never ambushes plain capture
+- reflect mode produces new useful entries
+- reflect is entered deliberately and never ambushes plain capture
 - the shipped deterministic surface remains honest about being reflect / pressure-test rather than fake generative brainstorming
 
 ## Milestone 4: Reentry, Browse, And Inspect

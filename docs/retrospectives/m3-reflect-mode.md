@@ -44,7 +44,7 @@ Implementation:
 
 Specification:
 
-- acceptance coverage in [test/acceptance/brainstorm.test.js](/Users/james/git/think/test/acceptance/brainstorm.test.js)
+- acceptance coverage in [test/acceptance/reflect.test.js](/Users/james/git/think/test/acceptance/reflect.test.js)
 
 Supporting design work:
 
