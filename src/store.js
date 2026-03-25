@@ -203,22 +203,64 @@ export async function getStats(repoDir, { from, to, since, bucket } = {}) {
   };
 }
 
-export async function listRecent(repoDir) {
+export async function listRecent(repoDir, { count = null, query = null } = {}) {
   const graph = await openGraph(repoDir);
   const captures = await listEntriesByKind(graph, 'capture');
 
-  return captures
+  const recent = captures
     .map(entry => ({
       id: entry.id,
       text: entry.text,
       sortKey: entry.sortKey,
     }))
     .sort(compareEntriesNewestFirst);
+
+  const filtered = query
+    ? recent.filter((entry) => matchesRecentQuery(entry.text, query))
+    : recent;
+
+  if (count == null) {
+    return filtered;
+  }
+
+  return filtered.slice(0, count);
 }
 
 export async function listBrainstormableRecent(repoDir) {
   const recent = await listRecent(repoDir);
   return recent.filter((entry) => assessBrainstormability(entry.text).eligible);
+}
+
+export async function getBrowseWindow(repoDir, entryId) {
+  const recent = await listRecent(repoDir);
+  const index = recent.findIndex((entry) => entry.id === entryId);
+
+  if (index === -1) {
+    return null;
+  }
+
+  return {
+    current: recent[index],
+    newer: index > 0 ? recent[index - 1] : null,
+    older: index + 1 < recent.length ? recent[index + 1] : null,
+  };
+}
+
+export async function inspectRawEntry(repoDir, entryId) {
+  const graph = await openGraph(repoDir);
+  const entry = await getStoredEntry(graph, entryId);
+
+  if (!entry || entry.kind !== 'capture') {
+    return null;
+  }
+
+  return {
+    entryId: entry.id,
+    kind: 'raw_capture',
+    text: entry.text,
+    sortKey: entry.sortKey,
+    createdAt: entry.createdAt,
+  };
 }
 
 export function assessBrainstormability(text) {
@@ -448,6 +490,10 @@ function compareEntriesNewestFirst(left, right) {
   }
 
   return right.sortKey.localeCompare(left.sortKey);
+}
+
+function matchesRecentQuery(text, query) {
+  return String(text).toLowerCase().includes(String(query).trim().toLowerCase());
 }
 
 function getCurrentTime() {

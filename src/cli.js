@@ -7,6 +7,8 @@ import {
   BRAINSTORM_PROMPT_TYPES,
   captureThought,
   GRAPH_NAME,
+  getBrowseWindow,
+  inspectRawEntry,
   listBrainstormableRecent,
   listRecent,
   getStats,
@@ -46,7 +48,11 @@ export async function main(argv, { stdout, stderr }) {
 
     let exitCode = 0;
     if (command === 'recent') {
-      exitCode = await runRecent(output, reporter);
+      exitCode = await runRecent(output, reporter, options);
+    } else if (command === 'browse') {
+      exitCode = await runBrowse(options.browse, output, reporter);
+    } else if (command === 'inspect') {
+      exitCode = await runInspect(options.inspect, output, reporter);
     } else if (command === 'stats') {
       exitCode = await runStats(output, reporter, options);
     } else if (command === 'brainstorm_start') {
@@ -343,10 +349,13 @@ async function runInteractiveBrainstormShell(session, output, reporter) {
   return runBrainstormReply(session.sessionId, response, output, reporter);
 }
 
-async function runRecent(output, reporter) {
+async function runRecent(output, reporter, options) {
   const repoDir = getLocalRepoDir();
 
-  reporter.event('recent.start');
+  reporter.event('recent.start', {
+    count: options.recentCount == null ? null : Number(options.recentCount),
+    query: options.recentQuery ?? null,
+  });
   if (!hasGitRepo(repoDir)) {
     reporter.event('recent.done', {
       count: 0,
@@ -355,7 +364,10 @@ async function runRecent(output, reporter) {
     return 0;
   }
 
-  const entries = await listRecent(repoDir);
+  const entries = await listRecent(repoDir, {
+    count: options.recentCount == null ? null : Number(options.recentCount),
+    query: options.recentQuery,
+  });
   reporter.event('recent.done', { count: entries.length });
   if (entries.length > 0) {
     if (output.json) {
@@ -375,6 +387,91 @@ async function runRecent(output, reporter) {
   return 0;
 }
 
+async function runBrowse(entryId, output, reporter) {
+  const repoDir = getLocalRepoDir();
+
+  reporter.event('browse.start', { entryId });
+  if (!hasGitRepo(repoDir)) {
+    output.error('Browse entry not found', 'browse.entry_not_found', { entryId });
+    return 1;
+  }
+
+  const browseWindow = await getBrowseWindow(repoDir, entryId);
+  if (!browseWindow) {
+    output.error('Browse entry not found', 'browse.entry_not_found', { entryId });
+    return 1;
+  }
+
+  const browseEntries = [
+    { role: 'current', ...browseWindow.current },
+    ...(browseWindow.newer ? [{ role: 'newer', ...browseWindow.newer }] : []),
+    ...(browseWindow.older ? [{ role: 'older', ...browseWindow.older }] : []),
+  ];
+
+  reporter.event('browse.done', {
+    entryId,
+    count: browseEntries.length,
+  });
+
+  if (output.json) {
+    for (const entry of browseEntries) {
+      output.data('browse.entry', {
+        role: entry.role,
+        entryId: entry.id,
+        text: entry.text,
+        sortKey: entry.sortKey,
+      });
+    }
+    return 0;
+  }
+
+  const lines = ['Browse', `Current: ${browseWindow.current.text}`];
+  if (browseWindow.newer) {
+    lines.push(`Newer: ${browseWindow.newer.text}`);
+  }
+  if (browseWindow.older) {
+    lines.push(`Older: ${browseWindow.older.text}`);
+  }
+  output.out(lines.join('\n'));
+  return 0;
+}
+
+async function runInspect(entryId, output, reporter) {
+  const repoDir = getLocalRepoDir();
+
+  reporter.event('inspect.start', { entryId });
+  if (!hasGitRepo(repoDir)) {
+    output.error('Inspect entry not found', 'inspect.entry_not_found', { entryId });
+    return 1;
+  }
+
+  const entry = await inspectRawEntry(repoDir, entryId);
+  if (!entry) {
+    output.error('Inspect entry not found', 'inspect.entry_not_found', { entryId });
+    return 1;
+  }
+
+  reporter.event('inspect.done', {
+    entryId: entry.entryId,
+    kind: entry.kind,
+  });
+
+  if (output.json) {
+    output.data('inspect.entry', entry);
+    return 0;
+  }
+
+  output.out([
+    'Inspect',
+    `Entry ID: ${entry.entryId}`,
+    `Kind: ${entry.kind}`,
+    `Sort Key: ${entry.sortKey}`,
+    'Text:',
+    entry.text,
+  ].join('\n'));
+  return 0;
+}
+
 function parseArgs(args) {
   const positionals = [];
   const options = {
@@ -387,10 +484,16 @@ function parseArgs(args) {
     brainstormMode: null,
     brainstormSessionFlag: false,
     brainstormSession: null,
+    browseFlag: false,
+    browse: null,
+    inspectFlag: false,
+    inspect: null,
     from: null,
     to: null,
     since: null,
     bucket: null,
+    recentCount: null,
+    recentQuery: null,
   };
   let parsingFlags = true;
 
@@ -409,6 +512,22 @@ function parseArgs(args) {
         options.stats = true;
       } else if (arg === '--recent') {
         options.recent = true;
+      } else if (arg.startsWith('--recent-count=')) {
+        options.recentCount = arg.slice('--recent-count='.length);
+      } else if (arg.startsWith('--recent-query=')) {
+        options.recentQuery = arg.slice('--recent-query='.length);
+      } else if (arg === '--browse') {
+        options.browseFlag = true;
+        options.browse = '';
+      } else if (arg.startsWith('--browse=')) {
+        options.browseFlag = true;
+        options.browse = arg.slice('--browse='.length);
+      } else if (arg === '--inspect') {
+        options.inspectFlag = true;
+        options.inspect = '';
+      } else if (arg.startsWith('--inspect=')) {
+        options.inspectFlag = true;
+        options.inspect = arg.slice('--inspect='.length);
       } else if (arg === '--brainstorm' || arg === '--reflect') {
         options.brainstormFlag = true;
         options.brainstorm = '';
@@ -459,6 +578,12 @@ function resolveCommand(options) {
   if (options.brainstormFlag) {
     return 'brainstorm_start';
   }
+  if (options.browseFlag) {
+    return 'browse';
+  }
+  if (options.inspectFlag) {
+    return 'inspect';
+  }
   if (options.stats) {
     return 'stats';
   }
@@ -472,10 +597,13 @@ function validateOptions(options, command) {
   const hasStatsFilter = Boolean(options.from || options.to || options.since || options.bucket);
   const explicitCommands = [
     options.recent,
+    options.browseFlag,
+    options.inspectFlag,
     options.stats,
     options.brainstormFlag,
     options.brainstormSessionFlag,
   ].filter(Boolean).length;
+  const hasRecentFilter = options.recentCount !== null || options.recentQuery !== null;
 
   if (explicitCommands > 1) {
     return 'Commands cannot be combined';
@@ -483,6 +611,37 @@ function validateOptions(options, command) {
 
   if (command === 'recent' && options.positionals.length > 0) {
     return '--recent does not take a thought';
+  }
+
+  if (command === 'recent') {
+    if (options.recentCount !== null && !/^[1-9]\d*$/.test(options.recentCount)) {
+      return 'Invalid --recent-count value';
+    }
+    if (options.recentQuery !== null && options.recentQuery.trim() === '') {
+      return 'Invalid --recent-query value';
+    }
+  }
+
+  if (hasRecentFilter && command !== 'recent') {
+    return '--recent-count and --recent-query require --recent';
+  }
+
+  if (command === 'browse') {
+    if (!options.browse) {
+      return '--browse requires an entry id';
+    }
+    if (options.positionals.length > 0) {
+      return '--browse does not take a thought';
+    }
+  }
+
+  if (command === 'inspect') {
+    if (!options.inspect) {
+      return '--inspect requires an entry id';
+    }
+    if (options.positionals.length > 0) {
+      return '--inspect does not take a thought';
+    }
   }
 
   if (command === 'stats' && options.positionals.length > 0) {
@@ -708,6 +867,8 @@ function resolveJsonStream(payload) {
       'brainstorm.seed_not_found',
       'brainstorm.seed_ineligible',
       'brainstorm.session_not_found',
+      'browse.entry_not_found',
+      'inspect.entry_not_found',
     ].includes(payload.event)
   ) {
     return 'stderr';

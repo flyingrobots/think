@@ -13,17 +13,17 @@ It is infrastructure for cheap, exact, replayable thought capture.
 ## Current Status
 
 `M0`, `M1`, `M2`, and `M3` are complete.
-`M4` is next.
+`M4` is underway.
 Current version: `0.3.0`.
 
 What exists today:
 
 - raw CLI capture via `think "..."` or `node ./bin/think.js "..."`
-- explicit read-only CLI surfaces via `think --recent` and `think --stats`
+- explicit read-only CLI surfaces via `think --recent`, `think --browse=<entryId>`, `think --inspect=<entryId>`, and `think --stats`
 - machine-readable CLI output via `--json`, with JSONL-only streams for every implemented command
 - first-run bootstrap of a private local repo, defaulting to `~/.think/repo`
 - exact raw-text preservation
-- plain newest-first recent listing
+- newest-first recent listing, with optional count and query filters
 - best-effort upstream backup
 - first seeded reflect CLI flow via `--reflect` and `--reflect-session`
 - a native macOS menu bar app with a global hotkey capture panel
@@ -74,7 +74,7 @@ The current shape is:
 - direct writers: CLI and macOS menu bar app
 - local store: configurable via `THINK_REPO_DIR`, defaulting to `~/.think/repo`
 - day-one backup model: best-effort upstream push after local success
-- read surfaces: plain `--recent` and plain `--stats`
+- read surfaces: filtered `--recent`, explicit `--browse=<entryId>`, explicit `--inspect=<entryId>`, and plain `--stats`
 
 Capture success means the local save succeeded.
 Backup is separate and best-effort.
@@ -95,6 +95,10 @@ From the repo root:
 ```bash
 node ./bin/think.js "turkey is good in burritos"
 node ./bin/think.js --recent
+node ./bin/think.js --recent --recent-count=5
+node ./bin/think.js --recent --recent-query=warp
+node ./bin/think.js --browse=<entryId>
+node ./bin/think.js --inspect=<entryId>
 node ./bin/think.js --stats
 node ./bin/think.js --stats --bucket=day
 node ./bin/think.js --stats --since=7d
@@ -111,9 +115,15 @@ think --recent
 think --stats
 ```
 
+`--recent-count=<n>` limits `--recent` to the newest `n` raw captures. `--recent-query=<text>` filters `--recent` by case-insensitive text match.
+
+`--browse=<entryId>` shows one raw capture with its immediate newer and older neighbors.
+
+`--inspect=<entryId>` exposes the exact stored raw entry metadata without summarizing or narrating it.
+
 In a real TTY, bare `--reflect` opens an interactive seed picker. `--reflect-mode=challenge|constraint|sharpen` can be used to request a specific pressure family. The older `--brainstorm*` flags still work as compatibility aliases.
 
-`--recent` and `--stats` are read-only commands.
+`--recent`, `--browse`, `--inspect`, and `--stats` are read-only commands.
 They should not create local app state on their own.
 
 To enable day-one backup, set `THINK_UPSTREAM_URL` to a reachable Git remote or bare repo path before capture:
@@ -189,6 +199,7 @@ npm test
 
 The current `M1` and `M2` suites are green for the implemented behavior.
 The current `M3` reflect/brainstorm suite is green for the implemented behavior.
+The first `M4` read-mode suite is green for the implemented behavior.
 
 ## Repo Guide
 
