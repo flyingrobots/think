@@ -109,14 +109,21 @@ Important constraints:
 
 ## Mode 2: Browse
 
-`browse` is a thought browser, not a dialogue mode.
+`browse` is a reader-first thought browser, not a dialogue mode.
 
 Its job is to let the user move around the archive deliberately.
 
-Possible behaviors:
+Core behaviors:
 
-- show one thought at a time
+- show one thought at a time as the primary surface
+- show useful metadata up front:
+  - timestamp
+  - relative time
+  - log position
+  - entry identity
 - show previous and next thoughts
+- support a hidden chronology drawer rather than a permanent archive rail
+- support a fuzzy jump surface so the user can move intentionally without scrolling the whole archive
 - show session-nearby thoughts when honest
 - show connected or related thoughts when there are explicit receipts
 - expose provenance or placement context without forcing interpretation
@@ -124,6 +131,12 @@ Possible behaviors:
 
 The first human-facing `browse` shell should be a Bijou TUI.
 That is now an explicit design direction, not just one possible implementation.
+
+The first prototype already clarified one important anti-pattern:
+
+- a permanent full-height recent rail is the wrong default
+- the current thought should dominate the screen
+- the archive log should appear only when explicitly summoned
 
 Important constraints:
 
@@ -141,6 +154,10 @@ The defining feeling should be:
 Not:
 
 > the app is trying to think for me.
+
+And not:
+
+> I am staring at a giant recent list with one highlighted row.
 
 ## Mode 3: Inspect
 
@@ -249,8 +266,12 @@ That is a better sequence than trying to jump directly to a dialogue-heavy “re
 The first TUI slice should stay intentionally narrow:
 
 - open explicitly from `--browse` in a real TTY when no `entryId` is provided
+- open on the newest raw thought by default
 - center one raw thought at a time
+- show timestamp and identity metadata without requiring inspect mode
 - support older/newer navigation
+- support a hidden bottom chronology drawer
+- support a fuzzy jump palette for archive movement
 - expose an inspect pane or toggle for raw metadata and derived receipts
 - allow a jump into `Reflect` from the selected thought
 
@@ -258,6 +279,7 @@ It should not start with:
 
 - graph maps
 - ambient recommendations
+- a permanent full-height recent rail
 - editable dashboards
 - capture inside the TUI
 - LLM-assisted chat

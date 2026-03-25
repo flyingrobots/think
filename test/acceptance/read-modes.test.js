@@ -265,13 +265,78 @@ test('think --json --browse emits JSONL rows for the current raw thought and its
   );
 });
 
-test('think --browse opens the scripted browse TUI, navigates older and newer, and exits cleanly', async () => {
+test('think --browse opens a reader-first browse TUI with metadata and no permanent recent rail', async () => {
   const context = await createThinkContext();
   const olderThought = 'older thought about warp receipts';
   const currentThought = 'current thought about warp replay';
   const newerThought = 'newer thought about local-first cognition';
 
-  const { entryId: olderEntryId } = captureWithEntryId(context, olderThought);
+  captureWithEntryId(context, olderThought);
+  const { entryId: currentEntryId } = captureWithEntryId(context, currentThought);
+  captureWithEntryId(context, newerThought);
+
+  const browse = runThink(
+    context,
+    ['--browse'],
+    {
+      THINK_TEST_INTERACTIVE: '1',
+      THINK_TEST_BROWSE_SCRIPT: JSON.stringify({
+        seedEntryId: currentEntryId,
+        actions: ['quit'],
+      }),
+    }
+  );
+
+  assertSuccess(browse, 'Expected scripted browse TUI to succeed.');
+  assertContains(browse, 'THINK BROWSE', 'Expected bare --browse to open a real browse screen.');
+  assertContains(browse, currentThought, 'Expected the shell to show the selected current thought.');
+  assertContains(browse, 'When:', 'Expected browse to surface timestamp metadata without requiring inspect mode.');
+  assertContains(browse, 'Entry ID:', 'Expected browse to surface raw entry identity without requiring inspect mode.');
+  assertNotContains(browse, 'RECENT', 'Expected browse not to devote a permanent rail to the full recent archive.');
+  assertNotContains(browse, 'Choose a thought to browse', 'Expected the browse TUI not to fall back to prompt-picker UX.');
+
+  const recent = runThink(context, ['--recent']);
+  assertSuccess(recent, 'Expected browse shell usage to remain read-only.');
+  assertContains(recent, newerThought, 'Expected browse shell usage to preserve raw captures.');
+  assertContains(recent, currentThought, 'Expected browse shell usage to preserve raw captures.');
+  assertContains(recent, olderThought, 'Expected browse shell usage to preserve raw captures.');
+});
+
+test('think --browse can reveal a chronology drawer on demand instead of showing the full log by default', async () => {
+  const context = await createThinkContext();
+  const olderThought = 'older thought about warp receipts';
+  const currentThought = 'current thought about warp replay';
+  const newerThought = 'newer thought about local-first cognition';
+
+  captureWithEntryId(context, olderThought);
+  const { entryId: currentEntryId } = captureWithEntryId(context, currentThought);
+  captureWithEntryId(context, newerThought);
+
+  const browse = runThink(
+    context,
+    ['--browse'],
+    {
+      THINK_TEST_INTERACTIVE: '1',
+      THINK_TEST_BROWSE_SCRIPT: JSON.stringify({
+        seedEntryId: currentEntryId,
+        actions: ['log', 'quit'],
+      }),
+    }
+  );
+
+  assertSuccess(browse, 'Expected scripted browse TUI log drawer flow to succeed.');
+  assertContains(browse, 'THOUGHT LOG', 'Expected browse to reveal a chronology drawer only when requested.');
+  assertContains(browse, olderThought, 'Expected the chronology drawer to expose older thoughts.');
+  assertContains(browse, newerThought, 'Expected the chronology drawer to expose newer thoughts.');
+});
+
+test('think --browse can jump to another thought through a fuzzy jump surface', async () => {
+  const context = await createThinkContext();
+  const olderThought = 'older thought about warp receipts';
+  const currentThought = 'current thought about warp replay';
+  const newerThought = 'newer thought about local-first cognition';
+
+  captureWithEntryId(context, olderThought);
   const { entryId: currentEntryId } = captureWithEntryId(context, currentThought);
   const { entryId: newerEntryId } = captureWithEntryId(context, newerThought);
 
@@ -282,25 +347,22 @@ test('think --browse opens the scripted browse TUI, navigates older and newer, a
       THINK_TEST_INTERACTIVE: '1',
       THINK_TEST_BROWSE_SCRIPT: JSON.stringify({
         seedEntryId: currentEntryId,
-        actions: ['older', 'newer', 'quit'],
+        actions: [
+          {
+            type: 'jump',
+            query: 'local-first',
+            entryId: newerEntryId,
+          },
+          'quit',
+        ],
       }),
     }
   );
 
-  assertSuccess(browse, 'Expected scripted browse TUI to succeed.');
-  assertContains(browse, 'THINK BROWSE', 'Expected bare --browse to open a real browse screen.');
-  assertNotContains(browse, 'Choose a thought to browse', 'Expected the browse TUI not to fall back to prompt-picker UX.');
-  assertContains(browse, currentThought, 'Expected the shell to show the selected current thought.');
-  assertContains(browse, olderThought, 'Expected the shell to reach the older neighbor after scripted navigation.');
-  assertContains(browse, newerThought, 'Expected the shell to return to the newer/current neighborhood after scripted navigation.');
-
-  const recent = runThink(context, ['--recent']);
-  assertSuccess(recent, 'Expected browse shell usage to remain read-only.');
-  assertContains(recent, newerThought, 'Expected browse shell usage to preserve raw captures.');
-  assertContains(recent, currentThought, 'Expected browse shell usage to preserve raw captures.');
-  assertContains(recent, olderThought, 'Expected browse shell usage to preserve raw captures.');
-  assertNotContains(recent, olderEntryId, 'Expected browse shell usage not to leak entry ids into recent output.');
-  assertNotContains(recent, newerEntryId, 'Expected browse shell usage not to leak entry ids into recent output.');
+  assertSuccess(browse, 'Expected scripted browse TUI jump flow to succeed.');
+  assertContains(browse, 'JUMP', 'Expected browse to expose an explicit jump surface.');
+  assertContains(browse, newerThought, 'Expected the jump surface to move focus to the selected thought.');
+  assertNotContains(browse, 'RECENT', 'Expected jump to replace a permanent recent rail rather than coexist with it.');
 });
 
 test('think --browse can reveal inspect receipts inside the scripted browse TUI', async () => {

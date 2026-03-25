@@ -50,7 +50,7 @@ Who:
 
 What:
 
-- they open an explicit read shell, move through one thought at a time, inspect adjacency and receipts, and jump into `Reflect` when a thought deserves pressure, all without feeling like they entered a dashboard or a generic terminal app
+- they open an explicit read shell, read one thought at a time with useful metadata already visible, move through chronology deliberately, summon the archive log or jump palette only when needed, inspect receipts on demand, and jump into `Reflect` when a thought deserves pressure, all without feeling like they entered a dashboard or a generic terminal app
 
 Wow:
 
@@ -72,6 +72,7 @@ Everything else is secondary.
 4. Raw text remains the center of gravity.
 5. Inspectability beats cleverness.
 6. Porcelain should remain downstream of the plumbing contract.
+7. Archive overview stays hidden until summoned.
 
 ## Core Decision
 
@@ -124,7 +125,10 @@ The first Bijou shell should be:
 - an explicit browse-and-inspect surface
 - launched intentionally
 - centered on one selected raw thought
+- showing timestamp and identity metadata without requiring inspect mode
 - navigable through older/newer movement
+- capable of opening a hidden chronology drawer
+- capable of opening a fuzzy jump surface
 - capable of showing inspect receipts without leaving the shell
 - capable of launching `Reflect` from the selected thought
 
@@ -171,8 +175,10 @@ It also keeps human and agent capabilities aligned:
 
 The first shell should keep the scope brutally tight:
 
-- main panel: one raw thought
+- main panel: one raw thought plus timestamp and identity metadata
 - navigation: immediate older/newer movement
+- hidden bottom drawer: chronology/log context when explicitly requested
+- fuzzy jump palette: intentional movement through the archive without a permanent list rail
 - inspect pane: raw metadata and derived receipts
 - action: jump into `Reflect`
 
@@ -181,7 +187,6 @@ Nice-to-have later, not first:
 - session-nearby navigation
 - explicit linked-thought jumps
 - graph neighborhood views
-- richer query entry
 - multiple panes
 
 ## Read-Shell Doctrine
@@ -191,6 +196,8 @@ Nice-to-have later, not first:
 The selected raw thought should stay visually primary.
 
 No summary should displace it.
+
+The archive log should not consume the screen by default.
 
 ### Receipts On Demand
 
