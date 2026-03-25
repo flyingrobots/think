@@ -213,6 +213,7 @@ export async function listRecent(repoDir, { count = null, query = null } = {}) {
       id: entry.id,
       text: entry.text,
       sortKey: entry.sortKey,
+      createdAt: entry.createdAt,
     }))
     .sort(compareEntriesNewestFirst);
 

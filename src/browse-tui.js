@@ -1,6 +1,14 @@
 import { initDefaultContext } from '@flyingrobots/bijou-node';
 import { parseAnsiToSurface } from '@flyingrobots/bijou';
 import {
+  commandPalette,
+  createCommandPaletteState,
+  cpFilter,
+  cpFocusNext,
+  cpFocusPrev,
+  cpPageDown,
+  cpPageUp,
+  cpSelectedItem,
   createKeyMap,
   createScrollState,
   flex,
@@ -22,6 +30,7 @@ const ANSI = {
 
 const DEFAULT_COLUMNS = 120;
 const DEFAULT_ROWS = 32;
+const DEFAULT_JUMP_HEIGHT = 8;
 
 const browseKeymap = createKeyMap()
   .group('Navigation', (group) => group
@@ -33,12 +42,14 @@ const browseKeymap = createKeyMap()
     .bind('end', 'Oldest', { type: 'jump', target: 'oldest' }))
   .group('View', (group) => group
     .bind('i', 'Inspect', { type: 'toggle_inspect' })
+    .bind('l', 'Log', { type: 'toggle_log' })
+    .bind('/', 'Jump', { type: 'open_jump' })
     .bind('pageup', 'Scroll up', { type: 'scroll', direction: 'up' })
     .bind('pagedown', 'Scroll down', { type: 'scroll', direction: 'down' }))
   .group('Actions', (group) => group
     .bind('r', 'Reflect', { type: 'reflect' })
     .bind('q', 'Quit', { type: 'quit' })
-    .bind('escape', 'Quit', { type: 'quit' }));
+    .bind('escape', 'Close/Quit', { type: 'escape' }));
 
 export async function runBrowseTui({ entries, initialEntryId = null, loadInspectEntry = null }) {
   let effect = { type: 'quit' };
@@ -68,6 +79,12 @@ export async function runBrowseTui({ entries, initialEntryId = null, loadInspect
 
       if (msg.type !== 'key') {
         return [model, []];
+      }
+
+      const jumpResult = handleJumpKey(model, msg);
+      if (jumpResult) {
+        const [nextModel, cmds] = maybeQueueInspectLoad(jumpResult.model, loadInspectEntry);
+        return [nextModel, cmds];
       }
 
       const action = browseKeymap.handle(msg);
@@ -104,6 +121,26 @@ export function runBrowseTuiScript({ entries, inspectById, initialEntryId = null
   let effect = { type: 'quit' };
 
   for (const rawAction of actions) {
+    if (isScriptJumpAction(rawAction)) {
+      const opened = applyBrowseAction(model, {
+        type: 'open_jump',
+        query: rawAction.query ?? '',
+      });
+      model = opened.model;
+      frames.push(renderBrowseModel(model));
+
+      const selectedEntryId = rawAction.entryId
+        ?? cpSelectedItem(model.jumpPalette)?.id
+        ?? null;
+      const completed = applyBrowseAction(model, {
+        type: 'apply_jump_target',
+        entryId: selectedEntryId,
+      });
+      model = completed.model;
+      frames.push(renderBrowseModel(model));
+      continue;
+    }
+
     const action = normalizeScriptAction(rawAction);
     const result = applyBrowseAction(model, action);
     model = result.model;
@@ -127,10 +164,11 @@ function createBrowseModel({ entries, inspectCache, initialEntryId }) {
     inspectCache,
     inspectLoadingEntryId: null,
     currentIndex: resolveInitialIndex(entries, initialEntryId),
-    inspectVisible: false,
+    panelMode: 'none',
     columns: process.stdout.columns ?? DEFAULT_COLUMNS,
     rows: process.stdout.rows ?? DEFAULT_ROWS,
     contentScrollY: 0,
+    jumpPalette: createJumpPalette(entries),
   };
 }
 
@@ -179,8 +217,61 @@ function applyBrowseAction(model, action) {
       return {
         model: {
           ...model,
-          inspectVisible: !model.inspectVisible,
+          panelMode: model.panelMode === 'inspect' ? 'none' : 'inspect',
           contentScrollY: 0,
+        },
+        effect: null,
+      };
+    case 'toggle_log':
+      return {
+        model: {
+          ...model,
+          panelMode: model.panelMode === 'log' ? 'none' : 'log',
+          contentScrollY: 0,
+        },
+        effect: null,
+      };
+    case 'open_jump':
+      return {
+        model: {
+          ...model,
+          panelMode: 'jump',
+          jumpPalette: cpFilter(createJumpPalette(model.entries), action.query ?? ''),
+          contentScrollY: 0,
+        },
+        effect: null,
+      };
+    case 'apply_jump_target': {
+      if (!action.entryId) {
+        return {
+          model,
+          effect: null,
+        };
+      }
+
+      const nextIndex = model.entries.findIndex((entry) => entry.id === action.entryId);
+      if (nextIndex === -1) {
+        return {
+          model,
+          effect: null,
+        };
+      }
+
+      return {
+        model: {
+          ...model,
+          currentIndex: nextIndex,
+          panelMode: 'none',
+          contentScrollY: 0,
+        },
+        effect: null,
+      };
+    }
+    case 'close_panel':
+      return {
+        model: {
+          ...model,
+          panelMode: 'none',
         },
         effect: null,
       };
@@ -205,6 +296,20 @@ function applyBrowseAction(model, action) {
           entryId: currentEntry(model).id,
         },
       };
+    case 'escape':
+      if (model.panelMode !== 'none') {
+        return {
+          model: {
+            ...model,
+            panelMode: 'none',
+          },
+          effect: null,
+        };
+      }
+      return {
+        model,
+        effect: { type: 'quit' },
+      };
     case 'quit':
       return {
         model,
@@ -216,6 +321,115 @@ function applyBrowseAction(model, action) {
         effect: null,
       };
   }
+}
+
+function handleJumpKey(model, msg) {
+  if (model.panelMode !== 'jump') {
+    return null;
+  }
+
+  if (msg.key === 'escape') {
+    return applyBrowseAction(model, { type: 'close_panel' });
+  }
+
+  if (msg.key === 'enter') {
+    return applyBrowseAction(model, {
+      type: 'apply_jump_target',
+      entryId: cpSelectedItem(model.jumpPalette)?.id ?? null,
+    });
+  }
+
+  if (msg.key === 'backspace') {
+    return {
+      model: {
+        ...model,
+        jumpPalette: cpFilter(
+          createJumpPalette(model.entries),
+          model.jumpPalette.query.slice(0, -1)
+        ),
+      },
+      effect: null,
+    };
+  }
+
+  if (msg.key === 'down' || (msg.ctrl && msg.key === 'n')) {
+    return {
+      model: {
+        ...model,
+        jumpPalette: cpFocusNext(model.jumpPalette),
+      },
+      effect: null,
+    };
+  }
+
+  if (msg.key === 'up' || (msg.ctrl && msg.key === 'p')) {
+    return {
+      model: {
+        ...model,
+        jumpPalette: cpFocusPrev(model.jumpPalette),
+      },
+      effect: null,
+    };
+  }
+
+  if (msg.key === 'pagedown' || (msg.ctrl && msg.key === 'd')) {
+    return {
+      model: {
+        ...model,
+        jumpPalette: cpPageDown(model.jumpPalette),
+      },
+      effect: null,
+    };
+  }
+
+  if (msg.key === 'pageup' || (msg.ctrl && msg.key === 'u')) {
+    return {
+      model: {
+        ...model,
+        jumpPalette: cpPageUp(model.jumpPalette),
+      },
+      effect: null,
+    };
+  }
+
+  const character = keyMsgToPrintableChar(msg);
+  if (!character) {
+    return {
+      model,
+      effect: null,
+    };
+  }
+
+  return {
+    model: {
+      ...model,
+      jumpPalette: cpFilter(
+        createJumpPalette(model.entries),
+        `${model.jumpPalette.query}${character}`
+      ),
+    },
+    effect: null,
+  };
+}
+
+function keyMsgToPrintableChar(msg) {
+  if (msg.ctrl || msg.alt) {
+    return null;
+  }
+
+  if (msg.key === 'space') {
+    return ' ';
+  }
+
+  if (msg.key.length !== 1) {
+    return null;
+  }
+
+  if (msg.shift && /^[a-z]$/.test(msg.key)) {
+    return msg.key.toUpperCase();
+  }
+
+  return msg.key;
 }
 
 function normalizeScriptAction(rawAction) {
@@ -233,6 +447,8 @@ function normalizeScriptAction(rawAction) {
       return { type: 'move', delta: -1 };
     case 'inspect':
       return { type: 'toggle_inspect' };
+    case 'log':
+      return { type: 'toggle_log' };
     case 'quit':
       return { type: 'quit' };
     case 'reflect':
@@ -240,6 +456,12 @@ function normalizeScriptAction(rawAction) {
     default:
       return { type: 'quit' };
   }
+}
+
+function isScriptJumpAction(rawAction) {
+  return typeof rawAction === 'object'
+    && rawAction !== null
+    && rawAction.type === 'jump';
 }
 
 function attachScriptPayload(effect, rawAction) {
@@ -259,7 +481,20 @@ function attachScriptPayload(effect, rawAction) {
 
 function renderBrowseModel(model) {
   const layout = resolveLayout(model);
-  const help = truncatePlain(helpShort(browseKeymap), model.columns);
+  const help = resolveHelpLine(model);
+  const bodyChildren = [
+    {
+      flex: 1,
+      content: (paneWidth, paneHeight) => renderThoughtPane(model, paneWidth, paneHeight),
+    },
+  ];
+
+  if (model.panelMode !== 'none') {
+    bodyChildren.push({
+      basis: layout.panelHeight,
+      content: (paneWidth, paneHeight) => renderBottomPanel(model, paneWidth, paneHeight),
+    });
+  }
 
   return flex(
     { direction: 'column', width: model.columns, height: model.rows },
@@ -270,15 +505,13 @@ function renderBrowseModel(model) {
     {
       flex: 1,
       content: (width, height) => flex(
-        { direction: 'row', width, height, gap: 2 },
         {
-          basis: layout.sidebarWidth,
-          content: (sidebarWidth, sidebarHeight) => renderSidebar(model, sidebarWidth, sidebarHeight),
+          direction: 'column',
+          width,
+          height,
+          gap: model.panelMode === 'none' ? 0 : 1,
         },
-        {
-          flex: 1,
-          content: (mainWidth, mainHeight) => renderMainColumn(model, mainWidth, mainHeight),
-        }
+        ...bodyChildren
       ),
     },
     {
@@ -286,53 +519,6 @@ function renderBrowseModel(model) {
       content: styleDim(truncatePlain(help, model.columns)),
     }
   );
-}
-
-function renderSidebar(model, width, height) {
-  const currentIndex = model.currentIndex;
-  const header = styleSection('RECENT');
-  const lines = [header, ''];
-
-  for (const [index, entry] of model.entries.entries()) {
-    const prefix = index === currentIndex ? styleTitle('>') : styleDim(' ');
-    lines.push(`${prefix} ${renderSidebarLabel(entry.text, width - 2)}`);
-  }
-
-  const content = lines.join('\n');
-  const scrollY = computeSidebarScroll(model, height);
-  return viewport({
-    width,
-    height,
-    content,
-    scrollY,
-  });
-}
-
-function renderSidebarLabel(text, width) {
-  const normalized = normalizeWhitespace(text);
-  if (width <= 1) {
-    return '';
-  }
-  return truncatePlain(normalized, width);
-}
-
-function renderMainColumn(model, width, height) {
-  if (model.inspectVisible) {
-    const inspectHeight = clamp(Math.floor(height * 0.35), 8, Math.max(8, height - 8));
-    return flex(
-      { direction: 'column', width, height, gap: 1 },
-      {
-        flex: 1,
-        content: (paneWidth, paneHeight) => renderThoughtPane(model, paneWidth, paneHeight),
-      },
-      {
-        basis: inspectHeight,
-        content: (paneWidth, paneHeight) => renderInspectPane(model, paneWidth, paneHeight),
-      }
-    );
-  }
-
-  return renderThoughtPane(model, width, height);
 }
 
 function renderThoughtPane(model, width, height) {
@@ -345,6 +531,24 @@ function renderThoughtPane(model, width, height) {
     content,
     scrollY,
   });
+}
+
+function renderBottomPanel(model, width, height) {
+  switch (model.panelMode) {
+    case 'inspect':
+      return renderInspectPane(model, width, height);
+    case 'log':
+      return renderLogPane(model, width, height);
+    case 'jump':
+      return renderJumpPane(model, width, height);
+    default:
+      return viewport({
+        width,
+        height,
+        content: '',
+        scrollY: 0,
+      });
+  }
 }
 
 function renderInspectPane(model, width, height) {
@@ -390,18 +594,63 @@ function renderInspectPane(model, width, height) {
   });
 }
 
+function renderLogPane(model, width, height) {
+  const lines = [
+    styleSection('THOUGHT LOG'),
+    '',
+  ];
+
+  for (const [index, entry] of model.entries.entries()) {
+    const prefix = index === model.currentIndex ? styleTitle('>') : styleDim(' ');
+    const timestamp = formatCompactWhen(entry.createdAt);
+    const label = truncatePlain(normalizeWhitespace(entry.text), Math.max(10, width - timestamp.length - 4));
+    lines.push(`${prefix} ${timestamp} ${label}`);
+  }
+
+  return viewport({
+    width,
+    height,
+    content: lines.join('\n'),
+    scrollY: computeLogScroll(model, height),
+  });
+}
+
+function renderJumpPane(model, width, height) {
+  const lines = [
+    styleSection('JUMP'),
+    '',
+    commandPalette(model.jumpPalette, {
+      width,
+      showCategory: false,
+      showShortcut: false,
+    }),
+  ];
+
+  return viewport({
+    width,
+    height,
+    content: lines.join('\n'),
+    scrollY: 0,
+  });
+}
+
 function buildThoughtContent(model, width) {
   const entry = currentEntry(model);
   const neighbors = resolveNeighbors(model);
   const lines = [
-    styleSection('CURRENT'),
+    styleSection('THOUGHT'),
+    '',
+    `When: ${formatWhen(entry.createdAt)}`,
+    `Relative: ${formatRelativeTime(entry.createdAt)}`,
+    `Position: ${model.currentIndex + 1} of ${model.entries.length}`,
+    `Entry ID: ${entry.id}`,
     '',
     wrapParagraphs(entry.text, width),
     '',
     styleSection('NEIGHBORS'),
     '',
-    `Newer: ${neighbors.newer ? neighbors.newer.text : 'none'}`,
-    `Older: ${neighbors.older ? neighbors.older.text : 'none'}`,
+    wrapLine(`Newer: ${neighbors.newer ? neighbors.newer.text : 'none'}`, width),
+    wrapLine(`Older: ${neighbors.older ? neighbors.older.text : 'none'}`, width),
   ];
 
   return lines.join('\n');
@@ -409,23 +658,31 @@ function buildThoughtContent(model, width) {
 
 function getCurrentViewportState(model) {
   const layout = resolveLayout(model);
-  const mainHeight = model.inspectVisible
-    ? Math.max(1, layout.bodyHeight - clamp(Math.floor(layout.bodyHeight * 0.35), 8, Math.max(8, layout.bodyHeight - 8)) - 1)
-    : layout.bodyHeight;
-  const content = buildThoughtContent(model, layout.mainWidth);
-  return createScrollState(content, mainHeight);
+  const content = buildThoughtContent(model, layout.bodyWidth);
+  return createScrollState(content, layout.thoughtHeight);
 }
 
 function resolveLayout(model) {
   const bodyHeight = Math.max(1, model.rows - 2);
-  const sidebarWidth = clamp(Math.floor(model.columns * 0.28), 28, 42);
-  const mainWidth = Math.max(20, model.columns - sidebarWidth - 2);
+  const panelHeight = model.panelMode === 'none'
+    ? 0
+    : resolvePanelHeight(bodyHeight);
+  const thoughtHeight = Math.max(
+    1,
+    bodyHeight - panelHeight - (model.panelMode === 'none' ? 0 : 1)
+  );
 
   return {
     bodyHeight,
-    sidebarWidth,
-    mainWidth,
+    bodyWidth: model.columns,
+    panelHeight,
+    thoughtHeight,
   };
+}
+
+function resolvePanelHeight(bodyHeight) {
+  const target = Math.floor(bodyHeight * 0.35);
+  return clamp(target, 6, Math.max(6, bodyHeight - 8));
 }
 
 function resolveNeighbors(model) {
@@ -443,12 +700,31 @@ function currentInspectEntry(model) {
   return model.inspectCache.get(currentEntry(model).id) ?? null;
 }
 
-function computeSidebarScroll(model, height) {
+function createJumpPalette(entries) {
+  return createCommandPaletteState(
+    entries.map((entry) => ({
+      id: entry.id,
+      label: normalizeWhitespace(entry.text),
+      description: formatCompactWhen(entry.createdAt),
+    })),
+    DEFAULT_JUMP_HEIGHT
+  );
+}
+
+function computeLogScroll(model, height) {
   const selectedLine = 2 + model.currentIndex;
   const visibleHeight = Math.max(1, height);
   const target = selectedLine - Math.floor(visibleHeight / 2);
   const maxY = Math.max(0, model.entries.length + 2 - visibleHeight);
   return clamp(target, 0, maxY);
+}
+
+function resolveHelpLine(model) {
+  if (model.panelMode === 'jump') {
+    return 'Type to filter • ↑/↓ move • Enter open • Backspace erase • Esc close';
+  }
+
+  return helpShort(browseKeymap);
 }
 
 function wrapParagraphs(text, width) {
@@ -495,6 +771,51 @@ function chunkWord(word, width) {
   return chunks.join('\n');
 }
 
+function formatWhen(createdAt) {
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date(createdAt));
+  } catch {
+    return String(createdAt);
+  }
+}
+
+function formatCompactWhen(createdAt) {
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(new Date(createdAt));
+  } catch {
+    return String(createdAt);
+  }
+}
+
+function formatRelativeTime(createdAt) {
+  const timestamp = new Date(createdAt);
+  const deltaMs = timestamp.getTime() - Date.now();
+  const absMs = Math.abs(deltaMs);
+  const rtf = new Intl.RelativeTimeFormat('en-US', { numeric: 'auto' });
+
+  if (absMs < 60_000) {
+    return rtf.format(Math.round(deltaMs / 1000), 'second');
+  }
+
+  if (absMs < 3_600_000) {
+    return rtf.format(Math.round(deltaMs / 60_000), 'minute');
+  }
+
+  if (absMs < 86_400_000) {
+    return rtf.format(Math.round(deltaMs / 3_600_000), 'hour');
+  }
+
+  return rtf.format(Math.round(deltaMs / 86_400_000), 'day');
+}
+
 function normalizeWhitespace(text) {
   return String(text).replace(/\s+/g, ' ').trim();
 }
@@ -533,7 +854,7 @@ function maybeQueueInspectLoad(model, loadInspectEntry) {
   }
 
   const entryId = currentEntry(model).id;
-  if (!model.inspectVisible) {
+  if (model.panelMode !== 'inspect') {
     return [model, []];
   }
   if (model.inspectCache.has(entryId)) {
