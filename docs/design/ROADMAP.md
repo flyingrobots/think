@@ -1,6 +1,6 @@
 # Roadmap And Milestones
 
-Status: `M0`, `M1`, `M2`, and `M3` complete; `M4` design in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, and first-derived-artifact designs under review
+Status: `M0`, `M1`, `M2`, and `M3` complete; `M4` design in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, and derivation-catalog designs under review
 
 ## Planning Frame
 
@@ -38,6 +38,7 @@ Current cross-cutting notes under review:
 - [`0012-m4-reentry-browse-inspect.md`](./0012-m4-reentry-browse-inspect.md)
 - [`0013-m4-bijou-read-shell.md`](./0013-m4-bijou-read-shell.md)
 - [`0014-m4-first-derived-artifacts.md`](./0014-m4-first-derived-artifacts.md)
+- [`0015-per-thought-derivation-catalog.md`](./0015-per-thought-derivation-catalog.md)
 
 These notes should constrain new CLI-facing, graph-facing, derivation-orchestration, and read-surface work without becoming separate milestones.
 

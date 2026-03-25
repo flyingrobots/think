@@ -18,6 +18,8 @@ That is useful, but it is not yet the honest machinery view that `inspect` is su
 The next slice should not be “more graph.”
 It should be the smallest derivation substrate that gives `inspect` and later `browse` real receipts.
 
+For the consolidated per-thought catalog of what is derived, when, and with what payload, see [`0015-per-thought-derivation-catalog.md`](./0015-per-thought-derivation-catalog.md).
+
 ## Sponsor User
 
 A person who returns to an old thought and wants to understand:

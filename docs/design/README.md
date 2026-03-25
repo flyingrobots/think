@@ -1,6 +1,6 @@
 # Design Review Package
 
-Status: design approved; `M0`, `M1`, `M2`, and `M3` complete; `M4` design in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, and first-derived-artifact designs under review
+Status: design approved; `M0`, `M1`, `M2`, and `M3` complete; `M4` design in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, and derivation-catalog designs under review
 
 This directory began as the pre-implementation design package for `think`.
 
@@ -32,6 +32,7 @@ This review is meant to answer five questions:
 - [`0012-m4-reentry-browse-inspect.md`](./0012-m4-reentry-browse-inspect.md): product note defining the next human read surfaces as `recent`, `browse`, and `inspect`.
 - [`0013-m4-bijou-read-shell.md`](./0013-m4-bijou-read-shell.md): IBM Design Thinking style product note for adopting a Bijou TUI as the first explicit human browse/inspect shell for M4.
 - [`0014-m4-first-derived-artifacts.md`](./0014-m4-first-derived-artifacts.md): IBM Design Thinking style product/technical note for the first real derivation bundle that makes `inspect` materially useful during M4.
+- [`0015-per-thought-derivation-catalog.md`](./0015-per-thought-derivation-catalog.md): consolidated catalog of what is derived from each raw thought, when it is derived, what its payload looks like, and what is currently implemented versus deferred.
 - [`ROADMAP.md`](./ROADMAP.md): milestone sequence, hill mapping, exit criteria, and review checkpoints.
 - [`../retrospectives/m1-capture-core-and-upstream-backup.md`](../retrospectives/m1-capture-core-and-upstream-backup.md): closeout for the first implemented milestone and the remaining validation follow-through.
 - [`../retrospectives/m2-macos-capture-surface.md`](../retrospectives/m2-macos-capture-surface.md): closeout for the native menu bar app and hotkey capture surface.
@@ -56,6 +57,7 @@ flowchart TD
     R --> P12["0012 M4 Reentry, Browse, And Inspect"]
     R --> P13["0013 M4 Bijou Read Shell"]
     R --> P14["0014 M4 First Derived Artifacts"]
+    R --> P15["0015 Per-Thought Derivation Catalog"]
     R --> RD["Roadmap and Milestones"]
     R --> BL["Backlog (deferred ideas)"]
     P --> A
@@ -73,14 +75,18 @@ flowchart TD
     M --> P12
     M --> P13
     M --> P14
+    M --> P15
     B3 --> G9
     B3 --> P11
     P11 --> P12
     P12 --> P13
     P12 --> P14
+    P14 --> P15
     G9 --> P10
     G9 --> P14
+    G9 --> P15
     P10 --> P14
+    P10 --> P15
     T --> A8
     T --> P10
     M2 --> RD
@@ -92,6 +98,7 @@ flowchart TD
     P12 --> RD
     P13 --> RD
     P14 --> RD
+    P15 --> RD
 ```
 
 ## Review Standard
