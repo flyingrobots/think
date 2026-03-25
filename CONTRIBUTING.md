@@ -173,6 +173,13 @@ They should not overfit:
 - file-private helpers
 - incidental implementation structure
 
+Local testing policy:
+
+- `npm test` is the default fast suite and should stay safe for CI/CD use
+- macOS Swift tests stay local and should run through the repo pre-push hook
+- `npm run test:local` runs both the default suite and the macOS Swift suite together
+- install hooks with `npm run install-hooks`
+
 ## Capture-Path Guardrails
 
 Do not introduce any of the following into the plain capture path unless explicitly re-approved:

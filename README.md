@@ -192,10 +192,22 @@ Reusable fixtures live under [test/fixtures](/Users/james/git/think/test/fixture
 Shared assertions live under [test/support](/Users/james/git/think/test/support).
 Swift menu bar tests live under [macos/Tests](/Users/james/git/think/macos/Tests).
 
-Run the full suite with:
+Run the default suite with:
 
 ```bash
 npm test
+```
+
+Run the full local suite, including the macOS Swift tests, with:
+
+```bash
+npm run test:local
+```
+
+Install the local pre-push hook so macOS Swift tests stay local and off the default/CI path:
+
+```bash
+npm run install-hooks
 ```
 
 The current `M1` and `M2` suites are green for the implemented behavior.
