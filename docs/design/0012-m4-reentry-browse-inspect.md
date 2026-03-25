@@ -258,6 +258,24 @@ That is a better sequence than trying to jump directly to a dialogue-heavy “re
 - a first browser surface over stored thoughts
 - an explicit `inspect` command or view for provenance and derived structure
 - a Bijou-based TUI shell for browse and inspect
+- first stored derivation artifacts that materially improve `inspect`
+
+## Immediate Next Slice
+
+The next M4 slice should not be another navigation trick in the TUI.
+
+It should be:
+
+1. the first real derivation bundle
+2. improved `inspect` receipts on top of that bundle
+3. later browse affordances that consume those receipts honestly
+
+That means the next implementation pressure should be:
+
+- canonical stored thought identity
+- first seed-quality artifact
+- first session-attribution artifact
+- explicit human and JSON inspect receipts for those artifacts
 - clear receipts for any displayed connections or groupings
 - explicit agent-usable command paths for every meaningful read action exposed in the human shell
 
