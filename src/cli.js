@@ -494,6 +494,7 @@ function parseArgs(args) {
     bucket: null,
     recentCount: null,
     recentQuery: null,
+    optionError: null,
   };
   let parsingFlags = true;
 
@@ -517,9 +518,9 @@ function parseArgs(args) {
       } else if (arg.startsWith('--query=')) {
         options.recentQuery = arg.slice('--query='.length);
       } else if (arg.startsWith('--recent-count=')) {
-        options.recentCount = arg.slice('--recent-count='.length);
+        setOptionError(options, 'Use --count instead of --recent-count');
       } else if (arg.startsWith('--recent-query=')) {
-        options.recentQuery = arg.slice('--recent-query='.length);
+        setOptionError(options, 'Use --query instead of --recent-query');
       } else if (arg === '--browse') {
         options.browseFlag = true;
         options.browse = '';
@@ -532,27 +533,29 @@ function parseArgs(args) {
       } else if (arg.startsWith('--inspect=')) {
         options.inspectFlag = true;
         options.inspect = arg.slice('--inspect='.length);
-      } else if (arg === '--brainstorm' || arg === '--reflect') {
+      } else if (arg === '--reflect') {
         options.reflectFlag = true;
         options.reflect = '';
+      } else if (arg === '--brainstorm') {
+        setOptionError(options, 'Use --reflect instead of --brainstorm');
       } else if (arg.startsWith('--brainstorm=')) {
-        options.reflectFlag = true;
-        options.reflect = arg.slice('--brainstorm='.length);
+        setOptionError(options, 'Use --reflect=<seedEntryId> instead of --brainstorm=<seedEntryId>');
       } else if (arg.startsWith('--reflect=')) {
         options.reflectFlag = true;
         options.reflect = arg.slice('--reflect='.length);
       } else if (arg.startsWith('--mode=')) {
         options.reflectMode = arg.slice('--mode='.length);
       } else if (arg.startsWith('--brainstorm-mode=')) {
-        options.reflectMode = arg.slice('--brainstorm-mode='.length);
+        setOptionError(options, 'Use --mode instead of --brainstorm-mode');
       } else if (arg.startsWith('--reflect-mode=')) {
-        options.reflectMode = arg.slice('--reflect-mode='.length);
-      } else if (arg === '--brainstorm-session' || arg === '--reflect-session') {
+        setOptionError(options, 'Use --mode instead of --reflect-mode');
+      } else if (arg === '--reflect-session') {
         options.reflectSessionFlag = true;
         options.reflectSession = '';
+      } else if (arg === '--brainstorm-session') {
+        setOptionError(options, 'Use --reflect-session instead of --brainstorm-session');
       } else if (arg.startsWith('--brainstorm-session=')) {
-        options.reflectSessionFlag = true;
-        options.reflectSession = arg.slice('--brainstorm-session='.length);
+        setOptionError(options, 'Use --reflect-session=<sessionId> instead of --brainstorm-session=<sessionId>');
       } else if (arg.startsWith('--reflect-session=')) {
         options.reflectSessionFlag = true;
         options.reflectSession = arg.slice('--reflect-session='.length);
@@ -564,6 +567,8 @@ function parseArgs(args) {
         options.since = arg.split('=')[1];
       } else if (arg.startsWith('--bucket=')) {
         options.bucket = arg.split('=')[1];
+      } else {
+        setOptionError(options, `Unknown option: ${arg}`);
       }
       continue;
     }
@@ -600,6 +605,10 @@ function resolveCommand(options) {
 }
 
 function validateOptions(options, command) {
+  if (options.optionError) {
+    return options.optionError;
+  }
+
   const hasStatsFilter = Boolean(options.from || options.to || options.since || options.bucket);
   const explicitCommands = [
     options.recent,
@@ -676,7 +685,7 @@ function validateOptions(options, command) {
   }
 
   if (options.reflectMode && command !== 'reflect_start') {
-    return '--mode requires --reflect or --brainstorm';
+    return '--mode requires --reflect';
   }
 
   if (command !== 'stats' && hasStatsFilter) {
@@ -852,6 +861,12 @@ function capitalize(value) {
   }
 
   return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function setOptionError(options, message) {
+  if (!options.optionError) {
+    options.optionError = message;
+  }
 }
 
 function resolveJsonStream(payload) {

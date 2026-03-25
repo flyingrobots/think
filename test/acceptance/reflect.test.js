@@ -67,45 +67,41 @@ test('think --reflect starts an explicit seeded reflect session with a determini
   );
 });
 
-test('think --brainstorm remains a compatibility alias for a seed-first reflect constraint prompt', async () => {
+test('removed brainstorm aliases fail clearly and point to reflect', async () => {
   const context = await createThinkContext();
   const seedThought = 'I want to make git-warp support replayable cognition';
-  captureWithEntryId(context, 'warp cognition needs better replay receipts');
   const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
 
   const start = runThink(context, ['--verbose', `--brainstorm=${seedEntryId}`]);
-
-  assertSuccess(start, 'Expected brainstorm to remain usable for a deterministic constraint prompt.');
-  assertContains(start, 'Reflect', 'Expected the deterministic mode to remain explicit.');
-  assertContains(start, 'Mode: Constraint', 'Expected brainstorm to identify the constraint family clearly.');
-  assertContains(start, 'Why selected:', 'Expected brainstorm to explain why the question was chosen.');
+  assertFailure(start, 'Expected removed --brainstorm alias to fail loudly.');
   assertContains(
     start,
-    'What is the smallest shippable version of this?',
-    'Expected brainstorm to ask the deterministic constraint prompt for this seed thought.'
-  );
-  assertNotContains(start, 'Contrast:', 'Constraint mode should not pretend it picked a contrast thought.');
-
-  const events = parseJsonLines(
-    start.stderr,
-    'Expected deterministic constraint brainstorm --verbose to emit valid JSONL trace events.'
-  );
-  const sessionStarted = getEvent(
-    events,
-    'reflect.session_started',
-    'Expected constraint reflect session to emit session metadata.'
+    'Use --reflect=<seedEntryId> instead of --brainstorm=<seedEntryId>',
+    'Expected removed --brainstorm alias to point at the supported reflect form.'
   );
 
-  assert.equal(sessionStarted.seedEntryId, seedEntryId, 'Expected constraint brainstorm to preserve the seed lineage.');
-  assert.equal(sessionStarted.contrastEntryId, null, 'Expected seed-first constraint prompts to omit contrast lineage.');
-  assert.equal(sessionStarted.promptType, 'constraint', 'Expected this seed to deterministically map to constraint mode.');
-  assert.deepEqual(
-    sessionStarted.selectionReason,
-    {
-      kind: 'seed_only_constraint',
-      text: 'Used a deterministic constraint prompt from the seed thought alone.',
-    },
-    'Expected reflect to expose deterministic seed-only constraint receipts.'
+  const sessionAlias = runThink(context, ['--verbose', '--brainstorm-session=reflect:missing', 'still no']);
+  assertFailure(sessionAlias, 'Expected removed --brainstorm-session alias to fail loudly.');
+  assertContains(
+    sessionAlias,
+    'Use --reflect-session=<sessionId> instead of --brainstorm-session=<sessionId>',
+    'Expected removed --brainstorm-session alias to point at the supported reflect-session form.'
+  );
+
+  const modeAlias = runThink(context, ['--verbose', `--reflect=${seedEntryId}`, '--brainstorm-mode=constraint']);
+  assertFailure(modeAlias, 'Expected removed --brainstorm-mode alias to fail loudly.');
+  assertContains(
+    modeAlias,
+    'Use --mode instead of --brainstorm-mode',
+    'Expected removed --brainstorm-mode alias to point at the supported --mode form.'
+  );
+
+  const repeatedModeAlias = runThink(context, ['--verbose', `--reflect=${seedEntryId}`, '--reflect-mode=constraint']);
+  assertFailure(repeatedModeAlias, 'Expected removed --reflect-mode alias to fail loudly.');
+  assertContains(
+    repeatedModeAlias,
+    'Use --mode instead of --reflect-mode',
+    'Expected removed --reflect-mode alias to point at the supported --mode form.'
   );
 });
 
@@ -234,8 +230,8 @@ test('think --reflect validates explicit session entry and stays read-only on in
   assertFailure(strayMode, 'Expected --mode without --reflect to fail loudly.');
   assertContains(
     strayMode,
-    '--mode requires --reflect or --brainstorm',
-    'Expected reflect mode selection to remain scoped to reflect or brainstorm start.'
+    '--mode requires --reflect',
+    'Expected reflect mode selection to remain scoped to reflect start.'
   );
 
   const seededContext = await createThinkContext();

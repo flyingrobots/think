@@ -121,7 +121,7 @@ think --stats
 
 `--inspect=<entryId>` exposes the exact stored raw entry metadata without summarizing or narrating it.
 
-In a real TTY, bare `--reflect` opens an interactive seed picker. `--mode=challenge|constraint|sharpen` can be used to request a specific pressure family. The older `--brainstorm*` flags and repeated option names still work as compatibility aliases.
+In a real TTY, bare `--reflect` opens an interactive seed picker. `--mode=challenge|constraint|sharpen` can be used to request a specific pressure family.
 
 `--recent`, `--browse`, `--inspect`, and `--stats` are read-only commands.
 They should not create local app state on their own.

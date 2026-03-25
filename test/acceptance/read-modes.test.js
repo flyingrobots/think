@@ -70,6 +70,27 @@ test('think --recent --query filters raw captures by case-insensitive text match
   );
 });
 
+test('removed recent alias flags fail clearly and point to the scoped forms', async () => {
+  const context = await createThinkContext();
+  captureWithEntryId(context, 'warp replay needs better receipts');
+
+  const countAlias = runThink(context, ['--recent', '--recent-count=2']);
+  assertFailure(countAlias, 'Expected removed --recent-count alias to fail loudly.');
+  assertContains(
+    countAlias,
+    'Use --count instead of --recent-count',
+    'Expected removed --recent-count alias to point at the supported --count form.'
+  );
+
+  const queryAlias = runThink(context, ['--recent', '--recent-query=warp']);
+  assertFailure(queryAlias, 'Expected removed --recent-query alias to fail loudly.');
+  assertContains(
+    queryAlias,
+    'Use --query instead of --recent-query',
+    'Expected removed --recent-query alias to point at the supported --query form.'
+  );
+});
+
 test('think --json --recent applies count and query filters while remaining JSONL-only', async () => {
   const context = await createThinkContext();
   const matchingOld = 'warp replay needs better receipts';

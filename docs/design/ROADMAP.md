@@ -181,7 +181,6 @@ Deliverables:
 - `think --reflect ...` or equivalent seeded mode
 - question-led interaction instead of generic idea spam
 - reflect outputs stored separately from raw capture entries
-- compatibility path for the older `--brainstorm*` CLI flags
 
 Playback:
 
