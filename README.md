@@ -95,15 +95,15 @@ From the repo root:
 ```bash
 node ./bin/think.js "turkey is good in burritos"
 node ./bin/think.js --recent
-node ./bin/think.js --recent --recent-count=5
-node ./bin/think.js --recent --recent-query=warp
+node ./bin/think.js --recent --count=5
+node ./bin/think.js --recent --query=warp
 node ./bin/think.js --browse=<entryId>
 node ./bin/think.js --inspect=<entryId>
 node ./bin/think.js --stats
 node ./bin/think.js --stats --bucket=day
 node ./bin/think.js --stats --since=7d
 node ./bin/think.js --reflect
-node ./bin/think.js --reflect=<seedEntryId> --reflect-mode=sharpen
+node ./bin/think.js --reflect=<seedEntryId> --mode=sharpen
 node ./bin/think.js --reflect-session=<sessionId> "push the idea further"
 ```
 
@@ -115,13 +115,13 @@ think --recent
 think --stats
 ```
 
-`--recent-count=<n>` limits `--recent` to the newest `n` raw captures. `--recent-query=<text>` filters `--recent` by case-insensitive text match.
+`--count=<n>` limits `--recent` to the newest `n` raw captures. `--query=<text>` filters `--recent` by case-insensitive text match.
 
 `--browse=<entryId>` shows one raw capture with its immediate newer and older neighbors.
 
 `--inspect=<entryId>` exposes the exact stored raw entry metadata without summarizing or narrating it.
 
-In a real TTY, bare `--reflect` opens an interactive seed picker. `--reflect-mode=challenge|constraint|sharpen` can be used to request a specific pressure family. The older `--brainstorm*` flags still work as compatibility aliases.
+In a real TTY, bare `--reflect` opens an interactive seed picker. `--mode=challenge|constraint|sharpen` can be used to request a specific pressure family. The older repeated option names and `--brainstorm*` flags still work as compatibility aliases.
 
 `--recent`, `--browse`, `--inspect`, and `--stats` are read-only commands.
 They should not create local app state on their own.

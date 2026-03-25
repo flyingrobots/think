@@ -16,7 +16,7 @@ import {
   parseJsonLines,
 } from '../support/assertions.js';
 
-test('think --recent --recent-count limits output to the newest N raw captures', async () => {
+test('think --recent --count limits output to the newest N raw captures', async () => {
   const context = await createThinkContext();
   const entries = [
     'alpha capture',
@@ -28,7 +28,7 @@ test('think --recent --recent-count limits output to the newest N raw captures',
     assertSuccess(runThink(context, [entry]), `Expected capture to succeed for entry: ${entry}`);
   }
 
-  const recent = runThink(context, ['--recent', '--recent-count=2']);
+  const recent = runThink(context, ['--recent', '--count=2']);
 
   assertSuccess(recent, 'Expected filtered recent to succeed.');
   assertChronologicalOrder(
@@ -39,11 +39,11 @@ test('think --recent --recent-count limits output to the newest N raw captures',
   assertNotContains(
     recent,
     'alpha capture',
-    'Expected --recent-count to omit older entries beyond the requested limit.'
+    'Expected --count to omit older entries beyond the requested limit.'
   );
 });
 
-test('think --recent --recent-query filters raw captures by case-insensitive text match', async () => {
+test('think --recent --query filters raw captures by case-insensitive text match', async () => {
   const context = await createThinkContext();
   const matchingOld = 'warp replay needs better receipts';
   const nonMatch = 'turkey burritos remain underrated';
@@ -53,7 +53,7 @@ test('think --recent --recent-query filters raw captures by case-insensitive tex
   captureWithEntryId(context, nonMatch);
   captureWithEntryId(context, matchingNew);
 
-  const recent = runThink(context, ['--recent', '--recent-query=warp']);
+  const recent = runThink(context, ['--recent', '--query=warp']);
 
   assertSuccess(recent, 'Expected query-filtered recent to succeed.');
   assertChronologicalOrder(
@@ -79,7 +79,7 @@ test('think --json --recent applies count and query filters while remaining JSON
   captureWithEntryId(context, nonMatch);
   const { entryId: matchingNewId } = captureWithEntryId(context, matchingNew);
 
-  const recent = runThink(context, ['--json', '--recent', '--recent-query=warp', '--recent-count=2']);
+  const recent = runThink(context, ['--json', '--recent', '--query=warp', '--count=2']);
 
   assertSuccess(recent, 'Expected JSON filtered recent to succeed.');
   assertJsonStreams(recent);

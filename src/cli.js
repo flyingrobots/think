@@ -512,6 +512,10 @@ function parseArgs(args) {
         options.stats = true;
       } else if (arg === '--recent') {
         options.recent = true;
+      } else if (arg.startsWith('--count=')) {
+        options.recentCount = arg.slice('--count='.length);
+      } else if (arg.startsWith('--query=')) {
+        options.recentQuery = arg.slice('--query='.length);
       } else if (arg.startsWith('--recent-count=')) {
         options.recentCount = arg.slice('--recent-count='.length);
       } else if (arg.startsWith('--recent-query=')) {
@@ -537,6 +541,8 @@ function parseArgs(args) {
       } else if (arg.startsWith('--reflect=')) {
         options.brainstormFlag = true;
         options.brainstorm = arg.slice('--reflect='.length);
+      } else if (arg.startsWith('--mode=')) {
+        options.brainstormMode = arg.slice('--mode='.length);
       } else if (arg.startsWith('--brainstorm-mode=')) {
         options.brainstormMode = arg.slice('--brainstorm-mode='.length);
       } else if (arg.startsWith('--reflect-mode=')) {
@@ -615,15 +621,15 @@ function validateOptions(options, command) {
 
   if (command === 'recent') {
     if (options.recentCount !== null && !/^[1-9]\d*$/.test(options.recentCount)) {
-      return 'Invalid --recent-count value';
+      return 'Invalid --count value';
     }
     if (options.recentQuery !== null && options.recentQuery.trim() === '') {
-      return 'Invalid --recent-query value';
+      return 'Invalid --query value';
     }
   }
 
   if (hasRecentFilter && command !== 'recent') {
-    return '--recent-count and --recent-query require --recent';
+    return '--count and --query require --recent';
   }
 
   if (command === 'browse') {
@@ -650,7 +656,7 @@ function validateOptions(options, command) {
 
   if (command === 'brainstorm_start') {
     if (options.brainstormMode && !BRAINSTORM_PROMPT_TYPES.includes(options.brainstormMode)) {
-      return 'Invalid --reflect-mode value';
+      return 'Invalid --mode value';
     }
     if (!options.brainstorm && !canInteractivelyPickBrainstormSeed(options)) {
       return '--reflect requires a seed entry id';
@@ -670,7 +676,7 @@ function validateOptions(options, command) {
   }
 
   if (options.brainstormMode && command !== 'brainstorm_start') {
-    return '--reflect-mode requires --reflect or --brainstorm';
+    return '--mode requires --reflect or --brainstorm';
   }
 
   if (command !== 'stats' && hasStatsFilter) {

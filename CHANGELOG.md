@@ -16,7 +16,8 @@ Release discipline:
 
 - config-driven local thought repo targeting via `THINK_REPO_DIR`, while keeping `~/.think/repo` as the default
 - macOS prompt-UX telemetry capture as buffered local JSONL session summaries, including visibility, typing, abandonment, submit-to-hide, and submit-to-local-save timings without storing prompt text
-- `--recent-count=<n>` and `--recent-query=<text>` for tighter raw reentry without turning `recent` into a dashboard
+- preferred command-scoped CLI modifiers: `--count`, `--query`, and `--mode`, with the older repeated option names retained as compatibility aliases
+- `--count=<n>` and `--query=<text>` for tighter raw reentry without turning `recent` into a dashboard
 - first explicit `--browse=<entryId>` read surface for navigating one raw thought with its immediate newer and older neighbors
 - first explicit `--inspect=<entryId>` read surface for exposing exact raw entry metadata without narration
 

@@ -114,7 +114,7 @@ test('think --reflect can use an explicit sharpen prompt family', async () => {
   const seedThought = 'We should make warp graph the thought substrate';
   const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
 
-  const start = runThink(context, ['--verbose', `--reflect=${seedEntryId}`, '--reflect-mode=sharpen']);
+  const start = runThink(context, ['--verbose', `--reflect=${seedEntryId}`, '--mode=sharpen']);
 
   assertSuccess(start, 'Expected brainstorm to support explicit sharpen mode selection.');
   assertContains(start, 'Reflect', 'Expected the deterministic mode to remain explicit.');
@@ -230,11 +230,11 @@ test('think --brainstorm validates explicit session entry and stays read-only on
     `Expected invalid brainstorm start to remain read-only, but repo was created at ${context.localRepoDir}.`
   );
 
-  const strayMode = runThink(context, ['--reflect-mode=sharpen']);
-  assertFailure(strayMode, 'Expected --brainstorm-mode without --brainstorm to fail loudly.');
+  const strayMode = runThink(context, ['--mode=sharpen']);
+  assertFailure(strayMode, 'Expected --mode without --brainstorm to fail loudly.');
   assertContains(
     strayMode,
-    '--reflect-mode requires --reflect or --brainstorm',
+    '--mode requires --reflect or --brainstorm',
     'Expected reflect mode selection to remain scoped to reflect or brainstorm start.'
   );
 
@@ -252,11 +252,11 @@ test('think --brainstorm validates explicit session entry and stays read-only on
     'Expected reflect start and reflect response to remain separate commands.'
   );
 
-  const invalidMode = runThink(seededContext, ['--reflect=' + seedEntryId, '--reflect-mode=chaos']);
+  const invalidMode = runThink(seededContext, ['--reflect=' + seedEntryId, '--mode=chaos']);
   assertFailure(invalidMode, 'Expected invalid brainstorm prompt family selection to fail loudly.');
   assertContains(
     invalidMode,
-    'Invalid --reflect-mode value',
+    'Invalid --mode value',
     'Expected brainstorm mode selection to reject unknown prompt families.'
   );
 
