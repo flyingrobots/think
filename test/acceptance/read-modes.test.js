@@ -12,6 +12,7 @@ import {
   assertContains,
   assertFailure,
   assertNotContains,
+  assertOccurrences,
   assertSuccess,
   combinedOutput,
   parseJsonLines,
@@ -579,6 +580,150 @@ test('think --json --inspect emits canonical content identity and direct derived
   );
 });
 
+test('think --inspect exposes the first derived bundle as explicit raw, canonical, derived, and context sections', async () => {
+  const context = await createThinkContext();
+  captureWithEntryId(context, 'older note about local-first tooling');
+  const { entryId } = captureWithEntryId(context, 'We should make warp graph the thought substrate');
+  captureWithEntryId(context, 'newer note about browse and inspect receipts');
+
+  const inspect = runThink(context, [`--inspect=${entryId}`]);
+
+  assertSuccess(inspect, 'Expected inspect to succeed for the first derived-artifact bundle.');
+  assertContains(inspect, 'Raw', 'Expected inspect to expose the raw capture section explicitly.');
+  assertContains(
+    inspect,
+    'Canonical Thought',
+    'Expected inspect to expose canonical thought identity as its own section.'
+  );
+  assertContains(inspect, 'Thought ID: thought:', 'Expected inspect to expose the canonical thought namespace.');
+  assertContains(inspect, 'Derived', 'Expected inspect to expose derived interpretive receipts as their own section.');
+  assertContains(
+    inspect,
+    'Seed quality:',
+    'Expected inspect to expose the first interpretive artifact as a seed-quality receipt.'
+  );
+  assertContains(inspect, 'Context', 'Expected inspect to expose contextual receipts as their own section.');
+  assertContains(
+    inspect,
+    'Session:',
+    'Expected inspect to expose session attribution as the first contextual receipt.'
+  );
+  assertOccurrences(
+    inspect,
+    'Why:',
+    2,
+    'Expected inspect to expose one reason for seed quality and one reason for session attribution.'
+  );
+});
+
+test('think --json --inspect emits canonical identity plus seed-quality and session-attribution receipts with provenance', async () => {
+  const context = await createThinkContext();
+  captureWithEntryId(context, 'older note about local-first tooling');
+  const { entryId } = captureWithEntryId(context, 'We should make warp graph the thought substrate');
+  captureWithEntryId(context, 'newer note about browse and inspect receipts');
+
+  const inspect = runThink(context, ['--json', `--inspect=${entryId}`]);
+
+  assertSuccess(inspect, 'Expected JSON inspect to succeed for the first derived-artifact bundle.');
+  assertJsonStreams(inspect);
+  assert.equal((inspect.stderr || '').trim(), '', 'Expected successful JSON inspect to keep stderr quiet.');
+
+  const events = parseJsonLines(
+    inspect.stdout,
+    'Expected JSON inspect for the first derived-artifact bundle to emit valid JSONL.'
+  );
+
+  const identity = getEvent(
+    events,
+    'inspect.identity',
+    'Expected JSON inspect to emit an explicit canonical identity row.'
+  );
+  assert.equal(identity.entryId, entryId, 'Expected inspect identity to preserve the requested capture entry id.');
+  assert.match(identity.thoughtId, /^thought:/, 'Expected inspect identity to expose a canonical thought id.');
+  assert.equal(
+    identity.relation,
+    'expresses',
+    'Expected inspect identity to expose the capture-to-thought relationship explicitly.'
+  );
+
+  const seedQuality = getReceiptByKind(
+    events,
+    'seed_quality',
+    'Expected JSON inspect to emit a seed-quality artifact receipt.'
+  );
+  assert.equal(seedQuality.primaryInputKind, 'thought', 'Expected seed quality to derive from canonical thought identity.');
+  assert.match(seedQuality.primaryInputId, /^thought:/, 'Expected seed quality to reference canonical thought identity.');
+  assert.equal(seedQuality.verdict, 'likely_reflectable', 'Expected this proposal-shaped thought to look reflectable.');
+  assert.equal(typeof seedQuality.reasonKind, 'string', 'Expected seed quality to expose reason kind.');
+  assert.equal(typeof seedQuality.reasonText, 'string', 'Expected seed quality to expose reason text.');
+  assert.ok(Array.isArray(seedQuality.promptFamilies), 'Expected seed quality to expose eligible prompt families.');
+  assert.equal(typeof seedQuality.deriver, 'string', 'Expected seed quality to expose the derivation implementation.');
+  assert.equal(typeof seedQuality.deriverVersion, 'string', 'Expected seed quality to expose derivation version.');
+  assert.equal(typeof seedQuality.schemaVersion, 'string', 'Expected seed quality to expose schema version.');
+  assert.equal(typeof seedQuality.createdAt, 'string', 'Expected seed quality to expose artifact creation time.');
+
+  const sessionAttribution = getReceiptByKind(
+    events,
+    'session_attribution',
+    'Expected JSON inspect to emit a session-attribution artifact receipt.'
+  );
+  assert.equal(
+    sessionAttribution.primaryInputKind,
+    'capture',
+    'Expected session attribution to contextualize the capture event, not just the canonical text.'
+  );
+  assert.equal(
+    sessionAttribution.primaryInputId,
+    entryId,
+    'Expected session attribution to preserve the inspected capture as its primary input.'
+  );
+  assert.match(sessionAttribution.sessionId, /^session:/, 'Expected session attribution to expose an explicit session id.');
+  assert.equal(typeof sessionAttribution.reasonKind, 'string', 'Expected session attribution to expose reason kind.');
+  assert.equal(typeof sessionAttribution.reasonText, 'string', 'Expected session attribution to expose reason text.');
+  assert.equal(typeof sessionAttribution.deriver, 'string', 'Expected session attribution to expose the derivation implementation.');
+  assert.equal(typeof sessionAttribution.deriverVersion, 'string', 'Expected session attribution to expose derivation version.');
+  assert.equal(typeof sessionAttribution.schemaVersion, 'string', 'Expected session attribution to expose schema version.');
+  assert.equal(typeof sessionAttribution.createdAt, 'string', 'Expected session attribution to expose artifact creation time.');
+});
+
+test('think --json --inspect keeps duplicate raw captures distinct while linking them to the same canonical thought', async () => {
+  const context = await createThinkContext();
+  const thought = 'Should think support multiple minds one day?';
+  const { entryId: firstEntryId } = captureWithEntryId(context, thought);
+  const { entryId: secondEntryId } = captureWithEntryId(context, thought);
+
+  assert.notEqual(
+    firstEntryId,
+    secondEntryId,
+    'Expected duplicate raw captures to remain distinct capture events.'
+  );
+
+  const firstInspect = runThink(context, ['--json', `--inspect=${firstEntryId}`]);
+  const secondInspect = runThink(context, ['--json', `--inspect=${secondEntryId}`]);
+
+  assertSuccess(firstInspect, 'Expected JSON inspect to succeed for the first duplicate capture.');
+  assertSuccess(secondInspect, 'Expected JSON inspect to succeed for the second duplicate capture.');
+
+  const firstIdentity = getEvent(
+    parseJsonLines(firstInspect.stdout, 'Expected first duplicate inspect output to remain valid JSONL.'),
+    'inspect.identity',
+    'Expected first duplicate inspect to emit canonical identity.'
+  );
+  const secondIdentity = getEvent(
+    parseJsonLines(secondInspect.stdout, 'Expected second duplicate inspect output to remain valid JSONL.'),
+    'inspect.identity',
+    'Expected second duplicate inspect to emit canonical identity.'
+  );
+
+  assert.equal(firstIdentity.entryId, firstEntryId, 'Expected first inspect identity to preserve its capture event id.');
+  assert.equal(secondIdentity.entryId, secondEntryId, 'Expected second inspect identity to preserve its capture event id.');
+  assert.equal(
+    firstIdentity.thoughtId,
+    secondIdentity.thoughtId,
+    'Expected duplicate raw captures to resolve to the same canonical thought identity.'
+  );
+});
+
 function captureWithEntryId(context, thought, extraEnv = {}) {
   const capture = runThink(context, ['--verbose', thought], extraEnv);
 
@@ -602,6 +747,12 @@ function captureWithEntryId(context, thought, extraEnv = {}) {
 
 function getEvent(events, name, message) {
   const event = events.find((candidate) => candidate.event === name);
+  assert.ok(event, message);
+  return event;
+}
+
+function getReceiptByKind(events, kind, message) {
+  const event = events.find((candidate) => candidate.event === 'inspect.receipt' && candidate.kind === kind);
   assert.ok(event, message);
   return event;
 }
