@@ -544,14 +544,15 @@ async function runInteractiveBrowseShell(output, reporter) {
 
   const scripted = getBrowseTestScript();
   const initialEntryId = scripted?.seedEntryId ?? entries[0].id;
-  const inspectById = new Map();
-  for (const entry of entries) {
-    inspectById.set(entry.id, await inspectRawEntry(repoDir, entry.id));
-  }
 
   reporter.event('browse.shell_started', { seedEntryId: initialEntryId });
 
   if (scripted) {
+    const inspectById = new Map();
+    for (const entry of entries) {
+      inspectById.set(entry.id, await inspectRawEntry(repoDir, entry.id));
+    }
+
     const result = runBrowseTuiScript({
       entries,
       inspectById,
@@ -582,8 +583,8 @@ async function runInteractiveBrowseShell(output, reporter) {
 
   const effect = await runBrowseTui({
     entries,
-    inspectById,
     initialEntryId,
+    loadInspectEntry: (entryId) => inspectRawEntry(repoDir, entryId),
   });
 
   if (effect?.type === 'reflect') {

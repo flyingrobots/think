@@ -1,4 +1,5 @@
 import { initDefaultContext } from '@flyingrobots/bijou-node';
+import { parseAnsiToSurface } from '@flyingrobots/bijou';
 import {
   createKeyMap,
   createScrollState,
@@ -39,16 +40,30 @@ const browseKeymap = createKeyMap()
     .bind('q', 'Quit', { type: 'quit' })
     .bind('escape', 'Quit', { type: 'quit' }));
 
-export async function runBrowseTui({ entries, inspectById, initialEntryId = null }) {
+export async function runBrowseTui({ entries, initialEntryId = null, loadInspectEntry = null }) {
   let effect = { type: 'quit' };
 
   const app = {
     init() {
-      return [createBrowseModel({ entries, inspectById, initialEntryId }), []];
+      return [createBrowseModel({ entries, inspectCache: new Map(), initialEntryId }), []];
     },
     update(msg, model) {
       if (msg.type === 'resize') {
         return [resizeBrowseModel(model, msg.columns, msg.rows), []];
+      }
+
+      if (msg.type === 'inspect_loaded') {
+        const nextCache = new Map(model.inspectCache);
+        if (msg.inspectEntry) {
+          nextCache.set(msg.entryId, msg.inspectEntry);
+        }
+        return [{
+          ...model,
+          inspectCache: nextCache,
+          inspectLoadingEntryId: model.inspectLoadingEntryId === msg.entryId
+            ? null
+            : model.inspectLoadingEntryId,
+        }, []];
       }
 
       if (msg.type !== 'key') {
@@ -71,10 +86,11 @@ export async function runBrowseTui({ entries, inspectById, initialEntryId = null
         return [result.model, [quit()]];
       }
 
-      return [result.model, []];
+      const [nextModel, cmds] = maybeQueueInspectLoad(result.model, loadInspectEntry);
+      return [nextModel, cmds];
     },
     view(model) {
-      return renderBrowseModel(model);
+      return parseAnsiToSurface(renderBrowseModel(model), model.columns, model.rows);
     },
   };
 
@@ -83,7 +99,7 @@ export async function runBrowseTui({ entries, inspectById, initialEntryId = null
 }
 
 export function runBrowseTuiScript({ entries, inspectById, initialEntryId = null, actions = [] }) {
-  let model = createBrowseModel({ entries, inspectById, initialEntryId });
+  let model = createBrowseModel({ entries, inspectCache: inspectById, initialEntryId });
   const frames = [renderBrowseModel(model)];
   let effect = { type: 'quit' };
 
@@ -105,10 +121,11 @@ export function runBrowseTuiScript({ entries, inspectById, initialEntryId = null
   };
 }
 
-function createBrowseModel({ entries, inspectById, initialEntryId }) {
+function createBrowseModel({ entries, inspectCache, initialEntryId }) {
   return {
     entries,
-    inspectById,
+    inspectCache,
+    inspectLoadingEntryId: null,
     currentIndex: resolveInitialIndex(entries, initialEntryId),
     inspectVisible: false,
     columns: process.stdout.columns ?? DEFAULT_COLUMNS,
@@ -335,24 +352,33 @@ function renderInspectPane(model, width, height) {
   const lines = [
     styleSection('INSPECT'),
     '',
-    `Thought ID: ${inspectEntry.thoughtId}`,
-    `Entry ID: ${inspectEntry.entryId}`,
-    `Kind: ${inspectEntry.kind}`,
-    `Sort Key: ${inspectEntry.sortKey}`,
-    '',
-    styleSection('RECEIPTS'),
   ];
 
-  if (inspectEntry.derivedReceipts.length === 0) {
-    lines.push(styleDim('No direct derived receipts yet.'));
+  if (!inspectEntry) {
+    lines.push(styleDim(
+      model.inspectLoadingEntryId === currentEntry(model).id
+        ? 'Loading inspect receipts...'
+        : 'Inspect data not loaded yet.'
+    ));
   } else {
-    for (const receipt of inspectEntry.derivedReceipts) {
-      lines.push(
-        wrapLine(
-          `Reflect: ${receipt.entryId} (${receipt.promptType}, ${receipt.relation}, session ${receipt.sessionId})`,
-          width
-        )
-      );
+    lines.push(`Thought ID: ${inspectEntry.thoughtId}`);
+    lines.push(`Entry ID: ${inspectEntry.entryId}`);
+    lines.push(`Kind: ${inspectEntry.kind}`);
+    lines.push(`Sort Key: ${inspectEntry.sortKey}`);
+    lines.push('');
+    lines.push(styleSection('RECEIPTS'));
+
+    if (inspectEntry.derivedReceipts.length === 0) {
+      lines.push(styleDim('No direct derived receipts yet.'));
+    } else {
+      for (const receipt of inspectEntry.derivedReceipts) {
+        lines.push(
+          wrapLine(
+            `Reflect: ${receipt.entryId} (${receipt.promptType}, ${receipt.relation}, session ${receipt.sessionId})`,
+            width
+          )
+        );
+      }
     }
   }
 
@@ -414,7 +440,7 @@ function currentEntry(model) {
 }
 
 function currentInspectEntry(model) {
-  return model.inspectById.get(currentEntry(model).id);
+  return model.inspectCache.get(currentEntry(model).id) ?? null;
 }
 
 function computeSidebarScroll(model, height) {
@@ -499,4 +525,37 @@ function styleDim(text) {
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
+}
+
+function maybeQueueInspectLoad(model, loadInspectEntry) {
+  if (!loadInspectEntry) {
+    return [model, []];
+  }
+
+  const entryId = currentEntry(model).id;
+  if (!model.inspectVisible) {
+    return [model, []];
+  }
+  if (model.inspectCache.has(entryId)) {
+    return [model, []];
+  }
+  if (model.inspectLoadingEntryId === entryId) {
+    return [model, []];
+  }
+
+  return [{
+    ...model,
+    inspectLoadingEntryId: entryId,
+  }, [createInspectLoadCommand(entryId, loadInspectEntry)]];
+}
+
+function createInspectLoadCommand(entryId, loadInspectEntry) {
+  return async (emit) => {
+    const inspectEntry = await loadInspectEntry(entryId);
+    emit({
+      type: 'inspect_loaded',
+      entryId,
+      inspectEntry,
+    });
+  };
 }
