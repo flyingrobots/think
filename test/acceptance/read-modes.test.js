@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { existsSync } from 'node:fs';
 
 import {
   runThink,
@@ -162,6 +163,55 @@ test('think --browse shows one raw thought with its immediate newer and older ne
   assertNotContains(browse, 'question', 'Browse should not inject prompt language.');
 });
 
+test('think --browse without an entry id fails clearly outside interactive TTY use and remains read-only', async () => {
+  const context = await createThinkContext();
+
+  const browse = runThink(context, ['--browse']);
+
+  assertFailure(browse, 'Expected bare --browse to fail outside interactive TTY use.');
+  assertContains(
+    browse,
+    '--browse requires an entry id outside interactive TTY use',
+    'Expected bare --browse to explain that the shell entry only exists in a real TTY.'
+  );
+  assert.ok(
+    !existsSync(context.localRepoDir),
+    `Expected invalid non-interactive browse start to remain read-only, but repo was created at ${context.localRepoDir}.`
+  );
+});
+
+test('think --json --browse without an entry id stays machine-readable and does not try to open the shell', async () => {
+  const context = await createThinkContext();
+
+  const browse = runThink(context, ['--json', '--browse']);
+
+  assertFailure(browse, 'Expected JSON browse without an entry id to fail loudly.');
+  const stdoutEvents = parseJsonLines(
+    browse.stdout,
+    'Expected invalid JSON browse to keep stdout machine-readable when present.'
+  );
+  const stderrEvents = parseJsonLines(
+    browse.stderr,
+    'Expected invalid JSON browse output to remain machine-readable on stderr.'
+  );
+
+  assert.deepEqual(
+    stdoutEvents.map((event) => event.event),
+    ['cli.start'],
+    'Expected invalid JSON browse to keep only the standard start event on stdout.'
+  );
+  assert.deepEqual(
+    stderrEvents.map((event) => event.event),
+    ['cli.validation_failed', 'cli.failure'],
+    'Expected invalid JSON browse to fail through the standard machine-readable validation path.'
+  );
+  assert.equal(
+    stderrEvents[0].message,
+    '--browse requires an entry id outside interactive TTY use',
+    'Expected invalid JSON browse to expose the shell-aware validation message.'
+  );
+});
+
 test('think --json --browse emits JSONL rows for the current raw thought and its neighbors', async () => {
   const context = await createThinkContext();
   const olderThought = 'older thought about warp receipts';
@@ -249,17 +299,10 @@ test('think --json --inspect emits JSONL for the exact raw entry metadata', asyn
     'Expected JSON inspect output to emit valid JSONL.'
   );
 
-  assert.deepEqual(
-    events.map((event) => event.event),
-    [
-      'cli.start',
-      'inspect.start',
-      'inspect.done',
-      'inspect.entry',
-      'cli.success',
-    ],
-    'Expected JSON inspect to emit one structured entry row plus the usual inspect command envelope rows.'
-  );
+  assert.equal(events[0].event, 'cli.start', 'Expected JSON inspect to start with the CLI envelope.');
+  assert.equal(events[1].event, 'inspect.start', 'Expected JSON inspect to emit an inspect start row.');
+  assert.equal(events[2].event, 'inspect.done', 'Expected JSON inspect to emit an inspect completion row.');
+  assert.equal(events.at(-1)?.event, 'cli.success', 'Expected JSON inspect to end with a CLI success row.');
 
   const inspectedEntry = getEvent(
     events,
@@ -271,6 +314,95 @@ test('think --json --inspect emits JSONL for the exact raw entry metadata', asyn
   assert.equal(inspectedEntry.kind, 'raw_capture', 'Expected JSON inspect to identify the raw entry kind.');
   assert.equal(inspectedEntry.text, thought, 'Expected JSON inspect to preserve the exact stored raw text.');
   assert.equal(typeof inspectedEntry.sortKey, 'string', 'Expected JSON inspect to expose stable ordering metadata.');
+});
+
+test('think --inspect exposes canonical content identity and direct derived receipts when they exist', async () => {
+  const context = await createThinkContext();
+  const seedThought = 'We should make warp graph the thought substrate';
+  const reflectAnswer = 'The substrate only matters if inspect can show the raw thought and its derived descendants honestly.';
+  const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
+
+  const start = runThink(context, ['--verbose', `--reflect=${seedEntryId}`]);
+  assertSuccess(start, 'Expected reflect start to succeed before inspecting derived receipts.');
+  const sessionStarted = getEvent(
+    parseJsonLines(start.stderr, 'Expected verbose reflect start to emit valid JSONL trace events.'),
+    'reflect.session_started',
+    'Expected reflect start to emit session metadata.'
+  );
+
+  const reply = runThink(context, ['--verbose', `--reflect-session=${sessionStarted.sessionId}`, reflectAnswer]);
+  assertSuccess(reply, 'Expected reflect reply to succeed before inspecting derived receipts.');
+  const saved = getEvent(
+    parseJsonLines(reply.stderr, 'Expected verbose reflect reply to emit valid JSONL trace events.'),
+    'reflect.entry_saved',
+    'Expected reflect reply to expose the saved derived entry.'
+  );
+
+  const inspect = runThink(context, [`--inspect=${seedEntryId}`]);
+
+  assertSuccess(inspect, 'Expected inspect to succeed for a raw entry with derived reflect activity.');
+  assertContains(inspect, 'Thought ID:', 'Expected inspect to expose canonical content identity.');
+  assertContains(inspect, 'Derived receipts:', 'Expected inspect to expose derived receipt structure.');
+  assertContains(inspect, 'Reflect:', 'Expected inspect to expose the direct reflect descendant plainly.');
+  assertContains(inspect, saved.entryId, 'Expected inspect to expose the derived reflect entry id.');
+  assertContains(inspect, sessionStarted.sessionId, 'Expected inspect to expose the reflect session lineage.');
+});
+
+test('think --json --inspect emits canonical content identity and direct derived receipt rows', async () => {
+  const context = await createThinkContext();
+  const seedThought = 'We should make warp graph the thought substrate';
+  const reflectAnswer = 'The substrate only matters if inspect can show the raw thought and its derived descendants honestly.';
+  const { entryId: seedEntryId } = captureWithEntryId(context, seedThought);
+
+  const start = runThink(context, ['--verbose', `--reflect=${seedEntryId}`]);
+  assertSuccess(start, 'Expected reflect start to succeed before inspecting derived receipts.');
+  const sessionStarted = getEvent(
+    parseJsonLines(start.stderr, 'Expected verbose reflect start to emit valid JSONL trace events.'),
+    'reflect.session_started',
+    'Expected reflect start to emit session metadata.'
+  );
+
+  const reply = runThink(context, ['--verbose', `--reflect-session=${sessionStarted.sessionId}`, reflectAnswer]);
+  assertSuccess(reply, 'Expected reflect reply to succeed before inspecting derived receipts.');
+  const saved = getEvent(
+    parseJsonLines(reply.stderr, 'Expected verbose reflect reply to emit valid JSONL trace events.'),
+    'reflect.entry_saved',
+    'Expected reflect reply to expose the saved derived entry.'
+  );
+
+  const inspect = runThink(context, ['--json', `--inspect=${seedEntryId}`]);
+
+  assertSuccess(inspect, 'Expected JSON inspect to succeed for a raw entry with derived reflect activity.');
+  assertJsonStreams(inspect);
+  assert.equal((inspect.stderr || '').trim(), '', 'Expected successful JSON inspect to keep stderr quiet.');
+
+  const events = parseJsonLines(
+    inspect.stdout,
+    'Expected JSON inspect with derived receipts to emit valid JSONL.'
+  );
+
+  const inspectedEntry = getEvent(
+    events,
+    'inspect.entry',
+    'Expected JSON inspect to expose the requested raw entry metadata.'
+  );
+  assert.equal(typeof inspectedEntry.thoughtId, 'string', 'Expected JSON inspect to expose canonical content identity.');
+  assert.match(inspectedEntry.thoughtId, /^thought:/, 'Expected canonical content identity to use the thought: namespace.');
+
+  const receipt = getEvent(
+    events,
+    'inspect.receipt',
+    'Expected JSON inspect to emit a receipt row for the direct derived reflect entry.'
+  );
+  assert.equal(receipt.relation, 'seed_of', 'Expected inspect receipts to identify the lineage relation explicitly.');
+  assert.equal(receipt.kind, 'reflect', 'Expected inspect receipts to expose the direct derived reflect kind.');
+  assert.equal(receipt.entryId, saved.entryId, 'Expected inspect receipts to point at the derived reflect entry.');
+  assert.equal(receipt.sessionId, sessionStarted.sessionId, 'Expected inspect receipts to expose session lineage.');
+  assert.equal(
+    receipt.promptType,
+    sessionStarted.promptType,
+    'Expected inspect receipts to preserve the prompt family used to create the reflect descendant.'
+  );
 });
 
 function captureWithEntryId(context, thought, extraEnv = {}) {
