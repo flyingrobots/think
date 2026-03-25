@@ -620,26 +620,51 @@ async function runInspect(entryId, output, reporter) {
     entryId: entry.entryId,
     kind: entry.kind,
     thoughtId: entry.thoughtId,
-    receiptCount: entry.derivedReceipts.length,
+    receiptCount: countInspectReceipts(entry),
   });
 
   if (output.json) {
     output.data('inspect.entry', entry);
-    for (const receipt of entry.derivedReceipts) {
-      output.data('inspect.receipt', receipt);
+    if (entry.canonicalThought) {
+      output.data('inspect.identity', entry.canonicalThought);
+    }
+    if (entry.derivedReceipts.length > 0) {
+      for (const receipt of entry.derivedReceipts) {
+        output.data('inspect.receipt', receipt);
+      }
+    }
+    if (entry.seedQuality) {
+      output.data('inspect.receipt', entry.seedQuality);
+    }
+    if (entry.sessionAttribution) {
+      output.data('inspect.receipt', entry.sessionAttribution);
     }
     return 0;
   }
 
   const lines = [
     'Inspect',
+    'Raw',
     `Entry ID: ${entry.entryId}`,
-    `Thought ID: ${entry.thoughtId}`,
     `Kind: ${entry.kind}`,
     `Sort Key: ${entry.sortKey}`,
     'Text:',
     entry.text,
   ];
+
+  lines.push('Canonical Thought');
+  lines.push(`Thought ID: ${entry.thoughtId}`);
+  lines.push('Derived');
+  if (entry.seedQuality) {
+    lines.push(`Seed quality: ${entry.seedQuality.verdict}`);
+    lines.push(`Why: ${entry.seedQuality.reasonText}`);
+    if (entry.seedQuality.promptFamilies.length > 0) {
+      lines.push(`Prompt families: ${entry.seedQuality.promptFamilies.join(', ')}`);
+    }
+  } else {
+    lines.push('Seed quality: pending');
+    lines.push('Why: Seed-quality derivation has not been materialized yet.');
+  }
 
   if (entry.derivedReceipts.length > 0) {
     lines.push('Derived receipts:');
@@ -650,8 +675,28 @@ async function runInspect(entryId, output, reporter) {
     }
   }
 
+  lines.push('Context');
+  if (entry.sessionAttribution) {
+    lines.push(`Session: ${entry.sessionAttribution.sessionId}`);
+    lines.push(`Why: ${entry.sessionAttribution.reasonText}`);
+  } else {
+    lines.push('Session: pending');
+    lines.push('Why: Session attribution has not been materialized yet.');
+  }
+
   output.out(lines.join('\n'));
   return 0;
+}
+
+function countInspectReceipts(entry) {
+  let count = entry.derivedReceipts.length;
+  if (entry.seedQuality) {
+    count += 1;
+  }
+  if (entry.sessionAttribution) {
+    count += 1;
+  }
+  return count;
 }
 
 function parseArgs(args) {

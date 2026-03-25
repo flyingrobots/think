@@ -7,10 +7,17 @@ import { GitGraphAdapter, WarpGraph } from '@git-stunts/git-warp';
 export const GRAPH_NAME = 'think';
 export const REFLECT_PROMPT_TYPES = ['challenge', 'constraint', 'sharpen'];
 const ENTRY_PREFIX = 'entry:';
+const THOUGHT_PREFIX = 'thought:';
+const SESSION_PREFIX = 'session:';
+const ARTIFACT_PREFIX = 'artifact:';
 const REFLECT_SESSION_PREFIX = 'reflect:';
 const LEGACY_BRAINSTORM_SESSION_PREFIX = 'brainstorm:';
 const TEXT_MIME = 'text/plain; charset=utf-8';
 const MAX_REFLECT_STEPS = 3;
+const SESSION_IDLE_GAP_MS = 5 * 60 * 1000;
+const DERIVER_NAME = 'think';
+const DERIVER_VERSION = '1';
+const SCHEMA_VERSION = '1';
 const CHALLENGE_PROMPTS = [
   'What assumption is hiding here?',
   'What would make this false in practice?',
@@ -46,6 +53,11 @@ export async function captureThought(repoDir, thought) {
       .setProperty(entry.id, 'sortKey', entry.sortKey);
 
     await patch.attachContent(entry.id, thought, { mime: TEXT_MIME });
+  });
+
+  await ensureFirstDerivedArtifacts(graph, {
+    ...entry,
+    text: thought,
   });
 
   return entry;
@@ -250,30 +262,38 @@ export async function getBrowseWindow(repoDir, entryId) {
 
 export async function inspectRawEntry(repoDir, entryId) {
   const graph = await openGraph(repoDir);
-  const entry = await getStoredEntry(graph, entryId);
+  let entry = await getStoredEntry(graph, entryId);
 
   if (!entry || entry.kind !== 'capture') {
     return null;
   }
 
+  await ensureFirstDerivedArtifacts(graph, entry);
+  entry = await getStoredEntry(graph, entryId);
+
+  const canonicalThought = await getCanonicalThought(graph, entry);
+  const seedQuality = await getSeedQualityReceipt(graph, entry);
+  const sessionAttribution = await getSessionAttributionReceipt(graph, entry);
   const derivedReceipts = await listDirectDerivedReceipts(graph, entryId);
 
   return {
     entryId: entry.id,
-    thoughtId: createThoughtId(entry.text),
+    thoughtId: canonicalThought?.thoughtId ?? createThoughtId(entry.text),
     kind: 'raw_capture',
     text: entry.text,
     sortKey: entry.sortKey,
     createdAt: entry.createdAt,
+    canonicalThought,
+    seedQuality,
+    sessionAttribution,
     derivedReceipts,
   };
 }
 
 export function assessReflectability(text) {
-  const normalized = normalizeSeed(text);
-  const eligible = REFLECT_MARKERS.some((pattern) => pattern.test(normalized));
+  const seedQuality = deriveSeedQuality(createThoughtId(text), text);
 
-  if (eligible) {
+  if (seedQuality.verdict === 'likely_reflectable') {
     return {
       eligible: true,
       kind: 'pressure_testable',
@@ -314,6 +334,7 @@ async function getStoredEntry(graph, nodeId) {
     writerId: props.writerId,
     createdAt: props.createdAt,
     sortKey: String(props.sortKey || ''),
+    thoughtId: props.thoughtId ?? null,
     seedEntryId: props.seedEntryId ?? null,
     contrastEntryId: props.contrastEntryId ?? null,
     sessionId: props.sessionId ?? null,
@@ -432,6 +453,120 @@ function createReflectSession(writerId, {
   };
 }
 
+async function ensureFirstDerivedArtifacts(graph, entry) {
+  if (!entry || entry.kind !== 'capture') {
+    return null;
+  }
+
+  const thoughtId = createThoughtId(entry.text);
+  const seedQuality = deriveSeedQuality(thoughtId, entry.text);
+  const sessionAttribution = await deriveSessionAttribution(graph, entry);
+
+  const [
+    thoughtNodeExists,
+    seedQualityExists,
+    sessionNodeExists,
+    sessionArtifactExists,
+    entryProps,
+  ] = await Promise.all([
+    hasNode(graph, thoughtId),
+    hasNode(graph, seedQuality.artifactId),
+    hasNode(graph, sessionAttribution.sessionId),
+    hasNode(graph, sessionAttribution.artifactId),
+    graph.getNodeProps(entry.id),
+  ]);
+
+  const needsCaptureThoughtLink = entryProps?.thoughtId !== thoughtId;
+  const needsCaptureSessionLink = entryProps?.sessionId !== sessionAttribution.sessionId;
+
+  if (
+    thoughtNodeExists
+    && seedQualityExists
+    && sessionNodeExists
+    && sessionArtifactExists
+    && !needsCaptureThoughtLink
+    && !needsCaptureSessionLink
+  ) {
+    return {
+      thoughtId,
+      seedQuality,
+      sessionAttribution,
+    };
+  }
+
+  await graph.patch(async (patch) => {
+    if (!thoughtNodeExists) {
+      patch
+        .addNode(thoughtId)
+        .setProperty(thoughtId, 'kind', 'thought')
+        .setProperty(thoughtId, 'fingerprint', thoughtId.slice(THOUGHT_PREFIX.length))
+        .setProperty(thoughtId, 'createdAt', entry.createdAt)
+        .setProperty(thoughtId, 'schemaVersion', SCHEMA_VERSION);
+
+      await patch.attachContent(thoughtId, entry.text, { mime: TEXT_MIME });
+    }
+
+    if (needsCaptureThoughtLink) {
+      patch.setProperty(entry.id, 'thoughtId', thoughtId);
+    }
+
+    if (!seedQualityExists) {
+      addArtifactNode(patch, seedQuality);
+    }
+
+    if (!sessionNodeExists) {
+      patch
+        .addNode(sessionAttribution.sessionId)
+        .setProperty(sessionAttribution.sessionId, 'kind', 'session')
+        .setProperty(sessionAttribution.sessionId, 'createdAt', sessionAttribution.sessionCreatedAt)
+        .setProperty(sessionAttribution.sessionId, 'startSortKey', sessionAttribution.sessionStartSortKey)
+        .setProperty(sessionAttribution.sessionId, 'schemaVersion', SCHEMA_VERSION);
+    }
+
+    if (needsCaptureSessionLink) {
+      patch.setProperty(entry.id, 'sessionId', sessionAttribution.sessionId);
+    }
+
+    if (!sessionArtifactExists) {
+      addArtifactNode(patch, sessionAttribution);
+    }
+  });
+
+  return {
+    thoughtId,
+    seedQuality,
+    sessionAttribution,
+  };
+}
+
+function addArtifactNode(patch, artifact) {
+  patch
+    .addNode(artifact.artifactId)
+    .setProperty(artifact.artifactId, 'kind', artifact.kind)
+    .setProperty(artifact.artifactId, 'primaryInputKind', artifact.primaryInputKind)
+    .setProperty(artifact.artifactId, 'primaryInputId', artifact.primaryInputId)
+    .setProperty(artifact.artifactId, 'deriver', artifact.deriver)
+    .setProperty(artifact.artifactId, 'deriverVersion', artifact.deriverVersion)
+    .setProperty(artifact.artifactId, 'schemaVersion', artifact.schemaVersion)
+    .setProperty(artifact.artifactId, 'createdAt', artifact.createdAt);
+
+  if (artifact.kind === 'seed_quality') {
+    patch
+      .setProperty(artifact.artifactId, 'verdict', artifact.verdict)
+      .setProperty(artifact.artifactId, 'reasonKind', artifact.reasonKind)
+      .setProperty(artifact.artifactId, 'reasonText', artifact.reasonText)
+      .setProperty(artifact.artifactId, 'promptFamiliesJson', JSON.stringify(artifact.promptFamilies));
+    return;
+  }
+
+  if (artifact.kind === 'session_attribution') {
+    patch
+      .setProperty(artifact.artifactId, 'sessionId', artifact.sessionId)
+      .setProperty(artifact.artifactId, 'reasonKind', artifact.reasonKind)
+      .setProperty(artifact.artifactId, 'reasonText', artifact.reasonText);
+  }
+}
+
 function selectReflectPrompt(seedEntry, requestedPromptType = null) {
   const normalized = normalizeSeed(seedEntry.text);
 
@@ -510,6 +645,174 @@ function createThoughtId(text) {
   return `thought:${fingerprint}`;
 }
 
+function createArtifactId(kind, primaryInputId, discriminator = '') {
+  const fingerprint = createHash('sha256')
+    .update([kind, primaryInputId, discriminator, DERIVER_VERSION, SCHEMA_VERSION].join('\0'), 'utf8')
+    .digest('hex');
+
+  return `${ARTIFACT_PREFIX}${fingerprint}`;
+}
+
+function deriveSeedQuality(thoughtId, text) {
+  const normalized = normalizeSeed(text);
+  const eligible = REFLECT_MARKERS.some((pattern) => pattern.test(normalized));
+
+  return {
+    artifactId: createArtifactId('seed_quality', thoughtId),
+    kind: 'seed_quality',
+    primaryInputKind: 'thought',
+    primaryInputId: thoughtId,
+    verdict: eligible ? 'likely_reflectable' : 'weak_note',
+    reasonKind: eligible ? 'proposal_or_question_markers' : 'status_like_note',
+    reasonText: eligible
+      ? 'Contains explicit proposal, uncertainty, or decision language that can be pressure-tested.'
+      : 'Reads more like a status, narrative, or observational note than a pressure-testable idea.',
+    promptFamilies: eligible ? [...REFLECT_PROMPT_TYPES] : [],
+    deriver: DERIVER_NAME,
+    deriverVersion: DERIVER_VERSION,
+    schemaVersion: SCHEMA_VERSION,
+    createdAt: getCurrentTime().toISOString(),
+  };
+}
+
+async function deriveSessionAttribution(graph, entry) {
+  const captures = await listEntriesByKind(graph, 'capture');
+  const ordered = captures
+    .filter((candidate) => candidate.id !== entry.id)
+    .concat([{ ...entry }])
+    .sort(compareEntriesOldestFirst);
+
+  let sessionStart = ordered[0];
+  let previous = null;
+
+  for (const capture of ordered) {
+    if (previous) {
+      const gapMs = Date.parse(capture.createdAt) - Date.parse(previous.createdAt);
+      if (gapMs > SESSION_IDLE_GAP_MS) {
+        sessionStart = capture;
+      }
+    }
+
+    if (capture.id === entry.id) {
+      const withinBucket = previous
+        && (Date.parse(capture.createdAt) - Date.parse(previous.createdAt)) <= SESSION_IDLE_GAP_MS;
+      const sessionId = `${SESSION_PREFIX}${sessionStart.sortKey}`;
+
+      return {
+        artifactId: createArtifactId('session_attribution', entry.id, sessionId),
+        kind: 'session_attribution',
+        primaryInputKind: 'capture',
+        primaryInputId: entry.id,
+        sessionId,
+        sessionCreatedAt: sessionStart.createdAt,
+        sessionStartSortKey: sessionStart.sortKey,
+        reasonKind: withinBucket ? 'temporal_proximity' : 'new_session_bucket',
+        reasonText: withinBucket
+          ? 'Captured within 5 minutes of neighboring entries in the same session bucket.'
+          : 'Started a new session bucket because no neighboring capture fell within the 5 minute idle-gap threshold.',
+        deriver: DERIVER_NAME,
+        deriverVersion: DERIVER_VERSION,
+        schemaVersion: SCHEMA_VERSION,
+        createdAt: getCurrentTime().toISOString(),
+      };
+    }
+
+    previous = capture;
+  }
+
+  const fallbackSessionId = `${SESSION_PREFIX}${entry.sortKey}`;
+  return {
+    artifactId: createArtifactId('session_attribution', entry.id, fallbackSessionId),
+    kind: 'session_attribution',
+    primaryInputKind: 'capture',
+    primaryInputId: entry.id,
+    sessionId: fallbackSessionId,
+    sessionCreatedAt: entry.createdAt,
+    sessionStartSortKey: entry.sortKey,
+    reasonKind: 'new_session_bucket',
+    reasonText: 'Started a new session bucket because no neighboring capture fell within the 5 minute idle-gap threshold.',
+    deriver: DERIVER_NAME,
+    deriverVersion: DERIVER_VERSION,
+    schemaVersion: SCHEMA_VERSION,
+    createdAt: getCurrentTime().toISOString(),
+  };
+}
+
+async function getCanonicalThought(graph, entry) {
+  const thoughtId = entry.thoughtId ?? createThoughtId(entry.text);
+  const thoughtProps = await graph.getNodeProps(thoughtId);
+
+  return {
+    entryId: entry.id,
+    thoughtId,
+    relation: 'expresses',
+    stored: Boolean(thoughtProps),
+  };
+}
+
+async function getSeedQualityReceipt(graph, entry) {
+  const thoughtId = entry.thoughtId ?? createThoughtId(entry.text);
+  const artifactId = createArtifactId('seed_quality', thoughtId);
+  const props = await graph.getNodeProps(artifactId);
+  if (!props) {
+    return null;
+  }
+
+  return {
+    artifactId,
+    kind: 'seed_quality',
+    primaryInputKind: props.primaryInputKind,
+    primaryInputId: props.primaryInputId,
+    verdict: props.verdict,
+    reasonKind: props.reasonKind,
+    reasonText: props.reasonText,
+    promptFamilies: parseJsonArray(props.promptFamiliesJson),
+    deriver: props.deriver,
+    deriverVersion: props.deriverVersion,
+    schemaVersion: props.schemaVersion,
+    createdAt: props.createdAt,
+  };
+}
+
+async function getSessionAttributionReceipt(graph, entry) {
+  const derived = await deriveSessionAttribution(graph, entry);
+  const props = await graph.getNodeProps(derived.artifactId);
+  if (!props) {
+    return null;
+  }
+
+  return {
+    artifactId: derived.artifactId,
+    kind: 'session_attribution',
+    primaryInputKind: props.primaryInputKind,
+    primaryInputId: props.primaryInputId,
+    sessionId: props.sessionId,
+    reasonKind: props.reasonKind,
+    reasonText: props.reasonText,
+    deriver: props.deriver,
+    deriverVersion: props.deriverVersion,
+    schemaVersion: props.schemaVersion,
+    createdAt: props.createdAt,
+  };
+}
+
+async function hasNode(graph, nodeId) {
+  return Boolean(await graph.getNodeProps(nodeId));
+}
+
+function parseJsonArray(value) {
+  if (!value) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 function stableHash(value) {
   let hash = 0;
   for (const char of value) {
@@ -524,6 +827,14 @@ function compareEntriesNewestFirst(left, right) {
   }
 
   return right.sortKey.localeCompare(left.sortKey);
+}
+
+function compareEntriesOldestFirst(left, right) {
+  if (left.sortKey === right.sortKey) {
+    return left.id.localeCompare(right.id);
+  }
+
+  return left.sortKey.localeCompare(right.sortKey);
 }
 
 function matchesRecentQuery(text, query) {
