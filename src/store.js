@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import os from 'node:os';
 
 import Plumbing from '@git-stunts/plumbing';
@@ -255,12 +255,16 @@ export async function inspectRawEntry(repoDir, entryId) {
     return null;
   }
 
+  const derivedReceipts = await listDirectDerivedReceipts(graph, entryId);
+
   return {
     entryId: entry.id,
+    thoughtId: createThoughtId(entry.text),
     kind: 'raw_capture',
     text: entry.text,
     sortKey: entry.sortKey,
     createdAt: entry.createdAt,
+    derivedReceipts,
   };
 }
 
@@ -357,6 +361,22 @@ async function listEntriesByKind(graph, kind) {
   }
 
   return entries;
+}
+
+async function listDirectDerivedReceipts(graph, seedEntryId) {
+  const reflectEntries = await listEntriesByKind(graph, 'reflect');
+
+  return reflectEntries
+    .filter((entry) => entry.seedEntryId === seedEntryId)
+    .sort(compareEntriesNewestFirst)
+    .map((entry) => ({
+      relation: 'seed_of',
+      kind: entry.kind,
+      entryId: entry.id,
+      sessionId: entry.sessionId,
+      promptType: entry.promptType,
+      createdAt: entry.createdAt,
+    }));
 }
 
 async function readNodeText(graph, nodeId) {
@@ -479,6 +499,14 @@ function pickDeterministicPrompt(prompts, normalizedSeed) {
 
 function normalizeSeed(text) {
   return String(text).trim().toLowerCase();
+}
+
+function createThoughtId(text) {
+  const fingerprint = createHash('sha256')
+    .update(String(text), 'utf8')
+    .digest('hex');
+
+  return `thought:${fingerprint}`;
 }
 
 function stableHash(value) {

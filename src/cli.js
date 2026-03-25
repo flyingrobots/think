@@ -388,6 +388,17 @@ async function runRecent(output, reporter, options) {
 }
 
 async function runBrowse(entryId, output, reporter) {
+  if (!entryId) {
+    if (shouldUseInteractiveBrowseShell(output)) {
+      output.error('Interactive browse shell is not implemented yet', 'browse.shell_unavailable');
+    } else {
+      output.error('--browse requires an entry id outside interactive TTY use', 'cli.validation_failed', {
+        command: 'browse',
+      });
+    }
+    return 1;
+  }
+
   const repoDir = getLocalRepoDir();
 
   reporter.event('browse.start', { entryId });
@@ -454,21 +465,38 @@ async function runInspect(entryId, output, reporter) {
   reporter.event('inspect.done', {
     entryId: entry.entryId,
     kind: entry.kind,
+    thoughtId: entry.thoughtId,
+    receiptCount: entry.derivedReceipts.length,
   });
 
   if (output.json) {
     output.data('inspect.entry', entry);
+    for (const receipt of entry.derivedReceipts) {
+      output.data('inspect.receipt', receipt);
+    }
     return 0;
   }
 
-  output.out([
+  const lines = [
     'Inspect',
     `Entry ID: ${entry.entryId}`,
+    `Thought ID: ${entry.thoughtId}`,
     `Kind: ${entry.kind}`,
     `Sort Key: ${entry.sortKey}`,
     'Text:',
     entry.text,
-  ].join('\n'));
+  ];
+
+  if (entry.derivedReceipts.length > 0) {
+    lines.push('Derived receipts:');
+    for (const receipt of entry.derivedReceipts) {
+      lines.push(
+        `Reflect: ${receipt.entryId} (${receipt.promptType}, ${receipt.relation}, session ${receipt.sessionId})`
+      );
+    }
+  }
+
+  output.out(lines.join('\n'));
   return 0;
 }
 
@@ -642,8 +670,8 @@ function validateOptions(options, command) {
   }
 
   if (command === 'browse') {
-    if (!options.browse) {
-      return '--browse requires an entry id';
+    if (!options.browse && !canInteractivelyOpenBrowseShell(options)) {
+      return '--browse requires an entry id outside interactive TTY use';
     }
     if (options.positionals.length > 0) {
       return '--browse does not take a thought';
@@ -754,8 +782,16 @@ function shouldUseInteractiveReflectShell(output) {
   return !output.json && isInteractiveReflectAvailable();
 }
 
+function shouldUseInteractiveBrowseShell(output) {
+  return !output.json && isInteractiveReflectAvailable();
+}
+
 function isInteractiveReflectAvailable() {
   return process.stdin.isTTY === true && process.stdout.isTTY === true;
+}
+
+function canInteractivelyOpenBrowseShell(options) {
+  return !options.json && isInteractiveReflectAvailable();
 }
 
 function canInteractivelyPickReflectSeed(options) {
