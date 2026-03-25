@@ -1,6 +1,6 @@
 # Roadmap And Milestones
 
-Status: `M0`, `M1`, `M2`, and `M3` complete; `M4` design in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, and derivation-catalog designs under review
+Status: `M0`, `M1`, `M2`, and `M3` complete; `M4` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, and derivation-catalog designs under active use
 
 ## Planning Frame
 
@@ -15,7 +15,7 @@ Milestones exist to prove user value in sequence. They are not buckets for unrel
 - `M1` still has follow-through validation work around real-world usage and latency measurement.
 - `M2: macOS capture surface` is complete.
 - `M3: Brainstorm Mode` is complete.
-- `M4: Reentry, Browse, and Inspect` is in design.
+- `M4: Reentry, Browse, and Inspect` is in progress.
 
 ## Planning Principles
 

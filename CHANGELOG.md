@@ -22,6 +22,10 @@ Release discipline:
 - first explicit `--inspect=<entryId>` read surface for exposing exact raw entry metadata without narration
 - first full-screen Bijou browse TUI for bare `--browse` in a real TTY, with a reader-first default view, visible thought metadata, a summon-only thought-log drawer, a jump palette, inspect receipts, and reflect handoff
 - canonical `thought:<fingerprint>` identity exposed in `inspect`
+- first stored derivation bundle for raw thoughts:
+  - canonical thought identity materialization
+  - `seed_quality`
+  - `session_attribution`
 - direct derived reflect receipts exposed in human and JSON inspect output
 - default `npm test` now excludes macOS Swift tests so the default/CI path stays cheap
 - local pre-push hook support via `.githooks/pre-push` and `npm run install-hooks`

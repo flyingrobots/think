@@ -1,6 +1,6 @@
 # 0015 Per-Thought Derivation Catalog
 
-Status: draft for review
+Status: current reference for the implemented per-thought derivation bundle
 
 ## Purpose
 

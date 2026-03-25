@@ -13,7 +13,7 @@ It is infrastructure for cheap, exact, replayable thought capture.
 ## Current Status
 
 `M0`, `M1`, `M2`, and `M3` are complete.
-`M4` is underway.
+`M4` is in progress.
 Current version: `0.3.0`.
 
 What exists today:
@@ -28,6 +28,11 @@ What exists today:
 - first seeded reflect CLI flow via `--reflect` and `--reflect-session`
 - a native macOS menu bar app with a global hotkey capture panel
 - quiet menu bar feedback for saving, success, failure, and restart-needed state
+- first stored derivation bundle for `inspect`, including:
+  - canonical `thought:<fingerprint>` identity
+  - `seed_quality`
+  - `session_attribution`
+  - direct `Reflect` receipts
 - executable acceptance tests for the implemented CLI and macOS behavior
 
 What does not exist yet:
@@ -120,7 +125,7 @@ think --stats
 `--browse=<entryId>` shows one raw capture with its immediate newer and older neighbors.
 In a real TTY, bare `--browse` opens a full-screen Bijou browse TUI on the newest raw capture. The default view is reader-first: the current thought owns the screen, with timestamp, relative time, position, and entry id visible up front. Use `j`/`k` or the arrow keys to move older and newer, `l` to reveal the thought log drawer, `/` to open the jump palette, `i` to reveal inspect receipts, `r` to jump into `Reflect`, and `q` to quit.
 
-`--inspect=<entryId>` exposes the exact stored raw entry metadata without summarizing or narrating it. When direct derived reflect descendants exist, it also shows canonical content identity and direct derived receipts.
+`--inspect=<entryId>` exposes the stored raw capture, canonical thought identity, first derived receipts (`seed_quality` and `session_attribution`), and any direct `Reflect` descendants without summarizing or narrating the thought.
 
 In a real TTY, bare `--reflect` opens an interactive seed picker. `--mode=challenge|constraint|sharpen` can be used to request a specific pressure family.
 
@@ -212,7 +217,7 @@ npm run install-hooks
 
 The current `M1` and `M2` suites are green for the implemented behavior.
 The current `M3` reflect suite is green for the implemented behavior.
-The first `M4` read-mode suite is green for the implemented behavior.
+The first `M4` read-mode and derivation-bundle suites are green for the implemented behavior.
 
 ## Repo Guide
 

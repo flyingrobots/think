@@ -1,6 +1,6 @@
 # Design Review Package
 
-Status: design approved; `M0`, `M1`, `M2`, and `M3` complete; `M4` design in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, and derivation-catalog designs under review
+Status: design approved; `M0`, `M1`, `M2`, and `M3` complete; `M4` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, and derivation-catalog designs under active use
 
 This directory began as the pre-implementation design package for `think`.
 
@@ -129,4 +129,4 @@ After review, we should either:
 - approve the package and start writing spec tests, or
 - return with specific changes to hills, architecture boundaries, or milestone sequencing
 
-That review is now complete. Production implementation began after approval, Milestones 1 through 3 have been closed, and Milestone 4 design is now underway.
+That review is now complete. Production implementation began after approval, Milestones 1 through 3 have been closed, and Milestone 4 is now underway in implementation.

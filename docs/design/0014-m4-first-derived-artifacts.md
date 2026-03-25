@@ -1,6 +1,6 @@
 # 0014 M4 First Derived Artifacts
 
-Status: draft for review
+Status: implemented for the first M4 derivation bundle
 
 ## Intent
 
