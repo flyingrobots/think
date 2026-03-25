@@ -35,6 +35,12 @@ Primary sponsor user:
 
 - A fast-moving individual thinker who has ideas in many contexts, does not want to classify them on entry, and wants a durable private record that can later support reflection, branching, and replay.
 
+## Sponsor Agent
+
+Primary sponsor agent:
+
+- An explicit CLI/JSON consumer that needs the same capture, browse, inspect, and reflect capabilities through stable machine-readable contracts rather than through human-facing presentation or scraping.
+
 ## Jobs To Be Done
 
 Primary job:
@@ -127,6 +133,14 @@ These questions should be used in design reviews and milestone playbacks:
 4. Does the user need to understand Git, refs, push, or pull to trust the product?
 5. Have we accidentally turned the capture path into a note-taking workflow?
 6. Are we defaulting to dialogue where it helps, and only exposing dashboards when explicitly invited?
+
+Playback should be evaluated from both perspectives:
+
+- human stakeholder playback
+- agent stakeholder playback
+
+The human stakeholder should judge whether the experience is actually good to use.
+The agent stakeholder should judge whether the explicit machine contract is semantically complete and parity-preserving.
 
 ## Non-Goals
 

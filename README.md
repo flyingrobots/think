@@ -58,6 +58,21 @@ This repo uses an explicit milestone loop:
 
 That loop is how the repo stays aligned with reality instead of drifting into stale docs or speculative implementation.
 
+At the start of each design cycle, the docs should explicitly name:
+
+- sponsor human
+- sponsor agent
+- hill
+- playback questions
+- non-goals
+
+At the end of each cycle, the closeout should explicitly evaluate both:
+
+- human stakeholder playback
+- agent stakeholder playback
+
+For this project, the human stakeholder is the user and the agent stakeholder is the coding/CLI consumer perspective.
+
 ## Product Doctrine
 
 - Raw capture is sacred.

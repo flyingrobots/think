@@ -169,6 +169,12 @@ The first implementation step after design review is to encode those intended be
 Before writing production code, we should have:
 
 - reviewed and approved the design docs
+- named the sponsor human and sponsor agent for the slice
 - named the first acceptance tests
 - agreed on the deterministic harness strategy
 - agreed on the first milestone exit criteria
+
+When a slice materially serves both humans and agents, the named acceptance tests should cover both:
+
+- the human-facing behavior contract
+- the agent-facing machine-readable contract

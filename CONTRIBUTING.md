@@ -71,11 +71,20 @@ Bad:
 This project uses IBM Design Thinking style framing for milestone design:
 
 - sponsor user
+- sponsor agent
 - hills
 - playback questions
 - explicit non-goals
 
 Milestones should be grounded in user value, not in backend vanity.
+
+For `think`, this means every meaningful design cycle should name both:
+
+- the human sponsor perspective
+- the agent sponsor perspective
+
+The human sponsor keeps the product honest about actual use.
+The agent sponsor keeps the CLI/JSON contract honest about machine use.
 
 Before promoting a new direction, ask:
 
@@ -110,6 +119,26 @@ Each milestone should follow the same explicit loop:
 6. close the milestone in roadmap/status docs
 
 This loop is part of the process, not optional cleanup.
+
+At design kickoff, define explicitly:
+
+- sponsor human
+- sponsor agent
+- hill
+- playback questions
+- non-goals
+
+At cycle close, evaluate explicitly from both perspectives:
+
+- human stakeholder playback
+- agent stakeholder playback
+
+In practice, that means:
+
+- the user acts as the human stakeholder
+- the coding agent acts as the agent stakeholder
+
+Do not close a cycle without that dual playback check.
 
 The point is to keep the repo honest about:
 
@@ -166,6 +195,11 @@ Tests should pin:
 - honest backup semantics
 - mode separation
 - `--json` output contracts for each CLI command
+
+When a slice serves both humans and agents, acceptance coverage should represent both perspectives where practical:
+
+- human-facing behavior or presentation contract
+- agent-facing machine-readable contract
 
 They should not overfit:
 
