@@ -76,6 +76,11 @@ This preserves the standing product doctrine:
 - machine contracts stay real
 - richer human reading can still become pleasant on screen
 
+It also preserves agent parity:
+
+- any meaningful `recent`, `browse`, `inspect`, or `Reflect` capability should have an explicit non-TUI command path
+- the human shell may improve navigation and presentation, but it must not become the only place where important read behavior exists
+
 ## Mode 1: Recent
 
 `recent` remains the first return surface.
@@ -201,6 +206,11 @@ That separation matters.
 
 If `browse` or `inspect` starts prompting by default, or if `reflect` starts pretending to be the archive browser, the modes will collapse again.
 
+This also applies to agent use:
+
+- an agent should be able to browse, inspect, and invoke `Reflect` through explicit command contracts
+- the human shell may make those actions easier to see, but it must not invent exclusive semantics
+
 ## Relationship To Spitball
 
 Future LLM-assisted spitballing still belongs outside this milestone.
@@ -232,6 +242,7 @@ That is a better sequence than trying to jump directly to a dialogue-heavy “re
 - an explicit `inspect` command or view for provenance and derived structure
 - a Bijou-based TUI shell for browse and inspect
 - clear receipts for any displayed connections or groupings
+- explicit agent-usable command paths for every meaningful read action exposed in the human shell
 
 ## First Bijou Slice
 
@@ -262,6 +273,7 @@ It is not a general permission slip to move the whole product into a terminal ap
 - does `inspect` help the user trust the system more?
 - do these read modes stay separate from capture and `Reflect`?
 - does any new read surface remain honest about what is raw versus derived?
+- can an agent perform the same core read jobs without depending on the Bijou shell?
 
 ## Exit Criteria
 
@@ -272,3 +284,4 @@ It is not a general permission slip to move the whole product into a terminal ap
 - the Bijou read shell proves helpful without trying to become the whole product
 - no new read mode adds friction to capture
 - no silent “smartness” leaks into the default read path
+- no core M4 capability exists only in the human TUI

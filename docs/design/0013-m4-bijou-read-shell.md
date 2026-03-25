@@ -94,6 +94,12 @@ The architectural split should be:
 - porcelain:
   - Bijou-based human browse/inspect shell
 
+This implies a hard rule:
+
+- no meaningful read behavior may exist only in the Bijou shell
+
+If the shell reveals a useful action, an agent should also be able to reach that action through explicit CLI plumbing.
+
 ## Why Bijou, Why Now
 
 Now is the right moment because:
@@ -154,6 +160,12 @@ This keeps the hierarchy clean:
 - capture remains unambiguous
 - machine-facing consumers still depend on explicit read commands
 - the human shell is convenience and clarity, not the source of truth
+
+It also keeps human and agent capabilities aligned:
+
+- human browse may be more pleasant in the shell
+- agent browse may be more mechanical through JSONL
+- both must rest on the same underlying read semantics
 
 ## First Shell Shape
 
@@ -221,6 +233,31 @@ That is useful because:
 
 The shell must not collapse these into one ambient mode.
 
+## Relationship To Agents
+
+Agents should be able to perform the same core jobs as the human shell through explicit command contracts.
+
+That means:
+
+- `recent` remains available through explicit JSONL read commands
+- `browse` remains available through explicit JSONL read commands
+- `inspect` remains available through explicit JSONL read commands
+- `Reflect` remains invokable without going through the Bijou shell
+
+The shell may improve:
+
+- presentation
+- navigation ergonomics
+- visual hierarchy
+
+It must not become the exclusive place where:
+
+- adjacency can be traversed
+- receipts can be inspected
+- a selected thought can be handed off into `Reflect`
+
+If a useful behavior only exists in the TUI, the agent-native contract has drifted.
+
 ## IBM Design Thinking Playback Questions
 
 - does the shell help the user return to the archive without first translating everything into ids and flags?
@@ -228,6 +265,7 @@ The shell must not collapse these into one ambient mode.
 - does the shell preserve trust by keeping raw text primary and receipts explicit?
 - does it strengthen `browse` and `inspect` without stealing the job of capture?
 - does it remain clearly downstream of the CLI plumbing contract?
+- does every important read action in the shell still have an explicit agent-usable command path?
 
 ## Exit Criteria
 
@@ -237,3 +275,4 @@ The shell must not collapse these into one ambient mode.
 - inspect receipts are available without fake narration
 - `Reflect` can be launched deliberately from the selected thought
 - plain CLI and `--json` read commands remain first-class and unchanged in meaning
+- no core browse/inspect/reflect action is exclusive to the shell

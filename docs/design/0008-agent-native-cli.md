@@ -153,16 +153,39 @@ Examples:
 
 - `think --json --recent`
 - `think --json --stats`
-- later, explicit brainstorm session commands
+- `think --json --browse=<entryId>`
+- `think --json --inspect=<entryId>`
+- later, explicit reflect session commands
 
 Human shorthand can remain:
 
 - `think "…"`
 - `think --recent`
 - menu bar capture
-- Bijou-driven interactive brainstorm surfaces later
+- Bijou-driven read shells later
 
 But those should rest on the same semantics rather than inventing their own side effects.
+
+### Agent Parity Matters For Read Modes Too
+
+As `think` grows richer human read surfaces, the agent contract must not fall behind.
+
+If a human can:
+
+- browse to adjacent thoughts
+- inspect receipts and derived structure
+- hand a selected thought into `Reflect`
+
+then an agent should be able to do the same jobs through explicit command contracts, even if the human shell presents them more elegantly.
+
+The product should not create:
+
+- human-only browse semantics
+- TUI-only inspect behaviors
+- shell-only transitions into reflect
+
+Porcelain may improve navigation.
+It must not hide capabilities from the plumbing boundary.
 
 ## Target Architecture
 
