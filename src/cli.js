@@ -503,6 +503,7 @@ async function runBrowse(entryId, output, reporter) {
   reporter.event('browse.done', {
     entryId,
     count: browseEntries.length,
+    sessionEntryCount: browseWindow.sessionEntries.length,
   });
 
   if (output.json) {
@@ -514,15 +515,36 @@ async function runBrowse(entryId, output, reporter) {
         sortKey: entry.sortKey,
       });
     }
+    if (browseWindow.sessionContext) {
+      output.data('browse.context', browseWindow.sessionContext);
+    }
+    for (const [index, entry] of browseWindow.sessionEntries.entries()) {
+      output.data('browse.session_entry', {
+        entryId: entry.id,
+        text: entry.text,
+        sortKey: entry.sortKey,
+        sessionId: browseWindow.sessionContext?.sessionId ?? entry.sessionId ?? null,
+        index,
+      });
+    }
     return 0;
   }
 
   const lines = ['Browse', `Current: ${browseWindow.current.text}`];
+  if (browseWindow.sessionContext) {
+    lines.push(`Session: ${browseWindow.sessionContext.sessionId}`);
+  }
   if (browseWindow.newer) {
     lines.push(`Newer: ${browseWindow.newer.text}`);
   }
   if (browseWindow.older) {
     lines.push(`Older: ${browseWindow.older.text}`);
+  }
+  if (browseWindow.sessionEntries.length > 0) {
+    lines.push('Session nearby:');
+    for (const entry of browseWindow.sessionEntries) {
+      lines.push(`${entry.id}: ${entry.text}`);
+    }
   }
   output.out(lines.join('\n'));
   return 0;

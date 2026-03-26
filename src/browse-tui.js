@@ -44,6 +44,7 @@ const browseKeymap = createKeyMap()
     .bind('end', 'Oldest', { type: 'jump', target: 'oldest' }))
   .group('View', (group) => group
     .bind('i', 'Inspect', { type: 'toggle_inspect' })
+    .bind('s', 'Session', { type: 'toggle_session' })
     .bind('l', 'Log', { type: 'toggle_log' })
     .bind('/', 'Jump', { type: 'open_jump' })
     .bind('pageup', 'Scroll up', { type: 'scroll', direction: 'up' })
@@ -220,6 +221,15 @@ function applyBrowseAction(model, action) {
         model: {
           ...model,
           panelMode: model.panelMode === 'inspect' ? 'none' : 'inspect',
+          contentScrollY: 0,
+        },
+        effect: null,
+      };
+    case 'toggle_session':
+      return {
+        model: {
+          ...model,
+          panelMode: model.panelMode === 'session' ? 'none' : 'session',
           contentScrollY: 0,
         },
         effect: null,
@@ -449,6 +459,8 @@ function normalizeScriptAction(rawAction) {
       return { type: 'move', delta: -1 };
     case 'inspect':
       return { type: 'toggle_inspect' };
+    case 'session':
+      return { type: 'toggle_session' };
     case 'log':
       return { type: 'toggle_log' };
     case 'quit':
@@ -549,6 +561,8 @@ function renderBottomPanel(model, width, height) {
   switch (model.panelMode) {
     case 'inspect':
       return renderInspectPane(model, width, height);
+    case 'session':
+      return renderSessionPane(model, width, height);
     case 'log':
       return renderLogPane(model, width, height);
     case 'jump':
@@ -609,6 +623,44 @@ function renderInspectPane(model, width, height) {
   });
 }
 
+function renderSessionPane(model, width, height) {
+  const entry = currentEntry(model);
+  const sessionEntries = model.entries.filter((candidate) =>
+    candidate.id !== entry.id && candidate.sessionId && candidate.sessionId === entry.sessionId);
+  const lines = [];
+
+  if (!entry.sessionId) {
+    lines.push(styleDim('Session context is not available for this thought yet.'));
+  } else {
+    lines.push(`Session ID: ${entry.sessionId}`);
+    lines.push('');
+
+    if (sessionEntries.length === 0) {
+      lines.push(styleDim('No other entries in this session.'));
+    } else {
+      for (const sessionEntry of sessionEntries) {
+        const timestamp = formatCompactWhen(sessionEntry.createdAt);
+        const summary = wrapLine(
+          `${sessionEntry.id} ${timestamp} ${normalizeWhitespace(sessionEntry.text)}`,
+          width
+        );
+        lines.push(summary);
+        lines.push('');
+      }
+      if (lines[lines.length - 1] === '') {
+        lines.pop();
+      }
+    }
+  }
+
+  return viewport({
+    width,
+    height,
+    content: lines.join('\n'),
+    scrollY: 0,
+  });
+}
+
 function renderLogPane(model, width, height) {
   const lines = [];
 
@@ -652,6 +704,7 @@ function buildThoughtContent(model, width) {
     `Relative: ${formatRelativeTime(entry.createdAt)}`,
     `Position: ${model.currentIndex + 1} of ${model.entries.length}`,
     `Entry ID: ${entry.id}`,
+    `Session: ${entry.sessionId ?? 'pending'}`,
     '',
     wrapParagraphs(entry.text, width),
     '',
@@ -734,6 +787,8 @@ function resolveDrawerTitle(panelMode) {
   switch (panelMode) {
     case 'inspect':
       return 'INSPECT';
+    case 'session':
+      return 'SESSION';
     case 'log':
       return 'THOUGHT LOG';
     case 'jump':

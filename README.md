@@ -137,8 +137,8 @@ think --stats
 
 `--count=<n>` limits `--recent` to the newest `n` raw captures. `--query=<text>` filters `--recent` by case-insensitive text match.
 
-`--browse=<entryId>` shows one raw capture with its immediate newer and older neighbors.
-In a real TTY, bare `--browse` opens a full-screen Bijou browse TUI on the newest raw capture. The default view is reader-first: the current thought owns the screen, with timestamp, relative time, position, and entry id visible up front. Use `j`/`k` or the arrow keys to move older and newer, `l` to reveal the thought log drawer, `/` to open the jump palette, `i` to reveal inspect receipts, `r` to jump into `Reflect`, and `q` to quit.
+`--browse=<entryId>` shows one raw capture with its immediate newer and older neighbors, plus explicit session context in JSON mode.
+In a real TTY, bare `--browse` opens a full-screen Bijou browse TUI on the newest raw capture. The default view is reader-first: the current thought owns the screen, with timestamp, relative time, position, entry id, and session id visible up front. Use `j`/`k` or the arrow keys to move older and newer, `s` to reveal the session drawer, `l` to reveal the thought log drawer, `/` to open the jump palette, `i` to reveal inspect receipts, `r` to jump into `Reflect`, and `q` to quit.
 
 `--inspect=<entryId>` exposes the stored raw capture, canonical thought identity, first derived receipts (`seed_quality` and `session_attribution`), and any direct `Reflect` descendants without summarizing or narrating the thought.
 

@@ -235,17 +235,14 @@ test('think --json --browse emits JSONL rows for the current raw thought and its
   );
 
   assert.deepEqual(
-    events.map((event) => event.event),
-    [
-      'cli.start',
-      'browse.start',
-      'browse.done',
-      'browse.entry',
-      'browse.entry',
-      'browse.entry',
-      'cli.success',
-    ],
-    'Expected JSON browse to emit the current entry and its immediate neighbors within the usual browse command envelope.'
+    events.slice(0, 3).map((event) => event.event),
+    ['cli.start', 'browse.start', 'browse.done'],
+    'Expected JSON browse to preserve the standard command envelope before browse payload rows.'
+  );
+  assert.equal(
+    events.at(-1)?.event,
+    'cli.success',
+    'Expected JSON browse to preserve the standard command envelope after browse payload rows.'
   );
 
   const browseEvents = events.filter((event) => event.event === 'browse.entry');

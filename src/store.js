@@ -226,6 +226,7 @@ export async function listRecent(repoDir, { count = null, query = null } = {}) {
       text: entry.text,
       sortKey: entry.sortKey,
       createdAt: entry.createdAt,
+      sessionId: entry.sessionId ?? null,
     }))
     .sort(compareEntriesNewestFirst);
 
@@ -246,17 +247,51 @@ export async function listReflectableRecent(repoDir) {
 }
 
 export async function getBrowseWindow(repoDir, entryId) {
-  const recent = await listRecent(repoDir);
+  const graph = await openGraph(repoDir);
+  let currentEntry = await getStoredEntry(graph, entryId);
+
+  if (!currentEntry || currentEntry.kind !== 'capture') {
+    return null;
+  }
+
+  await ensureFirstDerivedArtifacts(graph, currentEntry);
+  currentEntry = await getStoredEntry(graph, entryId);
+
+  const recent = (await listEntriesByKind(graph, 'capture'))
+    .map((entry) => ({
+      id: entry.id,
+      text: entry.text,
+      sortKey: entry.sortKey,
+      createdAt: entry.createdAt,
+      sessionId: entry.sessionId ?? null,
+    }))
+    .sort(compareEntriesNewestFirst);
+
   const index = recent.findIndex((entry) => entry.id === entryId);
 
   if (index === -1) {
     return null;
   }
 
+  const sessionAttribution = await getSessionAttributionReceipt(graph, currentEntry);
+  const sessionEntries = sessionAttribution
+    ? recent.filter((entry) =>
+        entry.id !== entryId && entry.sessionId === sessionAttribution.sessionId)
+    : [];
+
   return {
     current: recent[index],
     newer: index > 0 ? recent[index - 1] : null,
     older: index + 1 < recent.length ? recent[index + 1] : null,
+    sessionContext: sessionAttribution
+      ? {
+          entryId,
+          sessionId: sessionAttribution.sessionId,
+          reasonKind: sessionAttribution.reasonKind,
+          reasonText: sessionAttribution.reasonText,
+        }
+      : null,
+    sessionEntries,
   };
 }
 
