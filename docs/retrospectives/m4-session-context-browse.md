@@ -12,6 +12,7 @@ Delivered behavior:
 - the reader-first browse shell now shows explicit session identity for the current thought
 - the Bijou browse shell now has a summon-only `SESSION` drawer
 - the session drawer shows only same-session entries
+- browse-initiated `Reflect` now stays inside the TUI instead of dropping back to plain CLI prompts
 - JSON browse now exposes:
   - `browse.context`
   - `browse.session_entry`

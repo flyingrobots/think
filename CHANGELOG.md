@@ -20,7 +20,7 @@ Release discipline:
 - `--count=<n>` and `--query=<text>` for tighter raw reentry without turning `recent` into a dashboard
 - first explicit `--browse=<entryId>` read surface for navigating one raw thought with its immediate newer and older neighbors
 - first explicit `--inspect=<entryId>` read surface for exposing exact raw entry metadata without narration
-- first full-screen Bijou browse TUI for bare `--browse` in a real TTY, with a reader-first default view, visible thought metadata, a summon-only thought-log drawer, a jump palette, inspect receipts, and reflect handoff
+- first full-screen Bijou browse TUI for bare `--browse` in a real TTY, with a reader-first default view, visible thought metadata, a summon-only thought-log drawer, a jump palette, inspect receipts, and in-shell reflect
 - session-context browse in both human and JSON surfaces, including visible session ids, a summon-only session drawer, and explicit `browse.context` / `browse.session_entry` rows
 - canonical `thought:<fingerprint>` identity exposed in `inspect`
 - first stored derivation bundle for raw thoughts:

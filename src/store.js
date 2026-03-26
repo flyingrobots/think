@@ -65,27 +65,13 @@ export async function captureThought(repoDir, thought) {
 
 export async function startReflect(repoDir, seedEntryId, { promptType = null } = {}) {
   const graph = await openGraph(repoDir);
-  const seedEntry = await getStoredEntry(graph, seedEntryId);
+  const planned = await planReflect(graph, seedEntryId, { promptType });
 
-  if (!seedEntry || seedEntry.kind !== 'capture') {
-    return {
-      ok: false,
-      code: 'seed_not_found',
-    };
+  if (!planned.ok) {
+    return planned;
   }
 
-  const eligibility = assessReflectability(seedEntry.text);
-  if (!eligibility.eligible) {
-    return {
-      ok: false,
-      code: 'seed_ineligible',
-      seedEntryId,
-      seedEntry,
-      eligibility,
-    };
-  }
-
-  const promptPlan = selectReflectPrompt(seedEntry, promptType);
+  const promptPlan = planned.promptPlan;
   const session = createReflectSession(graph.writerId, {
     seedEntryId,
     contrastEntryId: null,
@@ -125,7 +111,28 @@ export async function startReflect(repoDir, seedEntryId, { promptType = null } =
     question: session.question,
     maxSteps: session.maxSteps,
     selectionReason: session.selectionReason,
-    seedEntry,
+    seedEntry: planned.seedEntry,
+    contrastEntry: null,
+  };
+}
+
+export async function previewReflect(repoDir, seedEntryId, { promptType = null } = {}) {
+  const graph = await openGraph(repoDir);
+  const planned = await planReflect(graph, seedEntryId, { promptType });
+
+  if (!planned.ok) {
+    return planned;
+  }
+
+  return {
+    ok: true,
+    seedEntryId,
+    contrastEntryId: null,
+    promptType: planned.promptPlan.promptType,
+    question: planned.promptPlan.question,
+    maxSteps: MAX_REFLECT_STEPS,
+    selectionReason: planned.promptPlan.selectionReason,
+    seedEntry: planned.seedEntry,
     contrastEntry: null,
   };
 }
@@ -660,6 +667,34 @@ function selectReflectPrompt(seedEntry, requestedPromptType = null) {
       text: 'Used a deterministic constraint prompt from the seed thought alone.',
     },
     question,
+  };
+}
+
+async function planReflect(graph, seedEntryId, { promptType = null } = {}) {
+  const seedEntry = await getStoredEntry(graph, seedEntryId);
+
+  if (!seedEntry || seedEntry.kind !== 'capture') {
+    return {
+      ok: false,
+      code: 'seed_not_found',
+    };
+  }
+
+  const eligibility = assessReflectability(seedEntry.text);
+  if (!eligibility.eligible) {
+    return {
+      ok: false,
+      code: 'seed_ineligible',
+      seedEntryId,
+      seedEntry,
+      eligibility,
+    };
+  }
+
+  return {
+    ok: true,
+    seedEntry,
+    promptPlan: selectReflectPrompt(seedEntry, promptType),
   };
 }
 

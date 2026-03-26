@@ -12,6 +12,7 @@ import {
   inspectRawEntry,
   listReflectableRecent,
   listRecent,
+  previewReflect,
   getStats,
   startReflect,
   saveReflectResponse,
@@ -575,29 +576,49 @@ async function runInteractiveBrowseShell(output, reporter) {
       inspectById.set(entry.id, await inspectRawEntry(repoDir, entry.id));
     }
 
-    const result = runBrowseTuiScript({
+    const result = await runBrowseTuiScript({
       entries,
       inspectById,
       initialEntryId,
       actions: scripted.actions ?? [],
+      previewReflectEntry: (entryId, promptType) => previewReflect(repoDir, entryId, { promptType }),
+      startReflectSession: async (entryId, promptType) => {
+        const session = await startReflect(repoDir, entryId, { promptType });
+        if (session.ok) {
+          reporter.event('reflect.session_started', {
+            sessionId: session.sessionId,
+            seedEntryId: session.seedEntryId,
+            contrastEntryId: session.contrastEntryId ?? null,
+            promptType: session.promptType,
+            maxSteps: session.maxSteps,
+            selectionReason: session.selectionReason,
+          });
+          reporter.event('reflect.prompt', {
+            sessionId: session.sessionId,
+            promptType: session.promptType,
+            question: session.question,
+          });
+        }
+        return session;
+      },
+      saveReflectSessionResponse: async (sessionId, response) => {
+        const saved = await saveReflectResponse(repoDir, sessionId, response);
+        if (saved) {
+          reporter.event('reflect.entry_saved', {
+            entryId: saved.id,
+            kind: saved.kind,
+            seedEntryId: saved.seedEntryId,
+            contrastEntryId: saved.contrastEntryId ?? null,
+            sessionId: saved.sessionId,
+            promptType: saved.promptType,
+          });
+        }
+        return saved;
+      },
+      loadInspectEntry: (entryId) => inspectRawEntry(repoDir, entryId),
     });
 
     output.out(result.output);
-
-    if (result.effect?.type === 'reflect') {
-      const exitCode = await runReflectFromBrowse(
-        result.effect.entryId,
-        output,
-        reporter,
-        result.effect.scriptedAction ?? null
-      );
-      reporter.event('browse.shell_finished', {
-        entryId: result.effect.entryId,
-        exitCode,
-        reflected: true,
-      });
-      return exitCode;
-    }
 
     reporter.event('browse.shell_finished', { entryId: initialEntryId });
     return 0;
@@ -607,17 +628,41 @@ async function runInteractiveBrowseShell(output, reporter) {
     entries,
     initialEntryId,
     loadInspectEntry: (entryId) => inspectRawEntry(repoDir, entryId),
+    previewReflectEntry: (entryId, promptType) => previewReflect(repoDir, entryId, { promptType }),
+    startReflectSession: async (entryId, promptType) => {
+      const session = await startReflect(repoDir, entryId, { promptType });
+      if (session.ok) {
+        reporter.event('reflect.session_started', {
+          sessionId: session.sessionId,
+          seedEntryId: session.seedEntryId,
+          contrastEntryId: session.contrastEntryId ?? null,
+          promptType: session.promptType,
+          maxSteps: session.maxSteps,
+          selectionReason: session.selectionReason,
+        });
+        reporter.event('reflect.prompt', {
+          sessionId: session.sessionId,
+          promptType: session.promptType,
+          question: session.question,
+        });
+      }
+      return session;
+    },
+    saveReflectSessionResponse: async (sessionId, response) => {
+      const saved = await saveReflectResponse(repoDir, sessionId, response);
+      if (saved) {
+        reporter.event('reflect.entry_saved', {
+          entryId: saved.id,
+          kind: saved.kind,
+          seedEntryId: saved.seedEntryId,
+          contrastEntryId: saved.contrastEntryId ?? null,
+          sessionId: saved.sessionId,
+          promptType: saved.promptType,
+        });
+      }
+      return saved;
+    },
   });
-
-  if (effect?.type === 'reflect') {
-    const exitCode = await runReflectFromBrowse(effect.entryId, output, reporter);
-    reporter.event('browse.shell_finished', {
-      entryId: effect.entryId,
-      exitCode,
-      reflected: true,
-    });
-    return exitCode;
-  }
 
   reporter.event('browse.shell_finished', { entryId: initialEntryId });
   return 0;

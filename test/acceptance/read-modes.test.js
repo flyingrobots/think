@@ -422,14 +422,26 @@ test('think --browse can hand the selected thought into reflect from the scripte
             mode: 'sharpen',
             response: reflectAnswer,
           },
+          'quit',
         ],
       }),
     }
   );
 
   assertSuccess(browse, 'Expected scripted browse reflect handoff to succeed.');
-  assertContains(browse, 'Reflect', 'Expected the shell to hand off into reflect explicitly.');
+  assertContains(browse, 'THINK BROWSE', 'Expected reflect to stay inside the browse shell.');
+  assertContains(browse, 'REFLECT', 'Expected the shell to expose an in-shell reflect surface explicitly.');
   assertContains(browse, 'Reflect saved', 'Expected the shell reflect handoff to save a derived reflect entry.');
+  assertContains(
+    browse,
+    seedThought,
+    'Expected the current thought to remain visible again after the in-shell reflect flow finishes.'
+  );
+  assertNotContains(
+    browse,
+    'Your response',
+    'Expected browse-initiated reflect not to drop back to the plain CLI prompt UI.'
+  );
 
   const inspect = runThink(context, [`--inspect=${seedEntryId}`]);
   assertSuccess(inspect, 'Expected inspect to succeed after browse-shell reflect handoff.');

@@ -14,6 +14,7 @@ import {
   createScrollState,
   flex,
   helpShort,
+  modal,
   pageDown,
   pageUp,
   quit,
@@ -54,7 +55,14 @@ const browseKeymap = createKeyMap()
     .bind('q', 'Quit', { type: 'quit' })
     .bind('escape', 'Close/Quit', { type: 'escape' }));
 
-export async function runBrowseTui({ entries, initialEntryId = null, loadInspectEntry = null }) {
+export async function runBrowseTui({
+  entries,
+  initialEntryId = null,
+  loadInspectEntry = null,
+  previewReflectEntry = null,
+  startReflectSession = null,
+  saveReflectSessionResponse = null,
+}) {
   let effect = { type: 'quit' };
 
   const app = {
@@ -80,9 +88,24 @@ export async function runBrowseTui({ entries, initialEntryId = null, loadInspect
         }, []];
       }
 
+      if (msg.type === 'reflect_previewed') {
+        return [applyReflectPreviewed(model, msg), []];
+      }
+
+      if (msg.type === 'reflect_saved') {
+        return [applyReflectSaved(model, msg), []];
+      }
+
+      if (msg.type === 'reflect_failed') {
+        return [applyReflectFailed(model, msg), []];
+      }
+
       if (msg.type !== 'key') {
         return [model, []];
       }
+
+      const maybeCleared = clearNoticeOnKey(model);
+      model = maybeCleared;
 
       const jumpResult = handleJumpKey(model, msg);
       if (jumpResult) {
@@ -90,9 +113,25 @@ export async function runBrowseTui({ entries, initialEntryId = null, loadInspect
         return [nextModel, cmds];
       }
 
-      const action = browseKeymap.handle(msg);
+      const reflectResult = handleReflectKey(model, msg);
+      if (reflectResult) {
+        const [nextModel, cmds] = maybeQueueInspectLoad(reflectResult.model, loadInspectEntry);
+        return [nextModel, [...(reflectResult.cmds ?? []), ...cmds]];
+      }
+
+      let action = browseKeymap.handle(msg);
       if (!action) {
         return [model, []];
+      }
+
+      if (action.type === 'reflect') {
+        action = {
+          ...action,
+          previewReflectEntry,
+          startReflectSession,
+          saveReflectSessionResponse,
+          loadInspectEntry,
+        };
       }
 
       const result = applyBrowseAction(model, action);
@@ -101,13 +140,8 @@ export async function runBrowseTui({ entries, initialEntryId = null, loadInspect
         return [result.model, [quit()]];
       }
 
-      if (result.effect?.type === 'reflect') {
-        effect = result.effect;
-        return [result.model, [quit()]];
-      }
-
       const [nextModel, cmds] = maybeQueueInspectLoad(result.model, loadInspectEntry);
-      return [nextModel, cmds];
+      return [nextModel, [...(result.cmds ?? []), ...cmds]];
     },
     view(model) {
       return parseAnsiToSurface(renderBrowseModel(model), model.columns, model.rows);
@@ -118,7 +152,16 @@ export async function runBrowseTui({ entries, initialEntryId = null, loadInspect
   return effect;
 }
 
-export function runBrowseTuiScript({ entries, inspectById, initialEntryId = null, actions = [] }) {
+export async function runBrowseTuiScript({
+  entries,
+  inspectById,
+  initialEntryId = null,
+  actions = [],
+  previewReflectEntry = null,
+  startReflectSession = null,
+  saveReflectSessionResponse = null,
+  loadInspectEntry = null,
+}) {
   let model = createBrowseModel({ entries, inspectCache: inspectById, initialEntryId });
   const frames = [renderBrowseModel(model)];
   let effect = { type: 'quit' };
@@ -144,13 +187,25 @@ export function runBrowseTuiScript({ entries, inspectById, initialEntryId = null
       continue;
     }
 
+    if (isScriptReflectAction(rawAction)) {
+      const result = await runScriptReflectAction(model, rawAction, {
+        previewReflectEntry,
+        startReflectSession,
+        saveReflectSessionResponse,
+        loadInspectEntry,
+      });
+      model = result.model;
+      frames.push(...result.frames);
+      continue;
+    }
+
     const action = normalizeScriptAction(rawAction);
     const result = applyBrowseAction(model, action);
     model = result.model;
     frames.push(renderBrowseModel(model));
 
-    if (result.effect) {
-      effect = attachScriptPayload(result.effect, rawAction);
+    if (result.effect?.type === 'quit') {
+      effect = result.effect;
       break;
     }
   }
@@ -172,6 +227,15 @@ function createBrowseModel({ entries, inspectCache, initialEntryId }) {
     rows: process.stdout.rows ?? DEFAULT_ROWS,
     contentScrollY: 0,
     jumpPalette: createJumpPalette(entries),
+    previousPanelMode: 'none',
+    notice: null,
+    reflect: {
+      status: 'idle',
+      entryId: null,
+      promptType: null,
+      question: '',
+      draft: '',
+    },
   };
 }
 
@@ -302,11 +366,11 @@ function applyBrowseAction(model, action) {
     }
     case 'reflect':
       return {
-        model,
-        effect: {
-          type: 'reflect',
-          entryId: currentEntry(model).id,
-        },
+        model: openReflectModel(model, action.promptType ?? null),
+        effect: null,
+        cmds: action.previewReflectEntry
+          ? [createReflectPreviewCommand(currentEntry(model).id, action.promptType ?? null, action.previewReflectEntry)]
+          : [],
       };
     case 'escape':
       if (model.panelMode !== 'none') {
@@ -424,6 +488,102 @@ function handleJumpKey(model, msg) {
   };
 }
 
+function handleReflectKey(model, msg) {
+  if (model.panelMode !== 'reflect') {
+    return null;
+  }
+
+  if (model.reflect.status === 'loading' || model.reflect.status === 'saving') {
+    return {
+      model,
+      effect: null,
+      cmds: [],
+    };
+  }
+
+  if (msg.key === 'escape') {
+    return {
+      model: closeReflectModel(model, null),
+      effect: null,
+      cmds: [],
+    };
+  }
+
+  if (msg.key === 'backspace') {
+    return {
+      model: {
+        ...model,
+        reflect: {
+          ...model.reflect,
+          draft: model.reflect.draft.slice(0, -1),
+        },
+      },
+      effect: null,
+      cmds: [],
+    };
+  }
+
+  if (msg.key === 'enter') {
+    if (model.reflect.draft.trim() === '') {
+      return {
+        model: closeReflectModel(model, 'Reflect skipped'),
+        effect: null,
+        cmds: [],
+      };
+    }
+
+    if (!model.reflect.startReflectSession || !model.reflect.saveReflectSessionResponse) {
+      return {
+        model: closeReflectModel(model, 'Reflect is not available in this shell'),
+        effect: null,
+        cmds: [],
+      };
+    }
+
+    return {
+      model: {
+        ...model,
+        reflect: {
+          ...model.reflect,
+          status: 'saving',
+        },
+      },
+      effect: null,
+      cmds: [
+        createReflectSaveCommand(
+          currentEntry(model).id,
+          model.reflect.promptType,
+          model.reflect.draft,
+          model.reflect.startReflectSession,
+          model.reflect.saveReflectSessionResponse,
+          model.reflect.loadInspectEntry
+        ),
+      ],
+    };
+  }
+
+  const character = keyMsgToPrintableChar(msg);
+  if (!character) {
+    return {
+      model,
+      effect: null,
+      cmds: [],
+    };
+  }
+
+  return {
+    model: {
+      ...model,
+      reflect: {
+        ...model.reflect,
+        draft: `${model.reflect.draft}${character}`,
+      },
+    },
+    effect: null,
+    cmds: [],
+  };
+}
+
 function keyMsgToPrintableChar(msg) {
   if (msg.ctrl || msg.alt) {
     return null;
@@ -447,7 +607,10 @@ function keyMsgToPrintableChar(msg) {
 function normalizeScriptAction(rawAction) {
   if (typeof rawAction === 'object' && rawAction !== null) {
     if (rawAction.type === 'reflect') {
-      return { type: 'reflect' };
+      return {
+        type: 'reflect',
+        promptType: rawAction.mode ?? null,
+      };
     }
     return rawAction;
   }
@@ -466,7 +629,7 @@ function normalizeScriptAction(rawAction) {
     case 'quit':
       return { type: 'quit' };
     case 'reflect':
-      return { type: 'reflect' };
+      return { type: 'reflect', promptType: null };
     default:
       return { type: 'quit' };
   }
@@ -476,21 +639,6 @@ function isScriptJumpAction(rawAction) {
   return typeof rawAction === 'object'
     && rawAction !== null
     && rawAction.type === 'jump';
-}
-
-function attachScriptPayload(effect, rawAction) {
-  if (effect.type !== 'reflect') {
-    return effect;
-  }
-
-  if (typeof rawAction === 'object' && rawAction !== null) {
-    return {
-      ...effect,
-      scriptedAction: rawAction,
-    };
-  }
-
-  return effect;
 }
 
 function renderBrowseModel(model) {
@@ -523,26 +671,41 @@ function renderBrowseModel(model) {
     }
   );
 
-  if (model.panelMode === 'none') {
+  const overlays = [];
+
+  if (model.panelMode !== 'none' && model.panelMode !== 'reflect') {
+    overlays.push(drawer({
+      anchor: 'bottom',
+      title: resolveDrawerTitle(model.panelMode),
+      content: renderDrawerContent(model, layout),
+      screenWidth: model.columns,
+      screenHeight: model.rows,
+      region: {
+        row: 1,
+        col: 0,
+        width: model.columns,
+        height: layout.bodyHeight,
+      },
+      height: layout.panelHeight,
+    }));
+  }
+
+  if (model.panelMode === 'reflect') {
+    overlays.push(modal({
+      title: 'REFLECT',
+      body: renderReflectModalBody(model, Math.max(48, Math.min(model.columns - 8, 92))),
+      hint: resolveReflectHint(model),
+      screenWidth: model.columns,
+      screenHeight: model.rows,
+      width: Math.max(48, Math.min(model.columns - 8, 92)),
+    }));
+  }
+
+  if (overlays.length === 0) {
     return background;
   }
 
-  const overlay = drawer({
-    anchor: 'bottom',
-    title: resolveDrawerTitle(model.panelMode),
-    content: renderDrawerContent(model, layout),
-    screenWidth: model.columns,
-    screenHeight: model.rows,
-    region: {
-      row: 1,
-      col: 0,
-      width: model.columns,
-      height: layout.bodyHeight,
-    },
-    height: layout.panelHeight,
-  });
-
-  return composite(background, [overlay]);
+  return composite(background, overlays, { dim: model.panelMode === 'reflect' });
 }
 
 function renderThoughtPane(model, width, height) {
@@ -694,6 +857,35 @@ function renderJumpPane(model, width, height) {
   });
 }
 
+function renderReflectModalBody(model, width) {
+  const lines = [];
+
+  if (model.reflect.status === 'loading') {
+    lines.push('Preparing reflect prompt...');
+    return lines.join('\n');
+  }
+
+  if (model.reflect.status === 'saving') {
+    lines.push('Saving reflect response...');
+    return lines.join('\n');
+  }
+
+  lines.push(`Mode: ${capitalize(model.reflect.promptType ?? 'challenge')}`);
+  lines.push('');
+  lines.push('Question:');
+  lines.push(wrapParagraphs(model.reflect.question, width - 4));
+  lines.push('');
+  lines.push('Response:');
+  lines.push(
+    wrapParagraphs(
+      model.reflect.draft.length > 0 ? model.reflect.draft : '(type your reflect response)',
+      width - 4
+    )
+  );
+
+  return lines.join('\n');
+}
+
 function buildThoughtContent(model, width) {
   const entry = currentEntry(model);
   const neighbors = resolveNeighbors(model);
@@ -776,11 +968,18 @@ function computeLogScroll(model, height) {
 }
 
 function resolveHelpLine(model) {
+  if (model.panelMode === 'reflect') {
+    return model.notice
+      ? `${model.notice} • Type to respond • Enter save • Backspace delete • Esc cancel`
+      : 'Type to respond • Enter save • Backspace delete • Esc cancel';
+  }
+
   if (model.panelMode === 'jump') {
     return 'Type to filter • ↑/↓ move • Enter open • Backspace erase • Esc close';
   }
 
-  return helpShort(browseKeymap);
+  const help = helpShort(browseKeymap);
+  return model.notice ? `${model.notice} • ${help}` : help;
 }
 
 function resolveDrawerTitle(panelMode) {
@@ -915,6 +1114,10 @@ function styleDim(text) {
   return `${ANSI.dim}${text}${ANSI.reset}`;
 }
 
+function capitalize(text) {
+  return String(text).charAt(0).toUpperCase() + String(text).slice(1);
+}
+
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
@@ -949,5 +1152,245 @@ function createInspectLoadCommand(entryId, loadInspectEntry) {
       entryId,
       inspectEntry,
     });
+  };
+}
+
+function openReflectModel(model, promptType = null, deps = {}) {
+  return {
+    ...model,
+    previousPanelMode: model.panelMode === 'reflect' ? model.previousPanelMode : model.panelMode,
+    panelMode: 'reflect',
+    notice: null,
+    reflect: {
+      status: 'loading',
+      entryId: currentEntry(model).id,
+      promptType,
+      question: '',
+      draft: '',
+      previewReflectEntry: deps.previewReflectEntry ?? model.reflect.previewReflectEntry ?? null,
+      startReflectSession: deps.startReflectSession ?? model.reflect.startReflectSession ?? null,
+      saveReflectSessionResponse: deps.saveReflectSessionResponse ?? model.reflect.saveReflectSessionResponse ?? null,
+      loadInspectEntry: deps.loadInspectEntry ?? model.reflect.loadInspectEntry ?? null,
+    },
+  };
+}
+
+function closeReflectModel(model, notice = null) {
+  return {
+    ...model,
+    panelMode: model.previousPanelMode ?? 'none',
+    previousPanelMode: 'none',
+    notice,
+    reflect: {
+      status: 'idle',
+      entryId: null,
+      promptType: null,
+      question: '',
+      draft: '',
+      previewReflectEntry: model.reflect.previewReflectEntry ?? null,
+      startReflectSession: model.reflect.startReflectSession ?? null,
+      saveReflectSessionResponse: model.reflect.saveReflectSessionResponse ?? null,
+      loadInspectEntry: model.reflect.loadInspectEntry ?? null,
+    },
+  };
+}
+
+function applyReflectPreviewed(model, msg) {
+  if (!msg.result?.ok) {
+    return closeReflectModel(model, formatReflectFailureMessage(msg.result));
+  }
+
+  return {
+    ...model,
+    panelMode: 'reflect',
+    reflect: {
+      ...model.reflect,
+      status: 'ready',
+      promptType: msg.result.promptType,
+      question: msg.result.question,
+    },
+  };
+}
+
+function applyReflectSaved(model, msg) {
+  let nextModel = closeReflectModel(model, 'Reflect saved');
+  if (msg.inspectEntry) {
+    const nextCache = new Map(nextModel.inspectCache);
+    nextCache.set(msg.entryId, msg.inspectEntry);
+    nextModel = {
+      ...nextModel,
+      inspectCache: nextCache,
+    };
+  }
+  return nextModel;
+}
+
+function applyReflectFailed(model, msg) {
+  return closeReflectModel(model, msg.message ?? 'Reflect failed');
+}
+
+function clearNoticeOnKey(model) {
+  if (!model.notice) {
+    return model;
+  }
+
+  return {
+    ...model,
+    notice: null,
+  };
+}
+
+function createReflectPreviewCommand(entryId, promptType, previewReflectEntry) {
+  return async (emit) => {
+    const result = await previewReflectEntry(entryId, promptType);
+    emit({
+      type: 'reflect_previewed',
+      entryId,
+      result,
+    });
+  };
+}
+
+function createReflectSaveCommand(
+  entryId,
+  promptType,
+  response,
+  startReflectSession,
+  saveReflectSessionResponse,
+  loadInspectEntry
+) {
+  return async (emit) => {
+    const session = await startReflectSession(entryId, promptType);
+    if (!session?.ok) {
+      emit({
+        type: 'reflect_failed',
+        entryId,
+        message: formatReflectFailureMessage(session),
+      });
+      return;
+    }
+
+    const saved = await saveReflectSessionResponse(session.sessionId, response);
+    if (!saved) {
+      emit({
+        type: 'reflect_failed',
+        entryId,
+        message: 'Reflect session could not be saved',
+      });
+      return;
+    }
+
+    const inspectEntry = loadInspectEntry ? await loadInspectEntry(entryId) : null;
+    emit({
+      type: 'reflect_saved',
+      entryId,
+      sessionId: session.sessionId,
+      savedEntryId: saved.id,
+      inspectEntry,
+    });
+  };
+}
+
+function formatReflectFailureMessage(result) {
+  if (!result) {
+    return 'Reflect failed';
+  }
+
+  if (result.code === 'seed_not_found') {
+    return 'Seed entry not found';
+  }
+
+  if (result.code === 'seed_ineligible') {
+    return result.eligibility?.text ?? 'This thought is not a good reflect seed';
+  }
+
+  return 'Reflect failed';
+}
+
+function resolveReflectHint(model) {
+  if (model.reflect.status === 'loading') {
+    return 'Preparing prompt...';
+  }
+  if (model.reflect.status === 'saving') {
+    return 'Saving...';
+  }
+  return 'Type to respond • Enter save • Backspace delete • Esc cancel';
+}
+
+function isScriptReflectAction(rawAction) {
+  return typeof rawAction === 'object'
+    && rawAction !== null
+    && rawAction.type === 'reflect';
+}
+
+async function runScriptReflectAction(model, rawAction, deps) {
+  const frames = [];
+  const openedModel = openReflectModel(model, rawAction.mode ?? null, deps);
+  frames.push(renderBrowseModel(openedModel));
+
+  const previewResult = deps.previewReflectEntry
+    ? await deps.previewReflectEntry(currentEntry(openedModel).id, rawAction.mode ?? null)
+    : {
+        ok: false,
+        code: 'seed_not_found',
+      };
+  let nextModel = applyReflectPreviewed(openedModel, {
+    type: 'reflect_previewed',
+    entryId: currentEntry(openedModel).id,
+    result: previewResult,
+  });
+  frames.push(renderBrowseModel(nextModel));
+
+  if (!previewResult.ok) {
+    return {
+      model: nextModel,
+      frames,
+    };
+  }
+
+  nextModel = {
+    ...nextModel,
+    reflect: {
+      ...nextModel.reflect,
+      draft: rawAction.response ?? '',
+    },
+  };
+  frames.push(renderBrowseModel(nextModel));
+
+  if ((rawAction.response ?? '').trim() === '') {
+    return {
+      model: closeReflectModel(nextModel, 'Reflect skipped'),
+      frames: [...frames, renderBrowseModel(closeReflectModel(nextModel, 'Reflect skipped'))],
+    };
+  }
+
+  const session = await deps.startReflectSession(currentEntry(nextModel).id, nextModel.reflect.promptType);
+  if (!session?.ok) {
+    const failedModel = applyReflectFailed(nextModel, {
+      type: 'reflect_failed',
+      entryId: currentEntry(nextModel).id,
+      message: formatReflectFailureMessage(session),
+    });
+    return {
+      model: failedModel,
+      frames: [...frames, renderBrowseModel(failedModel)],
+    };
+  }
+
+  const saved = await deps.saveReflectSessionResponse(session.sessionId, rawAction.response);
+  const inspectEntry = deps.loadInspectEntry
+    ? await deps.loadInspectEntry(currentEntry(nextModel).id)
+    : null;
+  const savedModel = applyReflectSaved(nextModel, {
+    type: 'reflect_saved',
+    entryId: currentEntry(nextModel).id,
+    savedEntryId: saved?.id ?? null,
+    sessionId: session.sessionId,
+    inspectEntry,
+  });
+
+  return {
+    model: savedModel,
+    frames: [...frames, renderBrowseModel(savedModel)],
   };
 }

@@ -289,7 +289,7 @@ The first TUI slice should stay intentionally narrow:
 - support a hidden bottom chronology drawer
 - support a fuzzy jump palette for archive movement
 - expose an inspect pane or toggle for raw metadata and derived receipts
-- allow a jump into `Reflect` from the selected thought
+- allow a jump into `Reflect` from the selected thought without dropping out of the TUI shell
 
 It should not start with:
 

@@ -231,7 +231,7 @@ That keeps inspect honest in both environments.
 
 ## Relationship To Reflect
 
-The shell may provide a clean handoff into `Reflect`.
+The shell may provide a clean in-shell transition into `Reflect`.
 
 That is useful because:
 
@@ -240,6 +240,12 @@ That is useful because:
 - reflect pushes the thought further
 
 The shell must not collapse these into one ambient mode.
+
+For the browse shell specifically, that means:
+
+- invoking `Reflect` from inside the TUI should stay inside the TUI
+- the user should not be dropped back into plain CLI prompts just because they started from the shell
+- after a reflect response is saved or cancelled, the user should land back in browse with the current thought still in view
 
 ## Relationship To Agents
 
