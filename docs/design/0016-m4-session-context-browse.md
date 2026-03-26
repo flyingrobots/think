@@ -1,6 +1,6 @@
 # 0016 M4 Session-Context Browse
 
-Status: draft for review
+Status: implemented for the first session-context browse slice
 
 ## Purpose
 
@@ -175,12 +175,32 @@ This slice should count as done only when:
 - no related-thought or graph-neighborhood claims are introduced without explicit receipts
 - the result still feels like browse, not inspect-plus-more-noise
 
+## Outcome
+
+The first session-context browse slice now exists.
+
+Delivered behavior:
+
+- browse metadata shows explicit session identity for the current thought
+- the Bijou browse shell has a summon-only `SESSION` drawer
+- the session drawer shows only same-session entries
+- JSON browse output exposes:
+  - `browse.context`
+  - `browse.session_entry`
+- the reader-first browse posture remains intact
+
+## Retrospective Reference
+
+For the implementation closeout and playback notes, see:
+
+- [`../retrospectives/m4-session-context-browse.md`](../retrospectives/m4-session-context-browse.md)
+
 ## Recommended Next Step
 
-After this note is approved:
+Do not assume the next M4 slice automatically.
 
-1. write failing specs for session-context browse in both human and JSON forms
-2. implement the narrowest slice that proves session-aware reentry value
-3. evaluate playback from both:
-   - human stakeholder
-   - agent stakeholder
+After this slice is closed:
+
+1. evaluate human playback
+2. evaluate agent playback
+3. choose the next narrow M4 slice from that playback, rather than letting browse sprawl by inertia

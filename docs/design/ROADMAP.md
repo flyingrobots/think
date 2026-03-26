@@ -16,6 +16,7 @@ Milestones exist to prove user value in sequence. They are not buckets for unrel
 - `M2: macOS capture surface` is complete.
 - `M3: Brainstorm Mode` is complete.
 - `M4: Reentry, Browse, and Inspect` is in progress.
+- the first M4 session-context browse slice is implemented and closed.
 
 ## Planning Principles
 

@@ -232,7 +232,7 @@ npm run install-hooks
 
 The current `M1` and `M2` suites are green for the implemented behavior.
 The current `M3` reflect suite is green for the implemented behavior.
-The first `M4` read-mode and derivation-bundle suites are green for the implemented behavior.
+The first `M4` read-mode, derivation-bundle, and session-context browse suites are green for the implemented behavior.
 
 ## Repo Guide
 
@@ -247,6 +247,7 @@ Start with these:
 - [docs/retrospectives/m1-capture-core-and-upstream-backup.md](/Users/james/git/think/docs/retrospectives/m1-capture-core-and-upstream-backup.md)
 - [docs/retrospectives/m2-macos-capture-surface.md](/Users/james/git/think/docs/retrospectives/m2-macos-capture-surface.md)
 - [docs/retrospectives/m3-reflect-mode.md](/Users/james/git/think/docs/retrospectives/m3-reflect-mode.md)
+- [docs/retrospectives/m4-session-context-browse.md](/Users/james/git/think/docs/retrospectives/m4-session-context-browse.md)
 - [BACKLOG.md](/Users/james/git/think/BACKLOG.md)
 
 Important implementation files:

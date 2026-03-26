@@ -262,18 +262,20 @@ That is a better sequence than trying to jump directly to a dialogue-heavy “re
 
 ## Immediate Next Slice
 
-The first real derivation bundle now exists.
+The first real derivation bundle and the first session-context browse slice now exist.
 
-The next M4 slice should make `browse` consume that bundle honestly.
+The next M4 slice should be chosen from playback rather than assumed automatically.
 
-That means the next implementation pressure should be:
+What is now true:
 
-- session-context browse over `session_attribution`
-- explicit human and JSON browse receipts for session context
-- clearer session-nearby movement without replacing the reader-first default
-- continued agent parity for any meaningful browse behavior exposed in the shell
+- `browse` consumes `session_attribution` honestly
+- human browse exposes session identity without replacing the reader-first view
+- agent/JSON browse exposes explicit session context rows
 
-See [`0016-m4-session-context-browse.md`](./0016-m4-session-context-browse.md).
+See:
+
+- [`0016-m4-session-context-browse.md`](./0016-m4-session-context-browse.md)
+- [`../retrospectives/m4-session-context-browse.md`](../retrospectives/m4-session-context-browse.md)
 
 ## First Bijou Slice
 
