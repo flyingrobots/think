@@ -190,6 +190,8 @@ Nice-to-have later, not first:
 
 The next slice after the first shell should likely be session-context browse driven by explicit `session_attribution` receipts rather than by inferred related-thought logic.
 
+After that session-context slice, the next honest browse deepening is explicit session traversal rather than broader archive cleverness.
+
 ## Read-Shell Doctrine
 
 ### Raw Text First

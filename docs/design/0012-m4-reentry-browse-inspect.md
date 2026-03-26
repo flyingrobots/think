@@ -264,7 +264,11 @@ That is a better sequence than trying to jump directly to a dialogue-heavy “re
 
 The first real derivation bundle and the first session-context browse slice now exist.
 
-The next M4 slice should be chosen from playback rather than assumed automatically.
+Playback now points to one narrow next step:
+
+- explicit session traversal inside `browse`
+
+This should remain a narrow browse deepening, not a permission slip for graph sprawl.
 
 What is now true:
 
@@ -275,6 +279,7 @@ What is now true:
 See:
 
 - [`0016-m4-session-context-browse.md`](./0016-m4-session-context-browse.md)
+- [`0017-m4-session-traversal.md`](./0017-m4-session-traversal.md)
 - [`../retrospectives/m4-session-context-browse.md`](../retrospectives/m4-session-context-browse.md)
 
 ## First Bijou Slice

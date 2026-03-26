@@ -1,6 +1,6 @@
 # Design Review Package
 
-Status: design approved; `M0`, `M1`, `M2`, and `M3` complete; `M4` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, derivation-catalog, and session-context-browse designs under active use
+Status: design approved; `M0`, `M1`, `M2`, and `M3` complete; `M4` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, derivation-catalog, and session-context-browse designs under active use; session-traversal design under review
 
 This directory began as the pre-implementation design package for `think`.
 
@@ -34,6 +34,7 @@ This review is meant to answer five questions:
 - [`0014-m4-first-derived-artifacts.md`](./0014-m4-first-derived-artifacts.md): IBM Design Thinking style product/technical note for the first real derivation bundle that makes `inspect` materially useful during M4.
 - [`0015-per-thought-derivation-catalog.md`](./0015-per-thought-derivation-catalog.md): consolidated catalog of what is derived from each raw thought, when it is derived, what its payload looks like, and what is currently implemented versus deferred.
 - [`0016-m4-session-context-browse.md`](./0016-m4-session-context-browse.md): IBM Design Thinking style product note for the implemented session-context browse slice, using `session_attribution` to recover local context without drifting into graph theater.
+- [`0017-m4-session-traversal.md`](./0017-m4-session-traversal.md): IBM Design Thinking style product note for adding explicit same-session traversal to `browse` without collapsing chronology and session into one navigation model.
 - [`ROADMAP.md`](./ROADMAP.md): milestone sequence, hill mapping, exit criteria, and review checkpoints.
 - [`../retrospectives/m1-capture-core-and-upstream-backup.md`](../retrospectives/m1-capture-core-and-upstream-backup.md): closeout for the first implemented milestone and the remaining validation follow-through.
 - [`../retrospectives/m2-macos-capture-surface.md`](../retrospectives/m2-macos-capture-surface.md): closeout for the native menu bar app and hotkey capture surface.
@@ -61,6 +62,7 @@ flowchart TD
     R --> P14["0014 M4 First Derived Artifacts"]
     R --> P15["0015 Per-Thought Derivation Catalog"]
     R --> P16["0016 M4 Session-Context Browse"]
+    R --> P17["0017 M4 Session Traversal"]
     R --> RD["Roadmap and Milestones"]
     R --> BL["Backlog (deferred ideas)"]
     P --> A
@@ -80,6 +82,7 @@ flowchart TD
     M --> P14
     M --> P15
     M --> P16
+    M --> P17
     B3 --> G9
     B3 --> P11
     P11 --> P12
@@ -93,6 +96,7 @@ flowchart TD
     P10 --> P14
     P10 --> P15
     P14 --> P16
+    P16 --> P17
     T --> A8
     T --> P10
     M2 --> RD
@@ -106,6 +110,7 @@ flowchart TD
     P14 --> RD
     P15 --> RD
     P16 --> RD
+    P17 --> RD
 ```
 
 ## Review Standard
