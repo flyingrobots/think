@@ -12,6 +12,7 @@ import {
   inspectRawEntry,
   listReflectableRecent,
   listRecent,
+  rememberThoughts,
   previewReflect,
   getStats,
   startReflect,
@@ -51,6 +52,8 @@ export async function main(argv, { stdout, stderr }) {
     let exitCode = 0;
     if (command === 'recent') {
       exitCode = await runRecent(output, reporter, options);
+    } else if (command === 'remember') {
+      exitCode = await runRemember(output, reporter, options);
     } else if (command === 'browse') {
       exitCode = await runBrowse(options.browse, output, reporter);
     } else if (command === 'inspect') {
@@ -469,6 +472,72 @@ async function runRecent(output, reporter, options) {
   return 0;
 }
 
+async function runRemember(output, reporter, options) {
+  const repoDir = getLocalRepoDir();
+  const query = options.positionals.length > 0 ? options.positionals.join(' ') : null;
+
+  reporter.event('remember.start', {
+    scopeKind: query ? 'query' : 'ambient_project',
+    query: query ?? null,
+  });
+
+  if (!hasGitRepo(repoDir)) {
+    reporter.event('remember.done', {
+      scopeKind: query ? 'query' : 'ambient_project',
+      count: 0,
+      repoPresent: false,
+    });
+    if (!output.json) {
+      output.out(['Remember', `Scope: ${query ? 'query' : 'current project'}`, 'No remembered thoughts found.'].join('\n'));
+    }
+    return 0;
+  }
+
+  const remember = await rememberThoughts(repoDir, {
+    cwd: process.cwd(),
+    query,
+  });
+
+  reporter.event('remember.done', {
+    scopeKind: remember.scope.scopeKind,
+    count: remember.matches.length,
+  });
+
+  if (output.json) {
+    output.data('remember.scope', remember.scope);
+    for (const [index, match] of remember.matches.entries()) {
+      output.data('remember.match', {
+        ...match,
+        index,
+      });
+    }
+    return 0;
+  }
+
+  const lines = [
+    'Remember',
+    `Scope: ${remember.scope.scopeKind === 'query' ? 'query' : 'current project'}`,
+  ];
+
+  if (remember.scope.scopeKind === 'query') {
+    lines.push(`Query: ${remember.scope.queryText}`);
+  }
+
+  if (remember.matches.length === 0) {
+    lines.push('No remembered thoughts found.');
+    output.out(lines.join('\n'));
+    return 0;
+  }
+
+  for (const match of remember.matches) {
+    lines.push(match.text);
+    lines.push(`Why: ${match.reasonText}`);
+  }
+
+  output.out(lines.join('\n'));
+  return 0;
+}
+
 async function runBrowse(entryId, output, reporter) {
   if (!entryId) {
     if (shouldUseInteractiveBrowseShell(output)) {
@@ -793,6 +862,7 @@ function parseArgs(args) {
     json: false,
     stats: false,
     recent: false,
+    remember: false,
     reflectFlag: false,
     reflect: null,
     reflectMode: null,
@@ -827,6 +897,8 @@ function parseArgs(args) {
         options.stats = true;
       } else if (arg === '--recent') {
         options.recent = true;
+      } else if (arg === '--remember') {
+        options.remember = true;
       } else if (arg.startsWith('--count=')) {
         options.recentCount = arg.slice('--count='.length);
       } else if (arg.startsWith('--query=')) {
@@ -909,6 +981,9 @@ function resolveCommand(options) {
   if (options.inspectFlag) {
     return 'inspect';
   }
+  if (options.remember) {
+    return 'remember';
+  }
   if (options.stats) {
     return 'stats';
   }
@@ -926,6 +1001,7 @@ function validateOptions(options, command) {
   const hasStatsFilter = Boolean(options.from || options.to || options.since || options.bucket);
   const explicitCommands = [
     options.recent,
+    options.remember,
     options.browseFlag,
     options.inspectFlag,
     options.stats,
@@ -942,6 +1018,10 @@ function validateOptions(options, command) {
     return '--recent does not take a thought';
   }
 
+  if (command === 'remember' && options.positionals.length > 0 && options.positionals.join(' ').trim() === '') {
+    return 'Invalid remember query';
+  }
+
   if (command === 'recent') {
     if (options.recentCount !== null && !/^[1-9]\d*$/.test(options.recentCount)) {
       return 'Invalid --count value';
@@ -953,6 +1033,10 @@ function validateOptions(options, command) {
 
   if (hasRecentFilter && command !== 'recent') {
     return '--count and --query require --recent';
+  }
+
+  if (command === 'remember' && hasStatsFilter) {
+    return '--from, --to, --since, and --bucket require --stats';
   }
 
   if (command === 'browse') {

@@ -18,6 +18,7 @@ Release discipline:
 - macOS prompt-UX telemetry capture as buffered local JSONL session summaries, including visibility, typing, abandonment, submit-to-hide, and submit-to-local-save timings without storing prompt text
 - preferred command-scoped CLI modifiers: `--count`, `--query`, and `--mode`
 - `--count=<n>` and `--query=<text>` for tighter raw reentry without turning `recent` into a dashboard
+- `--remember` for context-scoped recall, supporting both ambient project recall and explicit query recall
 - first explicit `--browse=<entryId>` read surface for navigating one raw thought with its immediate newer and older neighbors
 - first explicit `--inspect=<entryId>` read surface for exposing exact raw entry metadata without narration
 - first full-screen Bijou browse TUI for bare `--browse` in a real TTY, with a reader-first default view, visible thought metadata, a summon-only thought-log drawer, a jump palette, inspect receipts, and in-shell reflect
@@ -28,6 +29,11 @@ Release discipline:
   - canonical thought identity materialization
   - `seed_quality`
   - `session_attribution`
+- passive ambient capture metadata for later recall:
+  - cwd
+  - git root
+  - git remote
+  - git branch
 - direct derived reflect receipts exposed in human and JSON inspect output
 - default `npm test` now excludes macOS Swift tests so the default/CI path stays cheap
 - local pre-push hook support via `.githooks/pre-push` and `npm run install-hooks`

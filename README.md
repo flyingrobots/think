@@ -19,11 +19,12 @@ Current version: `0.3.0`.
 What exists today:
 
 - raw CLI capture via `think "..."` or `node ./bin/think.js "..."`
-- explicit read-only CLI surfaces via `think --recent`, `think --browse=<entryId>`, `think --inspect=<entryId>`, and `think --stats`
+- explicit read-only CLI surfaces via `think --recent`, `think --remember`, `think --browse=<entryId>`, `think --inspect=<entryId>`, and `think --stats`
 - machine-readable CLI output via `--json`, with JSONL-only streams for every implemented command
 - first-run bootstrap of a private local repo, defaulting to `~/.think/repo`
 - exact raw-text preservation
 - newest-first recent listing, with optional count and query filters
+- context-scoped recall via `--remember`, with ambient project recall and explicit query recall
 - best-effort upstream backup
 - first seeded reflect CLI flow via `--reflect` and `--reflect-session`
 - first reader-first browse TUI with chronology and same-session traversal
@@ -109,6 +110,11 @@ The current shape is:
 - local store: configurable via `THINK_REPO_DIR`, defaulting to `~/.think/repo`
 - day-one backup model: best-effort upstream push after local success
 - read surfaces: filtered `--recent`, explicit `--browse=<entryId>`, explicit `--inspect=<entryId>`, and plain `--stats`
+- passive ambient capture metadata for later recall:
+  - cwd
+  - git root
+  - git remote
+  - git branch
 
 Capture success means the local save succeeded.
 Backup is separate and best-effort.
@@ -131,6 +137,8 @@ node ./bin/think.js "turkey is good in burritos"
 node ./bin/think.js --recent
 node ./bin/think.js --recent --count=5
 node ./bin/think.js --recent --query=warp
+node ./bin/think.js --remember
+node ./bin/think.js --remember "warp receipts"
 node ./bin/think.js --browse=<entryId>
 node ./bin/think.js --inspect=<entryId>
 node ./bin/think.js --stats
@@ -146,10 +154,13 @@ If you install or link the package entrypoint, the intended commands are:
 ```bash
 think "turkey is good in burritos"
 think --recent
+think --remember
 think --stats
 ```
 
 `--count=<n>` limits `--recent` to the newest `n` raw captures. `--query=<text>` filters `--recent` by case-insensitive text match.
+
+`--remember` is the scoped recall surface. With no extra text, it uses the current working context to answer “what was I thinking about this?” With quoted text, it recalls prior thoughts about that explicit phrase. In `--json` mode it stays fully machine-readable through explicit scope and match rows.
 
 `--browse=<entryId>` shows one raw capture with its immediate newer and older neighbors, plus explicit session context in JSON mode.
 In a real TTY, bare `--browse` opens a full-screen Bijou browse TUI on the newest raw capture. The default view is reader-first: the current thought owns the screen, with timestamp, relative time, chronology position, entry id, session id, and session position visible up front. Use `j`/`k` or the arrow keys to move older and newer in chronology, `[` and `]` to move to the previous and next thoughts in the current session, `s` to reveal the session drawer, `l` to reveal the thought log drawer, `/` to open the jump palette, `i` to reveal inspect receipts, `r` to open an in-shell `Reflect` modal, and `q` to quit.
@@ -158,7 +169,7 @@ In a real TTY, bare `--browse` opens a full-screen Bijou browse TUI on the newes
 
 In a real TTY, bare `--reflect` opens an interactive seed picker. `--mode=challenge|constraint|sharpen` can be used to request a specific pressure family.
 
-`--recent`, `--browse`, `--inspect`, and `--stats` are read-only commands.
+`--recent`, `--remember`, `--browse`, `--inspect`, and `--stats` are read-only commands.
 They should not create local app state on their own.
 
 To enable day-one backup, set `THINK_UPSTREAM_URL` to a reachable Git remote or bare repo path before capture:

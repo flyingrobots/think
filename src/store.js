@@ -3,6 +3,7 @@ import os from 'node:os';
 
 import Plumbing from '@git-stunts/plumbing';
 import { GitGraphAdapter, WarpGraph } from '@git-stunts/git-warp';
+import { buildQueryTerms, getAmbientProjectContext } from './project-context.js';
 
 export const GRAPH_NAME = 'think';
 export const REFLECT_PROMPT_TYPES = ['challenge', 'constraint', 'sharpen'];
@@ -41,6 +42,7 @@ const REFLECT_MARKERS = [
 export async function captureThought(repoDir, thought) {
   const graph = await openGraph(repoDir);
   const entry = createEntry(thought, graph.writerId, { kind: 'capture', source: 'capture' });
+  const ambientContext = getAmbientProjectContext(process.cwd());
 
   await graph.patch(async patch => {
     patch
@@ -52,6 +54,19 @@ export async function captureThought(repoDir, thought) {
       .setProperty(entry.id, 'createdAt', entry.createdAt)
       .setProperty(entry.id, 'sortKey', entry.sortKey);
 
+    if (ambientContext.cwd) {
+      patch.setProperty(entry.id, 'ambientCwd', ambientContext.cwd);
+    }
+    if (ambientContext.gitRoot) {
+      patch.setProperty(entry.id, 'ambientGitRoot', ambientContext.gitRoot);
+    }
+    if (ambientContext.gitRemote) {
+      patch.setProperty(entry.id, 'ambientGitRemote', ambientContext.gitRemote);
+    }
+    if (ambientContext.gitBranch) {
+      patch.setProperty(entry.id, 'ambientGitBranch', ambientContext.gitBranch);
+    }
+
     await patch.attachContent(entry.id, thought, { mime: TEXT_MIME });
   });
 
@@ -61,6 +76,42 @@ export async function captureThought(repoDir, thought) {
   });
 
   return entry;
+}
+
+export async function rememberThoughts(repoDir, { cwd = process.cwd(), query = null } = {}) {
+  const graph = await openGraph(repoDir);
+  const captures = (await listEntriesByKind(graph, 'capture'))
+    .map((entry) => ({
+      id: entry.id,
+      text: entry.text,
+      sortKey: entry.sortKey,
+      createdAt: entry.createdAt,
+      ambientCwd: entry.ambientCwd ?? null,
+      ambientGitRoot: entry.ambientGitRoot ?? null,
+      ambientGitRemote: entry.ambientGitRemote ?? null,
+      ambientGitBranch: entry.ambientGitBranch ?? null,
+    }))
+    .sort(compareEntriesNewestFirst);
+
+  if (query && String(query).trim() !== '') {
+    const scope = buildExplicitRememberScope(query);
+    return {
+      scope,
+      matches: captures
+        .map((entry) => buildExplicitRememberMatch(entry, scope))
+        .filter(Boolean)
+        .sort(compareRememberMatches),
+    };
+  }
+
+  const scope = buildAmbientRememberScope(cwd);
+  return {
+    scope,
+    matches: captures
+      .map((entry) => buildAmbientRememberMatch(entry, scope))
+      .filter(Boolean)
+      .sort(compareRememberMatches),
+  };
 }
 
 export async function startReflect(repoDir, seedEntryId, { promptType = null } = {}) {
@@ -403,6 +454,10 @@ async function getStoredEntry(graph, nodeId) {
     sessionId: props.sessionId ?? null,
     promptType: props.promptType ?? null,
     question: props.question ?? null,
+    ambientCwd: props.ambientCwd ?? null,
+    ambientGitRoot: props.ambientGitRoot ?? null,
+    ambientGitRemote: props.ambientGitRemote ?? null,
+    ambientGitBranch: props.ambientGitBranch ?? null,
     selectionReason: props.selectionReasonKind
       ? {
           kind: props.selectionReasonKind,
@@ -910,6 +965,148 @@ function stableHash(value) {
     hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
   }
   return hash;
+}
+
+function buildAmbientRememberScope(cwd) {
+  const context = getAmbientProjectContext(cwd);
+
+  return {
+    scopeKind: 'ambient_project',
+    cwd: context.cwd,
+    gitRoot: context.gitRoot,
+    gitRemote: context.gitRemote,
+    gitBranch: context.gitBranch,
+    projectName: context.projectName,
+    projectTokens: context.projectTokens,
+  };
+}
+
+function buildExplicitRememberScope(query) {
+  return {
+    scopeKind: 'query',
+    queryText: String(query).trim(),
+    queryTerms: buildQueryTerms(query),
+  };
+}
+
+function buildAmbientRememberMatch(entry, scope) {
+  const matchKinds = [];
+  let tier = 0;
+  let score = 0;
+  let reasonText = '';
+  let hasProjectScopedAmbientMatch = false;
+
+  if (scope.gitRemote && entry.ambientGitRemote === scope.gitRemote) {
+    matchKinds.push('ambient_git_remote');
+    tier = 3;
+    score += 100;
+    reasonText = 'matched current git remote';
+    hasProjectScopedAmbientMatch = true;
+  }
+
+  if (scope.gitRoot && entry.ambientGitRoot === scope.gitRoot) {
+    matchKinds.push('ambient_git_root');
+    tier = Math.max(tier, 3);
+    score += 80;
+    if (!reasonText) {
+      reasonText = 'matched current git root';
+    }
+    hasProjectScopedAmbientMatch = true;
+  }
+
+  if (scope.cwd && entry.ambientCwd === scope.cwd) {
+    matchKinds.push('ambient_cwd');
+    tier = Math.max(tier, 3);
+    score += 60;
+    if (!reasonText) {
+      reasonText = 'matched current working directory';
+    }
+    hasProjectScopedAmbientMatch = true;
+  }
+
+  if (
+    hasProjectScopedAmbientMatch
+    && scope.gitBranch
+    && entry.ambientGitBranch
+    && entry.ambientGitBranch === scope.gitBranch
+  ) {
+    matchKinds.push('ambient_git_branch');
+    tier = Math.max(tier, 3);
+    score += 10;
+    if (!reasonText) {
+      reasonText = 'matched current git branch';
+    }
+  }
+
+  const fallbackToken = findFirstMatchingTerm(entry.text, scope.projectTokens);
+  if (fallbackToken) {
+    matchKinds.push(tier > 0 ? 'project_tokens_text' : 'fallback_text');
+    tier = Math.max(tier, tier > 0 ? 3 : 2);
+    score += tier > 2 ? 15 : 30;
+    if (!reasonText) {
+      reasonText = `fallback textual match on project token "${fallbackToken}"`;
+    }
+  }
+
+  if (tier === 0) {
+    return null;
+  }
+
+  return {
+    entryId: entry.id,
+    text: entry.text,
+    sortKey: entry.sortKey,
+    createdAt: entry.createdAt,
+    score,
+    tier,
+    matchKinds,
+    reasonText,
+  };
+}
+
+function buildExplicitRememberMatch(entry, scope) {
+  const normalizedText = normalizeSeed(entry.text);
+  const normalizedQuery = normalizeSeed(scope.queryText);
+  const matchedTerms = scope.queryTerms.filter((term) => normalizedText.includes(term));
+
+  if (!normalizedText.includes(normalizedQuery) && matchedTerms.length === 0) {
+    return null;
+  }
+
+  const matchKinds = normalizedText.includes(normalizedQuery)
+    ? ['query_phrase']
+    : ['query_terms'];
+  const reasonText = normalizedText.includes(normalizedQuery)
+    ? `matched query phrase "${scope.queryText}"`
+    : `matched query terms "${matchedTerms.join('", "')}"`;
+
+  return {
+    entryId: entry.id,
+    text: entry.text,
+    sortKey: entry.sortKey,
+    createdAt: entry.createdAt,
+    score: matchedTerms.length || 1,
+    tier: 1,
+    matchKinds,
+    reasonText,
+  };
+}
+
+function compareRememberMatches(left, right) {
+  if (left.tier !== right.tier) {
+    return right.tier - left.tier;
+  }
+
+  if (left.sortKey === right.sortKey) {
+    return right.entryId.localeCompare(left.entryId);
+  }
+
+  return right.sortKey.localeCompare(left.sortKey);
+}
+
+function findFirstMatchingTerm(text, terms) {
+  const normalized = normalizeSeed(text);
+  return terms.find((term) => normalized.includes(term)) ?? null;
 }
 
 function compareEntriesNewestFirst(left, right) {
