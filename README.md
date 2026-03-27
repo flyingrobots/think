@@ -1,7 +1,7 @@
 # think
 
 <div align="center">
-<img alt="THINK" src="https://github.com/user-attachments/assets/1b0fa186-de3c-4ca0-870b-218b28115a01" />
+<img alt="THINK" src="https://github.com/user-attachments/assets/55f89d75-cc49-405e-9a6e-624d24df0916" />
 </div>
 
 > Capture now. Understand later.
