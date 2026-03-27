@@ -138,6 +138,19 @@ In practice, that means:
 - the user acts as the human stakeholder
 - the coding agent acts as the agent stakeholder
 
+The responsibility split should stay explicit:
+
+- the human stakeholder judges whether the experience is actually good to use
+- the agent stakeholder judges whether the explicit command and JSON contract remains semantically complete and parity-preserving
+
+When running human playback, the coding agent should provide:
+
+- exact commands to run
+- exact steps to take
+- what to look for during the playback
+
+Then stop and wait for the human verdict before proceeding beyond playback, closeout, or the next slice.
+
 Do not close a cycle without that dual playback check.
 
 The point is to keep the repo honest about:

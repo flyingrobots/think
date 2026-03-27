@@ -73,6 +73,19 @@ At the end of each cycle, the closeout should explicitly evaluate both:
 
 For this project, the human stakeholder is the user and the agent stakeholder is the coding/CLI consumer perspective.
 
+The split of labor should stay explicit:
+
+- the human stakeholder judges whether the UX is actually good to use
+- the agent stakeholder judges whether the explicit command and JSON contract stays coherent and parity-preserving
+
+When running human playback, the coding agent should provide:
+
+- the commands to run
+- the steps to take
+- what to inspect from the human perspective
+
+Then stop and wait for the human verdict before proceeding beyond playback.
+
 ## Product Doctrine
 
 - Raw capture is sacred.

@@ -178,3 +178,16 @@ When a slice materially serves both humans and agents, the named acceptance test
 
 - the human-facing behavior contract
 - the agent-facing machine-readable contract
+
+Cycle close should mirror that same split:
+
+- the coding agent owns agent-side playback and contract review
+- the human stakeholder owns human-side playback and UX judgment
+
+Before closeout proceeds, the coding agent should provide explicit human playback instructions:
+
+- commands to run
+- steps to take
+- what to inspect
+
+Then wait for the human verdict before moving on.

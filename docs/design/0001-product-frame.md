@@ -142,6 +142,12 @@ Playback should be evaluated from both perspectives:
 The human stakeholder should judge whether the experience is actually good to use.
 The agent stakeholder should judge whether the explicit machine contract is semantically complete and parity-preserving.
 
+The mechanics of playback should stay explicit:
+
+- the coding agent should provide concrete commands and steps for the human playback
+- the human stakeholder should run that playback and give the verdict directly
+- the coding agent should not proceed past playback until that human verdict is received
+
 ## Non-Goals
 
 Not in v0:
