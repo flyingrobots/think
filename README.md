@@ -1,5 +1,9 @@
 # think
 
+<div align="center">
+<img alt="THINK" src="https://github.com/user-attachments/assets/55f89d75-cc49-405e-9a6e-624d24df0916" />
+</div>
+
 > Capture now. Understand later.
 
 `think` is a local-first system for capturing raw thoughts exactly as they happen, then making their evolution explorable later.
