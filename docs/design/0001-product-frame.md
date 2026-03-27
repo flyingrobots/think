@@ -148,6 +148,13 @@ The mechanics of playback should stay explicit:
 - the human stakeholder should run that playback and give the verdict directly
 - the coding agent should not proceed past playback until that human verdict is received
 
+Retrospectives should also check for design drift explicitly:
+
+- compare what shipped against the approved hill, playback framing, and non-goals for the slice
+- name any deviations from the intended design
+- decide whether the implementation drifted, the design was incomplete, or the design should be corrected
+- update the canonical design docs before calling the slice closed
+
 ## Non-Goals
 
 Not in v0:

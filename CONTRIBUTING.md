@@ -133,6 +133,13 @@ At cycle close, evaluate explicitly from both perspectives:
 - human stakeholder playback
 - agent stakeholder playback
 
+Retrospectives must also perform an explicit design-drift check:
+
+- compare the delivered behavior against the approved design note(s) for the slice
+- call out anything that deviated from the intended design
+- say whether that deviation was intentional, accidental, or a sign that the design note itself was wrong
+- if the design changed in practice, update the design docs or record the correction before calling the slice closed
+
 In practice, that means:
 
 - the user acts as the human stakeholder

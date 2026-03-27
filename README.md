@@ -73,6 +73,12 @@ At the end of each cycle, the closeout should explicitly evaluate both:
 - human stakeholder playback
 - agent stakeholder playback
 
+The retro/closeout should also explicitly ask:
+
+- did implementation deviate from the approved design for this slice?
+- if yes, was that deviation intentional, accidental, or evidence that the design was wrong?
+- have the design docs been updated to match delivered reality before we declare the slice closed?
+
 For this project, the human stakeholder is the user and the agent stakeholder is the coding/CLI consumer perspective.
 
 The split of labor should stay explicit:

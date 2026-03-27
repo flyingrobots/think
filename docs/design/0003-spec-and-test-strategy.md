@@ -184,6 +184,13 @@ Cycle close should mirror that same split:
 - the coding agent owns agent-side playback and contract review
 - the human stakeholder owns human-side playback and UX judgment
 
+Cycle close should also include an explicit design-conformance review:
+
+- compare shipped behavior with the approved design note(s) for the slice
+- identify any implementation drift from the intended design
+- decide whether the drift should be fixed in code or acknowledged by updating the design docs
+- do not treat the slice as closed until that mismatch is resolved or explicitly recorded
+
 Before closeout proceeds, the coding agent should provide explicit human playback instructions:
 
 - commands to run
