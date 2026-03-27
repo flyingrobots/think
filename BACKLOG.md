@@ -568,6 +568,31 @@ The current backup contract is honest but minimal. Later, it may be useful to ad
 
 This is related to the earlier capture recovery queue idea, but narrower and more operationally grounded.
 
+### Context-Aware Recall (`--remember`)
+
+Add a `--remember` command for context-scoped thought retrieval, primarily for agent session startup but useful for humans too.
+
+Possible future shape:
+
+- `think --remember` with no args returns recent thoughts scoped to the current project (pwd or git remote)
+- `think --remember <search-term>` does fuzzy search across the thought archive
+- results include relevance/confidence scores
+- useful for agents reconstructing prior context at conversation start
+- useful for humans asking "what was I thinking about this project last time?"
+
+Important constraints:
+
+- do not require the user to tag or classify thoughts at capture time — recall should work over raw structureless captures
+- keep the query surface inspectable and receipt-like, not opaque ranking
+- scoping by pwd/project should be opt-in metadata enrichment, not a capture-time requirement
+- this is a read surface; it must not add friction to the capture path
+
+Design questions:
+
+- should captures optionally record pwd/git-remote at capture time for later scoping?
+- should fuzzy matching be deterministic (TF-IDF / BM25) or LLM-assisted?
+- how does this interact with Multiple Minds — does `--remember` search across minds or only the active one?
+
 ## Parking Lot
 
 Ideas that sound exciting but should remain parked until the product earns them:
