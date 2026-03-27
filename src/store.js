@@ -41,7 +41,7 @@ const REFLECT_MARKERS = [
   /\b(i wonder|maybe|should|could|would|what if|how might|want to|need to|problem|question|decision|tradeoff|constraint|risk)\b/,
 ];
 
-export async function captureThought(repoDir, thought) {
+export async function saveRawCapture(repoDir, thought) {
   const graph = await openGraph(repoDir);
   const entry = createEntry(thought, graph.writerId, { kind: 'capture', source: 'capture' });
   const ambientContext = getAmbientProjectContext(process.cwd());
@@ -72,12 +72,39 @@ export async function captureThought(repoDir, thought) {
     await patch.attachContent(entry.id, thought, { mime: TEXT_MIME });
   });
 
-  await ensureFirstDerivedArtifacts(graph, {
-    ...entry,
-    text: thought,
-  });
-
   return entry;
+}
+
+export async function finalizeCapturedThought(repoDir, entryId, { migrateIfNeeded = false } = {}) {
+  const graph = await openGraph(repoDir);
+  let entry = await getStoredEntry(graph, entryId);
+
+  if (!entry || entry.kind !== 'capture') {
+    return {
+      entry: null,
+      migration: null,
+    };
+  }
+
+  await ensureFirstDerivedArtifacts(graph, entry);
+  entry = await getStoredEntry(graph, entryId);
+
+  return {
+    entry,
+    migration: migrateIfNeeded ? await migrateGraphModel(repoDir) : null,
+  };
+}
+
+export async function getGraphModelStatus(repoDir) {
+  const graph = await openGraph(repoDir);
+  const props = await graph.getNodeProps(GRAPH_META_ID);
+  const currentGraphModelVersion = Number(props?.graphModelVersion ?? 1);
+
+  return {
+    currentGraphModelVersion,
+    requiredGraphModelVersion: GRAPH_MODEL_VERSION,
+    migrationRequired: currentGraphModelVersion < GRAPH_MODEL_VERSION,
+  };
 }
 
 export async function migrateGraphModel(repoDir) {

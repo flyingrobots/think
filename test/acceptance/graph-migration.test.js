@@ -137,6 +137,140 @@ test('think --migrate-graph is idempotent and safe to rerun', async () => {
   );
 });
 
+test('capture on a version-1 repo still succeeds and only migrates after the raw local save', async () => {
+  const context = await createThinkContext();
+  const { entryId: legacyEntryId } = captureWithEntryId(
+    context,
+    'Legacy capture data should not block preserving the next thought.'
+  );
+
+  let graph = await openThinkGraph(context.localRepoDir);
+  const legacyCaptureProps = await graph.getNodeProps(legacyEntryId);
+  assert.ok(legacyCaptureProps, 'Expected the seeded legacy capture to exist before downgrade.');
+  await downgradeGraphToV1(graph);
+
+  const capture = runThink(
+    context,
+    ['--verbose', 'This fresh capture should survive even if the graph still needs migration.']
+  );
+  assertSuccess(capture, `Expected capture on a version-1 repo to succeed.\n${formatResult(capture)}`);
+  assertContains(capture, 'Saved locally', 'Expected raw capture success to still be reported on an outdated repo.');
+
+  const events = parseJsonLines(
+    capture.stderr,
+    'Expected verbose capture to emit valid JSONL trace events during post-capture migration.'
+  );
+  const localSaveDoneIndex = getEventIndex(
+    events,
+    'capture.local_save.done',
+    'Expected capture to report the raw local save before any migration follow-through.'
+  );
+  const migrationStartIndex = getEventIndex(
+    events,
+    'graph.migration.start',
+    'Expected post-capture graph migration to expose a start event.'
+  );
+  const migrationDoneIndex = getEventIndex(
+    events,
+    'graph.migration.done',
+    'Expected post-capture graph migration to expose a done event.'
+  );
+
+  assert.ok(
+    localSaveDoneIndex < migrationStartIndex,
+    `Expected raw local save to complete before migration starts.\n${formatResult(capture)}`
+  );
+  assert.ok(
+    migrationStartIndex < migrationDoneIndex,
+    `Expected migration start to precede migration completion.\n${formatResult(capture)}`
+  );
+
+  graph = await openThinkGraph(context.localRepoDir);
+  const metadata = await graph.getNodeProps('meta:graph');
+  assert.ok(metadata, 'Expected post-capture migration to leave graph metadata materialized.');
+  assert.equal(metadata.graphModelVersion, 2, 'Expected post-capture migration to upgrade the repo back to graph model version 2.');
+
+  const edges = await graph.getEdges();
+  assertEdge(
+    edges,
+    legacyEntryId,
+    legacyCaptureProps.thoughtId,
+    'expresses',
+    'Expected post-capture migration to backfill missing expresses edges for older captures too.'
+  );
+});
+
+test('graph-native commands fail clearly on an outdated repo outside interactive use', async () => {
+  const context = await createThinkContext();
+  const { entryId } = captureWithEntryId(
+    context,
+    'Outdated graph gates should fail clearly for graph-native commands.'
+  );
+
+  const graph = await openThinkGraph(context.localRepoDir);
+  await downgradeGraphToV1(graph);
+
+  const cases = [
+    ['--remember'],
+    [`--browse=${entryId}`],
+    [`--inspect=${entryId}`],
+    [`--reflect=${entryId}`],
+  ];
+
+  for (const args of cases) {
+    const result = runThink(context, args);
+    assertFailure(
+      result,
+      `Expected ${args.join(' ')} to fail clearly when the repo still uses graph model version 1.`
+    );
+    assertContains(
+      result,
+      'Graph migration required. Run think --migrate-graph.',
+      `Expected ${args.join(' ')} to direct the user toward explicit migration.`
+    );
+  }
+});
+
+test('think --json emits explicit graph migration required errors for outdated graph-native commands', async () => {
+  const context = await createThinkContext();
+  const { entryId } = captureWithEntryId(
+    context,
+    'Agent callers need a structured migration-required contract.'
+  );
+
+  const graph = await openThinkGraph(context.localRepoDir);
+  await downgradeGraphToV1(graph);
+
+  const inspect = runThink(context, ['--json', `--inspect=${entryId}`]);
+  assertFailure(inspect, 'Expected JSON inspect to fail on an outdated graph model.');
+
+  const errorEvents = parseJsonLines(
+    inspect.stderr,
+    'Expected JSON inspect failure to emit valid JSONL migration-required events.'
+  );
+  const migrationRequired = getEvent(
+    errorEvents,
+    'graph.migration_required',
+    'Expected JSON inspect to emit a machine-readable graph.migration_required event.'
+  );
+
+  assert.equal(migrationRequired.command, 'inspect', 'Expected migration-required payload to name the blocked command.');
+  assert.equal(migrationRequired.currentGraphModelVersion, 1, 'Expected migration-required payload to report the current graph model generation.');
+  assert.equal(migrationRequired.requiredGraphModelVersion, 2, 'Expected migration-required payload to report the required graph model generation.');
+  assert.equal(
+    migrationRequired.message,
+    'Graph migration required. Run think --migrate-graph.',
+    'Expected migration-required payload to reuse the human-readable upgrade instruction.'
+  );
+
+  const failure = getEvent(
+    errorEvents,
+    'cli.failure',
+    'Expected JSON inspect migration gating to terminate through the normal CLI failure event.'
+  );
+  assert.equal(failure.command, 'inspect', 'Expected CLI failure payload to preserve the blocked command identity.');
+});
+
 function captureWithEntryId(context, thought) {
   const capture = runThink(context, ['--verbose', thought]);
   assertSuccess(capture, `Expected capture to succeed for thought: ${thought}\n${formatResult(capture)}`);
@@ -205,6 +339,21 @@ async function stripGraphNativeEdges(graph) {
   });
 }
 
+async function downgradeGraphToV1(graph) {
+  await stripGraphNativeEdges(graph);
+
+  const graphMeta = await graph.getNodeProps('meta:graph');
+  if (!graphMeta) {
+    return;
+  }
+
+  await graph.patch((patch) => {
+    patch
+      .setProperty('meta:graph', 'graphModelVersion', 1)
+      .setProperty('meta:graph', 'updatedAt', new Date('2026-01-01T00:00:00.000Z').toISOString());
+  });
+}
+
 function countRelationshipEdges(edges) {
   return edges
     .filter((edge) => (
@@ -230,4 +379,10 @@ function getEvent(events, name, message) {
   const event = events.find((candidate) => candidate.event === name);
   assert.ok(event, message);
   return event;
+}
+
+function getEventIndex(events, name, message) {
+  const index = events.findIndex((candidate) => candidate.event === name);
+  assert.notEqual(index, -1, message);
+  return index;
 }

@@ -6,14 +6,16 @@ import { ensureGitRepo, hasGitRepo, pushWarpRefs } from './git.js';
 import { getLocalRepoDir, getUpstreamUrl } from './paths.js';
 import {
   REFLECT_PROMPT_TYPES,
-  captureThought,
+  finalizeCapturedThought,
   GRAPH_NAME,
+  getGraphModelStatus,
   getBrowseWindow,
   inspectRawEntry,
   listReflectableRecent,
   listRecent,
   migrateGraphModel,
   rememberThoughts,
+  saveRawCapture,
   previewReflect,
   getStats,
   startReflect,
@@ -174,14 +176,61 @@ async function runCapture(thought, output, reporter) {
   await ensureGitRepo(repoDir);
   reporter.event(repoAlreadyExists ? 'repo.ensure.done' : 'repo.bootstrap.done', { repoDir });
 
+  const graphStatus = repoAlreadyExists
+    ? await getGraphModelStatus(repoDir)
+    : {
+        currentGraphModelVersion: null,
+        requiredGraphModelVersion: null,
+        migrationRequired: false,
+      };
+
   reporter.event('capture.local_save.start');
-  const entry = await captureThought(repoDir, thought);
+  const entry = await saveRawCapture(repoDir, thought);
   reporter.event('capture.local_save.done', { entryId: entry.id });
 
   output.out('Saved locally', 'capture.status', {
     status: 'saved_locally',
     entryId: entry.id,
   });
+
+  try {
+    if (graphStatus.migrationRequired) {
+      reporter.event('graph.migration.start', {
+        command: 'capture',
+        trigger: 'post_capture',
+        entryId: entry.id,
+        currentGraphModelVersion: graphStatus.currentGraphModelVersion,
+        requiredGraphModelVersion: graphStatus.requiredGraphModelVersion,
+      });
+    }
+
+    const followthrough = await finalizeCapturedThought(repoDir, entry.id, {
+      migrateIfNeeded: graphStatus.migrationRequired,
+    });
+
+    if (graphStatus.migrationRequired) {
+      reporter.event('graph.migration.done', {
+        command: 'capture',
+        trigger: 'post_capture',
+        entryId: entry.id,
+        currentGraphModelVersion: graphStatus.currentGraphModelVersion,
+        requiredGraphModelVersion: graphStatus.requiredGraphModelVersion,
+        ...(followthrough.migration ?? {
+          changed: false,
+          graphModelVersion: graphStatus.currentGraphModelVersion,
+          edgesAdded: 0,
+          metadataUpdated: false,
+        }),
+      });
+    }
+  } catch (error) {
+    reporter.event('graph.migration.failed', {
+      command: 'capture',
+      trigger: 'post_capture',
+      entryId: entry.id,
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
 
   const upstreamUrl = getUpstreamUrl();
   if (!upstreamUrl) {
@@ -211,6 +260,10 @@ async function runReflectStart(seedEntryId, output, reporter, { reflectMode } = 
     resolvedSeedEntryId = pickedSeedEntryId;
   } else if (!hasGitRepo(repoDir)) {
     output.error('Seed entry not found', 'reflect.seed_not_found', { seedEntryId: resolvedSeedEntryId });
+    return 1;
+  }
+
+  if (!await ensureGraphModelReady(repoDir, 'reflect', output, reporter)) {
     return 1;
   }
 
@@ -299,6 +352,10 @@ async function runReflectReply(sessionId, response, output, reporter) {
   const repoDir = getLocalRepoDir();
   if (!hasGitRepo(repoDir)) {
     output.error('Reflect session not found', 'reflect.session_not_found', { sessionId });
+    return 1;
+  }
+
+  if (!await ensureGraphModelReady(repoDir, 'reflect', output, reporter)) {
     return 1;
   }
 
@@ -530,6 +587,10 @@ async function runRemember(output, reporter, options) {
     return 0;
   }
 
+  if (!await ensureGraphModelReady(repoDir, 'remember', output, reporter)) {
+    return 1;
+  }
+
   const remember = await rememberThoughts(repoDir, {
     cwd: process.cwd(),
     query,
@@ -592,6 +653,10 @@ async function runBrowse(entryId, output, reporter) {
   reporter.event('browse.start', { entryId });
   if (!hasGitRepo(repoDir)) {
     output.error('Browse entry not found', 'browse.entry_not_found', { entryId });
+    return 1;
+  }
+
+  if (!await ensureGraphModelReady(repoDir, 'browse', output, reporter)) {
     return 1;
   }
 
@@ -682,6 +747,10 @@ async function runInteractiveBrowseShell(output, reporter) {
 
   if (!hasGitRepo(repoDir)) {
     output.error('No raw captures available to browse', 'browse.entry_not_found');
+    return 1;
+  }
+
+  if (!await ensureGraphModelReady(repoDir, 'browse', output, reporter)) {
     return 1;
   }
 
@@ -800,6 +869,10 @@ async function runInspect(entryId, output, reporter) {
   reporter.event('inspect.start', { entryId });
   if (!hasGitRepo(repoDir)) {
     output.error('Inspect entry not found', 'inspect.entry_not_found', { entryId });
+    return 1;
+  }
+
+  if (!await ensureGraphModelReady(repoDir, 'inspect', output, reporter)) {
     return 1;
   }
 
@@ -1201,6 +1274,48 @@ function createOutput({ stdout, stderr, reporter, json }) {
   };
 }
 
+async function ensureGraphModelReady(repoDir, command, output, reporter) {
+  const status = await getGraphModelStatus(repoDir);
+  if (!status.migrationRequired) {
+    return true;
+  }
+
+  if (canInteractivelyOfferGraphMigration(output)) {
+    const decision = await promptForGraphMigration(command, status);
+    if (decision === 'upgrade') {
+      reporter.event('graph.migration.start', {
+        command,
+        trigger: 'interactive_gate',
+        ...status,
+      });
+      const result = await migrateGraphModel(repoDir);
+      reporter.event('graph.migration.done', {
+        command,
+        trigger: 'interactive_gate',
+        ...status,
+        ...result,
+      });
+      return true;
+    }
+
+    reporter.event('graph.migration.cancelled', {
+      command,
+      ...status,
+    });
+    output.error('Graph upgrade cancelled', 'graph.migration_cancelled', {
+      command,
+      ...status,
+    });
+    return false;
+  }
+
+  output.error('Graph migration required. Run think --migrate-graph.', 'graph.migration_required', {
+    command,
+    ...status,
+  });
+  return false;
+}
+
 function shouldUseInteractiveReflectShell(output) {
   return !output.json && isInteractiveReflectAvailable();
 }
@@ -1223,6 +1338,10 @@ function canInteractivelyOpenBrowseShell(options) {
 
 function canInteractivelyPickReflectSeed(options) {
   return !options.json && isInteractiveReflectAvailable();
+}
+
+function canInteractivelyOfferGraphMigration(output) {
+  return !output.json && isInteractiveReflectAvailable();
 }
 
 function normalizeForPicker(text) {
@@ -1265,6 +1384,35 @@ async function pickReflectMode() {
       },
     ],
     defaultValue: 'challenge',
+    ctx,
+  });
+}
+
+async function promptForGraphMigration(command, status) {
+  const scriptedDecision = process.env.THINK_TEST_CONFIRM_MIGRATION;
+  if (scriptedDecision === 'upgrade' || scriptedDecision === 'cancel') {
+    return scriptedDecision;
+  }
+
+  const ctx = initDefaultContext();
+  ctx.io.write(renderGraphMigrationIntro(command, status, ctx) + '\n');
+
+  return select({
+    title: 'Graph upgrade',
+    maxVisible: 3,
+    options: [
+      {
+        value: 'upgrade',
+        label: 'Upgrade now',
+        description: 'Migrate the local thought graph and continue.',
+      },
+      {
+        value: 'cancel',
+        label: 'Cancel',
+        description: 'Leave the repo unchanged and stop this command.',
+      },
+    ],
+    defaultValue: 'upgrade',
     ctx,
   });
 }
@@ -1321,6 +1469,22 @@ function renderInteractiveReflectSkipped(ctx = initDefaultContext()) {
   return `${headerBox('Reflect skipped', { ctx })}\n${markdown('**No reflect response was saved.**', { ctx })}`;
 }
 
+function renderGraphMigrationIntro(command, status, ctx = initDefaultContext()) {
+  const header = headerBox('Upgrade thought graph', { ctx });
+  const body = markdown(
+    [
+      '**Your thought graph uses an older model.**',
+      '',
+      `\`${command}\` needs graph model version ${status.requiredGraphModelVersion} before it can continue.`,
+      '',
+      `Current graph model version: ${status.currentGraphModelVersion}`,
+    ].join('\n'),
+    { ctx }
+  );
+
+  return `${header}\n${body}`;
+}
+
 function writeShellBlock(content, output) {
   if (!content) {
     return;
@@ -1375,6 +1539,9 @@ function resolveJsonStream(payload) {
       'reflect.seed_not_found',
       'reflect.seed_ineligible',
       'reflect.session_not_found',
+      'graph.migration_required',
+      'graph.migration_cancelled',
+      'graph.migration.failed',
       'browse.entry_not_found',
       'inspect.entry_not_found',
     ].includes(payload.event)
