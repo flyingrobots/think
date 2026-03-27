@@ -1,0 +1,37 @@
+{
+  "benchmark": "browse-bootstrap",
+  "capturedAt": "2026-03-27T10:26:09.217Z",
+  "commitSha": "378e56c7f09a571c878c4619fc0dab5d2681f480",
+  "nodeVersion": "v25.8.1",
+  "platform": "darwin-arm64",
+  "fixture": {
+    "captureCount": 100,
+    "sessionCount": 10,
+    "startTimeMs": 1774022400000,
+    "endTimeMs": 1774030800000,
+    "withinSessionGapMs": 30000,
+    "betweenSessionGapMs": 600000
+  },
+  "measurement": {
+    "metric": "browseBootstrapMs",
+    "warmupCount": 1,
+    "runCount": 5,
+    "warmupSamplesMs": [
+      4688.941125
+    ],
+    "samplesMs": [
+      4152.16075,
+      4327.290042,
+      4074.953792,
+      4071.32075,
+      5028.381417
+    ]
+  },
+  "summary": {
+    "minMs": 4071.32075,
+    "maxMs": 5028.381417,
+    "meanMs": 4330.8213502,
+    "medianMs": 4152.16075,
+    "p95Ms": 5028.381417
+  }
+}
