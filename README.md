@@ -1,337 +1,149 @@
-# think
-
 <div align="center">
 <img alt="THINK" src="https://github.com/user-attachments/assets/55f89d75-cc49-405e-9a6e-624d24df0916" />
 </div>
 
-> Capture now. Understand later.
+Capture raw thoughts instantly. Revisit them later.
 
-`think` is a local-first system for capturing raw thoughts exactly as they happen, then making their evolution explorable later.
+`think` is a local-first tool for recording thoughts the moment they appear — before structure, before categories, before you forget. It stores everything in a private Git-backed repo on your machine and optionally backs up to a remote. Later, you can browse, search, inspect, and pressure-test what you captured.
 
-It is not a notes app.
-It is not a dashboard.
-It is not a daemon-first personal API.
+## Install
 
-It is infrastructure for cheap, exact, replayable thought capture.
-
-## Current Status
-
-`M0`, `M1`, `M2`, and `M3` are complete.
-`M4` is in progress.
-Current version: `0.3.0`.
-
-What exists today:
-
-- raw CLI capture via `think "..."` or `node ./bin/think.js "..."`
-- explicit read-only CLI surfaces via `think --recent`, `think --remember`, `think --browse=<entryId>`, `think --inspect=<entryId>`, and `think --stats`
-- machine-readable CLI output via `--json`, with JSONL-only streams for every implemented command
-- first-run bootstrap of a private local repo, defaulting to `~/.think/repo`
-- exact raw-text preservation
-- newest-first recent listing, with optional count and query filters
-- context-scoped recall via `--remember`, with ambient project recall and explicit query recall
-- best-effort upstream backup
-- first seeded reflect CLI flow via `--reflect` and `--reflect-session`
-- first reader-first browse TUI with chronology and same-session traversal
-- a native macOS menu bar app with a global hotkey capture panel
-- quiet menu bar feedback for saving, success, failure, and restart-needed state
-- first stored derivation bundle for `inspect`, including:
-  - canonical `thought:<fingerprint>` identity
-  - `seed_quality`
-  - `session_attribution`
-  - direct `Reflect` receipts
-- explicit graph-migration gating for graph-native commands, while keeping raw capture save-first and migration-safe
-- executable acceptance tests for the implemented CLI and macOS behavior
-
-What does not exist yet:
-
-- richer reflection dialogue mode
-- x-ray mode
-- explicit LLM-assisted spitball mode
-- archive-driven spitball recombine mode
-- embeddings
-- clustering
-- dashboard UI
-
-## Milestone Development Loop
-
-This repo uses an explicit milestone loop:
-
-1. design docs first
-2. tests as spec second
-3. implementation third
-4. retrospective
-5. rewrite the root README to reflect reality
-6. close the milestone
-
-That loop is how the repo stays aligned with reality instead of drifting into stale docs or speculative implementation.
-
-At the start of each design cycle, the docs should explicitly name:
-
-- sponsor human
-- sponsor agent
-- hill
-- playback questions
-- non-goals
-
-At the end of each cycle, the closeout should explicitly evaluate both:
-
-- human stakeholder playback
-- agent stakeholder playback
-
-The retro/closeout should also explicitly ask:
-
-- did implementation deviate from the approved design for this slice?
-- if yes, was that deviation intentional, accidental, or evidence that the design was wrong?
-- have the design docs been updated to match delivered reality before we declare the slice closed?
-
-For this project, the human stakeholder is the user and the agent stakeholder is the coding/CLI consumer perspective.
-
-The split of labor should stay explicit:
-
-- the human stakeholder judges whether the UX is actually good to use
-- the agent stakeholder judges whether the explicit command and JSON contract stays coherent and parity-preserving
-
-When running human playback, the coding agent should provide:
-
-- the commands to run
-- the steps to take
-- what to inspect from the human perspective
-
-Then stop and wait for the human verdict before proceeding beyond playback.
-
-## Product Doctrine
-
-- Raw capture is sacred.
-- Capture must be cheap.
-- Capture first. Interpret later.
-- Never mix capture and interpretation in the same user moment.
-- Provenance matters.
-- Replay matters.
-- The substrate may be sophisticated; the capture experience cannot feel sophisticated.
-
-If capture feels like “using a system” instead of “writing a thought down,” the product is already drifting.
-
-## How It Works Today
-
-`think` writes raw entries into a private local Git/WARP-backed repo.
-
-The current shape is:
-
-- direct writers: CLI and macOS menu bar app
-- local store: configurable via `THINK_REPO_DIR`, defaulting to `~/.think/repo`
-- day-one backup model: best-effort upstream push after local success
-- read surfaces: filtered `--recent`, explicit `--browse=<entryId>`, explicit `--inspect=<entryId>`, and plain `--stats`
-- passive ambient capture metadata for later recall:
-  - cwd
-  - git root
-  - git remote
-  - git branch
-
-Capture success means the local save succeeded.
-Backup is separate and best-effort.
-Read commands are explicit flags so literal thoughts like `"recent"` and `"stats"` stay capturable.
-
-Normal user-facing output stays intentionally boring:
-
-- `Saved locally`
-- `Backed up`
-- `Backup pending`
-
-The product should not require the user to think about refs, commits, pushes, pulls, or graph internals during normal use.
-
-## Usage
-
-From the repo root:
+Requires Node.js 22+.
 
 ```bash
-node ./bin/think.js "turkey is good in burritos"
-node ./bin/think.js --recent
-node ./bin/think.js --recent --count=5
-node ./bin/think.js --recent --query=warp
-node ./bin/think.js --remember
-node ./bin/think.js --remember "warp receipts"
-node ./bin/think.js --browse=<entryId>
-node ./bin/think.js --inspect=<entryId>
-node ./bin/think.js --migrate-graph
-node ./bin/think.js --stats
-node ./bin/think.js --stats --bucket=day
-node ./bin/think.js --stats --since=7d
-node ./bin/think.js --reflect
-node ./bin/think.js --reflect=<seedEntryId> --mode=sharpen
-node ./bin/think.js --reflect-session=<sessionId> "push the idea further"
+git clone https://github.com/flyingrobots/think.git
+cd think
+npm install
+npm link
 ```
 
-If you install or link the package entrypoint, the intended commands are:
+## Capture
 
 ```bash
 think "turkey is good in burritos"
-think --recent
-think --remember
-think --stats
 ```
 
-`--count=<n>` limits `--recent` to the newest `n` raw captures. `--query=<text>` filters `--recent` by case-insensitive text match.
+That's it. The thought is saved locally. If you've configured an upstream, it backs up automatically.
 
-`--remember` is the scoped recall surface. With no extra text, it uses the current working context to answer “what was I thinking about this?” With quoted text, it recalls prior thoughts about that explicit phrase. In `--json` mode it stays fully machine-readable through explicit scope and match rows.
+Output is intentionally boring: `Saved locally`, `Backed up`, or `Backup pending`.
 
-`--browse=<entryId>` shows one raw capture with its immediate newer and older neighbors, plus explicit session context in JSON mode.
-In a real TTY, bare `--browse` opens a full-screen Bijou browse TUI on the newest raw capture. The default view is reader-first: the current thought owns the screen, with timestamp, relative time, chronology position, entry id, session id, and session position visible up front. Use `j`/`k` or the arrow keys to move older and newer in chronology, `[` and `]` to move to the previous and next thoughts in the current session, `s` to reveal the session drawer, `l` to reveal the thought log drawer, `/` to open the jump palette, `i` to reveal inspect receipts, `r` to open an in-shell `Reflect` modal, and `q` to quit.
-
-`--inspect=<entryId>` exposes the stored raw capture, canonical thought identity, first derived receipts (`seed_quality` and `session_attribution`), and any direct `Reflect` descendants without summarizing or narrating the thought.
-
-`--migrate-graph` additively upgrades an older property-linked repo to the current graph model.
-
-On an outdated repo, graph-native commands like `--remember`, `--browse`, `--inspect`, and `--reflect` may require migration before they continue. Raw capture is different: capture still saves first, and any migration follow-through happens afterward.
-
-In a real TTY, bare `--reflect` opens an interactive seed picker. `--mode=challenge|constraint|sharpen` can be used to request a specific pressure family.
-
-`--recent`, `--remember`, `--browse`, `--inspect`, and `--stats` are read-only commands.
-They should not create local app state on their own.
-
-To enable day-one backup, set `THINK_UPSTREAM_URL` to a reachable Git remote or bare repo path before capture:
+## Read
 
 ```bash
-THINK_UPSTREAM_URL=/path/to/private-upstream.git think "backup this too"
+think --recent                        # newest thoughts
+think --recent --count=5              # last five
+think --recent --query=warp           # search recent thoughts
+think --remember                      # what was I thinking about this project?
+think --remember "warp receipts"      # recall thoughts about a specific topic
+think --stats                         # capture counts
+think --stats --since=7d --bucket=day # activity over the last week by day
 ```
 
-To target a different local thought repo, set `THINK_REPO_DIR`. If unset, `think` still uses the default private repo at `~/.think/repo`:
+## Browse
 
 ```bash
-THINK_REPO_DIR=/path/to/another-mind think "route this elsewhere"
+think --browse=<entryId>              # view one thought with neighbors
+think --browse                        # open the full-screen TUI
 ```
 
-For trace output during a command, use `--verbose`. This emits JSONL progress events on `stderr` while preserving the normal human-facing message on `stdout`:
+The browse TUI is reader-first: one thought fills the screen. Navigate with `j`/`k`, jump sessions with `[`/`]`, summon drawers with `s` (session) and `l` (log), search with `/`, inspect with `i`, reflect with `r`, quit with `q`.
+
+## Inspect
 
 ```bash
-think --verbose "trace this capture"
+think --inspect=<entryId>
 ```
 
-For machine-readable command output, use `--json`. In `--json` mode, all command output is emitted as JSONL and human-readable text is suppressed:
+Shows exact metadata, canonical identity (`thought:<fingerprint>`), and any derived receipts — seed quality, session attribution, reflect descendants — without summarizing the thought itself.
 
-- `stdout` carries ordinary data and success rows
-- `stderr` carries structured warnings and errors
+## Reflect
+
+Pressure-test a captured idea through structured prompts.
 
 ```bash
-think --json "capture this as JSONL"
-think --json --recent
-think --json --stats --bucket=day
+think --reflect                                     # pick a seed interactively
+think --reflect=<entryId>                           # start from a specific thought
+think --reflect=<entryId> --mode=sharpen            # choose a prompt family
+think --reflect-session=<sessionId> "push further"  # continue a session
 ```
 
-### macOS App
+Reflect stores its output as derived entries, separate from raw captures.
 
-Launch the native menu bar app from the repo root:
+## macOS Menu Bar App
 
 ```bash
 npm run macos
 ```
 
-The current default hotkey is `Command` + `Shift` + `I`.
+Hit `Cmd+Shift+I` anywhere. A capture panel appears. Type, press Enter, done. The menu bar icon shows save status so the panel can vanish immediately.
 
-The panel is intentionally thin:
+## Machine-Readable Output
 
-- hotkey
-- type
-- Enter
-- gone
-
-The menu bar icon then carries the save lifecycle so the panel can disappear immediately without losing confirmation.
-
-The macOS app also records buffered local prompt-UX telemetry summaries as JSONL, without storing prompt text, so timing and abandonment patterns can be reviewed later. By default this lives at `~/.think/metrics/prompt-ux.jsonl`. Set `THINK_PROMPT_METRICS_FILE` to override the file location.
-
-## Tests Are The Spec
-
-This repo follows a hard rule:
-
-- design docs define intent
-- executable tests define the actual spec
-- implementation follows
-
-There is no prose-spec layer between design and tests.
-
-Acceptance tests live under [test/acceptance](/Users/james/git/think/test/acceptance).
-Reusable fixtures live under [test/fixtures](/Users/james/git/think/test/fixtures).
-Shared assertions live under [test/support](/Users/james/git/think/test/support).
-Benchmark specs live under [test/benchmarks](/Users/james/git/think/test/benchmarks).
-Swift menu bar tests live under [macos/Tests](/Users/james/git/think/macos/Tests).
-
-Run the default suite with:
+Every command supports `--json` for JSONL output. Data goes to `stdout`, warnings and errors to `stderr`.
 
 ```bash
-npm test
+think --json "capture this"
+think --json --recent
+think --json --browse=<entryId>
+think --json --inspect=<entryId>
+think --json --stats --bucket=day
+think --json --reflect=<entryId>
 ```
 
-Run the full local suite, including the macOS Swift tests, with:
+## Configuration
+
+| Variable | Purpose | Default |
+|---|---|---|
+| `THINK_REPO_DIR` | Local thought repo path | `~/.think/repo` |
+| `THINK_UPSTREAM_URL` | Git remote for backup | _(none)_ |
+| `THINK_PROMPT_METRICS_FILE` | macOS telemetry output path | `~/.think/metrics/prompt-ux.jsonl` |
+
+## Graph Migration
+
+When the internal graph model evolves, read commands may require a one-time migration:
 
 ```bash
-npm run test:local
+think --migrate-graph
 ```
 
-Run the browse bootstrap benchmark with the default synthetic fixture and summary output:
+Raw capture always works regardless of graph version — it saves first, migrates after.
+
+## Tests
+
+Tests are the spec. Design docs define intent, executable tests define the contract.
 
 ```bash
-npm run benchmark:browse
-```
-
-Run the benchmark harness specs separately so the default fast suite stays cheap:
-
-```bash
+npm test              # acceptance suite (Node.js)
+npm run test:local    # acceptance + macOS Swift tests
 npm run test:benchmarks
 ```
 
-To capture a machine-readable baseline report for before/after comparison:
+## Development
 
 ```bash
-node benchmarks/browse-bootstrap.js --json --out=docs/benchmarks/browse-bootstrap-before.json
+npm run install-hooks             # enable pre-push hook
+npm run benchmark:browse          # browse bootstrap benchmark
 ```
 
-Install the local pre-push hook so macOS Swift tests stay local and off the default/CI path:
+## Project Structure
 
-```bash
-npm run install-hooks
-```
+- `bin/think.js` — CLI entrypoint
+- `src/cli.js` — command parsing and dispatch
+- `src/store.js` — thought storage layer
+- `src/git.js` — Git operations
+- `macos/` — native macOS menu bar app (Swift)
+- `test/acceptance/` — acceptance specs
+- `docs/design/` — design documents and roadmap
 
-The current `M1` and `M2` suites are green for the implemented behavior.
-The current `M3` reflect suite is green for the implemented behavior.
-The first `M4` read-mode, derivation-bundle, and session-context browse suites are green for the implemented behavior.
+## Design Principles
 
-## Repo Guide
-
-Start with these:
-
-- [CONTRIBUTING.md](/Users/james/git/think/CONTRIBUTING.md)
-- [CHANGELOG.md](/Users/james/git/think/CHANGELOG.md)
-- [docs/design/README.md](/Users/james/git/think/docs/design/README.md)
-- [docs/design/0005-m2-macos-capture-surface.md](/Users/james/git/think/docs/design/0005-m2-macos-capture-surface.md)
-- [docs/design/0006-stats-command.md](/Users/james/git/think/docs/design/0006-stats-command.md)
-- [docs/design/ROADMAP.md](/Users/james/git/think/docs/design/ROADMAP.md)
-- [docs/retrospectives/m1-capture-core-and-upstream-backup.md](/Users/james/git/think/docs/retrospectives/m1-capture-core-and-upstream-backup.md)
-- [docs/retrospectives/m2-macos-capture-surface.md](/Users/james/git/think/docs/retrospectives/m2-macos-capture-surface.md)
-- [docs/retrospectives/m3-reflect-mode.md](/Users/james/git/think/docs/retrospectives/m3-reflect-mode.md)
-- [docs/retrospectives/m4-session-context-browse.md](/Users/james/git/think/docs/retrospectives/m4-session-context-browse.md)
-- [BACKLOG.md](/Users/james/git/think/BACKLOG.md)
-
-Important implementation files:
-
-- [bin/think.js](/Users/james/git/think/bin/think.js)
-- [src/cli.js](/Users/james/git/think/src/cli.js)
-- [src/store.js](/Users/james/git/think/src/store.js)
-- [src/git.js](/Users/james/git/think/src/git.js)
-- [src/paths.js](/Users/james/git/think/src/paths.js)
-- [macos/Sources/ThinkMenuBarApp/ThinkMenuBarApp.swift](/Users/james/git/think/macos/Sources/ThinkMenuBarApp/ThinkMenuBarApp.swift)
-
-## Development Standard
-
-When in doubt:
-
-- choose less structure
-- choose lower latency
-- choose fewer fields
-- choose local-first
-- choose behavior over architecture
-- keep `recent` boring
-- protect the capture moment from intelligence creep
+- Raw capture is sacred and immutable
+- Capture must be cheap — if it feels like "using a system," it's already wrong
+- Local-first, always — local save never depends on network
+- Interpretation comes later, never during capture
+- Less structure, lower latency, fewer fields
+- The agent-facing JSONL contract is a real product boundary
 
 ## License
 
-`think` is licensed under the Apache License 2.0.
-See [LICENSE](/Users/james/git/think/LICENSE).
+Apache License 2.0. See [LICENSE](LICENSE).
