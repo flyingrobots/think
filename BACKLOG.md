@@ -127,6 +127,49 @@ Example:
 
 - “You said this two weeks ago. Still true?”
 
+### Browse Session Presentation
+
+The first session drawer and session traversal are useful, but the human playback surfaced follow-through improvements worth keeping visible.
+
+Possible future directions:
+
+- show sessions as a clearer list, tree, timeline, or stepper rather than a plain flat block of entries
+- show a visible session timestamp or session-start label
+- make session navigation feel more structured without replacing the current thought as the primary surface
+
+Important constraint:
+
+- keep browse reader-first; session presentation should support the current thought, not become a second homepage
+
+### Browse Visual Hierarchy And Short IDs
+
+The current browse metadata works, but it is still visually noisy in places.
+
+Possible future directions:
+
+- shorten visible entry ids in browse the way Git shortens hashes
+- use color or hierarchy to break up metadata more clearly
+- explore table-like metadata layout where that improves legibility
+
+Important constraint:
+
+- the inspect surface should still be able to reveal the full exact ids when needed
+
+### Session Summary And Per-Session Stats
+
+Session context may later earn a lightweight summary layer.
+
+Possible future directions:
+
+- session summary
+- thoughts per session
+- per-session stats
+- context-switch count
+
+Important constraint:
+
+- keep these factual and inspectable rather than turning them into dashboard theater or recommendation sludge
+
 ### Menu Bar Daily Report
 
 Expose a lightweight daily report from the macOS menu bar app, likely by opening a local web view with charts over prompt telemetry and recent usage.

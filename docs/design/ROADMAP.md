@@ -1,6 +1,6 @@
 # Roadmap And Milestones
 
-Status: `M0`, `M1`, `M2`, and `M3` complete; `M4` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, derivation-catalog, and session-context-browse designs under active use; session-traversal design under review
+Status: `M0`, `M1`, `M2`, and `M3` complete; `M4` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, derivation-catalog, session-context-browse, and session-traversal designs under active use
 
 ## Planning Frame
 
@@ -17,6 +17,7 @@ Milestones exist to prove user value in sequence. They are not buckets for unrel
 - `M3: Brainstorm Mode` is complete.
 - `M4: Reentry, Browse, and Inspect` is in progress.
 - the first M4 session-context browse slice is implemented and closed.
+- the first M4 session-traversal browse slice is implemented and closed.
 
 ## Planning Principles
 

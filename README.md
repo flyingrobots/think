@@ -26,6 +26,7 @@ What exists today:
 - newest-first recent listing, with optional count and query filters
 - best-effort upstream backup
 - first seeded reflect CLI flow via `--reflect` and `--reflect-session`
+- first reader-first browse TUI with chronology and same-session traversal
 - a native macOS menu bar app with a global hotkey capture panel
 - quiet menu bar feedback for saving, success, failure, and restart-needed state
 - first stored derivation bundle for `inspect`, including:

@@ -1,6 +1,6 @@
 # 0017 M4 Session Traversal
 
-Status: draft for review
+Status: implemented for the first session-traversal browse slice
 
 ## Purpose
 
@@ -220,8 +220,29 @@ This slice should count as done only when:
 
 ## Recommended Next Step
 
-After this note is reviewed:
+The first session-traversal browse slice now exists.
 
-1. write failing tests for human and JSON session-traversal behavior
-2. implement the narrow browse traversal slice
-3. close the slice with explicit human and agent playback before choosing the next M4 step
+Delivered behavior:
+
+- browse can move to previous and next thoughts within the current session explicitly
+- chronology traversal and session traversal remain separate in both the TUI and JSON surfaces
+- the reader-first browse view shows `Session Position`
+- single-entry or boundary session moves stay honest with explicit notices
+- JSON browse now exposes:
+  - `sessionPosition`
+  - `sessionCount`
+  - `browse.session_step`
+
+## Retrospective Reference
+
+For the implementation closeout and playback notes, see:
+
+- [`../retrospectives/m4-session-traversal.md`](../retrospectives/m4-session-traversal.md)
+
+## Recommended Next Step
+
+After this slice is closed:
+
+1. use playback to decide whether browse needs richer session presentation
+2. keep any follow-up narrow and inspectable
+3. do not let session traversal become a back door for graph-like browse sprawl
