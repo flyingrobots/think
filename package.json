@@ -9,10 +9,12 @@
   "scripts": {
     "macos": "swift run --package-path macos ThinkMenuBarApp",
     "test:m1": "node --test test/acceptance/*.test.js",
+    "test:benchmarks": "node --test test/benchmarks/*.test.js",
     "test:m2": "swift test --package-path macos",
     "test": "npm run test:m1",
     "test:local": "npm run test:m1 && npm run test:m2",
-    "install-hooks": "git config core.hooksPath .githooks"
+    "install-hooks": "git config core.hooksPath .githooks",
+    "benchmark:browse": "node benchmarks/browse-bootstrap.js"
   },
   "engines": {
     "node": ">=22.0.0"

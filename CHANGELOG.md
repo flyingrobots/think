@@ -37,6 +37,8 @@ Release discipline:
 - direct derived reflect receipts exposed in human and JSON inspect output
 - default `npm test` now excludes macOS Swift tests so the default/CI path stays cheap
 - local pre-push hook support via `.githooks/pre-push` and `npm run install-hooks`
+- browse bootstrap benchmark tooling via `npm run benchmark:browse`, including a deterministic 100-thought synthetic fixture and JSON baseline capture support
+- separate benchmark harness specs via `npm run test:benchmarks`, keeping the default fast suite cheap
 
 ### Removed
 

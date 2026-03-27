@@ -235,6 +235,7 @@ There is no prose-spec layer between design and tests.
 Acceptance tests live under [test/acceptance](/Users/james/git/think/test/acceptance).
 Reusable fixtures live under [test/fixtures](/Users/james/git/think/test/fixtures).
 Shared assertions live under [test/support](/Users/james/git/think/test/support).
+Benchmark specs live under [test/benchmarks](/Users/james/git/think/test/benchmarks).
 Swift menu bar tests live under [macos/Tests](/Users/james/git/think/macos/Tests).
 
 Run the default suite with:
@@ -247,6 +248,24 @@ Run the full local suite, including the macOS Swift tests, with:
 
 ```bash
 npm run test:local
+```
+
+Run the browse bootstrap benchmark with the default synthetic fixture and summary output:
+
+```bash
+npm run benchmark:browse
+```
+
+Run the benchmark harness specs separately so the default fast suite stays cheap:
+
+```bash
+npm run test:benchmarks
+```
+
+To capture a machine-readable baseline report for before/after comparison:
+
+```bash
+node benchmarks/browse-bootstrap.js --json --out=docs/benchmarks/browse-bootstrap-before.json
 ```
 
 Install the local pre-push hook so macOS Swift tests stay local and off the default/CI path:
