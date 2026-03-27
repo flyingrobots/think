@@ -1,6 +1,6 @@
 # Design Review Package
 
-Status: design approved; `M0`, `M1`, `M2`, and `M3` complete; `M4` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, derivation-catalog, session-context-browse, session-traversal, remember, graph-versioning/migration, and browse-bootstrap-benchmark designs under active use
+Status: design approved; `M0`, `M1`, `M2`, and `M3` complete; `M4` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, derivation-catalog, session-context-browse, session-traversal, remember, graph-versioning/migration, browse-bootstrap-benchmark, and graph-migration-gating designs under active use
 
 This directory began as the pre-implementation design package for `think`.
 
@@ -38,6 +38,7 @@ This review is meant to answer five questions:
 - [`0018-m4-remember.md`](./0018-m4-remember.md): IBM Design Thinking style product note for adding context-scoped recall through `think --remember`, with both ambient project recall and explicit query recall.
 - [`0019-graph-versioning-and-migration.md`](./0019-graph-versioning-and-migration.md): technical correction note for versioning the graph model and migrating from the current property-linked repos to explicit graph-native relationships.
 - [`0020-browse-bootstrap-benchmark.md`](./0020-browse-bootstrap-benchmark.md): technical note for a reproducible synthetic browse benchmark fixture and a committed before/after bootstrap baseline.
+- [`0021-graph-migration-gating.md`](./0021-graph-migration-gating.md): technical/product note for when graph migration is required, when it may run automatically, and why capture remains exempt from blocking upgrades.
 - [`ROADMAP.md`](./ROADMAP.md): milestone sequence, hill mapping, exit criteria, and review checkpoints.
 - [`../retrospectives/m1-capture-core-and-upstream-backup.md`](../retrospectives/m1-capture-core-and-upstream-backup.md): closeout for the first implemented milestone and the remaining validation follow-through.
 - [`../retrospectives/m2-macos-capture-surface.md`](../retrospectives/m2-macos-capture-surface.md): closeout for the native menu bar app and hotkey capture surface.
@@ -70,6 +71,7 @@ flowchart TD
     R --> P18["0018 M4 Remember"]
     R --> P19["0019 Graph Versioning And Migration"]
     R --> P20["0020 Browse Bootstrap Benchmark"]
+    R --> P21["0021 Graph Migration Gating"]
     R --> RD["Roadmap and Milestones"]
     R --> BL["Backlog (deferred ideas)"]
     P --> A
@@ -97,6 +99,8 @@ flowchart TD
     P10 --> P19
     P15 --> P19
     P19 --> P20
+    P19 --> P21
+    P20 --> P21
     B3 --> G9
     B3 --> P11
     P11 --> P12
@@ -115,6 +119,7 @@ flowchart TD
     P15 --> P18
     P17 --> P18
     P18 --> P19
+    P21 --> RD
     P20 --> RD
     T --> A8
     T --> P10
@@ -133,6 +138,7 @@ flowchart TD
     P18 --> RD
     P19 --> RD
     P20 --> RD
+    P21 --> RD
 ```
 
 ## Review Standard
