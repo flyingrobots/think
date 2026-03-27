@@ -27,11 +27,11 @@ export async function createThinkContext({ upstream = 'none' } = {}) {
   };
 }
 
-export function runThink(context, args, extraEnv = {}) {
+export function runThink(context, args, extraEnv = {}, options = {}) {
   requireCliEntrypoint();
 
   return spawnSync(process.execPath, [cliEntrypoint, ...args], {
-    cwd: repoRoot,
+    cwd: options.cwd ?? repoRoot,
     encoding: 'utf8',
     env: {
       ...process.env,

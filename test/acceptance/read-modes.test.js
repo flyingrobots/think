@@ -8,6 +8,11 @@ import {
 } from '../fixtures/think.js';
 
 import {
+  createGitRepo,
+  runGit,
+} from '../fixtures/git.js';
+
+import {
   assertChronologicalOrder,
   assertContains,
   assertFailure,
@@ -136,6 +141,127 @@ test('think --json --recent applies count and query filters while remaining JSON
     entryEvents.map((event) => event.text),
     [matchingNew, matchingOld],
     'Expected JSON recent to emit only matching entry text.'
+  );
+});
+
+test('think --remember uses the current project context to recall relevant prior thoughts', async () => {
+  const context = await createThinkContext();
+  const alphaRepoDir = await createProjectRepo('alpha-project');
+  const betaRepoDir = await createProjectRepo('beta-project');
+  const alphaThought = 'Need to tighten the handoff note format before the next session.';
+  const betaThought = 'The cache invalidation story is still too hand-wavy.';
+
+  captureWithEntryId(context, alphaThought, {}, { cwd: alphaRepoDir });
+  captureWithEntryId(context, betaThought, {}, { cwd: betaRepoDir });
+
+  const remember = runThink(context, ['--remember'], {}, { cwd: alphaRepoDir });
+
+  assertSuccess(remember, 'Expected ambient remember to succeed from a project working directory.');
+  assertContains(remember, 'Remember', 'Expected remember mode to identify itself explicitly.');
+  assertContains(remember, 'Scope: current project', 'Expected ambient remember to state that it is using project scope.');
+  assertContains(remember, alphaThought, 'Expected ambient remember to surface prior thoughts from the current project.');
+  assertContains(remember, 'Why:', 'Expected ambient remember to expose an explicit retrieval receipt.');
+  assertContains(
+    remember,
+    'matched current git remote',
+    'Expected ambient remember to explain project-scoped recall through ambient project receipts.'
+  );
+  assertNotContains(
+    remember,
+    betaThought,
+    'Expected ambient remember not to surface unrelated thoughts from a different project context.'
+  );
+});
+
+test('think --remember with an explicit phrase recalls matching thoughts without turning into generic recent listing', async () => {
+  const context = await createThinkContext();
+  const matchingOld = 'warp receipts need better explainability in inspect mode';
+  const nonMatch = 'turkey burritos remain underrated';
+  const matchingNew = 'Warp browse should stay local-first even when remember exists';
+
+  captureWithEntryId(context, matchingOld);
+  captureWithEntryId(context, nonMatch);
+  captureWithEntryId(context, matchingNew);
+
+  const remember = runThink(context, ['--remember', 'warp receipts']);
+
+  assertSuccess(remember, 'Expected explicit remember query to succeed.');
+  assertContains(remember, 'Scope: query', 'Expected explicit remember to identify query-based scope.');
+  assertChronologicalOrder(
+    combinedOutput(remember),
+    [matchingNew, matchingOld],
+    'Expected explicit remember to preserve deterministic newest-first order among the matching recall set.'
+  );
+  assertContains(remember, matchingNew, 'Expected explicit remember to include the newer matching thought.');
+  assertContains(remember, matchingOld, 'Expected explicit remember to include the older matching thought.');
+  assertNotContains(
+    remember,
+    nonMatch,
+    'Expected explicit remember not to degrade into plain recent listing for unrelated thoughts.'
+  );
+});
+
+test('think --json --remember emits explicit ambient scope and match receipts for agents', async () => {
+  const context = await createThinkContext();
+  const alphaRepoDir = await createProjectRepo('alpha-project');
+  const betaRepoDir = await createProjectRepo('beta-project');
+  const alphaThought = 'Need to tighten the handoff note format before the next session.';
+  const betaThought = 'The cache invalidation story is still too hand-wavy.';
+
+  const { entryId: alphaEntryId } = captureWithEntryId(context, alphaThought, {}, { cwd: alphaRepoDir });
+  captureWithEntryId(context, betaThought, {}, { cwd: betaRepoDir });
+
+  const remember = runThink(context, ['--json', '--remember'], {}, { cwd: alphaRepoDir });
+
+  assertSuccess(remember, 'Expected JSON ambient remember to succeed.');
+  assertJsonStreams(remember);
+  assert.equal((remember.stderr || '').trim(), '', 'Expected successful JSON remember to keep stderr quiet.');
+
+  const events = parseJsonLines(
+    remember.stdout,
+    'Expected JSON remember output to emit valid JSONL.'
+  );
+
+  const scope = getEvent(
+    events,
+    'remember.scope',
+    'Expected JSON remember to expose an explicit scope row.'
+  );
+  assert.equal(scope.scopeKind, 'ambient_project', 'Expected ambient remember to identify the current project scope explicitly.');
+  assert.equal(typeof scope.cwd, 'string', 'Expected ambient remember scope to expose cwd.');
+  assert.equal(typeof scope.gitRoot, 'string', 'Expected ambient remember scope to expose git root.');
+  assert.equal(typeof scope.gitRemote, 'string', 'Expected ambient remember scope to expose git remote when available.');
+
+  const matches = events.filter((event) => event.event === 'remember.match');
+  assert.ok(matches.length > 0, 'Expected JSON remember to expose at least one explicit match row.');
+  assert.equal(matches[0].entryId, alphaEntryId, 'Expected the current-project thought to rank first in ambient remember.');
+  assert.equal(matches[0].text, alphaThought, 'Expected ambient remember to preserve exact raw text in the match row.');
+  assert.ok(Array.isArray(matches[0].matchKinds), 'Expected remember match rows to expose explicit match kinds.');
+  assert.equal(typeof matches[0].score, 'number', 'Expected remember match rows to expose deterministic scores.');
+});
+
+test('think --remember falls back honestly to textual project-token matching for entries without ambient project receipts', async () => {
+  const context = await createThinkContext();
+  const widgetRepoDir = await createProjectRepo('widget-app');
+  const fallbackThought = 'widget-app needs better receipts in inspect mode';
+  const nonMatch = 'git-warp timelines still need calmer metadata';
+
+  captureWithEntryId(context, fallbackThought);
+  captureWithEntryId(context, nonMatch);
+
+  const remember = runThink(context, ['--remember'], {}, { cwd: widgetRepoDir });
+
+  assertSuccess(remember, 'Expected ambient remember to stay useful even when older entries lack project receipts.');
+  assertContains(remember, fallbackThought, 'Expected ambient remember to recover older relevant thoughts through textual fallback.');
+  assertContains(
+    remember,
+    'Why: fallback textual match',
+    'Expected ambient remember to stay honest when it is relying on textual fallback instead of stored project receipts.'
+  );
+  assertNotContains(
+    remember,
+    nonMatch,
+    'Expected ambient remember not to surface unrelated archive entries just because project receipts are missing.'
   );
 });
 
@@ -1026,8 +1152,8 @@ test('think --json --inspect keeps duplicate raw captures distinct while linking
   );
 });
 
-function captureWithEntryId(context, thought, extraEnv = {}) {
-  const capture = runThink(context, ['--verbose', thought], extraEnv);
+function captureWithEntryId(context, thought, extraEnv = {}, options = {}) {
+  const capture = runThink(context, ['--verbose', thought], extraEnv, options);
 
   assertSuccess(capture, `Expected capture to succeed for thought: ${thought}`);
   const events = parseJsonLines(
@@ -1045,6 +1171,20 @@ function captureWithEntryId(context, thought, extraEnv = {}) {
     entryId: saved.entryId,
     result: capture,
   };
+}
+
+async function createProjectRepo(name) {
+  const repoDir = await createGitRepo({ prefix: `${name}-`, name });
+  const remoteUrl = `git@github.com:flyingrobots/${name}.git`;
+  const addRemote = runGit(['remote', 'add', 'origin', remoteUrl], { cwd: repoDir });
+
+  assert.equal(
+    addRemote.status,
+    0,
+    `Expected deterministic project repo fixture to accept an origin remote.\nstdout:\n${addRemote.stdout}\nstderr:\n${addRemote.stderr}`
+  );
+
+  return repoDir;
 }
 
 function getEvent(events, name, message) {
