@@ -1,6 +1,6 @@
 # 0021 Graph Migration Gating
 
-Status: draft for review
+Status: implemented for the graph-migration-gating slice
 
 ## Sponsor
 
@@ -283,6 +283,26 @@ So:
 - capture saves first and may migrate after
 - interactive graph-native commands can say `upgrade now or cancel`
 - agent/non-interactive graph-native commands fail explicitly
+
+## Implemented Behavior
+
+The current implementation delivers the first concrete version of this policy:
+
+- raw CLI capture saves first and only then runs post-capture graph follow-through
+- post-capture migration emits explicit verbose events after `capture.local_save.done`
+- graph-native commands now gate on graph model `v2`:
+  - `--remember`
+  - `--browse`
+  - `--inspect`
+  - `--reflect`
+- interactive human CLI flows offer an explicit upgrade-or-cancel gate
+- `--json` and other non-interactive flows fail with `graph.migration_required`
+
+Follow-through still worth earning later:
+
+- better visible progress during interactive upgrades
+- stronger migration-locking / no-stampede implementation
+- eventual retirement of the compatibility epoch once migration is proven
 
 That keeps the product honest on both sides:
 

@@ -35,6 +35,7 @@ What exists today:
   - `seed_quality`
   - `session_attribution`
   - direct `Reflect` receipts
+- explicit graph-migration gating for graph-native commands, while keeping raw capture save-first and migration-safe
 - executable acceptance tests for the implemented CLI and macOS behavior
 
 What does not exist yet:
@@ -147,6 +148,7 @@ node ./bin/think.js --remember
 node ./bin/think.js --remember "warp receipts"
 node ./bin/think.js --browse=<entryId>
 node ./bin/think.js --inspect=<entryId>
+node ./bin/think.js --migrate-graph
 node ./bin/think.js --stats
 node ./bin/think.js --stats --bucket=day
 node ./bin/think.js --stats --since=7d
@@ -172,6 +174,10 @@ think --stats
 In a real TTY, bare `--browse` opens a full-screen Bijou browse TUI on the newest raw capture. The default view is reader-first: the current thought owns the screen, with timestamp, relative time, chronology position, entry id, session id, and session position visible up front. Use `j`/`k` or the arrow keys to move older and newer in chronology, `[` and `]` to move to the previous and next thoughts in the current session, `s` to reveal the session drawer, `l` to reveal the thought log drawer, `/` to open the jump palette, `i` to reveal inspect receipts, `r` to open an in-shell `Reflect` modal, and `q` to quit.
 
 `--inspect=<entryId>` exposes the stored raw capture, canonical thought identity, first derived receipts (`seed_quality` and `session_attribution`), and any direct `Reflect` descendants without summarizing or narrating the thought.
+
+`--migrate-graph` additively upgrades an older property-linked repo to the current graph model.
+
+On an outdated repo, graph-native commands like `--remember`, `--browse`, `--inspect`, and `--reflect` may require migration before they continue. Raw capture is different: capture still saves first, and any migration follow-through happens afterward.
 
 In a real TTY, bare `--reflect` opens an interactive seed picker. `--mode=challenge|constraint|sharpen` can be used to request a specific pressure family.
 

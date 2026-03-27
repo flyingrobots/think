@@ -45,6 +45,7 @@ This review is meant to answer five questions:
 - [`../retrospectives/m3-reflect-mode.md`](../retrospectives/m3-reflect-mode.md): closeout for the first explicit post-capture reflect mode and the pressure-test/spitball split it uncovered.
 - [`../retrospectives/m4-session-context-browse.md`](../retrospectives/m4-session-context-browse.md): closeout for the first M4 slice that makes browse consume `session_attribution` honestly in both the TUI and JSON surfaces.
 - [`../retrospectives/m4-session-traversal.md`](../retrospectives/m4-session-traversal.md): closeout for the M4 slice that makes same-session movement a first-class browse behavior for both humans and agents.
+- [`../retrospectives/m4-graph-migration-gating.md`](../retrospectives/m4-graph-migration-gating.md): closeout for the slice that makes migration explicit for graph-native commands while keeping raw capture migration-safe.
 - [`BACKLOG.md`](../../BACKLOG.md): deferred ideas, cool ideas, and parking-lot items that should not silently become approved scope.
 
 ## Review Package Map

@@ -170,6 +170,22 @@ Important constraint:
 
 - keep these factual and inspectable rather than turning them into dashboard theater or recommendation sludge
 
+### Graph Migration Progress UX
+
+The migration gate works, but the human playback surfaced a follow-through improvement:
+
+- interactive upgrades should feel visibly in progress rather than abrupt
+
+Possible future directions:
+
+- explicit `Upgrading` state
+- visible progress bar or progress-like affordance during migration
+- clearer completion cue before entering the requested graph-native command
+
+Important constraint:
+
+- keep capture exempt from any blocking or visually noisy migration moment
+
 ### Menu Bar Daily Report
 
 Expose a lightweight daily report from the macOS menu bar app, likely by opening a local web view with charts over prompt telemetry and recent usage.

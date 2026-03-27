@@ -39,6 +39,11 @@ Release discipline:
 - local pre-push hook support via `.githooks/pre-push` and `npm run install-hooks`
 - browse bootstrap benchmark tooling via `npm run benchmark:browse`, including a deterministic 100-thought synthetic fixture and JSON baseline capture support
 - separate benchmark harness specs via `npm run test:benchmarks`, keeping the default fast suite cheap
+- explicit graph-migration gating:
+  - raw capture now saves first and only then runs post-capture migration follow-through on outdated repos
+  - graph-native commands now fail clearly on outdated repos for non-interactive use
+  - `--json` now emits `graph.migration_required`
+  - interactive human CLI flows now offer upgrade-or-cancel instead of silent mutation
 
 ### Removed
 

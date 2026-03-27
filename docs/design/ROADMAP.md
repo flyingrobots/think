@@ -18,6 +18,7 @@ Milestones exist to prove user value in sequence. They are not buckets for unrel
 - `M4: Reentry, Browse, and Inspect` is in progress.
 - the first M4 session-context browse slice is implemented and closed.
 - the first M4 session-traversal browse slice is implemented and closed.
+- the graph-migration-gating correction slice is implemented and closed.
 
 ## Planning Principles
 
