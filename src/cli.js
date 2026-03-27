@@ -505,6 +505,7 @@ async function runBrowse(entryId, output, reporter) {
     entryId,
     count: browseEntries.length,
     sessionEntryCount: browseWindow.sessionEntries.length,
+    sessionStepCount: browseWindow.sessionSteps.length,
   });
 
   if (output.json) {
@@ -528,18 +529,37 @@ async function runBrowse(entryId, output, reporter) {
         index,
       });
     }
+    for (const step of browseWindow.sessionSteps) {
+      output.data('browse.session_step', {
+        direction: step.direction,
+        entryId: step.id,
+        text: step.text,
+        sortKey: step.sortKey,
+        sessionId: browseWindow.sessionContext?.sessionId ?? step.sessionId ?? null,
+        sessionPosition: step.sessionPosition,
+      });
+    }
     return 0;
   }
 
   const lines = ['Browse', `Current: ${browseWindow.current.text}`];
   if (browseWindow.sessionContext) {
     lines.push(`Session: ${browseWindow.sessionContext.sessionId}`);
+    if (browseWindow.sessionContext.sessionPosition && browseWindow.sessionContext.sessionCount) {
+      lines.push(
+        `Session Position: ${browseWindow.sessionContext.sessionPosition} of ${browseWindow.sessionContext.sessionCount}`
+      );
+    }
   }
   if (browseWindow.newer) {
     lines.push(`Newer: ${browseWindow.newer.text}`);
   }
   if (browseWindow.older) {
     lines.push(`Older: ${browseWindow.older.text}`);
+  }
+  for (const step of browseWindow.sessionSteps) {
+    const label = step.direction === 'previous' ? 'Previous in session' : 'Next in session';
+    lines.push(`${label}: ${step.text}`);
   }
   if (browseWindow.sessionEntries.length > 0) {
     lines.push('Session nearby:');

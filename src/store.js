@@ -281,6 +281,7 @@ export async function getBrowseWindow(repoDir, entryId) {
   }
 
   const sessionAttribution = await getSessionAttributionReceipt(graph, currentEntry);
+  const sessionTraversal = resolveSessionTraversal(recent, recent[index]);
   const sessionEntries = sessionAttribution
     ? recent.filter((entry) =>
         entry.id !== entryId && entry.sessionId === sessionAttribution.sessionId)
@@ -296,9 +297,29 @@ export async function getBrowseWindow(repoDir, entryId) {
           sessionId: sessionAttribution.sessionId,
           reasonKind: sessionAttribution.reasonKind,
           reasonText: sessionAttribution.reasonText,
+          sessionPosition: sessionTraversal.sessionPosition,
+          sessionCount: sessionTraversal.sessionCount,
         }
       : null,
     sessionEntries,
+    sessionSteps: sessionAttribution
+      ? [
+          ...(sessionTraversal.previous
+            ? [{
+                direction: 'previous',
+                ...sessionTraversal.previous,
+                sessionPosition: sessionTraversal.sessionPosition - 1,
+              }]
+            : []),
+          ...(sessionTraversal.next
+            ? [{
+                direction: 'next',
+                ...sessionTraversal.next,
+                sessionPosition: sessionTraversal.sessionPosition + 1,
+              }]
+            : []),
+        ]
+      : [],
   };
 }
 
@@ -905,6 +926,38 @@ function compareEntriesOldestFirst(left, right) {
   }
 
   return left.sortKey.localeCompare(right.sortKey);
+}
+
+function resolveSessionTraversal(entries, currentEntry) {
+  if (!currentEntry?.sessionId) {
+    return {
+      sessionPosition: null,
+      sessionCount: 0,
+      previous: null,
+      next: null,
+    };
+  }
+
+  const sessionEntries = entries
+    .filter((entry) => entry.sessionId === currentEntry.sessionId)
+    .sort(compareEntriesOldestFirst);
+  const currentIndex = sessionEntries.findIndex((entry) => entry.id === currentEntry.id);
+
+  if (currentIndex === -1) {
+    return {
+      sessionPosition: null,
+      sessionCount: sessionEntries.length,
+      previous: null,
+      next: null,
+    };
+  }
+
+  return {
+    sessionPosition: currentIndex + 1,
+    sessionCount: sessionEntries.length,
+    previous: currentIndex > 0 ? sessionEntries[currentIndex - 1] : null,
+    next: currentIndex + 1 < sessionEntries.length ? sessionEntries[currentIndex + 1] : null,
+  };
 }
 
 function matchesRecentQuery(text, query) {

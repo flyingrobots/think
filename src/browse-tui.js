@@ -43,6 +43,9 @@ const browseKeymap = createKeyMap()
     .bind('up', 'Newer', { type: 'move', delta: -1 })
     .bind('home', 'Newest', { type: 'jump', target: 'newest' })
     .bind('end', 'Oldest', { type: 'jump', target: 'oldest' }))
+  .group('Session', (group) => group
+    .bind('[', 'Prev session', { type: 'session_move', direction: 'previous' })
+    .bind(']', 'Next session', { type: 'session_move', direction: 'next' }))
   .group('View', (group) => group
     .bind('i', 'Inspect', { type: 'toggle_inspect' })
     .bind('s', 'Session', { type: 'toggle_session' })
@@ -276,6 +279,43 @@ function applyBrowseAction(model, action) {
           ...model,
           currentIndex: nextIndex,
           contentScrollY: 0,
+          notice: null,
+        },
+        effect: null,
+      };
+    }
+    case 'session_move': {
+      const sessionTraversal = resolveSessionTraversal(model);
+      const targetEntry = action.direction === 'previous'
+        ? sessionTraversal.previous
+        : sessionTraversal.next;
+
+      if (!targetEntry) {
+        return {
+          model: {
+            ...model,
+            notice: action.direction === 'previous'
+              ? 'No previous thought in this session.'
+              : 'No next thought in this session.',
+          },
+          effect: null,
+        };
+      }
+
+      const nextIndex = model.entries.findIndex((entry) => entry.id === targetEntry.id);
+      if (nextIndex === -1) {
+        return {
+          model,
+          effect: null,
+        };
+      }
+
+      return {
+        model: {
+          ...model,
+          currentIndex: nextIndex,
+          contentScrollY: 0,
+          notice: null,
         },
         effect: null,
       };
@@ -286,6 +326,7 @@ function applyBrowseAction(model, action) {
           ...model,
           panelMode: model.panelMode === 'inspect' ? 'none' : 'inspect',
           contentScrollY: 0,
+          notice: null,
         },
         effect: null,
       };
@@ -295,6 +336,7 @@ function applyBrowseAction(model, action) {
           ...model,
           panelMode: model.panelMode === 'session' ? 'none' : 'session',
           contentScrollY: 0,
+          notice: null,
         },
         effect: null,
       };
@@ -304,6 +346,7 @@ function applyBrowseAction(model, action) {
           ...model,
           panelMode: model.panelMode === 'log' ? 'none' : 'log',
           contentScrollY: 0,
+          notice: null,
         },
         effect: null,
       };
@@ -314,6 +357,7 @@ function applyBrowseAction(model, action) {
           panelMode: 'jump',
           jumpPalette: cpFilter(createJumpPalette(model.entries), action.query ?? ''),
           contentScrollY: 0,
+          notice: null,
         },
         effect: null,
       };
@@ -339,6 +383,7 @@ function applyBrowseAction(model, action) {
           currentIndex: nextIndex,
           panelMode: 'none',
           contentScrollY: 0,
+          notice: null,
         },
         effect: null,
       };
@@ -348,6 +393,7 @@ function applyBrowseAction(model, action) {
         model: {
           ...model,
           panelMode: 'none',
+          notice: null,
         },
         effect: null,
       };
@@ -360,6 +406,7 @@ function applyBrowseAction(model, action) {
         model: {
           ...model,
           contentScrollY: nextState.y,
+          notice: null,
         },
         effect: null,
       };
@@ -620,6 +667,10 @@ function normalizeScriptAction(rawAction) {
       return { type: 'move', delta: 1 };
     case 'newer':
       return { type: 'move', delta: -1 };
+    case 'session_previous':
+      return { type: 'session_move', direction: 'previous' };
+    case 'session_next':
+      return { type: 'session_move', direction: 'next' };
     case 'inspect':
       return { type: 'toggle_inspect' };
     case 'session':
@@ -788,14 +839,17 @@ function renderInspectPane(model, width, height) {
 
 function renderSessionPane(model, width, height) {
   const entry = currentEntry(model);
-  const sessionEntries = model.entries.filter((candidate) =>
-    candidate.id !== entry.id && candidate.sessionId && candidate.sessionId === entry.sessionId);
+  const sessionTraversal = resolveSessionTraversal(model);
+  const sessionEntries = sessionTraversal.entries.filter((candidate) => candidate.id !== entry.id);
   const lines = [];
 
   if (!entry.sessionId) {
     lines.push(styleDim('Session context is not available for this thought yet.'));
   } else {
     lines.push(`Session ID: ${entry.sessionId}`);
+    if (sessionTraversal.position && sessionTraversal.count) {
+      lines.push(`Session Position: ${sessionTraversal.position} of ${sessionTraversal.count}`);
+    }
     lines.push('');
 
     if (sessionEntries.length === 0) {
@@ -889,6 +943,7 @@ function renderReflectModalBody(model, width) {
 function buildThoughtContent(model, width) {
   const entry = currentEntry(model);
   const neighbors = resolveNeighbors(model);
+  const sessionTraversal = resolveSessionTraversal(model);
   const lines = [
     styleSection('THOUGHT'),
     '',
@@ -897,6 +952,7 @@ function buildThoughtContent(model, width) {
     `Position: ${model.currentIndex + 1} of ${model.entries.length}`,
     `Entry ID: ${entry.id}`,
     `Session: ${entry.sessionId ?? 'pending'}`,
+    `Session Position: ${formatSessionPosition(sessionTraversal)}`,
     '',
     wrapParagraphs(entry.text, width),
     '',
@@ -904,6 +960,17 @@ function buildThoughtContent(model, width) {
     '',
     wrapLine(`Newer: ${neighbors.newer ? neighbors.newer.text : 'none'}`, width),
     wrapLine(`Older: ${neighbors.older ? neighbors.older.text : 'none'}`, width),
+    '',
+    styleSection('SESSION'),
+    '',
+    wrapLine(
+      `Previous in session: ${sessionTraversal.previous ? sessionTraversal.previous.text : 'none'}`,
+      width
+    ),
+    wrapLine(
+      `Next in session: ${sessionTraversal.next ? sessionTraversal.next.text : 'none'}`,
+      width
+    ),
   ];
 
   return lines.join('\n');
@@ -937,6 +1004,43 @@ function resolveNeighbors(model) {
   return {
     newer: model.currentIndex > 0 ? model.entries[model.currentIndex - 1] : null,
     older: model.currentIndex + 1 < model.entries.length ? model.entries[model.currentIndex + 1] : null,
+  };
+}
+
+function resolveSessionTraversal(model) {
+  const entry = currentEntry(model);
+
+  if (!entry?.sessionId) {
+    return {
+      entries: [],
+      count: 0,
+      position: null,
+      previous: null,
+      next: null,
+    };
+  }
+
+  const sessionEntries = model.entries
+    .filter((candidate) => candidate.sessionId === entry.sessionId)
+    .sort(compareEntriesOldestFirst);
+  const sessionIndex = sessionEntries.findIndex((candidate) => candidate.id === entry.id);
+
+  if (sessionIndex === -1) {
+    return {
+      entries: sessionEntries,
+      count: sessionEntries.length,
+      position: null,
+      previous: null,
+      next: null,
+    };
+  }
+
+  return {
+    entries: sessionEntries,
+    count: sessionEntries.length,
+    position: sessionIndex + 1,
+    previous: sessionIndex > 0 ? sessionEntries[sessionIndex - 1] : null,
+    next: sessionIndex + 1 < sessionEntries.length ? sessionEntries[sessionIndex + 1] : null,
   };
 }
 
@@ -1116,6 +1220,22 @@ function styleDim(text) {
 
 function capitalize(text) {
   return String(text).charAt(0).toUpperCase() + String(text).slice(1);
+}
+
+function compareEntriesOldestFirst(left, right) {
+  if (left.sortKey === right.sortKey) {
+    return left.id.localeCompare(right.id);
+  }
+
+  return left.sortKey.localeCompare(right.sortKey);
+}
+
+function formatSessionPosition(sessionTraversal) {
+  if (!sessionTraversal.position || !sessionTraversal.count) {
+    return 'pending';
+  }
+
+  return `${sessionTraversal.position} of ${sessionTraversal.count}`;
 }
 
 function clamp(value, min, max) {
