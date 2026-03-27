@@ -19,6 +19,8 @@ Milestones exist to prove user value in sequence. They are not buckets for unrel
 - the first M4 session-context browse slice is implemented and closed.
 - the first M4 session-traversal browse slice is implemented and closed.
 - the graph-migration-gating correction slice is implemented and closed.
+- the `v3` read-edge substrate slice is implemented and closed.
+- the broader graph-native browse/read refactor remains in progress until the live browse bootstrap hot path is actually moved onto the new graph-native anchors.
 
 ## Planning Principles
 

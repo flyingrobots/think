@@ -56,6 +56,8 @@ think --inspect=<entryId>
 
 Shows exact metadata, canonical identity (`thought:<fingerprint>`), and any derived receipts — seed quality, session attribution, reflect descendants — without summarizing the thought itself.
 
+Under the hood, `inspect` now prefers explicit graph-native reflect receipts instead of reconstructing them only through legacy linkage properties.
+
 ## Reflect
 
 Pressure-test a captured idea through structured prompts.
@@ -107,6 +109,7 @@ think --migrate-graph
 ```
 
 Raw capture always works regardless of graph version — it saves first, migrates after.
+Current graph-native read behavior targets graph model `v3`.
 
 ## Tests
 

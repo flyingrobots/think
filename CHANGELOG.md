@@ -44,6 +44,11 @@ Release discipline:
   - graph-native commands now fail clearly on outdated repos for non-interactive use
   - `--json` now emits `graph.migration_required`
   - interactive human CLI flows now offer upgrade-or-cancel instead of silent mutation
+- `graphModelVersion = 3` read-edge substrate:
+  - new captures now maintain `latest_capture` and `older` graph-native browse edges
+  - reflect writes now maintain `seeded_by`, `produced_in`, and `responds_to` operational edges
+  - `think --migrate-graph` now backfills those `v3` edges additively
+  - `inspect` now prefers direct reflect receipts through graph-native edges before falling back to legacy linkage props
 
 ### Removed
 

@@ -1,6 +1,6 @@
 # 0022 Graph-Native Browse And Inspect Refactor
 
-Status: draft for review
+Status: in progress; `v3` read-edge substrate implemented, browse bootstrap hot-path refactor still open
 
 ## Sponsor
 
@@ -15,6 +15,17 @@ An agent using `think` read surfaces through explicit CLI and JSON contracts who
 ## Hill
 
 If `think` refactors browse and inspect around explicit graph-native read paths, both humans and agents get the same honest relationships with materially faster browse bootstrap, while the repo stays migratable and mixed-generation handling remains explicit.
+
+Current implementation status:
+
+- implemented:
+  - `graphModelVersion = 3`
+  - additive migration for the new read-critical edges
+  - graph-native reflect operational edges
+  - edge-first direct reflect receipts in `inspect`
+- still open:
+  - moving live browse bootstrap onto graph-native anchors
+  - capturing the official `AFTER` benchmark against the committed `BEFORE` baseline
 
 ## Playback Questions
 
@@ -252,6 +263,9 @@ It should not require:
 - full inspect preload
 
 Any of those may happen later and on demand.
+
+This remains the open part of the slice.
+The current implementation adds the graph structure needed for a faster browse path, but does not yet change the live bare-`--browse` bootstrap enough to claim the performance win.
 
 ## Inspect Rules
 
