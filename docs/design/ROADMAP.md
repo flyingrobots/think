@@ -1,6 +1,6 @@
 # Roadmap And Milestones
 
-Status: `M0`, `M1`, `M2`, and `M3` complete; `M4` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, derivation-catalog, session-context-browse, and session-traversal designs under active use
+Status: `M0`, `M1`, `M2`, and `M3` complete; `M4` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, derivation-catalog, session-context-browse, session-traversal, and remember designs under active use
 
 ## Planning Frame
 
@@ -43,6 +43,7 @@ Current cross-cutting notes under review:
 - [`0015-per-thought-derivation-catalog.md`](./0015-per-thought-derivation-catalog.md)
 - [`0016-m4-session-context-browse.md`](./0016-m4-session-context-browse.md)
 - [`0017-m4-session-traversal.md`](./0017-m4-session-traversal.md)
+- [`0018-m4-remember.md`](./0018-m4-remember.md)
 
 These notes should constrain new CLI-facing, graph-facing, derivation-orchestration, and read-surface work without becoming separate milestones.
 
@@ -214,6 +215,7 @@ Primary hill support:
 Deliverables:
 
 - richer `recent` or reentry flow
+- explicit context-scoped recall through `--remember`
 - first explicit `browse` prototype
 - first explicit `inspect` prototype
 - first explicit Bijou read shell for human browse/inspect flow
@@ -224,6 +226,7 @@ Deliverables:
 Playback:
 
 - user can return to old captures and see them in context
+- user or agent can recover likely relevant prior context for the current project or topic through explicit recall
 - browse mode helps the user navigate the archive without being prompted at
 - inspect mode provides receipts when the user wants to inspect structure directly
 - the first read shell feels like navigation rather than terminal theater
@@ -233,6 +236,7 @@ Exit criteria:
 
 - no mutation of raw entries
 - `recent` remains boring and trustworthy
+- `remember` remains inspectable and does not degrade into opaque search ranking
 - browse and inspect improve understanding without adding capture friction
 - the Bijou read shell remains optional porcelain over the explicit CLI contract
 

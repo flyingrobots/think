@@ -35,6 +35,7 @@ This review is meant to answer five questions:
 - [`0015-per-thought-derivation-catalog.md`](./0015-per-thought-derivation-catalog.md): consolidated catalog of what is derived from each raw thought, when it is derived, what its payload looks like, and what is currently implemented versus deferred.
 - [`0016-m4-session-context-browse.md`](./0016-m4-session-context-browse.md): IBM Design Thinking style product note for the implemented session-context browse slice, using `session_attribution` to recover local context without drifting into graph theater.
 - [`0017-m4-session-traversal.md`](./0017-m4-session-traversal.md): IBM Design Thinking style product note for adding explicit same-session traversal to `browse` without collapsing chronology and session into one navigation model.
+- [`0018-m4-remember.md`](./0018-m4-remember.md): IBM Design Thinking style product note for adding context-scoped recall through `think --remember`, with both ambient project recall and explicit query recall.
 - [`ROADMAP.md`](./ROADMAP.md): milestone sequence, hill mapping, exit criteria, and review checkpoints.
 - [`../retrospectives/m1-capture-core-and-upstream-backup.md`](../retrospectives/m1-capture-core-and-upstream-backup.md): closeout for the first implemented milestone and the remaining validation follow-through.
 - [`../retrospectives/m2-macos-capture-surface.md`](../retrospectives/m2-macos-capture-surface.md): closeout for the native menu bar app and hotkey capture surface.
@@ -64,6 +65,7 @@ flowchart TD
     R --> P15["0015 Per-Thought Derivation Catalog"]
     R --> P16["0016 M4 Session-Context Browse"]
     R --> P17["0017 M4 Session Traversal"]
+    R --> P18["0018 M4 Remember"]
     R --> RD["Roadmap and Milestones"]
     R --> BL["Backlog (deferred ideas)"]
     P --> A
@@ -84,6 +86,7 @@ flowchart TD
     M --> P15
     M --> P16
     M --> P17
+    M --> P18
     B3 --> G9
     B3 --> P11
     P11 --> P12
@@ -98,6 +101,9 @@ flowchart TD
     P10 --> P15
     P14 --> P16
     P16 --> P17
+    P12 --> P18
+    P15 --> P18
+    P17 --> P18
     T --> A8
     T --> P10
     M2 --> RD
@@ -112,6 +118,7 @@ flowchart TD
     P15 --> RD
     P16 --> RD
     P17 --> RD
+    P18 --> RD
 ```
 
 ## Review Standard

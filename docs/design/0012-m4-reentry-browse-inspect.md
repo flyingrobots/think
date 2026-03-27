@@ -208,6 +208,12 @@ M4 is not:
 
 M4 should improve reentry and inspection while staying local-first, provenance-aware, and honest.
 
+That now includes a likely next reentry surface:
+
+- `remember`
+  - context-scoped recall for “what was I thinking about this?”
+  - complementary to `recent`, `browse`, and `inspect`, not a replacement for them
+
 ## Relationship To Reflect
 
 `Reflect` remains a separate explicit mode.
@@ -215,6 +221,7 @@ M4 should improve reentry and inspection while staying local-first, provenance-a
 The distinction is:
 
 - `recent` answers: what did I just think?
+- `remember` answers: what was I thinking about this project or topic?
 - `browse` answers: where is this thought in the archive?
 - `inspect` answers: what does the system actually know or claim here?
 - `reflect` answers: how do I pressure-test this one thought further?
@@ -327,6 +334,7 @@ It is not a general permission slip to move the whole product into a terminal ap
 - `recent` becomes more useful without becoming a mini-dashboard
 - `browse` exists as a real navigation surface
 - `inspect` exists as a real machinery-facing surface with receipts
+- the next likely M4 reentry slice is explicit context-scoped recall through `--remember`
 - the Bijou read shell proves helpful without trying to become the whole product
 - no new read mode adds friction to capture
 - no silent “smartness” leaks into the default read path
