@@ -1,6 +1,6 @@
 # Design Review Package
 
-Status: design approved; `M0`, `M1`, `M2`, and `M3` complete; `M4` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, derivation-catalog, session-context-browse, and session-traversal designs under active use
+Status: design approved; `M0`, `M1`, `M2`, and `M3` complete; `M4` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, derivation-catalog, session-context-browse, session-traversal, remember, and graph-versioning/migration designs under active use
 
 This directory began as the pre-implementation design package for `think`.
 
@@ -36,6 +36,7 @@ This review is meant to answer five questions:
 - [`0016-m4-session-context-browse.md`](./0016-m4-session-context-browse.md): IBM Design Thinking style product note for the implemented session-context browse slice, using `session_attribution` to recover local context without drifting into graph theater.
 - [`0017-m4-session-traversal.md`](./0017-m4-session-traversal.md): IBM Design Thinking style product note for adding explicit same-session traversal to `browse` without collapsing chronology and session into one navigation model.
 - [`0018-m4-remember.md`](./0018-m4-remember.md): IBM Design Thinking style product note for adding context-scoped recall through `think --remember`, with both ambient project recall and explicit query recall.
+- [`0019-graph-versioning-and-migration.md`](./0019-graph-versioning-and-migration.md): technical correction note for versioning the graph model and migrating from the current property-linked repos to explicit graph-native relationships.
 - [`ROADMAP.md`](./ROADMAP.md): milestone sequence, hill mapping, exit criteria, and review checkpoints.
 - [`../retrospectives/m1-capture-core-and-upstream-backup.md`](../retrospectives/m1-capture-core-and-upstream-backup.md): closeout for the first implemented milestone and the remaining validation follow-through.
 - [`../retrospectives/m2-macos-capture-surface.md`](../retrospectives/m2-macos-capture-surface.md): closeout for the native menu bar app and hotkey capture surface.
@@ -66,6 +67,7 @@ flowchart TD
     R --> P16["0016 M4 Session-Context Browse"]
     R --> P17["0017 M4 Session Traversal"]
     R --> P18["0018 M4 Remember"]
+    R --> P19["0019 Graph Versioning And Migration"]
     R --> RD["Roadmap and Milestones"]
     R --> BL["Backlog (deferred ideas)"]
     P --> A
@@ -87,6 +89,10 @@ flowchart TD
     M --> P16
     M --> P17
     M --> P18
+    A --> P19
+    G9 --> P19
+    P10 --> P19
+    P15 --> P19
     B3 --> G9
     B3 --> P11
     P11 --> P12
@@ -104,6 +110,7 @@ flowchart TD
     P12 --> P18
     P15 --> P18
     P17 --> P18
+    P18 --> P19
     T --> A8
     T --> P10
     M2 --> RD
@@ -119,6 +126,7 @@ flowchart TD
     P16 --> RD
     P17 --> RD
     P18 --> RD
+    P19 --> RD
 ```
 
 ## Review Standard
