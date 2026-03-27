@@ -13,12 +13,14 @@ const SESSION_PREFIX = 'session:';
 const ARTIFACT_PREFIX = 'artifact:';
 const REFLECT_SESSION_PREFIX = 'reflect:';
 const LEGACY_BRAINSTORM_SESSION_PREFIX = 'brainstorm:';
+const GRAPH_META_ID = 'meta:graph';
 const TEXT_MIME = 'text/plain; charset=utf-8';
 const MAX_REFLECT_STEPS = 3;
 const SESSION_IDLE_GAP_MS = 5 * 60 * 1000;
 const DERIVER_NAME = 'think';
 const DERIVER_VERSION = '1';
 const SCHEMA_VERSION = '1';
+const GRAPH_MODEL_VERSION = 2;
 const CHALLENGE_PROMPTS = [
   'What assumption is hiding here?',
   'What would make this false in practice?',
@@ -76,6 +78,89 @@ export async function captureThought(repoDir, thought) {
   });
 
   return entry;
+}
+
+export async function migrateGraphModel(repoDir) {
+  const graph = await openGraph(repoDir);
+  const nodes = await graph.getNodes();
+  const edges = await graph.getEdges();
+  const edgeKeys = new Set(edges.map(edge => `${edge.from}\0${edge.to}\0${edge.label}`));
+  const propsById = new Map();
+
+  for (const nodeId of nodes) {
+    const props = await graph.getNodeProps(nodeId);
+    if (props) {
+      propsById.set(nodeId, props);
+    }
+  }
+
+  const missingEdges = [];
+  for (const [nodeId, props] of propsById) {
+    if (props.kind === 'capture') {
+      if (typeof props.thoughtId === 'string' && props.thoughtId !== '' && propsById.has(props.thoughtId)) {
+        pushMissingEdge(missingEdges, edgeKeys, nodeId, props.thoughtId, 'expresses');
+      }
+      if (typeof props.sessionId === 'string' && props.sessionId !== '' && propsById.has(props.sessionId)) {
+        pushMissingEdge(missingEdges, edgeKeys, nodeId, props.sessionId, 'captured_in');
+      }
+    }
+
+    if (String(nodeId).startsWith(ARTIFACT_PREFIX)) {
+      if (
+        props.primaryInputKind === 'thought'
+        && typeof props.primaryInputId === 'string'
+        && propsById.has(props.primaryInputId)
+      ) {
+        pushMissingEdge(missingEdges, edgeKeys, nodeId, props.primaryInputId, 'derived_from');
+      }
+
+      if (
+        props.primaryInputKind === 'capture'
+        && typeof props.primaryInputId === 'string'
+        && propsById.has(props.primaryInputId)
+      ) {
+        pushMissingEdge(missingEdges, edgeKeys, nodeId, props.primaryInputId, 'contextualizes');
+      }
+    }
+  }
+
+  const graphMeta = propsById.get(GRAPH_META_ID) ?? null;
+  const needsMetadataNode = !graphMeta;
+  const needsGraphVersionUpdate = graphMeta?.graphModelVersion !== GRAPH_MODEL_VERSION;
+
+  if (missingEdges.length === 0 && !needsMetadataNode && !needsGraphVersionUpdate) {
+    return {
+      changed: false,
+      graphModelVersion: GRAPH_MODEL_VERSION,
+      edgesAdded: 0,
+      metadataUpdated: false,
+    };
+  }
+
+  const timestamp = getCurrentTime().toISOString();
+  await graph.patch((patch) => {
+    if (needsMetadataNode) {
+      patch
+        .addNode(GRAPH_META_ID)
+        .setProperty(GRAPH_META_ID, 'kind', 'graph_meta')
+        .setProperty(GRAPH_META_ID, 'createdAt', timestamp);
+    }
+
+    patch
+      .setProperty(GRAPH_META_ID, 'graphModelVersion', GRAPH_MODEL_VERSION)
+      .setProperty(GRAPH_META_ID, 'updatedAt', timestamp);
+
+    for (const edge of missingEdges) {
+      patch.addEdge(edge.from, edge.to, edge.label);
+    }
+  });
+
+  return {
+    changed: true,
+    graphModelVersion: GRAPH_MODEL_VERSION,
+    edgesAdded: missingEdges.length,
+    metadataUpdated: needsMetadataNode || needsGraphVersionUpdate,
+  };
 }
 
 export async function rememberThoughts(repoDir, { cwd = process.cwd(), query = null } = {}) {
@@ -586,16 +671,19 @@ async function ensureFirstDerivedArtifacts(graph, entry) {
     sessionNodeExists,
     sessionArtifactExists,
     entryProps,
+    graphMetaProps,
   ] = await Promise.all([
     hasNode(graph, thoughtId),
     hasNode(graph, seedQuality.artifactId),
     hasNode(graph, sessionAttribution.sessionId),
     hasNode(graph, sessionAttribution.artifactId),
     graph.getNodeProps(entry.id),
+    graph.getNodeProps(GRAPH_META_ID),
   ]);
 
   const needsCaptureThoughtLink = entryProps?.thoughtId !== thoughtId;
   const needsCaptureSessionLink = entryProps?.sessionId !== sessionAttribution.sessionId;
+  const needsGraphMetadata = !graphMetaProps || graphMetaProps.graphModelVersion !== GRAPH_MODEL_VERSION;
 
   if (
     thoughtNodeExists
@@ -604,6 +692,7 @@ async function ensureFirstDerivedArtifacts(graph, entry) {
     && sessionArtifactExists
     && !needsCaptureThoughtLink
     && !needsCaptureSessionLink
+    && !needsGraphMetadata
   ) {
     return {
       thoughtId,
@@ -613,6 +702,8 @@ async function ensureFirstDerivedArtifacts(graph, entry) {
   }
 
   await graph.patch(async (patch) => {
+    ensureGraphMetadataNode(patch, graphMetaProps);
+
     if (!thoughtNodeExists) {
       patch
         .addNode(thoughtId)
@@ -627,6 +718,7 @@ async function ensureFirstDerivedArtifacts(graph, entry) {
     if (needsCaptureThoughtLink) {
       patch.setProperty(entry.id, 'thoughtId', thoughtId);
     }
+    patch.addEdge(entry.id, thoughtId, 'expresses');
 
     if (!seedQualityExists) {
       addArtifactNode(patch, seedQuality);
@@ -644,6 +736,7 @@ async function ensureFirstDerivedArtifacts(graph, entry) {
     if (needsCaptureSessionLink) {
       patch.setProperty(entry.id, 'sessionId', sessionAttribution.sessionId);
     }
+    patch.addEdge(entry.id, sessionAttribution.sessionId, 'captured_in');
 
     if (!sessionArtifactExists) {
       addArtifactNode(patch, sessionAttribution);
@@ -674,6 +767,7 @@ function addArtifactNode(patch, artifact) {
       .setProperty(artifact.artifactId, 'reasonKind', artifact.reasonKind)
       .setProperty(artifact.artifactId, 'reasonText', artifact.reasonText)
       .setProperty(artifact.artifactId, 'promptFamiliesJson', JSON.stringify(artifact.promptFamilies));
+    patch.addEdge(artifact.artifactId, artifact.primaryInputId, 'derived_from');
     return;
   }
 
@@ -682,7 +776,31 @@ function addArtifactNode(patch, artifact) {
       .setProperty(artifact.artifactId, 'sessionId', artifact.sessionId)
       .setProperty(artifact.artifactId, 'reasonKind', artifact.reasonKind)
       .setProperty(artifact.artifactId, 'reasonText', artifact.reasonText);
+    patch.addEdge(artifact.artifactId, artifact.primaryInputId, 'contextualizes');
   }
+}
+
+function ensureGraphMetadataNode(patch, graphMetaProps) {
+  if (!graphMetaProps) {
+    patch
+      .addNode(GRAPH_META_ID)
+      .setProperty(GRAPH_META_ID, 'kind', 'graph_meta')
+      .setProperty(GRAPH_META_ID, 'createdAt', getCurrentTime().toISOString());
+  }
+
+  patch
+    .setProperty(GRAPH_META_ID, 'graphModelVersion', GRAPH_MODEL_VERSION)
+    .setProperty(GRAPH_META_ID, 'updatedAt', getCurrentTime().toISOString());
+}
+
+function pushMissingEdge(target, existingEdgeKeys, from, to, label) {
+  const key = `${from}\0${to}\0${label}`;
+  if (existingEdgeKeys.has(key)) {
+    return;
+  }
+
+  existingEdgeKeys.add(key);
+  target.push({ from, to, label });
 }
 
 function selectReflectPrompt(seedEntry, requestedPromptType = null) {

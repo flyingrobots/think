@@ -12,6 +12,7 @@ import {
   inspectRawEntry,
   listReflectableRecent,
   listRecent,
+  migrateGraphModel,
   rememberThoughts,
   previewReflect,
   getStats,
@@ -58,6 +59,8 @@ export async function main(argv, { stdout, stderr }) {
       exitCode = await runBrowse(options.browse, output, reporter);
     } else if (command === 'inspect') {
       exitCode = await runInspect(options.inspect, output, reporter);
+    } else if (command === 'migrate_graph') {
+      exitCode = await runMigrateGraph(output, reporter);
     } else if (command === 'stats') {
       exitCode = await runStats(output, reporter, options);
     } else if (command === 'reflect_start') {
@@ -117,6 +120,40 @@ async function runStats(output, reporter, options) {
     }
   }
 
+  return 0;
+}
+
+async function runMigrateGraph(output, reporter) {
+  const repoDir = getLocalRepoDir();
+
+  reporter.event('migrate_graph.start');
+  if (!hasGitRepo(repoDir)) {
+    output.error('No local thought repo found to migrate', 'migrate_graph.repo_not_found');
+    return 1;
+  }
+
+  const result = await migrateGraphModel(repoDir);
+  reporter.event('migrate_graph.done', result);
+
+  if (output.json) {
+    output.data('migrate_graph.result', result);
+    return 0;
+  }
+
+  if (!result.changed) {
+    output.out('No graph migration changes were needed.');
+    return 0;
+  }
+
+  const lines = [
+    'Graph migration complete',
+    `Repo is now graph model version ${result.graphModelVersion}`,
+    `Edges added: ${result.edgesAdded}`,
+  ];
+  if (result.metadataUpdated) {
+    lines.push('Graph metadata updated.');
+  }
+  output.out(lines.join('\n'));
   return 0;
 }
 
@@ -872,6 +909,7 @@ function parseArgs(args) {
     browse: null,
     inspectFlag: false,
     inspect: null,
+    migrateGraph: false,
     from: null,
     to: null,
     since: null,
@@ -919,6 +957,8 @@ function parseArgs(args) {
       } else if (arg.startsWith('--inspect=')) {
         options.inspectFlag = true;
         options.inspect = arg.slice('--inspect='.length);
+      } else if (arg === '--migrate-graph') {
+        options.migrateGraph = true;
       } else if (arg === '--reflect') {
         options.reflectFlag = true;
         options.reflect = '';
@@ -981,6 +1021,9 @@ function resolveCommand(options) {
   if (options.inspectFlag) {
     return 'inspect';
   }
+  if (options.migrateGraph) {
+    return 'migrate_graph';
+  }
   if (options.remember) {
     return 'remember';
   }
@@ -1004,6 +1047,7 @@ function validateOptions(options, command) {
     options.remember,
     options.browseFlag,
     options.inspectFlag,
+    options.migrateGraph,
     options.stats,
     options.reflectFlag,
     options.reflectSessionFlag,
@@ -1054,6 +1098,15 @@ function validateOptions(options, command) {
     }
     if (options.positionals.length > 0) {
       return '--inspect does not take a thought';
+    }
+  }
+
+  if (command === 'migrate_graph') {
+    if (options.positionals.length > 0) {
+      return '--migrate-graph does not take a thought';
+    }
+    if (hasStatsFilter || hasRecentFilter || options.reflectMode) {
+      return '--migrate-graph cannot be combined with other command options';
     }
   }
 
