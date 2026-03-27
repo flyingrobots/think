@@ -594,6 +594,154 @@ test('think --json --browse emits explicit session context and session-nearby ro
   );
 });
 
+test('think --browse can move to the previous thought within the current session without leaving reader-first browse', async () => {
+  const context = await createThinkContext();
+  const base = Date.UTC(2026, 2, 25, 10, 0, 0);
+
+  const { entryId: sessionOlderEntryId } = captureWithEntryId(
+    context,
+    'session one older thought',
+    { THINK_TEST_NOW: String(base) }
+  );
+  const { entryId: sessionCurrentEntryId } = captureWithEntryId(
+    context,
+    'session one current thought',
+    { THINK_TEST_NOW: String(base + 60_000) }
+  );
+  captureWithEntryId(context, 'session two newer thought', { THINK_TEST_NOW: String(base + 600_000) });
+
+  const browse = runThink(
+    context,
+    ['--browse'],
+    {
+      THINK_TEST_INTERACTIVE: '1',
+      THINK_TEST_BROWSE_SCRIPT: JSON.stringify({
+        seedEntryId: sessionCurrentEntryId,
+        actions: [
+          { type: 'session_move', direction: 'previous' },
+          'quit',
+        ],
+      }),
+    }
+  );
+
+  assertSuccess(browse, 'Expected scripted browse session traversal to succeed.');
+  const frame = finalFrame(browse);
+  assertContains(
+    { ...browse, stdout: frame, stderr: '' },
+    'session one older thought',
+    'Expected session traversal to move to the previous thought in the same session.'
+  );
+  assertContains(
+    { ...browse, stdout: frame, stderr: '' },
+    `Entry ID: ${sessionOlderEntryId}`,
+    'Expected the browse shell to land on the previous same-session capture rather than a chronological neighbor from another session.'
+  );
+  assertContains(
+    { ...browse, stdout: frame, stderr: '' },
+    'Session Position: 1 of 2',
+    'Expected browse metadata to expose the current position within the session.'
+  );
+});
+
+test('think --browse keeps the current thought in place when there is no next thought in the current session', async () => {
+  const context = await createThinkContext();
+  const base = Date.UTC(2026, 2, 25, 10, 0, 0);
+
+  captureWithEntryId(context, 'session one older thought', { THINK_TEST_NOW: String(base) });
+  const { entryId: sessionCurrentEntryId } = captureWithEntryId(
+    context,
+    'session one current thought',
+    { THINK_TEST_NOW: String(base + 60_000) }
+  );
+  captureWithEntryId(context, 'session two newer thought', { THINK_TEST_NOW: String(base + 600_000) });
+
+  const browse = runThink(
+    context,
+    ['--browse'],
+    {
+      THINK_TEST_INTERACTIVE: '1',
+      THINK_TEST_BROWSE_SCRIPT: JSON.stringify({
+        seedEntryId: sessionCurrentEntryId,
+        actions: [
+          { type: 'session_move', direction: 'next' },
+          'quit',
+        ],
+      }),
+    }
+  );
+
+  assertSuccess(browse, 'Expected scripted browse boundary traversal to stay in-shell and succeed.');
+  const frame = finalFrame(browse);
+  assertContains(
+    { ...browse, stdout: frame, stderr: '' },
+    `Entry ID: ${sessionCurrentEntryId}`,
+    'Expected boundary session traversal to keep the current thought selected when there is no next same-session thought.'
+  );
+  assertContains(
+    { ...browse, stdout: frame, stderr: '' },
+    'No next thought in this session.',
+    'Expected browse to explain why session traversal did not move.'
+  );
+});
+
+test('think --json --browse exposes explicit session traversal semantics without conflating them with chronology neighbors', async () => {
+  const context = await createThinkContext();
+  const base = Date.UTC(2026, 2, 25, 10, 0, 0);
+
+  const { entryId: sessionOlderEntryId } = captureWithEntryId(
+    context,
+    'session one older thought',
+    { THINK_TEST_NOW: String(base) }
+  );
+  const { entryId: sessionCurrentEntryId } = captureWithEntryId(
+    context,
+    'session one current thought',
+    { THINK_TEST_NOW: String(base + 60_000) }
+  );
+  const { entryId: differentSessionNewerId } = captureWithEntryId(
+    context,
+    'session two newer thought',
+    { THINK_TEST_NOW: String(base + 600_000) }
+  );
+
+  const browse = runThink(context, ['--json', `--browse=${sessionCurrentEntryId}`]);
+
+  assertSuccess(browse, 'Expected JSON browse to succeed for session traversal receipts.');
+  assertJsonStreams(browse);
+  assert.equal((browse.stderr || '').trim(), '', 'Expected successful JSON browse to keep stderr quiet.');
+
+  const events = parseJsonLines(
+    browse.stdout,
+    'Expected JSON browse with session traversal to emit valid JSONL.'
+  );
+
+  const contextRow = getEvent(
+    events,
+    'browse.context',
+    'Expected JSON browse to expose explicit browse context.'
+  );
+  assert.equal(contextRow.entryId, sessionCurrentEntryId, 'Expected browse context to preserve the selected capture entry.');
+  assert.equal(contextRow.sessionPosition, 2, 'Expected browse context to expose one-based session position.');
+  assert.equal(contextRow.sessionCount, 2, 'Expected browse context to expose total session size.');
+
+  const sessionSteps = events.filter((event) => event.event === 'browse.session_step');
+  assert.deepEqual(
+    sessionSteps.map((event) => event.direction),
+    ['previous'],
+    'Expected JSON browse to expose only the available session traversal steps for the selected thought.'
+  );
+  assert.deepEqual(
+    sessionSteps.map((event) => event.entryId),
+    [sessionOlderEntryId],
+    'Expected JSON browse to expose the previous same-session thought as an explicit traversal step.'
+  );
+  assert.ok(
+    sessionSteps.every((event) => event.entryId !== differentSessionNewerId),
+    'Expected JSON browse not to mislabel chronology-only neighbors as same-session traversal steps.'
+  );
+});
+
 test('think --inspect exposes exact raw entry metadata without narration', async () => {
   const context = await createThinkContext();
   const thought = 'inspect should reveal the exact stored thought';
@@ -919,4 +1067,9 @@ function assertJsonStreams(result) {
   if ((result.stderr || '').trim() !== '') {
     parseJsonLines(result.stderr, 'Expected stderr to contain only JSONL when present in --json mode.');
   }
+}
+
+function finalFrame(result) {
+  const frames = combinedOutput(result).split('\n\n-----\n\n');
+  return frames.at(-1) ?? '';
 }
