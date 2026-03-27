@@ -20,7 +20,7 @@ const SESSION_IDLE_GAP_MS = 5 * 60 * 1000;
 const DERIVER_NAME = 'think';
 const DERIVER_VERSION = '1';
 const SCHEMA_VERSION = '1';
-const GRAPH_MODEL_VERSION = 2;
+const GRAPH_MODEL_VERSION = 3;
 const CHALLENGE_PROMPTS = [
   'What assumption is hiding here?',
   'What would make this false in practice?',
@@ -87,6 +87,7 @@ export async function finalizeCapturedThought(repoDir, entryId, { migrateIfNeede
   }
 
   await ensureFirstDerivedArtifacts(graph, entry);
+  await ensureCaptureReadEdges(graph, entryId);
   entry = await getStoredEntry(graph, entryId);
 
   return {
@@ -122,6 +123,7 @@ export async function migrateGraphModel(repoDir) {
   }
 
   const missingEdges = [];
+  const removableEdges = [];
   for (const [nodeId, props] of propsById) {
     if (props.kind === 'capture') {
       if (typeof props.thoughtId === 'string' && props.thoughtId !== '' && propsById.has(props.thoughtId)) {
@@ -129,6 +131,21 @@ export async function migrateGraphModel(repoDir) {
       }
       if (typeof props.sessionId === 'string' && props.sessionId !== '' && propsById.has(props.sessionId)) {
         pushMissingEdge(missingEdges, edgeKeys, nodeId, props.sessionId, 'captured_in');
+      }
+    }
+
+    if (props.kind === 'reflect_session' || props.kind === 'brainstorm_session') {
+      if (typeof props.seedEntryId === 'string' && props.seedEntryId !== '' && propsById.has(props.seedEntryId)) {
+        pushMissingEdge(missingEdges, edgeKeys, nodeId, props.seedEntryId, 'seeded_by');
+      }
+    }
+
+    if (props.kind === 'reflect') {
+      if (typeof props.sessionId === 'string' && props.sessionId !== '' && propsById.has(props.sessionId)) {
+        pushMissingEdge(missingEdges, edgeKeys, nodeId, props.sessionId, 'produced_in');
+      }
+      if (typeof props.seedEntryId === 'string' && props.seedEntryId !== '' && propsById.has(props.seedEntryId)) {
+        pushMissingEdge(missingEdges, edgeKeys, nodeId, props.seedEntryId, 'responds_to');
       }
     }
 
@@ -151,15 +168,40 @@ export async function migrateGraphModel(repoDir) {
     }
   }
 
+  const captures = [...propsById.entries()]
+    .filter(([, props]) => props.kind === 'capture')
+    .map(([nodeId, props]) => ({
+      id: nodeId,
+      sortKey: String(props.sortKey || ''),
+    }))
+    .sort(compareEntriesNewestFirst);
+
+  const latestCaptureEdges = edges.filter((edge) => edge.from === GRAPH_META_ID && edge.label === 'latest_capture');
+  const latestCaptureId = captures[0]?.id ?? null;
+  for (const edge of latestCaptureEdges) {
+    if (edge.to !== latestCaptureId) {
+      removableEdges.push(edge);
+      edgeKeys.delete(`${edge.from}\0${edge.to}\0${edge.label}`);
+    }
+  }
+  if (latestCaptureId) {
+    pushMissingEdge(missingEdges, edgeKeys, GRAPH_META_ID, latestCaptureId, 'latest_capture');
+  }
+
+  for (let index = 0; index + 1 < captures.length; index += 1) {
+    pushMissingEdge(missingEdges, edgeKeys, captures[index].id, captures[index + 1].id, 'older');
+  }
+
   const graphMeta = propsById.get(GRAPH_META_ID) ?? null;
   const needsMetadataNode = !graphMeta;
   const needsGraphVersionUpdate = graphMeta?.graphModelVersion !== GRAPH_MODEL_VERSION;
 
-  if (missingEdges.length === 0 && !needsMetadataNode && !needsGraphVersionUpdate) {
+  if (missingEdges.length === 0 && removableEdges.length === 0 && !needsMetadataNode && !needsGraphVersionUpdate) {
     return {
       changed: false,
       graphModelVersion: GRAPH_MODEL_VERSION,
       edgesAdded: 0,
+      edgesRemoved: 0,
       metadataUpdated: false,
     };
   }
@@ -177,6 +219,9 @@ export async function migrateGraphModel(repoDir) {
       .setProperty(GRAPH_META_ID, 'graphModelVersion', GRAPH_MODEL_VERSION)
       .setProperty(GRAPH_META_ID, 'updatedAt', timestamp);
 
+    for (const edge of removableEdges) {
+      patch.removeEdge(edge.from, edge.to, edge.label);
+    }
     for (const edge of missingEdges) {
       patch.addEdge(edge.from, edge.to, edge.label);
     }
@@ -186,6 +231,7 @@ export async function migrateGraphModel(repoDir) {
     changed: true,
     graphModelVersion: GRAPH_MODEL_VERSION,
     edgesAdded: missingEdges.length,
+    edgesRemoved: removableEdges.length,
     metadataUpdated: needsMetadataNode || needsGraphVersionUpdate,
   };
 }
@@ -260,6 +306,8 @@ export async function startReflect(repoDir, seedEntryId, { promptType = null } =
       .setProperty(session.id, 'maxSteps', session.maxSteps)
       .setProperty(session.id, 'stepCount', 0);
 
+    patch.addEdge(session.id, session.seedEntryId, 'seeded_by');
+
     if (session.contrastEntryId) {
       patch.setProperty(session.id, 'contrastEntryId', session.contrastEntryId);
     }
@@ -330,6 +378,10 @@ export async function saveReflectResponse(repoDir, sessionId, response) {
       .setProperty(entry.id, 'seedEntryId', entry.seedEntryId)
       .setProperty(entry.id, 'sessionId', entry.sessionId)
       .setProperty(entry.id, 'promptType', entry.promptType);
+
+    patch
+      .addEdge(entry.id, entry.sessionId, 'produced_in')
+      .addEdge(entry.id, entry.seedEntryId, 'responds_to');
 
     if (entry.contrastEntryId) {
       patch.setProperty(entry.id, 'contrastEntryId', entry.contrastEntryId);
@@ -616,19 +668,48 @@ async function listEntriesByKind(graph, kind) {
 }
 
 async function listDirectDerivedReceipts(graph, seedEntryId) {
-  const reflectEntries = await listEntriesByKind(graph, 'reflect');
+  const receipts = [];
+  const seenEntryIds = new Set();
+  const graphNativeNeighbors = await graph.neighbors(seedEntryId, 'incoming', 'responds_to');
 
-  return reflectEntries
-    .filter((entry) => entry.seedEntryId === seedEntryId)
-    .sort(compareEntriesNewestFirst)
-    .map((entry) => ({
+  for (const neighbor of graphNativeNeighbors) {
+    const entry = await getStoredEntry(graph, neighbor.nodeId);
+    if (!entry || entry.kind !== 'reflect' || seenEntryIds.has(entry.id)) {
+      continue;
+    }
+
+    seenEntryIds.add(entry.id);
+    receipts.push({
+      relation: 'seed_of',
+      kind: entry.kind,
+      entryId: entry.id,
+      sessionId: await getProducedInSessionId(graph, entry),
+      promptType: entry.promptType,
+      createdAt: entry.createdAt,
+      sortKey: entry.sortKey,
+    });
+  }
+
+  const reflectEntries = await listEntriesByKind(graph, 'reflect');
+  for (const entry of reflectEntries) {
+    if (entry.seedEntryId !== seedEntryId || seenEntryIds.has(entry.id)) {
+      continue;
+    }
+
+    receipts.push({
       relation: 'seed_of',
       kind: entry.kind,
       entryId: entry.id,
       sessionId: entry.sessionId,
       promptType: entry.promptType,
       createdAt: entry.createdAt,
-    }));
+      sortKey: entry.sortKey,
+    });
+  }
+
+  return receipts
+    .sort(compareEntriesNewestFirst)
+    .map(({ sortKey, ...receipt }) => receipt);
 }
 
 async function readNodeText(graph, nodeId) {
@@ -775,6 +856,37 @@ async function ensureFirstDerivedArtifacts(graph, entry) {
     seedQuality,
     sessionAttribution,
   };
+}
+
+async function ensureCaptureReadEdges(graph, entryId) {
+  const entry = await getStoredEntry(graph, entryId);
+  if (!entry || entry.kind !== 'capture') {
+    return;
+  }
+
+  const latestCaptureId = await getLatestCaptureId(graph);
+  if (latestCaptureId === entry.id) {
+    return;
+  }
+
+  const latestEntry = latestCaptureId ? await getStoredEntry(graph, latestCaptureId) : null;
+  if (latestEntry && compareEntriesNewestFirst(entry, latestEntry) >= 0) {
+    return;
+  }
+
+  const latestCaptureEdges = (await graph.getEdges())
+    .filter((edge) => edge.from === GRAPH_META_ID && edge.label === 'latest_capture');
+
+  await graph.patch((patch) => {
+    for (const edge of latestCaptureEdges) {
+      patch.removeEdge(edge.from, edge.to, edge.label);
+    }
+
+    patch.addEdge(GRAPH_META_ID, entry.id, 'latest_capture');
+    if (latestEntry) {
+      patch.addEdge(entry.id, latestEntry.id, 'older');
+    }
+  });
 }
 
 function addArtifactNode(patch, artifact) {
@@ -1085,6 +1197,16 @@ async function getSessionAttributionReceipt(graph, entry) {
     schemaVersion: props.schemaVersion,
     createdAt: props.createdAt,
   };
+}
+
+async function getLatestCaptureId(graph) {
+  const neighbors = await graph.neighbors(GRAPH_META_ID, 'outgoing', 'latest_capture');
+  return neighbors[0]?.nodeId ?? null;
+}
+
+async function getProducedInSessionId(graph, entry) {
+  const neighbors = await graph.neighbors(entry.id, 'outgoing', 'produced_in');
+  return neighbors[0]?.nodeId ?? entry.sessionId ?? null;
 }
 
 async function hasNode(graph, nodeId) {

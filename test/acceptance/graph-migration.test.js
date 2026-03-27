@@ -82,7 +82,7 @@ test('think --migrate-graph upgrades a version-1 property-linked repo additively
   const migrate = runThink(context, ['--migrate-graph']);
   assertSuccess(migrate, `Expected graph migration to succeed.\n${formatResult(migrate)}`);
   assertContains(migrate, 'Graph migration complete', 'Expected migration to report explicit success.');
-  assertContains(migrate, 'graph model version 2', 'Expected migration to report the upgraded graph model generation.');
+  assertContains(migrate, 'graph model version 3', 'Expected migration to report the upgraded graph model generation.');
 
   const migratedGraph = await openThinkGraph(context.localRepoDir);
   const afterEdges = await migratedGraph.getEdges();
@@ -107,7 +107,7 @@ test('think --migrate-graph upgrades a version-1 property-linked repo additively
 
   const metadata = await migratedGraph.getNodeProps('meta:graph');
   assert.ok(metadata, 'Expected migration to materialize graph metadata.');
-  assert.equal(metadata.graphModelVersion, 2, 'Expected migration to upgrade the repo graph model generation to 2.');
+  assert.equal(metadata.graphModelVersion, 3, 'Expected migration to upgrade the repo graph model generation to 3.');
 });
 
 test('think --migrate-graph is idempotent and safe to rerun', async () => {
@@ -188,7 +188,7 @@ test('capture on a version-1 repo still succeeds and only migrates after the raw
   graph = await openThinkGraph(context.localRepoDir);
   const metadata = await graph.getNodeProps('meta:graph');
   assert.ok(metadata, 'Expected post-capture migration to leave graph metadata materialized.');
-  assert.equal(metadata.graphModelVersion, 2, 'Expected post-capture migration to upgrade the repo back to graph model version 2.');
+  assert.equal(metadata.graphModelVersion, 3, 'Expected post-capture migration to upgrade the repo back to graph model version 3.');
 
   const edges = await graph.getEdges();
   assertEdge(
@@ -256,7 +256,7 @@ test('think --json emits explicit graph migration required errors for outdated g
 
   assert.equal(migrationRequired.command, 'inspect', 'Expected migration-required payload to name the blocked command.');
   assert.equal(migrationRequired.currentGraphModelVersion, 1, 'Expected migration-required payload to report the current graph model generation.');
-  assert.equal(migrationRequired.requiredGraphModelVersion, 2, 'Expected migration-required payload to report the required graph model generation.');
+  assert.equal(migrationRequired.requiredGraphModelVersion, 3, 'Expected migration-required payload to report the required graph model generation.');
   assert.equal(
     migrationRequired.message,
     'Graph migration required. Run think --migrate-graph.',
@@ -289,6 +289,7 @@ test('think --migrate-graph upgrades a version-2 repo to graph model version 3 w
   );
 
   const graph = await openThinkGraph(context.localRepoDir);
+  await downgradeGraphToV2(graph);
   const beforeMetadata = await graph.getNodeProps('meta:graph');
   assert.equal(beforeMetadata?.graphModelVersion, 2, 'Expected the seeded repo fixture to begin in graph model version 2.');
 
@@ -501,6 +502,11 @@ async function stripGraphNativeEdges(graph) {
     || edge.label === 'captured_in'
     || edge.label === 'derived_from'
     || edge.label === 'contextualizes'
+    || edge.label === 'latest_capture'
+    || edge.label === 'older'
+    || edge.label === 'seeded_by'
+    || edge.label === 'produced_in'
+    || edge.label === 'responds_to'
   ));
 
   if (migrationEdges.length === 0) {
@@ -529,6 +535,27 @@ async function downgradeGraphToV1(graph) {
   });
 }
 
+async function downgradeGraphToV2(graph) {
+  const edges = await graph.getEdges();
+  const v3Edges = edges.filter((edge) => (
+    edge.label === 'latest_capture'
+    || edge.label === 'older'
+    || edge.label === 'seeded_by'
+    || edge.label === 'produced_in'
+    || edge.label === 'responds_to'
+  ));
+
+  await graph.patch((patch) => {
+    for (const edge of v3Edges) {
+      patch.removeEdge(edge.from, edge.to, edge.label);
+    }
+
+    patch
+      .setProperty('meta:graph', 'graphModelVersion', 2)
+      .setProperty('meta:graph', 'updatedAt', new Date('2026-02-01T00:00:00.000Z').toISOString());
+  });
+}
+
 
 function countRelationshipEdges(edges) {
   return edges
@@ -537,6 +564,11 @@ function countRelationshipEdges(edges) {
       || edge.label === 'captured_in'
       || edge.label === 'derived_from'
       || edge.label === 'contextualizes'
+      || edge.label === 'latest_capture'
+      || edge.label === 'older'
+      || edge.label === 'seeded_by'
+      || edge.label === 'produced_in'
+      || edge.label === 'responds_to'
     ))
     .reduce((counts, edge) => {
       counts[edge.label] = (counts[edge.label] ?? 0) + 1;
