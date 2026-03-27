@@ -271,6 +271,148 @@ test('think --json emits explicit graph migration required errors for outdated g
   assert.equal(failure.command, 'inspect', 'Expected CLI failure payload to preserve the blocked command identity.');
 });
 
+test('think --migrate-graph upgrades a version-2 repo to graph model version 3 with browse and reflect read edges', async () => {
+  const context = await createThinkContext();
+  const { entryId: olderEntryId } = captureWithEntryId(
+    context,
+    'Older browse entries should become graph-traversable without scanning the whole archive.'
+  );
+  const { entryId: newerEntryId } = captureWithEntryId(
+    context,
+    'Newer browse entries should become graph-traversable without scanning the whole archive.'
+  );
+
+  const reflect = startReflectWithSavedReply(
+    context,
+    olderEntryId,
+    'Inspect should follow explicit reflect edges, not seedEntryId scanning.'
+  );
+
+  const graph = await openThinkGraph(context.localRepoDir);
+  const beforeMetadata = await graph.getNodeProps('meta:graph');
+  assert.equal(beforeMetadata?.graphModelVersion, 2, 'Expected the seeded repo fixture to begin in graph model version 2.');
+
+  const migrate = runThink(context, ['--migrate-graph']);
+  assertSuccess(migrate, `Expected graph migration to succeed for a version-2 repo.\n${formatResult(migrate)}`);
+  assertContains(migrate, 'Graph migration complete', 'Expected migration to report explicit success when upgrading to graph model version 3.');
+  assertContains(migrate, 'graph model version 3', 'Expected migration to report the new graph model generation.');
+
+  const migratedGraph = await openThinkGraph(context.localRepoDir);
+  const afterMetadata = await migratedGraph.getNodeProps('meta:graph');
+  assert.equal(afterMetadata?.graphModelVersion, 3, 'Expected migration to upgrade the repo graph model generation to 3.');
+
+  const edges = await migratedGraph.getEdges();
+  assertEdge(
+    edges,
+    'meta:graph',
+    newerEntryId,
+    'latest_capture',
+    'Expected graph model version 3 migration to add a latest_capture anchor for browse bootstrap.'
+  );
+  assertEdge(
+    edges,
+    newerEntryId,
+    olderEntryId,
+    'older',
+    'Expected graph model version 3 migration to add explicit chronology edges between captures.'
+  );
+  assertEdge(
+    edges,
+    reflect.sessionId,
+    olderEntryId,
+    'seeded_by',
+    'Expected graph model version 3 migration to add an explicit seeded_by edge from reflect session to seed capture.'
+  );
+  assertEdge(
+    edges,
+    reflect.reflectEntryId,
+    reflect.sessionId,
+    'produced_in',
+    'Expected graph model version 3 migration to add an explicit produced_in edge from reflect entry to its session.'
+  );
+  assertEdge(
+    edges,
+    reflect.reflectEntryId,
+    olderEntryId,
+    'responds_to',
+    'Expected graph model version 3 migration to add an explicit responds_to edge from reflect entry to its seed capture.'
+  );
+});
+
+test('think --json --inspect exposes direct reflect receipts that exist only through graph-native v3 edges', async () => {
+  const context = await createThinkContext();
+  const { entryId: seedEntryId } = captureWithEntryId(
+    context,
+    'Graph-native inspect should not need legacy reflect linkage props.'
+  );
+  const graph = await openThinkGraph(context.localRepoDir);
+  const reflectSessionId = 'reflect:graph-native-session';
+  const reflectEntryId = 'entry:9999999999999-graph-native-reflect';
+
+  await graph.patch(async (patch) => {
+    patch
+      .addNode(reflectSessionId)
+      .setProperty(reflectSessionId, 'kind', 'reflect_session')
+      .setProperty(reflectSessionId, 'source', 'reflect')
+      .setProperty(reflectSessionId, 'channel', 'cli')
+      .setProperty(reflectSessionId, 'writerId', 'graph-native-fixture')
+      .setProperty(reflectSessionId, 'createdAt', '2026-03-27T12:00:00.000Z')
+      .setProperty(reflectSessionId, 'sortKey', '9999999999998-graph-native-session')
+      .setProperty(reflectSessionId, 'promptType', 'challenge')
+      .setProperty(reflectSessionId, 'question', 'What assumption is hiding here?')
+      .setProperty(reflectSessionId, 'maxSteps', 3)
+      .setProperty(reflectSessionId, 'stepCount', 1);
+
+    patch
+      .addNode(reflectEntryId)
+      .setProperty(reflectEntryId, 'kind', 'reflect')
+      .setProperty(reflectEntryId, 'source', 'reflect')
+      .setProperty(reflectEntryId, 'channel', 'cli')
+      .setProperty(reflectEntryId, 'writerId', 'graph-native-fixture')
+      .setProperty(reflectEntryId, 'createdAt', '2026-03-27T12:01:00.000Z')
+      .setProperty(reflectEntryId, 'sortKey', '9999999999999-graph-native-reflect')
+      .setProperty(reflectEntryId, 'promptType', 'challenge');
+
+    patch.addEdge(reflectSessionId, seedEntryId, 'seeded_by');
+    patch.addEdge(reflectEntryId, reflectSessionId, 'produced_in');
+    patch.addEdge(reflectEntryId, seedEntryId, 'responds_to');
+
+    await patch.attachContent(
+      reflectEntryId,
+      'Inspect should still find this reflect receipt through explicit graph edges.',
+      { mime: 'text/plain; charset=utf-8' }
+    );
+  });
+
+  const inspect = runThink(context, ['--json', `--inspect=${seedEntryId}`]);
+  assertSuccess(
+    inspect,
+    'Expected JSON inspect to remain successful when a reflect receipt is represented only through graph-native edges.'
+  );
+
+  const events = parseJsonLines(
+    inspect.stdout,
+    'Expected JSON inspect on a graph-native-only fixture to emit valid JSONL.'
+  );
+  const receiptEvents = events.filter((event) => event.event === 'inspect.receipt');
+  const reflectReceipt = receiptEvents.find((event) => event.kind === 'reflect');
+
+  assert.ok(
+    reflectReceipt,
+    'Expected inspect to expose a direct reflect receipt even when no legacy reflect linkage props exist.'
+  );
+  assert.equal(
+    reflectReceipt.entryId,
+    reflectEntryId,
+    'Expected the direct reflect receipt to identify the saved reflect entry through graph-native linkage.'
+  );
+  assert.equal(
+    reflectReceipt.sessionId,
+    reflectSessionId,
+    'Expected the graph-native reflect receipt to preserve the originating reflect session identity.'
+  );
+});
+
 function captureWithEntryId(context, thought) {
   const capture = runThink(context, ['--verbose', thought]);
   assertSuccess(capture, `Expected capture to succeed for thought: ${thought}\n${formatResult(capture)}`);
@@ -283,6 +425,39 @@ function captureWithEntryId(context, thought) {
   return {
     entryId: saved.entryId,
     result: capture,
+  };
+}
+
+function startReflectWithSavedReply(context, seedEntryId, response) {
+  const start = runThink(context, ['--verbose', `--reflect=${seedEntryId}`]);
+  assertSuccess(start, `Expected reflect start to succeed for seed entry: ${seedEntryId}\n${formatResult(start)}`);
+
+  const startedEvents = parseJsonLines(
+    start.stderr,
+    'Expected verbose reflect start to emit valid JSONL trace events.'
+  );
+  const sessionStarted = getEvent(
+    startedEvents,
+    'reflect.session_started',
+    'Expected reflect start to expose the created reflect session id.'
+  );
+
+  const reply = runThink(context, ['--verbose', `--reflect-session=${sessionStarted.sessionId}`, response]);
+  assertSuccess(reply, `Expected reflect reply to succeed for session: ${sessionStarted.sessionId}\n${formatResult(reply)}`);
+
+  const replyEvents = parseJsonLines(
+    reply.stderr,
+    'Expected verbose reflect reply to emit valid JSONL trace events.'
+  );
+  const saved = getEvent(
+    replyEvents,
+    'reflect.entry_saved',
+    'Expected reflect reply to expose the saved reflect entry id.'
+  );
+
+  return {
+    sessionId: sessionStarted.sessionId,
+    reflectEntryId: saved.entryId,
   };
 }
 
@@ -353,6 +528,7 @@ async function downgradeGraphToV1(graph) {
       .setProperty('meta:graph', 'updatedAt', new Date('2026-01-01T00:00:00.000Z').toISOString());
   });
 }
+
 
 function countRelationshipEdges(edges) {
   return edges
