@@ -13,7 +13,9 @@ import {
   inspectRawEntry,
   listReflectableRecent,
   listRecent,
+  loadBrowseChronologyEntries,
   migrateGraphModel,
+  prepareBrowseBootstrap,
   rememberThoughts,
   saveRawCapture,
   previewReflect,
@@ -754,18 +756,19 @@ async function runInteractiveBrowseShell(output, reporter) {
     return 1;
   }
 
-  const entries = await listRecent(repoDir);
-  if (entries.length === 0) {
-    output.error('No raw captures available to browse', 'browse.entry_not_found');
-    return 1;
-  }
-
   const scripted = getBrowseTestScript();
-  const initialEntryId = scripted?.seedEntryId ?? entries[0].id;
-
-  reporter.event('browse.shell_started', { seedEntryId: initialEntryId });
 
   if (scripted) {
+    const entries = await loadBrowseChronologyEntries(repoDir);
+    if (entries.length === 0) {
+      output.error('No raw captures available to browse', 'browse.entry_not_found');
+      return 1;
+    }
+
+    const initialEntryId = scripted.seedEntryId ?? entries[0].id;
+
+    reporter.event('browse.shell_started', { seedEntryId: initialEntryId });
+
     const inspectById = new Map();
     for (const entry of entries) {
       inspectById.set(entry.id, await inspectRawEntry(repoDir, entry.id));
@@ -818,6 +821,17 @@ async function runInteractiveBrowseShell(output, reporter) {
     reporter.event('browse.shell_finished', { entryId: initialEntryId });
     return 0;
   }
+
+  const bootstrap = await prepareBrowseBootstrap(repoDir);
+  if (!bootstrap.ok) {
+    output.error('No raw captures available to browse', 'browse.entry_not_found');
+    return 1;
+  }
+
+  const entries = bootstrap.entries;
+  const initialEntryId = bootstrap.current.id;
+
+  reporter.event('browse.shell_started', { seedEntryId: initialEntryId });
 
   const effect = await runBrowseTui({
     entries,

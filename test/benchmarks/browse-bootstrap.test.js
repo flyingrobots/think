@@ -4,10 +4,56 @@ import { existsSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 
+import {
+  createSyntheticBrowseFixture,
+  loadBrowseChronologyEntriesForBenchmark,
+  prepareBrowseBootstrap,
+} from '../../src/browse-benchmark.js';
 import { repoRoot, baseEnv } from '../fixtures/runtime.js';
 import { createTempDir } from '../fixtures/tmp.js';
 
 const benchmarkEntrypoint = path.join(repoRoot, 'benchmarks', 'browse-bootstrap.js');
+
+test('prepareBrowseBootstrap returns the latest capture window from graph-native browse edges', async () => {
+  const tempDir = await createTempDir('browse-bootstrap-fixture-');
+  const repoDir = path.join(tempDir, 'repo');
+
+  await createSyntheticBrowseFixture({
+    repoDir,
+    captureCount: 12,
+    sessionCount: 3,
+  });
+
+  const bootstrap = await prepareBrowseBootstrap(repoDir);
+
+  assert.equal(bootstrap.ok, true, 'Expected graph-native browse bootstrap to succeed on a populated fixture.');
+  assert.equal(bootstrap.current.id, 'entry:1774023930000-bench-0012', 'Expected bootstrap to start from the latest capture anchor.');
+  assert.match(bootstrap.current.text, /Benchmark thought 12\./, 'Expected bootstrap to load the current thought text.');
+  assert.equal(bootstrap.older?.id, 'entry:1774023900000-bench-0011', 'Expected bootstrap to expose the immediate older chronology neighbor.');
+  assert.equal(bootstrap.newer, null, 'Expected the latest capture not to have a newer chronology neighbor.');
+  assert.equal(bootstrap.sessionContext?.sessionId, 'session:1774023840000-bench-0009', 'Expected bootstrap to surface the current session identity.');
+  assert.equal(bootstrap.sessionContext?.sessionPosition, 4, 'Expected bootstrap to expose the current position within the session.');
+  assert.equal(bootstrap.sessionContext?.sessionCount, 4, 'Expected bootstrap to expose the current session size.');
+});
+
+test('loadBrowseChronologyEntries follows graph-native older edges newest-first', async () => {
+  const tempDir = await createTempDir('browse-chronology-fixture-');
+  const repoDir = path.join(tempDir, 'repo');
+
+  await createSyntheticBrowseFixture({
+    repoDir,
+    captureCount: 8,
+    sessionCount: 2,
+  });
+
+  const entries = await loadBrowseChronologyEntriesForBenchmark(repoDir);
+
+  assert.equal(entries.length, 8, 'Expected chronology traversal to return every capture.');
+  assert.equal(entries[0].id, 'entry:1774023210000-bench-0008', 'Expected chronology traversal to start from the latest capture anchor.');
+  assert.equal(entries.at(-1)?.id, 'entry:1774022400000-bench-0001', 'Expected chronology traversal to end at the oldest capture.');
+  assert.match(entries[0].text, /Benchmark thought 8\./, 'Expected chronology traversal to preserve the newest capture text.');
+  assert.match(entries.at(-1)?.text ?? '', /Benchmark thought 1\./, 'Expected chronology traversal to preserve the oldest capture text.');
+});
 
 test('browse benchmark emits a deterministic JSON report for a synthetic fixture graph', async () => {
   const result = runBrowseBenchmark(['--json', '--thoughts=12', '--sessions=3', '--warmup=0', '--runs=2']);

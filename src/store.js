@@ -468,74 +468,55 @@ export async function listReflectableRecent(repoDir) {
   return recent.filter((entry) => assessReflectability(entry.text).eligible);
 }
 
-export async function getBrowseWindow(repoDir, entryId) {
+export async function loadBrowseChronologyEntries(repoDir) {
   const graph = await openGraph(repoDir);
-  let currentEntry = await getStoredEntry(graph, entryId);
+  return listChronologyEntries(graph);
+}
 
-  if (!currentEntry || currentEntry.kind !== 'capture') {
-    return null;
+export async function prepareBrowseBootstrap(repoDir) {
+  const graph = await openGraph(repoDir);
+  const entries = await listChronologyEntries(graph);
+  const latestCaptureId = await getLatestCaptureId(graph);
+
+  if (!latestCaptureId || entries.length === 0) {
+    return {
+      ok: false,
+      reason: 'no_entries',
+      entries: [],
+      current: null,
+      newer: null,
+      older: null,
+      sessionContext: null,
+      sessionEntries: [],
+      sessionSteps: [],
+    };
   }
 
-  await ensureFirstDerivedArtifacts(graph, currentEntry);
-  currentEntry = await getStoredEntry(graph, entryId);
-
-  const recent = (await listEntriesByKind(graph, 'capture'))
-    .map((entry) => ({
-      id: entry.id,
-      text: entry.text,
-      sortKey: entry.sortKey,
-      createdAt: entry.createdAt,
-      sessionId: entry.sessionId ?? null,
-    }))
-    .sort(compareEntriesNewestFirst);
-
-  const index = recent.findIndex((entry) => entry.id === entryId);
-
-  if (index === -1) {
-    return null;
+  const window = await buildBrowseWindow(graph, latestCaptureId);
+  if (!window) {
+    return {
+      ok: false,
+      reason: 'entry_not_found',
+      entries,
+      current: null,
+      newer: null,
+      older: null,
+      sessionContext: null,
+      sessionEntries: [],
+      sessionSteps: [],
+    };
   }
-
-  const sessionAttribution = await getSessionAttributionReceipt(graph, currentEntry);
-  const sessionTraversal = resolveSessionTraversal(recent, recent[index]);
-  const sessionEntries = sessionAttribution
-    ? recent.filter((entry) =>
-        entry.id !== entryId && entry.sessionId === sessionAttribution.sessionId)
-    : [];
 
   return {
-    current: recent[index],
-    newer: index > 0 ? recent[index - 1] : null,
-    older: index + 1 < recent.length ? recent[index + 1] : null,
-    sessionContext: sessionAttribution
-      ? {
-          entryId,
-          sessionId: sessionAttribution.sessionId,
-          reasonKind: sessionAttribution.reasonKind,
-          reasonText: sessionAttribution.reasonText,
-          sessionPosition: sessionTraversal.sessionPosition,
-          sessionCount: sessionTraversal.sessionCount,
-        }
-      : null,
-    sessionEntries,
-    sessionSteps: sessionAttribution
-      ? [
-          ...(sessionTraversal.previous
-            ? [{
-                direction: 'previous',
-                ...sessionTraversal.previous,
-                sessionPosition: sessionTraversal.sessionPosition - 1,
-              }]
-            : []),
-          ...(sessionTraversal.next
-            ? [{
-                direction: 'next',
-                ...sessionTraversal.next,
-                sessionPosition: sessionTraversal.sessionPosition + 1,
-              }]
-            : []),
-        ]
-      : [],
+    ok: true,
+    entries,
+    ...window,
   };
+}
+
+export async function getBrowseWindow(repoDir, entryId) {
+  const graph = await openGraph(repoDir);
+  return buildBrowseWindow(graph, entryId);
 }
 
 export async function inspectRawEntry(repoDir, entryId) {
@@ -634,6 +615,20 @@ async function getStoredEntry(graph, nodeId) {
   };
 }
 
+async function toBrowseEntry(entry) {
+  if (!entry) {
+    return null;
+  }
+
+  return {
+    id: entry.id,
+    text: entry.text,
+    sortKey: entry.sortKey,
+    createdAt: entry.createdAt,
+    sessionId: entry.sessionId ?? null,
+  };
+}
+
 async function getReflectSession(graph, sessionId) {
   const session = await getStoredEntry(graph, sessionId);
   if (!session || (session.kind !== 'reflect_session' && session.kind !== 'brainstorm_session')) {
@@ -665,6 +660,96 @@ async function listEntriesByKind(graph, kind) {
   }
 
   return entries;
+}
+
+async function listChronologyEntries(graph) {
+  const latestCaptureId = await getLatestCaptureId(graph);
+  if (!latestCaptureId) {
+    const captures = await listEntriesByKind(graph, 'capture');
+    return captures
+      .map((entry) => ({
+        id: entry.id,
+        text: entry.text,
+        sortKey: entry.sortKey,
+        createdAt: entry.createdAt,
+        sessionId: entry.sessionId ?? null,
+      }))
+      .sort(compareEntriesNewestFirst);
+  }
+
+  const entries = [];
+  const visited = new Set();
+  let currentId = latestCaptureId;
+
+  while (currentId && !visited.has(currentId)) {
+    visited.add(currentId);
+    const entry = await getStoredEntry(graph, currentId);
+    if (!entry || entry.kind !== 'capture') {
+      break;
+    }
+
+    entries.push(await toBrowseEntry(entry));
+    const olderNeighbors = await graph.neighbors(currentId, 'outgoing', 'older');
+    currentId = olderNeighbors[0]?.nodeId ?? null;
+  }
+
+  return entries;
+}
+
+async function buildBrowseWindow(graph, entryId) {
+  let currentEntry = await getStoredEntry(graph, entryId);
+
+  if (!currentEntry || currentEntry.kind !== 'capture') {
+    return null;
+  }
+
+  await ensureFirstDerivedArtifacts(graph, currentEntry);
+  currentEntry = await getStoredEntry(graph, entryId);
+
+  const current = await toBrowseEntry(currentEntry);
+  const olderNeighbor = await graph.neighbors(entryId, 'outgoing', 'older');
+  const newerNeighbor = await graph.neighbors(entryId, 'incoming', 'older');
+  const older = olderNeighbor[0] ? await toBrowseEntry(await getStoredEntry(graph, olderNeighbor[0].nodeId)) : null;
+  const newer = newerNeighbor[0] ? await toBrowseEntry(await getStoredEntry(graph, newerNeighbor[0].nodeId)) : null;
+  const sessionAttribution = await getSessionAttributionReceipt(graph, currentEntry);
+  const sessionTraversal = await resolveGraphSessionTraversal(graph, current);
+
+  return {
+    current,
+    newer,
+    older,
+    sessionContext: sessionAttribution
+      ? {
+          entryId,
+          sessionId: sessionAttribution.sessionId,
+          reasonKind: sessionAttribution.reasonKind,
+          reasonText: sessionAttribution.reasonText,
+          sessionPosition: sessionTraversal.sessionPosition,
+          sessionCount: sessionTraversal.sessionCount,
+        }
+      : null,
+    sessionEntries: sessionTraversal.entries
+      .filter((entry) => entry.id !== entryId)
+      .sort(compareEntriesNewestFirst),
+    sessionSteps: sessionAttribution
+      ? [
+          ...(sessionTraversal.previous
+            ? [{
+                direction: 'previous',
+                ...sessionTraversal.previous,
+                sessionPosition: sessionTraversal.sessionPosition - 1,
+              }]
+            : []),
+          ...(sessionTraversal.next
+            ? [{
+                direction: 'next',
+                ...sessionTraversal.next,
+                sessionPosition: sessionTraversal.sessionPosition + 1,
+              }]
+            : []),
+        ]
+      : [],
+  };
 }
 
 async function listDirectDerivedReceipts(graph, seedEntryId) {
@@ -1178,14 +1263,17 @@ async function getSeedQualityReceipt(graph, entry) {
 }
 
 async function getSessionAttributionReceipt(graph, entry) {
-  const derived = await deriveSessionAttribution(graph, entry);
-  const props = await graph.getNodeProps(derived.artifactId);
+  const thoughtId = entry.sessionId ?? null;
+  const artifactId = thoughtId
+    ? createArtifactId('session_attribution', entry.id, thoughtId)
+    : (await deriveSessionAttribution(graph, entry)).artifactId;
+  const props = await graph.getNodeProps(artifactId);
   if (!props) {
     return null;
   }
 
   return {
-    artifactId: derived.artifactId,
+    artifactId,
     kind: 'session_attribution',
     primaryInputKind: props.primaryInputKind,
     primaryInputId: props.primaryInputId,
@@ -1211,6 +1299,50 @@ async function getProducedInSessionId(graph, entry) {
 
 async function hasNode(graph, nodeId) {
   return Boolean(await graph.getNodeProps(nodeId));
+}
+
+async function resolveGraphSessionTraversal(graph, entry) {
+  if (!entry?.sessionId) {
+    return {
+      entries: [],
+      sessionCount: 0,
+      sessionPosition: null,
+      previous: null,
+      next: null,
+    };
+  }
+
+  const neighbors = await graph.neighbors(entry.sessionId, 'incoming', 'captured_in');
+  const sessionEntries = [];
+
+  for (const neighbor of neighbors) {
+    const capture = await getStoredEntry(graph, neighbor.nodeId);
+    if (!capture || capture.kind !== 'capture') {
+      continue;
+    }
+    sessionEntries.push(await toBrowseEntry(capture));
+  }
+
+  sessionEntries.sort(compareEntriesOldestFirst);
+  const sessionIndex = sessionEntries.findIndex((candidate) => candidate.id === entry.id);
+
+  if (sessionIndex === -1) {
+    return {
+      entries: sessionEntries,
+      sessionCount: sessionEntries.length,
+      sessionPosition: null,
+      previous: null,
+      next: null,
+    };
+  }
+
+  return {
+    entries: sessionEntries,
+    sessionCount: sessionEntries.length,
+    sessionPosition: sessionIndex + 1,
+    previous: sessionIndex > 0 ? sessionEntries[sessionIndex - 1] : null,
+    next: sessionIndex + 1 < sessionEntries.length ? sessionEntries[sessionIndex + 1] : null,
+  };
 }
 
 function parseJsonArray(value) {

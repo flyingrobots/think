@@ -2,7 +2,7 @@ import Plumbing from '@git-stunts/plumbing';
 import { GitGraphAdapter, WarpGraph } from '@git-stunts/git-warp';
 
 import { ensureGitRepo, hasGitRepo } from './git.js';
-import { GRAPH_NAME, listRecent } from './store.js';
+import { GRAPH_NAME, loadBrowseChronologyEntries, prepareBrowseBootstrap as loadBrowseBootstrap } from './store.js';
 
 const DEFAULT_START_TIME_MS = Date.parse('2026-03-20T16:00:00.000Z');
 const WITHIN_SESSION_GAP_MS = 30 * 1000;
@@ -14,18 +14,24 @@ export async function prepareBrowseBootstrap(repoDir) {
     return {
       ok: false,
       reason: 'repo_missing',
-      entryCount: 0,
-      initialEntryId: null,
+      current: null,
+      newer: null,
+      older: null,
+      sessionContext: null,
+      sessionEntries: [],
+      sessionSteps: [],
     };
   }
 
-  const entries = await listRecent(repoDir);
-  return {
-    ok: entries.length > 0,
-    reason: entries.length > 0 ? null : 'no_entries',
-    entryCount: entries.length,
-    initialEntryId: entries[0]?.id ?? null,
-  };
+  return loadBrowseBootstrap(repoDir);
+}
+
+export async function loadBrowseChronologyEntriesForBenchmark(repoDir) {
+  if (!hasGitRepo(repoDir)) {
+    return [];
+  }
+
+  return loadBrowseChronologyEntries(repoDir);
 }
 
 export async function createSyntheticBrowseFixture({
@@ -90,6 +96,13 @@ export async function createSyntheticBrowseFixture({
   }
 
   await graph.patch(async (patch) => {
+    patch
+      .addNode('meta:graph')
+      .setProperty('meta:graph', 'kind', 'graph_meta')
+      .setProperty('meta:graph', 'createdAt', new Date(DEFAULT_START_TIME_MS).toISOString())
+      .setProperty('meta:graph', 'updatedAt', new Date(currentMs).toISOString())
+      .setProperty('meta:graph', 'graphModelVersion', 3);
+
     for (const item of entries) {
       if (item.type === 'session') {
         patch
@@ -111,7 +124,21 @@ export async function createSyntheticBrowseFixture({
         .setProperty(item.id, 'sortKey', item.sortKey)
         .setProperty(item.id, 'sessionId', item.sessionId);
 
+      patch.addEdge(item.id, item.sessionId, 'captured_in');
+
       await patch.attachContent(item.id, item.text, { mime: TEXT_MIME });
+    }
+
+    const captures = entries
+      .filter((item) => item.type === 'capture')
+      .sort((left, right) => right.sortKey.localeCompare(left.sortKey));
+
+    if (captures[0]) {
+      patch.addEdge('meta:graph', captures[0].id, 'latest_capture');
+    }
+
+    for (let index = 0; index + 1 < captures.length; index += 1) {
+      patch.addEdge(captures[index].id, captures[index + 1].id, 'older');
     }
   });
 
