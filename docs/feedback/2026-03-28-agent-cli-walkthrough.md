@@ -18,11 +18,16 @@ Context: Systematic walkthrough of every Think CLI command during a dogfooding s
 | `--stats --since --bucket` | yes | yes |
 | `--reflect=ID --mode=MODE` | yes | yes |
 | `--reflect-session=ID "reply"` | yes | yes |
-| `--browse` | no | — |
+| `--browse=ID --json` | yes | yes |
+| `--browse` (no ID, TTY) | no | — |
 | `--migrate-graph` | no | — |
+| `--reflect --mode=constraint` | yes | yes |
+| `--reflect --mode=sharpen` | yes | yes |
+| `--remember "query"` | yes | yes (see bug #7) |
+| capture with `--` separator | yes | yes (see note #8) |
 | `--verbose` | yes | no visible effect |
 
-`--browse` was skipped because the agent runs in a non-interactive pipe, not a TTY. `--migrate-graph` was skipped to avoid side effects.
+`--browse` without an ID was skipped because the agent runs in a non-interactive pipe, not a TTY. `--migrate-graph` was skipped to avoid side effects. `--browse=ID --json` works as a non-interactive agent-friendly read surface.
 
 ## Bugs and Sharp Edges
 
@@ -123,6 +128,97 @@ A tombstone would handle complete removal. A lighter mechanism — something lik
 
 This is a future concern, not an immediate need. Flagging it because the `--remember` scoring system will need to handle this as archives grow.
 
+### 7. `--remember "query"` results not sorted by score
+
+Severity: medium — best matches buried in the middle of results
+
+When running `think --remember "footprints parallel execution"`, results are returned with scores ranging from 1 to 3 (based on how many query terms matched). But the results are not sorted by score descending.
+
+Observed: the bijou deep dive (score 1, matched only "execution" in passing) appears at index 0, while the Echo footprints deep dive (score 3, matched all three terms, and the thought is entirely about the query topic) appears at index 5 and index 8.
+
+Expected: entries matching all three query terms should rank above entries matching only one. Within the same score, the existing tiebreakers (newer first) are fine.
+
+This matters because an agent using `--remember` with a query wants the most relevant results first. If the caller adds `--limit=3` (per the 0023 proposal), they would get three score-1 results and miss the score-3 entries entirely.
+
+### 8. `--` separator works but has a gotcha
+
+The `--` flag correctly stops flag parsing. `think -- --this-is-not-a-flag --json` captures `--this-is-not-a-flag --json` as thought text. This is correct POSIX behavior.
+
+The gotcha: `--json` after `--` becomes thought text, not a flag. The workaround is `think --json -- --thought-starting-with-dashes`. This is standard CLI behavior and not a bug, but it is worth documenting in `--help` output since agents will encounter this when capturing thoughts about CLI flags.
+
+## Additional Observations From Second Pass
+
+### `--browse=ID --json` is a clean agent navigation surface
+
+Browse with an explicit entry ID and `--json` returns:
+
+- `role: "current"` — the requested thought
+- `role: "newer"` — the next thought chronologically
+- `role: "older"` — the previous thought chronologically
+- `browse.context` — session attribution with position info
+
+This is a navigable window. An agent can walk the entire archive by following older/newer entry IDs. The design is agent-friendly without requiring the TUI.
+
+### All three reflect modes produce good prompts
+
+Tested against the same thought (Echo's parallel execution model):
+
+- **challenge**: "What part of this is probably wishful thinking?"
+- **constraint**: "What if this had to be explained in one sentence?"
+- **sharpen**: "What should be cut from this idea?"
+
+All three are relevant, non-generic, and would push the thinker's reasoning forward. The prompt selection feels curated rather than random.
+
+### Reflect sessions are orphan-prone
+
+After starting a reflect session, the only reference to the session ID is in the JSONL output of the `reflect_start` command. If the agent loses that output (context compression, session restart, crash), the session ID is gone and the session is effectively orphaned.
+
+Missing capabilities:
+
+- `--reflect-list` or `--sessions` — list open/recent reflect sessions
+- session status (steps completed / max steps, last prompt, whether it is still open)
+- session transcript (all prompts and replies in order)
+- discovery of sessions associated with a specific thought
+
+Without these, reflect sessions are fire-and-forget from the agent's perspective.
+
+## Feature Requests From Usage
+
+### Stdin capture
+
+For agents writing long or multi-line thoughts, shell quoting is awkward. Support `echo "long thought" | think` or `think < file.txt`. This would make programmatic capture from scripts and pipelines natural.
+
+### Thought linking outside reflect
+
+A lightweight mechanism to say "this thought relates to that one" without starting a reflect session:
+
+```
+think "new thought" --relates-to=entryID
+think --link=entryA,entryB
+```
+
+The graph model supports edges. This would let the thinker build structure post-hoc without classification at capture time and without the overhead of a reflect session.
+
+### Thought amendment
+
+Not editing the original (immutability preserved), but appending a correction that links back:
+
+```
+think "Actually, the max score is 300" --amends=entryID
+```
+
+The original stays sacred. The amendment is a new entry with provenance pointing at what it corrects. Read surfaces could show amendments alongside the original.
+
+### Time-range filtering on `--recent`
+
+`--stats` has `--since` and `--from/--to`, but `--recent` only has `--count` and `--query`. There is no way to ask "show me what I thought yesterday" without dumping everything and filtering client-side. Adding `--since` and `--from/--to` to `--recent` would close this gap.
+
+### Daily digest view
+
+A "what did I think about today?" view that returns today's entries as a bounded list. `--recent` is chronological but not date-bounded. `--stats --since=1d` gives the count but not the entries. The gap between them is the actual list.
+
+This could be `--recent --since=1d` if time-range filtering is added to `--recent`, making it composable rather than requiring a new command.
+
 ## Ergonomic Observations
 
 ### Capture latency
@@ -180,4 +276,12 @@ To be explicit about what should not change:
 
 ## Summary
 
-Think's CLI is solid. The JSONL contract, receipt system, and reflect flow are all ahead of what I've seen in comparable tools. The main gaps are discoverability (`--help`), the `help`-as-capture bug, ambient metadata visibility, and the absence of a tombstone mechanism for accidental captures. None of these are architectural — they are surface-level improvements on a well-designed foundation.
+Think's CLI is solid. The JSONL contract, receipt system, and reflect flow are all ahead of what I've seen in comparable tools. The main gaps are:
+
+- **Bugs**: `--help` captures as thought, `--remember` query results not sorted by score
+- **Missing discoverability**: no `--help` output
+- **Missing visibility**: ambient metadata absent from `--verbose` capture and `--inspect`
+- **Missing lifecycle**: no `--forget` tombstone, no reflect session listing/status
+- **Missing ergonomics**: no stdin capture, no time-range on `--recent`, no thought linking
+
+None of these are architectural. They are surface-level improvements on a well-designed foundation. The core capture/derive/receipt pipeline is working correctly and the agent-native JSONL contract delivers on its design promise.
