@@ -69,8 +69,9 @@ Proposed shape:
 Behavior:
 
 - return the same match structure (entryId, score, tier, matchKinds, reasonText, createdAt)
+- the entryId is a hard requirement — without it, brief results are a dead end because the caller has no handle to follow up with `--inspect`
 - include only the first line (or first N characters) of the entry text, not the full body
-- the caller can then `--inspect` specific entries that look relevant
+- the caller can then `--inspect <entryId> --json` to retrieve the full text of specific entries that look relevant
 
 Why this matters:
 
