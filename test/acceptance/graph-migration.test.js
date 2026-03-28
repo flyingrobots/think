@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import Plumbing from '@git-stunts/plumbing';
-import { GitGraphAdapter, WarpGraph } from '@git-stunts/git-warp';
+import WarpApp, { GitGraphAdapter } from '@git-stunts/git-warp';
 
 import { createThinkContext, runThink } from '../fixtures/think.js';
 import { formatResult } from '../fixtures/runtime.js';
@@ -465,11 +465,13 @@ function startReflectWithSavedReply(context, seedEntryId, response) {
 async function openThinkGraph(repoDir) {
   const plumbing = Plumbing.createDefault({ cwd: repoDir });
   const persistence = new GitGraphAdapter({ plumbing });
-  return WarpGraph.open({
+  const app = await WarpApp.open({
     persistence,
     graphName: 'think',
     writerId: 'graph-migration-spec',
   });
+
+  return app.core();
 }
 
 async function listArtifactNodes(graph) {

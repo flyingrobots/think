@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import os from 'node:os';
 
 import Plumbing from '@git-stunts/plumbing';
-import { GitGraphAdapter, WarpGraph } from '@git-stunts/git-warp';
+import WarpApp, { GitGraphAdapter } from '@git-stunts/git-warp';
 import { buildQueryTerms, getAmbientProjectContext } from './project-context.js';
 
 export const GRAPH_NAME = 'think';
@@ -572,11 +572,13 @@ async function openGraph(repoDir) {
   const plumbing = Plumbing.createDefault({ cwd: repoDir });
   const persistence = new GitGraphAdapter({ plumbing });
 
-  return WarpGraph.open({
+  const app = await WarpApp.open({
     persistence,
     graphName: GRAPH_NAME,
     writerId: createWriterId(),
   });
+
+  return app.core();
 }
 
 async function getStoredEntry(graph, nodeId) {

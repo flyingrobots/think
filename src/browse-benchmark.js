@@ -1,5 +1,5 @@
 import Plumbing from '@git-stunts/plumbing';
-import { GitGraphAdapter, WarpGraph } from '@git-stunts/git-warp';
+import WarpApp, { GitGraphAdapter } from '@git-stunts/git-warp';
 
 import { ensureGitRepo, hasGitRepo } from './git.js';
 import { GRAPH_NAME, loadBrowseChronologyEntries, prepareBrowseBootstrap as loadBrowseBootstrap } from './store.js';
@@ -190,9 +190,11 @@ async function openGraph(repoDir) {
   const plumbing = Plumbing.createDefault({ cwd: repoDir });
   const persistence = new GitGraphAdapter({ plumbing });
 
-  return WarpGraph.open({
+  const app = await WarpApp.open({
     persistence,
     graphName: GRAPH_NAME,
     writerId: 'benchmark-fixture',
   });
+
+  return app.core();
 }
