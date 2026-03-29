@@ -1,6 +1,20 @@
 # 0023 Remember Enhancements
 
-Status: proposed — feedback from dogfooding `--remember` in real agent sessions
+Status: approved for the next M4 remember-enhancement slice
+
+## Sponsor
+
+Primary sponsor human:
+
+- a person standing in a project directory who wants a small, trustworthy recall bundle instead of a full text dump
+
+Primary sponsor agent:
+
+- an agent starting work in a repository that needs bounded prior context with explicit receipts and stable machine-readable output
+
+## Hill
+
+If a person or agent asks `think` to remember prior context, they can request a small, inspectable recall bundle and optionally a brief triage view, without turning `--remember` into generic search, opaque ranking, or prompt-time magic.
 
 ## Origin
 
@@ -18,7 +32,36 @@ The fundamentals are solid:
 - match receipts are explicit and inspectable — you can see exactly why each result was returned
 - the JSON contract is agent-ready with no guessing required
 
-The tier/score/matchKinds structure already provides the ranking backbone. What follows are proposals to give the consumer more control over how much of that ranking they actually consume.
+The tier/score/matchKinds structure already provides the ranking backbone. What follows narrows the next implementation slice to the highest-value controls over how much of that ranking the caller actually consumes.
+
+## Slice Lock
+
+This slice is intentionally narrow.
+
+Implemented in this slice:
+
+- `--limit=N`
+- `--brief`
+- composition with existing explicit query recall:
+  - `think --remember`
+  - `think --remember "query"`
+  - `think --remember --limit=3`
+  - `think --remember --brief`
+  - `think --remember "query" --limit=3 --brief`
+
+Deferred from this slice:
+
+- session-start hook integration
+- tier 2 fallback reranking
+- score normalization / confidence values
+- ambient metadata visibility during capture
+- negative-signal or declassification mechanics
+
+The reason for the narrow lock is simple:
+
+- `--limit` and `--brief` materially improve both human and agent use right now
+- they do not require inventing a new ranking model
+- they preserve the current deterministic, receipt-based recall contract
 
 ## Proposed Enhancements
 
@@ -33,11 +76,11 @@ Proposed shape:
 - `think --remember --limit=3`
 - `think --remember "query" --limit=5`
 
-Behavior:
+Locked behavior for this slice:
 
 - return the top N entries by score, respecting the existing ordering rules (stronger tier first, higher score first, newer first within tier)
 - when omitted, current behavior is preserved (return all matches)
-- `--limit=0` or negative values should be rejected or ignored
+- reject `--limit=0`, negative values, and non-integer values as invalid command usage
 
 Why this matters for agents:
 
@@ -45,13 +88,13 @@ Why this matters for agents:
 - context window budget is finite and the agent cannot always predict how large the result set will be
 - the scoring already ranks entries — `--limit` just lets the caller say "give me the best N"
 
-### 2. Scoped Query (`--query` or positional argument)
+### 2. Scoped Query (Existing Shape, Explicitly Preserved)
 
-The design doc (0018) already specifies `think --remember "query terms"` as the explicit recall shape. This note reinforces the value of that second axis from real usage.
+The design doc (0018) already specifies `think --remember "query terms"` as the explicit recall shape. This slice does not add a new query mechanism. It explicitly preserves and composes with the existing positional query form.
 
 During testing, `--remember` from `~/git/bijou` returned 8 results — all matched on the token `"bijou"`. But some entries are *entirely about* bijou (a deep architectural analysis) while others merely mention bijou in a list of seven projects. Without a query parameter, there is no way to say "I care about hexagonal architecture in bijou" vs "I care about bijou's role in Continuum."
 
-If query support exists or is planned, it should compose with ambient scoping:
+Locked composition rule for this slice:
 
 - `think --remember` = ambient context only
 - `think --remember "hexagonal architecture"` = ambient context + query relevance
@@ -66,12 +109,18 @@ Proposed shape:
 - `think --remember --brief`
 - `think --remember --brief --limit=10`
 
-Behavior:
+Locked behavior for this slice:
 
 - return the same match structure (entryId, score, tier, matchKinds, reasonText, createdAt)
 - the entryId is a hard requirement — without it, brief results are a dead end because the caller has no handle to follow up with `--inspect`
 - include only the first line (or first N characters) of the entry text, not the full body
 - the caller can then `--inspect <entryId> --json` to retrieve the full text of specific entries that look relevant
+
+Important presentation rule:
+
+- `--brief` is a triage surface, not a different ranking mode
+- it must not change match ordering, match receipts, or scope resolution
+- it only changes how much of each matched thought is rendered
 
 Why this matters:
 
@@ -80,6 +129,8 @@ Why this matters:
 - respects context window budget without losing the ability to see what is available
 
 ### 4. Session-Start Hook Integration
+
+Deferred from this slice.
 
 This is the one concept worth borrowing from CARL, adapted to Think's doctrine.
 
@@ -140,6 +191,35 @@ This note does not propose:
 - changes to the capture path or capture-time friction
 - keyword-triggered prompt scanning (the CARL approach explicitly rejected)
 - dashboard or analytics surfaces
+- any change to the existing recall ranking formula in this slice
+- any TUI-only remember behavior
+
+## Agent Parity
+
+If humans can use `--limit` and `--brief`, agents must be able to do the same job through the explicit command contract.
+
+That means:
+
+- `--json --remember --limit=N` must preserve explicit `remember.scope` and `remember.match` rows
+- `--json --remember --brief` must remain equally inspectable
+- `--brief` may shorten text payloads, but it must not hide `entryId`, `score`, `tier`, `matchKinds`, or receipt fields
+
+## Human Surface
+
+Human `--remember` should remain plain and boring.
+
+Good:
+
+- `Remember`
+- `Scope: current project`
+- `Why: matched git remote and repo root`
+- short, triage-friendly snippets in `--brief`
+
+Bad:
+
+- dense walls of metadata for every result
+- a different layout that implies `--brief` is a different command
+- “smart summary” language that hides why results matched
 
 ## Playback Questions
 
@@ -152,12 +232,13 @@ Agent stakeholder:
 Human stakeholder:
 
 - does `--brief` feel useful for quick "what do I have here?" checks, or does it just add a step before you read the full text anyway?
-- would you want to see ambient metadata at capture time, or is that noise you would ignore?
+- does `--limit` make recall feel calmer and more usable, or does it feel like unnecessary option clutter?
 
-## Recommended Next Steps
+## Next Move
 
-1. `--limit=N` — lowest effort, highest immediate value for both agents and humans
-2. `--brief` — enables the triage pattern that makes `--limit` practical
-3. ambient metadata visibility at capture time (even if just `--verbose`)
-4. sub-ranking within tier 2 fallback for better discrimination on pre-metadata entries
-5. session-start hook recipe documented as a consumer integration pattern
+After this design note:
+
+1. write failing specs for `--limit` and `--brief`
+2. implement the narrow remember-enhancement slice
+3. run dual playback on bounded recall and brief triage
+4. defer the rest of this note until playback proves these controls are earned
