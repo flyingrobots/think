@@ -112,6 +112,7 @@ think --migrate-graph
 
 Raw capture always works regardless of graph version — it saves first, migrates after.
 Current graph-native read behavior targets graph model `v3`.
+Interactive human upgrades now show a visible progress state and then continue automatically into the requested command.
 
 ## Tests
 

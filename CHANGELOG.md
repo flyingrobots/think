@@ -56,6 +56,7 @@ Release discipline:
 - official browse bootstrap `AFTER` benchmark captured:
   - `BEFORE` median: `4152.16075 ms`
   - `AFTER` median: `345.786625 ms`
+- interactive graph upgrades now show a visible in-progress state for human CLI flows, then continue automatically into the requested command
 
 ### Removed
 

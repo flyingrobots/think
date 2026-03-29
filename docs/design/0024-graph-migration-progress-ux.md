@@ -1,6 +1,6 @@
 # 0024 Graph Migration Progress UX
 
-Status: draft for review
+Status: implemented and closed
 
 ## Sponsor
 
@@ -242,11 +242,19 @@ This slice is successful when:
 - agent and non-interactive callers still get explicit `graph.migration_required`
 - capture remains unaffected
 
-## Next Move
+## Outcome
 
-After this design note:
+Human playback result:
 
-1. write failing specs for interactive migration progress behavior
-2. implement the progress state in the human interactive path only
-3. run human playback specifically on the upgrade moment
-4. confirm in the retro that no design drift reintroduced silent or blocking migration into capture
+- pass
+
+Agent playback result:
+
+- pass
+
+Delivered implementation:
+
+- interactive human graph-native commands now show a visible `Upgrading thought graph` state with a progress-bar-like affordance and phase text
+- the requested command continues automatically after successful migration
+- `--json` and non-interactive flows remain explicit `graph.migration_required` failures
+- capture remains unaffected
