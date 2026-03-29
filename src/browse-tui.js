@@ -258,7 +258,7 @@ function createBrowseModel({ entries, inspectCache, initialEntryId }) {
   };
 }
 
-function createWindowedBrowseModel({
+export function createWindowedBrowseModel({
   bootstrap,
   inspectCache,
   loadBrowseWindow,
@@ -278,6 +278,7 @@ function createWindowedBrowseModel({
     columns: process.stdout.columns ?? DEFAULT_COLUMNS,
     rows: process.stdout.rows ?? DEFAULT_ROWS,
     contentScrollY: 0,
+    panelMode: 'none',
     jumpPalette: createJumpPalette([]),
     previousPanelMode: 'none',
     notice: null,
@@ -804,7 +805,7 @@ function isScriptJumpAction(rawAction) {
     && rawAction.type === 'jump';
 }
 
-function renderBrowseModel(model) {
+export function renderBrowseModel(model) {
   const layout = resolveLayout(model);
   const help = resolveHelpLine(model);
   const counter = resolveBrowseCounter(model);
