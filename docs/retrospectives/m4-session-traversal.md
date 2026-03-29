@@ -33,19 +33,19 @@ This slice existed to prove:
 
 Implementation:
 
-- session-traversal model in [src/store.js](/Users/james/git/think/src/store.js)
-- plain and JSON browse traversal plumbing in [src/cli.js](/Users/james/git/think/src/cli.js)
-- explicit in-shell session traversal in [src/browse-tui.js](/Users/james/git/think/src/browse-tui.js)
+- session-traversal model in [src/store.js](../../src/store.js)
+- plain and JSON browse traversal plumbing in [src/cli.js](../../src/cli.js)
+- explicit in-shell session traversal in [src/browse-tui.js](../../src/browse-tui.js)
 
 Specification:
 
-- acceptance coverage in [test/acceptance/read-modes.test.js](/Users/james/git/think/test/acceptance/read-modes.test.js)
+- acceptance coverage in [test/acceptance/read-modes.test.js](../../test/acceptance/read-modes.test.js)
 
 Supporting design work:
 
-- [docs/design/archive/0017-m4-session-traversal.md](/Users/james/git/think/docs/design/archive/0017-m4-session-traversal.md)
-- [docs/design/0012-m4-reentry-browse-inspect.md](/Users/james/git/think/docs/design/0012-m4-reentry-browse-inspect.md)
-- [docs/design/archive/0013-m4-bijou-read-shell.md](/Users/james/git/think/docs/design/archive/0013-m4-bijou-read-shell.md)
+- [docs/design/archive/0017-m4-session-traversal.md](../design/archive/0017-m4-session-traversal.md)
+- [docs/design/0012-m4-reentry-browse-inspect.md](../design/0012-m4-reentry-browse-inspect.md)
+- [docs/design/archive/0013-m4-bijou-read-shell.md](../design/archive/0013-m4-bijou-read-shell.md)
 
 ## What Went Well
 

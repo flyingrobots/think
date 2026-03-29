@@ -46,17 +46,17 @@ This slice existed to prove:
 
 Implementation:
 
-- [src/cli.js](/Users/james/git/think/src/cli.js)
-- [src/store.js](/Users/james/git/think/src/store.js)
-- [src/paths.js](/Users/james/git/think/src/paths.js)
+- [src/cli.js](../../src/cli.js)
+- [src/store.js](../../src/store.js)
+- [src/paths.js](../../src/paths.js)
 
 Specification:
 
-- [test/acceptance/prompt-metrics.test.js](/Users/james/git/think/test/acceptance/prompt-metrics.test.js)
+- [test/acceptance/prompt-metrics.test.js](../../test/acceptance/prompt-metrics.test.js)
 
 Supporting design work:
 
-- [docs/design/archive/0025-prompt-telemetry-read-surface.md](/Users/james/git/think/docs/design/archive/0025-prompt-telemetry-read-surface.md)
+- [docs/design/archive/0025-prompt-telemetry-read-surface.md](../design/archive/0025-prompt-telemetry-read-surface.md)
 
 ## Human Stakeholder Playback
 

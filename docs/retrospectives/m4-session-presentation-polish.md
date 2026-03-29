@@ -41,16 +41,16 @@ This slice existed to prove:
 
 Implementation:
 
-- [src/browse-tui.js](/Users/james/git/think/src/browse-tui.js)
+- [src/browse-tui.js](../../src/browse-tui.js)
 
 Specification:
 
-- [test/acceptance/read-modes.test.js](/Users/james/git/think/test/acceptance/read-modes.test.js)
-- [test/acceptance/browse-tui.test.js](/Users/james/git/think/test/acceptance/browse-tui.test.js)
+- [test/acceptance/read-modes.test.js](../../test/acceptance/read-modes.test.js)
+- [test/acceptance/browse-tui.test.js](../../test/acceptance/browse-tui.test.js)
 
 Supporting design work:
 
-- [docs/design/archive/0026-m4-session-presentation-polish.md](/Users/james/git/think/docs/design/archive/0026-m4-session-presentation-polish.md)
+- [docs/design/archive/0026-m4-session-presentation-polish.md](../design/archive/0026-m4-session-presentation-polish.md)
 
 ## Human Stakeholder Playback
 
@@ -100,8 +100,8 @@ Why that matters:
 
 How it was corrected:
 
-- fixed the live initializer in [src/browse-tui.js](/Users/james/git/think/src/browse-tui.js)
-- added [test/acceptance/browse-tui.test.js](/Users/james/git/think/test/acceptance/browse-tui.test.js) to pin the real windowed startup path
+- fixed the live initializer in [src/browse-tui.js](../../src/browse-tui.js)
+- added [test/acceptance/browse-tui.test.js](../../test/acceptance/browse-tui.test.js) to pin the real windowed startup path
 
 ## What We Learned
 

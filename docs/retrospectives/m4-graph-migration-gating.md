@@ -4,8 +4,8 @@ Status: closed
 
 ## Slice
 
-- design: [0021-graph-migration-gating.md](/Users/james/git/think/docs/design/0021-graph-migration-gating.md)
-- specs: [graph-migration.test.js](/Users/james/git/think/test/acceptance/graph-migration.test.js)
+- design: [0021-graph-migration-gating.md](../design/0021-graph-migration-gating.md)
+- specs: [graph-migration.test.js](../../test/acceptance/graph-migration.test.js)
 - implementation commits:
   - `1b8d464` - `Gate graph-native commands on graph migration`
 

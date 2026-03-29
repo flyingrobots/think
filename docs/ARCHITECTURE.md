@@ -12,7 +12,7 @@ It is not an ADR archive and it is not a milestone pitch. Its job is to answer:
 - how capture, read, derivation, and migration actually work
 - which parts of the codebase own which responsibilities
 
-For the historical design trail, see [/Users/james/git/think/docs/design/README.md](/Users/james/git/think/docs/design/README.md).
+For the historical design trail, see [docs/design/README.md](./design/README.md).
 
 ## System Shape
 
@@ -214,9 +214,9 @@ The current derivation stack is:
 
 The governing references are:
 
-- [/Users/james/git/think/docs/design/0009-graph-derivation-model.md](/Users/james/git/think/docs/design/0009-graph-derivation-model.md)
-- [/Users/james/git/think/docs/design/0010-ingress-and-derivation-pipeline.md](/Users/james/git/think/docs/design/0010-ingress-and-derivation-pipeline.md)
-- [/Users/james/git/think/docs/design/0015-per-thought-derivation-catalog.md](/Users/james/git/think/docs/design/0015-per-thought-derivation-catalog.md)
+- [docs/design/0009-graph-derivation-model.md](./design/0009-graph-derivation-model.md)
+- [docs/design/0010-ingress-and-derivation-pipeline.md](./design/0010-ingress-and-derivation-pipeline.md)
+- [docs/design/0015-per-thought-derivation-catalog.md](./design/0015-per-thought-derivation-catalog.md)
 
 ## Graph Model And Migration
 
@@ -243,23 +243,23 @@ Migration policy:
 
 This is the practical code map today:
 
-- [/Users/james/git/think/bin/think.js](/Users/james/git/think/bin/think.js)
+- [bin/think.js](../bin/think.js)
   - CLI entrypoint
-- [/Users/james/git/think/src/cli.js](/Users/james/git/think/src/cli.js)
+- [src/cli.js](../src/cli.js)
   - thin CLI entry module and top-level dispatch
-- [/Users/james/git/think/src/cli/](/Users/james/git/think/src/cli/)
+- [src/cli/](../src/cli)
   - argument parsing, validation, interactive migration/reflect helpers, output shaping, and command-family runners
-- [/Users/james/git/think/src/store.js](/Users/james/git/think/src/store.js)
+- [src/store.js](../src/store.js)
   - thin storage barrel used by the rest of the app
-- [/Users/james/git/think/src/store/](/Users/james/git/think/src/store/)
+- [src/store/](../src/store)
   - graph runtime helpers, read queries, capture flow, derivation logic, reflect flow, migrations, and prompt-metrics helpers
-- [/Users/james/git/think/src/browse-tui.js](/Users/james/git/think/src/browse-tui.js)
+- [src/browse-tui.js](../src/browse-tui.js)
   - Bijou browse shell
-- [/Users/james/git/think/src/browse-benchmark.js](/Users/james/git/think/src/browse-benchmark.js)
+- [src/browse-benchmark.js](../src/browse-benchmark.js)
   - browse benchmark fixture/bootstrap helper
-- [/Users/james/git/think/src/git.js](/Users/james/git/think/src/git.js)
+- [src/git.js](../src/git.js)
   - Git backup and repository operations
-- [/Users/james/git/think/macos/](/Users/james/git/think/macos/)
+- [macos/](../macos)
   - native capture app and supporting Swift modules
 
 ## Current Architectural Notes
@@ -282,8 +282,8 @@ Further code-shape changes should be treated as normal design/spec/refactor slic
 
 If you are new to the repo, read these in order:
 
-1. [/Users/james/git/think/README.md](/Users/james/git/think/README.md)
-2. [/Users/james/git/think/docs/GLOSSARY.md](/Users/james/git/think/docs/GLOSSARY.md)
-3. [/Users/james/git/think/docs/ARCHITECTURE.md](/Users/james/git/think/docs/ARCHITECTURE.md)
-4. [/Users/james/git/think/docs/design/ROADMAP.md](/Users/james/git/think/docs/design/ROADMAP.md)
-5. [/Users/james/git/think/CONTRIBUTING.md](/Users/james/git/think/CONTRIBUTING.md)
+1. [README.md](../README.md)
+2. [docs/GLOSSARY.md](./GLOSSARY.md)
+3. [docs/ARCHITECTURE.md](./ARCHITECTURE.md)
+4. [docs/design/ROADMAP.md](./design/ROADMAP.md)
+5. [CONTRIBUTING.md](../CONTRIBUTING.md)

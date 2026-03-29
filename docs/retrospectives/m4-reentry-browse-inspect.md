@@ -53,21 +53,21 @@ Key supporting slices:
 
 Representative design notes:
 
-- [docs/design/0012-m4-reentry-browse-inspect.md](/Users/james/git/think/docs/design/0012-m4-reentry-browse-inspect.md)
-- [docs/design/archive/0013-m4-bijou-read-shell.md](/Users/james/git/think/docs/design/archive/0013-m4-bijou-read-shell.md)
-- [docs/design/archive/0014-m4-first-derived-artifacts.md](/Users/james/git/think/docs/design/archive/0014-m4-first-derived-artifacts.md)
-- [docs/design/0015-per-thought-derivation-catalog.md](/Users/james/git/think/docs/design/0015-per-thought-derivation-catalog.md)
-- [docs/design/archive/0018-m4-remember.md](/Users/james/git/think/docs/design/archive/0018-m4-remember.md)
-- [docs/design/0022-graph-native-browse-read-refactor.md](/Users/james/git/think/docs/design/0022-graph-native-browse-read-refactor.md)
+- [docs/design/0012-m4-reentry-browse-inspect.md](../design/0012-m4-reentry-browse-inspect.md)
+- [docs/design/archive/0013-m4-bijou-read-shell.md](../design/archive/0013-m4-bijou-read-shell.md)
+- [docs/design/archive/0014-m4-first-derived-artifacts.md](../design/archive/0014-m4-first-derived-artifacts.md)
+- [docs/design/0015-per-thought-derivation-catalog.md](../design/0015-per-thought-derivation-catalog.md)
+- [docs/design/archive/0018-m4-remember.md](../design/archive/0018-m4-remember.md)
+- [docs/design/0022-graph-native-browse-read-refactor.md](../design/0022-graph-native-browse-read-refactor.md)
 
 Representative implementation closeouts:
 
-- [docs/retrospectives/m4-session-context-browse.md](/Users/james/git/think/docs/retrospectives/m4-session-context-browse.md)
-- [docs/retrospectives/m4-session-traversal.md](/Users/james/git/think/docs/retrospectives/m4-session-traversal.md)
-- [docs/retrospectives/m4-graph-native-browse-read-refactor.md](/Users/james/git/think/docs/retrospectives/m4-graph-native-browse-read-refactor.md)
-- [docs/retrospectives/m4-remember-enhancements.md](/Users/james/git/think/docs/retrospectives/m4-remember-enhancements.md)
-- [docs/retrospectives/m4-prompt-telemetry-read-surface.md](/Users/james/git/think/docs/retrospectives/m4-prompt-telemetry-read-surface.md)
-- [docs/retrospectives/m4-session-presentation-polish.md](/Users/james/git/think/docs/retrospectives/m4-session-presentation-polish.md)
+- [docs/retrospectives/m4-session-context-browse.md](./m4-session-context-browse.md)
+- [docs/retrospectives/m4-session-traversal.md](./m4-session-traversal.md)
+- [docs/retrospectives/m4-graph-native-browse-read-refactor.md](./m4-graph-native-browse-read-refactor.md)
+- [docs/retrospectives/m4-remember-enhancements.md](./m4-remember-enhancements.md)
+- [docs/retrospectives/m4-prompt-telemetry-read-surface.md](./m4-prompt-telemetry-read-surface.md)
+- [docs/retrospectives/m4-session-presentation-polish.md](./m4-session-presentation-polish.md)
 
 ## Human Stakeholder Playback
 

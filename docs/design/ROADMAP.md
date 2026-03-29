@@ -52,7 +52,7 @@ Current cross-cutting notes in force:
 
 These notes should constrain new CLI-facing, graph-facing, derivation-orchestration, and read-surface work without becoming separate milestones.
 
-Completed milestone and slice notes that are no longer part of the smallest current-reference set now live under [`docs/design/archive/`](/Users/james/git/think/docs/design/archive).
+Completed milestone and slice notes that are no longer part of the smallest current-reference set now live under [`docs/design/archive/`](./archive).
 
 ## Milestone Flow
 

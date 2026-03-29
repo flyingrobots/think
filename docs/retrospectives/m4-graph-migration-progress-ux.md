@@ -37,16 +37,16 @@ This slice existed to prove:
 
 Implementation:
 
-- [src/cli.js](/Users/james/git/think/src/cli.js)
+- [src/cli.js](../../src/cli.js)
 
 Specification:
 
-- [test/acceptance/graph-migration.test.js](/Users/james/git/think/test/acceptance/graph-migration.test.js)
+- [test/acceptance/graph-migration.test.js](../../test/acceptance/graph-migration.test.js)
 
 Supporting design work:
 
-- [docs/design/0021-graph-migration-gating.md](/Users/james/git/think/docs/design/0021-graph-migration-gating.md)
-- [docs/design/archive/0024-graph-migration-progress-ux.md](/Users/james/git/think/docs/design/archive/0024-graph-migration-progress-ux.md)
+- [docs/design/0021-graph-migration-gating.md](../design/0021-graph-migration-gating.md)
+- [docs/design/archive/0024-graph-migration-progress-ux.md](../design/archive/0024-graph-migration-progress-ux.md)
 
 ## Human Stakeholder Playback
 

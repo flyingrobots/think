@@ -32,19 +32,19 @@ This slice existed to prove:
 
 Implementation:
 
-- [src/store.js](/Users/james/git/think/src/store.js)
-- [src/cli.js](/Users/james/git/think/src/cli.js)
-- [src/browse-benchmark.js](/Users/james/git/think/src/browse-benchmark.js)
+- [src/store.js](../../src/store.js)
+- [src/cli.js](../../src/cli.js)
+- [src/browse-benchmark.js](../../src/browse-benchmark.js)
 
 Benchmark artifacts:
 
-- [docs/benchmarks/browse-bootstrap-before.json](/Users/james/git/think/docs/benchmarks/browse-bootstrap-before.json)
-- [docs/benchmarks/browse-bootstrap-after.json](/Users/james/git/think/docs/benchmarks/browse-bootstrap-after.json)
+- [docs/benchmarks/browse-bootstrap-before.json](../benchmarks/browse-bootstrap-before.json)
+- [docs/benchmarks/browse-bootstrap-after.json](../benchmarks/browse-bootstrap-after.json)
 
 Supporting design work:
 
-- [docs/design/archive/0020-browse-bootstrap-benchmark.md](/Users/james/git/think/docs/design/archive/0020-browse-bootstrap-benchmark.md)
-- [docs/design/0022-graph-native-browse-read-refactor.md](/Users/james/git/think/docs/design/0022-graph-native-browse-read-refactor.md)
+- [docs/design/archive/0020-browse-bootstrap-benchmark.md](../design/archive/0020-browse-bootstrap-benchmark.md)
+- [docs/design/0022-graph-native-browse-read-refactor.md](../design/0022-graph-native-browse-read-refactor.md)
 
 ## Human Stakeholder Playback
 

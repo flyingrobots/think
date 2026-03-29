@@ -65,7 +65,7 @@ Today bare `--browse` does the wrong work before first paint:
 - sort the whole list
 - only then open the TUI
 
-That is why the committed `BEFORE` benchmark in [docs/benchmarks/browse-bootstrap-before.json](/Users/james/git/think/docs/benchmarks/browse-bootstrap-before.json) is still slow:
+That is why the committed `BEFORE` benchmark in [docs/benchmarks/browse-bootstrap-before.json](../benchmarks/browse-bootstrap-before.json) is still slow:
 
 - median: `4152.16075 ms`
 
@@ -262,8 +262,8 @@ Benchmark result:
 
 Official artifacts:
 
-- [docs/benchmarks/browse-bootstrap-before.json](/Users/james/git/think/docs/benchmarks/browse-bootstrap-before.json)
-- [docs/benchmarks/browse-bootstrap-after.json](/Users/james/git/think/docs/benchmarks/browse-bootstrap-after.json)
+- [docs/benchmarks/browse-bootstrap-before.json](../benchmarks/browse-bootstrap-before.json)
+- [docs/benchmarks/browse-bootstrap-after.json](../benchmarks/browse-bootstrap-after.json)
 
 ## Versioning Decision
 

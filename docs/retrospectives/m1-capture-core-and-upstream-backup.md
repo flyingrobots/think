@@ -37,16 +37,16 @@ More concretely, we wanted to prove:
 
 Implementation:
 
-- CLI entrypoint at [`bin/think.js`](/Users/james/git/think/bin/think.js)
-- local app-home and repo bootstrap in [`src/paths.js`](/Users/james/git/think/src/paths.js) and [`src/git.js`](/Users/james/git/think/src/git.js)
-- raw capture and plain recent read path in [`src/store.js`](/Users/james/git/think/src/store.js)
-- thin CLI behavior in [`src/cli.js`](/Users/james/git/think/src/cli.js)
+- CLI entrypoint at [`bin/think.js`](../../bin/think.js)
+- local app-home and repo bootstrap in [`src/paths.js`](../../src/paths.js) and [`src/git.js`](../../src/git.js)
+- raw capture and plain recent read path in [`src/store.js`](../../src/store.js)
+- thin CLI behavior in [`src/cli.js`](../../src/cli.js)
 
 Specification:
 
-- executable acceptance tests in [`test/acceptance/milestone-1.test.js`](/Users/james/git/think/test/acceptance/milestone-1.test.js)
-- reusable temp-home and throwaway Git fixtures under [`test/fixtures`](/Users/james/git/think/test/fixtures)
-- shared assertions under [`test/support/assertions.js`](/Users/james/git/think/test/support/assertions.js)
+- executable acceptance tests in [`test/acceptance/milestone-1.test.js`](../../test/acceptance/milestone-1.test.js)
+- reusable temp-home and throwaway Git fixtures under [`test/fixtures`](../../test/fixtures)
+- shared assertions under [`test/support/assertions.js`](../../test/support/assertions.js)
 
 Substrate:
 

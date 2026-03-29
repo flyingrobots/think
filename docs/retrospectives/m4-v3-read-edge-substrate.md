@@ -33,17 +33,17 @@ This sub-slice existed to prove:
 
 Implementation:
 
-- graph model and read-edge updates in [src/store.js](/Users/james/git/think/src/store.js)
+- graph model and read-edge updates in [src/store.js](../../src/store.js)
 
 Specification:
 
-- migration and graph-native inspect coverage in [test/acceptance/graph-migration.test.js](/Users/james/git/think/test/acceptance/graph-migration.test.js)
+- migration and graph-native inspect coverage in [test/acceptance/graph-migration.test.js](../../test/acceptance/graph-migration.test.js)
 
 Supporting design work:
 
-- [docs/design/0022-graph-native-browse-read-refactor.md](/Users/james/git/think/docs/design/0022-graph-native-browse-read-refactor.md)
-- [docs/design/0019-graph-versioning-and-migration.md](/Users/james/git/think/docs/design/0019-graph-versioning-and-migration.md)
-- [docs/design/0021-graph-migration-gating.md](/Users/james/git/think/docs/design/0021-graph-migration-gating.md)
+- [docs/design/0022-graph-native-browse-read-refactor.md](../design/0022-graph-native-browse-read-refactor.md)
+- [docs/design/0019-graph-versioning-and-migration.md](../design/0019-graph-versioning-and-migration.md)
+- [docs/design/0021-graph-migration-gating.md](../design/0021-graph-migration-gating.md)
 
 Implementation commit:
 
@@ -96,7 +96,7 @@ What did not land yet:
 Design correction:
 
 - the implementation is being closed as a narrower sub-slice: `v3` read-edge substrate
-- [docs/design/0022-graph-native-browse-read-refactor.md](/Users/james/git/think/docs/design/0022-graph-native-browse-read-refactor.md) remains in progress rather than being marked fully implemented
+- [docs/design/0022-graph-native-browse-read-refactor.md](../design/0022-graph-native-browse-read-refactor.md) remains in progress rather than being marked fully implemented
 
 ## What We Learned
 
@@ -112,4 +112,4 @@ The next slice should:
 
 - move bare `--browse` startup onto the `latest_capture` and `older` edges
 - avoid whole-archive scans before first paint
-- then capture the official `AFTER` benchmark against [docs/benchmarks/browse-bootstrap-before.json](/Users/james/git/think/docs/benchmarks/browse-bootstrap-before.json)
+- then capture the official `AFTER` benchmark against [docs/benchmarks/browse-bootstrap-before.json](../benchmarks/browse-bootstrap-before.json)

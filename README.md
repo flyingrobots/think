@@ -143,9 +143,9 @@ The committed synthetic browse benchmark currently improved from a `4152 ms` med
 
 For contributors, the current system references are:
 
-- [docs/ARCHITECTURE.md](/Users/james/git/think/docs/ARCHITECTURE.md)
-- [docs/GLOSSARY.md](/Users/james/git/think/docs/GLOSSARY.md)
-- [docs/design/ROADMAP.md](/Users/james/git/think/docs/design/ROADMAP.md)
+- [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
+- [docs/GLOSSARY.md](./docs/GLOSSARY.md)
+- [docs/design/ROADMAP.md](./docs/design/ROADMAP.md)
 
 ## Project Structure
 

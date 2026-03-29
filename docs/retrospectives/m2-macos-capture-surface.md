@@ -37,17 +37,17 @@ Milestone 2 existed to prove:
 
 Implementation:
 
-- native menu bar app in [`macos/Sources/ThinkMenuBarApp/ThinkMenuBarApp.swift`](/Users/james/git/think/macos/Sources/ThinkMenuBarApp/ThinkMenuBarApp.swift)
-- transient `NSPanel` controller in [`macos/Sources/ThinkMenuBarApp/CapturePanelController.swift`](/Users/james/git/think/macos/Sources/ThinkMenuBarApp/CapturePanelController.swift)
-- SwiftUI panel view in [`macos/Sources/ThinkMenuBarApp/CapturePanelView.swift`](/Users/james/git/think/macos/Sources/ThinkMenuBarApp/CapturePanelView.swift)
-- global hotkey integration in [`macos/Sources/ThinkMenuBarApp/GlobalHotKeyMonitor.swift`](/Users/james/git/think/macos/Sources/ThinkMenuBarApp/GlobalHotKeyMonitor.swift)
-- shared adapter boundary through [`macos/Sources/ThinkCaptureAdapter/ThinkCLIAdapter.swift`](/Users/james/git/think/macos/Sources/ThinkCaptureAdapter/ThinkCLIAdapter.swift)
+- native menu bar app in [`macos/Sources/ThinkMenuBarApp/ThinkMenuBarApp.swift`](../../macos/Sources/ThinkMenuBarApp/ThinkMenuBarApp.swift)
+- transient `NSPanel` controller in [`macos/Sources/ThinkMenuBarApp/CapturePanelController.swift`](../../macos/Sources/ThinkMenuBarApp/CapturePanelController.swift)
+- SwiftUI panel view in [`macos/Sources/ThinkMenuBarApp/CapturePanelView.swift`](../../macos/Sources/ThinkMenuBarApp/CapturePanelView.swift)
+- global hotkey integration in [`macos/Sources/ThinkMenuBarApp/GlobalHotKeyMonitor.swift`](../../macos/Sources/ThinkMenuBarApp/GlobalHotKeyMonitor.swift)
+- shared adapter boundary through [`macos/Sources/ThinkCaptureAdapter/ThinkCLIAdapter.swift`](../../macos/Sources/ThinkCaptureAdapter/ThinkCLIAdapter.swift)
 
 Specification:
 
-- panel-model behavior tests in [`macos/Tests/ThinkCaptureAdapterTests/CapturePanelModelTests.swift`](/Users/james/git/think/macos/Tests/ThinkCaptureAdapterTests/CapturePanelModelTests.swift)
-- CLI adapter tests in [`macos/Tests/ThinkCaptureAdapterTests/ThinkCLIAdapterTests.swift`](/Users/james/git/think/macos/Tests/ThinkCaptureAdapterTests/ThinkCLIAdapterTests.swift)
-- build-update tracking tests in [`macos/Tests/ThinkMenuBarSupportTests/BuildUpdateTrackerTests.swift`](/Users/james/git/think/macos/Tests/ThinkMenuBarSupportTests/BuildUpdateTrackerTests.swift)
+- panel-model behavior tests in [`macos/Tests/ThinkCaptureAdapterTests/CapturePanelModelTests.swift`](../../macos/Tests/ThinkCaptureAdapterTests/CapturePanelModelTests.swift)
+- CLI adapter tests in [`macos/Tests/ThinkCaptureAdapterTests/ThinkCLIAdapterTests.swift`](../../macos/Tests/ThinkCaptureAdapterTests/ThinkCLIAdapterTests.swift)
+- build-update tracking tests in [`macos/Tests/ThinkMenuBarSupportTests/BuildUpdateTrackerTests.swift`](../../macos/Tests/ThinkMenuBarSupportTests/BuildUpdateTrackerTests.swift)
 
 Operational behavior:
 

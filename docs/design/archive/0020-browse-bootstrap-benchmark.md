@@ -229,8 +229,8 @@ That success criteria is now met.
 
 Committed benchmark artifacts:
 
-- `BEFORE`: [docs/benchmarks/browse-bootstrap-before.json](/Users/james/git/think/docs/benchmarks/browse-bootstrap-before.json)
-- `AFTER`: [docs/benchmarks/browse-bootstrap-after.json](/Users/james/git/think/docs/benchmarks/browse-bootstrap-after.json)
+- `BEFORE`: [docs/benchmarks/browse-bootstrap-before.json](../../benchmarks/browse-bootstrap-before.json)
+- `AFTER`: [docs/benchmarks/browse-bootstrap-after.json](../../benchmarks/browse-bootstrap-after.json)
 
 Current comparison:
 

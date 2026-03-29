@@ -39,17 +39,17 @@ Milestone 3 existed to prove:
 
 Implementation:
 
-- reflect / brainstorm CLI surface in [src/cli.js](/Users/james/git/think/src/cli.js)
-- reflect session storage and prompt selection in [src/store.js](/Users/james/git/think/src/store.js)
+- reflect / brainstorm CLI surface in [src/cli.js](../../src/cli.js)
+- reflect session storage and prompt selection in [src/store.js](../../src/store.js)
 
 Specification:
 
-- acceptance coverage in [test/acceptance/reflect.test.js](/Users/james/git/think/test/acceptance/reflect.test.js)
+- acceptance coverage in [test/acceptance/reflect.test.js](../../test/acceptance/reflect.test.js)
 
 Supporting design work:
 
-- [docs/design/archive/0007-m3-brainstorm-mode.md](/Users/james/git/think/docs/design/archive/0007-m3-brainstorm-mode.md)
-- [docs/design/0011-pressure-test-and-spitball.md](/Users/james/git/think/docs/design/0011-pressure-test-and-spitball.md)
+- [docs/design/archive/0007-m3-brainstorm-mode.md](../design/archive/0007-m3-brainstorm-mode.md)
+- [docs/design/0011-pressure-test-and-spitball.md](../design/0011-pressure-test-and-spitball.md)
 
 Operational behavior:
 

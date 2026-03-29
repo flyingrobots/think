@@ -32,18 +32,18 @@ This slice existed to prove:
 
 Implementation:
 
-- session-context browse behavior in [src/store.js](/Users/james/git/think/src/store.js)
-- session-context browse plumbing in [src/cli.js](/Users/james/git/think/src/cli.js)
-- summon-only session drawer in [src/browse-tui.js](/Users/james/git/think/src/browse-tui.js)
+- session-context browse behavior in [src/store.js](../../src/store.js)
+- session-context browse plumbing in [src/cli.js](../../src/cli.js)
+- summon-only session drawer in [src/browse-tui.js](../../src/browse-tui.js)
 
 Specification:
 
-- acceptance coverage in [test/acceptance/read-modes.test.js](/Users/james/git/think/test/acceptance/read-modes.test.js)
+- acceptance coverage in [test/acceptance/read-modes.test.js](../../test/acceptance/read-modes.test.js)
 
 Supporting design work:
 
-- [docs/design/archive/0016-m4-session-context-browse.md](/Users/james/git/think/docs/design/archive/0016-m4-session-context-browse.md)
-- [docs/design/0012-m4-reentry-browse-inspect.md](/Users/james/git/think/docs/design/0012-m4-reentry-browse-inspect.md)
+- [docs/design/archive/0016-m4-session-context-browse.md](../design/archive/0016-m4-session-context-browse.md)
+- [docs/design/0012-m4-reentry-browse-inspect.md](../design/0012-m4-reentry-browse-inspect.md)
 
 ## What Went Well
 

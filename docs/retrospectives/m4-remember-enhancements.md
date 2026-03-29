@@ -38,17 +38,17 @@ This slice existed to prove:
 
 Implementation:
 
-- [src/cli.js](/Users/james/git/think/src/cli.js)
-- [src/store.js](/Users/james/git/think/src/store.js)
+- [src/cli.js](../../src/cli.js)
+- [src/store.js](../../src/store.js)
 
 Specification:
 
-- [test/acceptance/read-modes.test.js](/Users/james/git/think/test/acceptance/read-modes.test.js)
+- [test/acceptance/read-modes.test.js](../../test/acceptance/read-modes.test.js)
 
 Supporting design work:
 
-- [docs/design/archive/0018-m4-remember.md](/Users/james/git/think/docs/design/archive/0018-m4-remember.md)
-- [docs/design/archive/0023-remember-enhancements.md](/Users/james/git/think/docs/design/archive/0023-remember-enhancements.md)
+- [docs/design/archive/0018-m4-remember.md](../design/archive/0018-m4-remember.md)
+- [docs/design/archive/0023-remember-enhancements.md](../design/archive/0023-remember-enhancements.md)
 
 ## Human Stakeholder Playback
 
@@ -104,4 +104,4 @@ That was reverted before completion because the approved design explicitly defer
 
 Close this slice.
 
-The remaining ideas in [docs/design/archive/0023-remember-enhancements.md](/Users/james/git/think/docs/design/archive/0023-remember-enhancements.md) should stay deferred until new playback earns them.
+The remaining ideas in [docs/design/archive/0023-remember-enhancements.md](../design/archive/0023-remember-enhancements.md) should stay deferred until new playback earns them.

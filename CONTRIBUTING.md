@@ -40,10 +40,10 @@ In practice, that means:
 
 If you are new to the repo, start here before diving into the ADR trail:
 
-1. [README.md](/Users/james/git/think/README.md)
-2. [docs/GLOSSARY.md](/Users/james/git/think/docs/GLOSSARY.md)
-3. [docs/ARCHITECTURE.md](/Users/james/git/think/docs/ARCHITECTURE.md)
-4. [docs/design/ROADMAP.md](/Users/james/git/think/docs/design/ROADMAP.md)
+1. [README.md](./README.md)
+2. [docs/GLOSSARY.md](./docs/GLOSSARY.md)
+3. [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
+4. [docs/design/ROADMAP.md](./docs/design/ROADMAP.md)
 
 The design notes remain valuable, but contributors should not have to reconstruct the current system by reading milestone history in chronological order.
 
@@ -184,7 +184,7 @@ Milestone closure and release discipline are coupled.
 
 Rules:
 
-- keep a root [CHANGELOG.md](/Users/james/git/think/CHANGELOG.md)
+- keep a root [CHANGELOG.md](./CHANGELOG.md)
 - start versioning at `0.1.0`
 - when a milestone is closed, bump `package.json` on the release commit
 - create a Git tag on the commit that lands on `main` for that milestone release
@@ -318,12 +318,12 @@ The point is not aesthetic Git history. The point is trustworthy collaboration.
 
 Before making non-trivial changes, read:
 
-- [README.md](/Users/james/git/think/README.md)
-- [docs/design/README.md](/Users/james/git/think/docs/design/README.md)
-- [docs/ARCHITECTURE.md](/Users/james/git/think/docs/ARCHITECTURE.md)
-- [docs/design/ROADMAP.md](/Users/james/git/think/docs/design/ROADMAP.md)
-- [docs/retrospectives/m1-capture-core-and-upstream-backup.md](/Users/james/git/think/docs/retrospectives/m1-capture-core-and-upstream-backup.md)
-- [BACKLOG.md](/Users/james/git/think/BACKLOG.md)
+- [README.md](./README.md)
+- [docs/design/README.md](./docs/design/README.md)
+- [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
+- [docs/design/ROADMAP.md](./docs/design/ROADMAP.md)
+- [docs/retrospectives/m1-capture-core-and-upstream-backup.md](./docs/retrospectives/m1-capture-core-and-upstream-backup.md)
+- [BACKLOG.md](./BACKLOG.md)
 
 ## Decision Rule
 
