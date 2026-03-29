@@ -1310,12 +1310,22 @@ async function ensureGraphModelReadyFromStatus(repoDir, command, status, output,
   if (canInteractivelyOfferGraphMigration(output)) {
     const decision = await promptForGraphMigration(command, status);
     if (decision === 'upgrade') {
+      writeShellBlock(renderGraphMigrationProgress({
+        command,
+        phase: 'Applying graph migration',
+        progress: 0.75,
+      }), output);
       reporter.event('graph.migration.start', {
         command,
         trigger: 'interactive_gate',
         ...status,
       });
       const result = await migrateGraphModel(repoDir);
+      writeShellBlock(renderGraphMigrationProgress({
+        command,
+        phase: 'Writing checkpoint / finishing',
+        progress: 1,
+      }), output);
       reporter.event('graph.migration.done', {
         command,
         trigger: 'interactive_gate',
@@ -1510,6 +1520,28 @@ function renderGraphMigrationIntro(command, status, ctx = initDefaultContext()) 
   );
 
   return `${header}\n${body}`;
+}
+
+function renderGraphMigrationProgress({ command, phase, progress }, ctx = initDefaultContext()) {
+  const header = headerBox('Upgrading thought graph', { ctx });
+  const body = markdown(
+    [
+      `**Continuing into \`${command}\` once migration finishes.**`,
+      '',
+      `Progress: \`${renderProgressBar(progress)}\``,
+      `Current phase: **${phase}**`,
+    ].join('\n'),
+    { ctx }
+  );
+
+  return `${header}\n${body}`;
+}
+
+function renderProgressBar(progress) {
+  const clamped = Math.max(0, Math.min(1, Number(progress) || 0));
+  const width = 10;
+  const filled = Math.round(clamped * width);
+  return `[${'#'.repeat(filled)}${'-'.repeat(width - filled)}]`;
 }
 
 function writeShellBlock(content, output) {

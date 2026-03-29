@@ -231,6 +231,86 @@ test('graph-native commands fail clearly on an outdated repo outside interactive
   }
 });
 
+test('interactive inspect on an outdated repo shows visible upgrade progress before continuing', async () => {
+  const context = await createThinkContext();
+  const { entryId } = captureWithEntryId(
+    context,
+    'Interactive migration should feel visibly in progress instead of frozen.'
+  );
+
+  const graph = await openThinkGraph(context.localRepoDir);
+  await downgradeGraphToV1(graph);
+
+  const inspect = runThink(
+    context,
+    [`--inspect=${entryId}`],
+    {
+      THINK_TEST_INTERACTIVE: '1',
+      THINK_TEST_CONFIRM_MIGRATION: 'upgrade',
+    }
+  );
+
+  assertSuccess(
+    inspect,
+    `Expected interactive inspect to upgrade and continue automatically.\n${formatResult(inspect)}`
+  );
+  assertContains(
+    inspect,
+    'Upgrading thought graph',
+    'Expected interactive inspect to show a visible upgrade title after choosing Upgrade now.'
+  );
+  assertContains(
+    inspect,
+    'Applying graph migration',
+    'Expected interactive inspect to show a current migration phase instead of silently pausing.'
+  );
+  assertContains(
+    inspect,
+    'Raw',
+    'Expected interactive inspect to continue automatically into the requested inspect surface after migration.'
+  );
+});
+
+test('interactive browse on an outdated repo shows visible upgrade progress before continuing', async () => {
+  const context = await createThinkContext();
+  const { entryId } = captureWithEntryId(
+    context,
+    'Interactive browse should keep its requested command after upgrade.'
+  );
+
+  const graph = await openThinkGraph(context.localRepoDir);
+  await downgradeGraphToV1(graph);
+
+  const browse = runThink(
+    context,
+    [`--browse=${entryId}`],
+    {
+      THINK_TEST_INTERACTIVE: '1',
+      THINK_TEST_CONFIRM_MIGRATION: 'upgrade',
+    }
+  );
+
+  assertSuccess(
+    browse,
+    `Expected interactive browse to upgrade and continue automatically.\n${formatResult(browse)}`
+  );
+  assertContains(
+    browse,
+    'Upgrading thought graph',
+    'Expected interactive browse to show a visible upgrade title after choosing Upgrade now.'
+  );
+  assertContains(
+    browse,
+    'Writing checkpoint / finishing',
+    'Expected interactive browse to show a later migration phase before returning to browse output.'
+  );
+  assertContains(
+    browse,
+    'Browse',
+    'Expected interactive browse to continue automatically into the requested browse surface after migration.'
+  );
+});
+
 test('think --json emits explicit graph migration required errors for outdated graph-native commands', async () => {
   const context = await createThinkContext();
   const { entryId } = captureWithEntryId(
