@@ -577,10 +577,14 @@ async function runRecent(output, reporter, options) {
 async function runRemember(output, reporter, options) {
   const repoDir = getLocalRepoDir();
   const query = options.positionals.length > 0 ? options.positionals.join(' ') : null;
+  const limit = options.rememberLimit === null ? null : Number.parseInt(options.rememberLimit, 10);
+  const brief = options.rememberBrief;
 
   reporter.event('remember.start', {
     scopeKind: query ? 'query' : 'ambient_project',
     query: query ?? null,
+    limit,
+    brief,
   });
 
   if (!hasGitRepo(repoDir)) {
@@ -602,11 +606,15 @@ async function runRemember(output, reporter, options) {
   const remember = await rememberThoughts(repoDir, {
     cwd: process.cwd(),
     query,
+    limit,
+    brief,
   });
 
   reporter.event('remember.done', {
     scopeKind: remember.scope.scopeKind,
     count: remember.matches.length,
+    limit,
+    brief,
   });
 
   if (output.json) {
@@ -629,6 +637,10 @@ async function runRemember(output, reporter, options) {
     lines.push(`Query: ${remember.scope.queryText}`);
   }
 
+  if (brief) {
+    lines.push('Mode: brief');
+  }
+
   if (remember.matches.length === 0) {
     lines.push('No remembered thoughts found.');
     output.out(lines.join('\n'));
@@ -637,6 +649,9 @@ async function runRemember(output, reporter, options) {
 
   for (const match of remember.matches) {
     lines.push(match.text);
+    if (brief) {
+      lines.push(`Entry ID: ${match.entryId}`);
+    }
     lines.push(`Why: ${match.reasonText}`);
   }
 
@@ -1012,6 +1027,8 @@ function parseArgs(args) {
     bucket: null,
     recentCount: null,
     recentQuery: null,
+    rememberLimit: null,
+    rememberBrief: false,
     optionError: null,
   };
   let parsingFlags = true;
@@ -1033,6 +1050,10 @@ function parseArgs(args) {
         options.recent = true;
       } else if (arg === '--remember') {
         options.remember = true;
+      } else if (arg === '--brief') {
+        options.rememberBrief = true;
+      } else if (arg.startsWith('--limit=')) {
+        options.rememberLimit = arg.slice('--limit='.length);
       } else if (arg.startsWith('--count=')) {
         options.recentCount = arg.slice('--count='.length);
       } else if (arg.startsWith('--query=')) {
@@ -1138,6 +1159,7 @@ function validateOptions(options, command) {
   }
 
   const hasStatsFilter = Boolean(options.from || options.to || options.since || options.bucket);
+  const hasRememberEnhancement = options.rememberLimit !== null || options.rememberBrief;
   const explicitCommands = [
     options.recent,
     options.remember,
@@ -1162,6 +1184,12 @@ function validateOptions(options, command) {
     return 'Invalid remember query';
   }
 
+  if (command === 'remember') {
+    if (options.rememberLimit !== null && !/^[1-9]\d*$/.test(options.rememberLimit)) {
+      return 'Invalid --limit value';
+    }
+  }
+
   if (command === 'recent') {
     if (options.recentCount !== null && !/^[1-9]\d*$/.test(options.recentCount)) {
       return 'Invalid --count value';
@@ -1173,6 +1201,10 @@ function validateOptions(options, command) {
 
   if (hasRecentFilter && command !== 'recent') {
     return '--count and --query require --recent';
+  }
+
+  if (hasRememberEnhancement && command !== 'remember') {
+    return '--limit and --brief require --remember';
   }
 
   if (command === 'remember' && hasStatsFilter) {

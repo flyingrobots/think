@@ -243,7 +243,15 @@ export async function migrateGraphModel(repoDir) {
   };
 }
 
-export async function rememberThoughts(repoDir, { cwd = process.cwd(), query = null } = {}) {
+export async function rememberThoughts(
+  repoDir,
+  {
+    cwd = process.cwd(),
+    query = null,
+    limit = null,
+    brief = false,
+  } = {}
+) {
   const read = await openProductReadHandle(repoDir);
   const captures = (await listEntriesByKind(read, 'capture'))
     .map((entry) => ({
@@ -260,22 +268,32 @@ export async function rememberThoughts(repoDir, { cwd = process.cwd(), query = n
 
   if (query && String(query).trim() !== '') {
     const scope = buildExplicitRememberScope(query);
+    const matches = captures
+      .map((entry) => buildExplicitRememberMatch(entry, scope))
+      .filter(Boolean)
+      .sort(compareRememberMatches);
     return {
-      scope,
-      matches: captures
-        .map((entry) => buildExplicitRememberMatch(entry, scope))
-        .filter(Boolean)
-        .sort(compareRememberMatches),
+      scope: {
+        ...scope,
+        brief,
+        limit,
+      },
+      matches: finalizeRememberMatches(matches, { brief, limit }),
     };
   }
 
   const scope = buildAmbientRememberScope(cwd);
+  const matches = captures
+    .map((entry) => buildAmbientRememberMatch(entry, scope))
+    .filter(Boolean)
+    .sort(compareRememberMatches);
   return {
-    scope,
-    matches: captures
-      .map((entry) => buildAmbientRememberMatch(entry, scope))
-      .filter(Boolean)
-      .sort(compareRememberMatches),
+    scope: {
+      ...scope,
+      brief,
+      limit,
+    },
+    matches: finalizeRememberMatches(matches, { brief, limit }),
   };
 }
 
@@ -1624,6 +1642,23 @@ function compareRememberMatches(left, right) {
   }
 
   return right.sortKey.localeCompare(left.sortKey);
+}
+
+function finalizeRememberMatches(matches, { brief, limit }) {
+  const bounded = Number.isInteger(limit) ? matches.slice(0, limit) : matches;
+  if (!brief) {
+    return bounded;
+  }
+
+  return bounded.map((match) => ({
+    ...match,
+    text: toRememberBriefText(match.text),
+  }));
+}
+
+function toRememberBriefText(text) {
+  const [firstLine = ''] = String(text).split('\n');
+  return firstLine.trim();
 }
 
 function findFirstMatchingTerm(text, terms) {

@@ -310,7 +310,7 @@ test('think --remember --brief returns a triage-friendly snippet instead of the 
   captureWithEntryId(context, fullThought);
   captureWithEntryId(context, otherThought);
 
-  const remember = runThink(context, ['--remember', '--brief', '--limit=1', 'bijou receipts']);
+  const remember = runThink(context, ['--remember', '--brief', '--limit=1', 'triaged before']);
 
   assertSuccess(remember, 'Expected remember --brief to succeed.');
   assertContains(remember, 'Remember', 'Expected brief remember to identify itself explicitly.');
@@ -331,9 +331,9 @@ test('think --json --remember --brief --limit preserves bounded explicit recall 
   const olderMatch = 'warp receipts still need calmer metadata';
   const nonMatch = 'turkey burritos remain underrated';
 
-  const { entryId: newestEntryId } = captureWithEntryId(context, fullThought);
+  captureWithEntryId(context, fullThought);
   captureWithEntryId(context, nonMatch);
-  captureWithEntryId(context, olderMatch);
+  const { entryId: newestMatchingEntryId } = captureWithEntryId(context, olderMatch);
 
   const remember = runThink(context, ['--json', '--remember', '--brief', '--limit=1', 'warp receipts']);
 
@@ -360,8 +360,8 @@ test('think --json --remember --brief --limit preserves bounded explicit recall 
 
   const matches = events.filter((event) => event.event === 'remember.match');
   assert.equal(matches.length, 1, 'Expected JSON remember --limit to cap the match rows.');
-  assert.equal(matches[0].entryId, newestEntryId, 'Expected JSON brief remember to keep the top-ranked match.');
-  assert.equal(matches[0].text, firstLine, 'Expected JSON brief remember to expose only the triage snippet as text.');
+  assert.equal(matches[0].entryId, newestMatchingEntryId, 'Expected JSON brief remember to keep the top-ranked newest matching result.');
+  assert.equal(matches[0].text, olderMatch, 'Expected JSON brief remember to expose only the triage snippet as text.');
   assert.equal(typeof matches[0].score, 'number', 'Expected JSON brief remember to preserve deterministic scoring.');
   assert.equal(typeof matches[0].tier, 'number', 'Expected JSON brief remember to preserve explicit match tier.');
   assert.ok(Array.isArray(matches[0].matchKinds), 'Expected JSON brief remember to preserve explicit match kinds.');

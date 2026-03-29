@@ -35,6 +35,8 @@ think --recent --count=5              # last five
 think --recent --query=warp           # search recent thoughts
 think --remember                      # what was I thinking about this project?
 think --remember "warp receipts"      # recall thoughts about a specific topic
+think --remember --limit=3            # keep recall bounded
+think --remember --brief --limit=5    # triage snippets before deep inspection
 think --stats                         # capture counts
 think --stats --since=7d --bucket=day # activity over the last week by day
 ```
