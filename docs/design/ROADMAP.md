@@ -1,6 +1,6 @@
 # Roadmap And Milestones
 
-Status: `M0`, `M1`, `M2`, and `M3` complete; `M4` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, derivation-catalog, session-context-browse, session-traversal, remember, graph-versioning/migration, browse-bootstrap-benchmark, graph-migration-gating, graph-native-browse-read-refactor, and graph-migration-progress-ux designs implemented and under active use; `0023` remember-enhancements is the current active review slice
+Status: `M0`, `M1`, `M2`, and `M3` complete; `M4` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, derivation-catalog, session-context-browse, session-traversal, remember, remember-enhancements, graph-versioning/migration, browse-bootstrap-benchmark, graph-migration-gating, graph-native-browse-read-refactor, and graph-migration-progress-ux designs implemented and under active use
 
 ## Planning Frame
 
@@ -18,6 +18,7 @@ Milestones exist to prove user value in sequence. They are not buckets for unrel
 - `M4: Reentry, Browse, and Inspect` is in progress.
 - the first M4 session-context browse slice is implemented and closed.
 - the first M4 session-traversal browse slice is implemented and closed.
+- the remember-enhancements slice is implemented and closed.
 - the graph-migration-gating correction slice is implemented and closed.
 - the `v3` read-edge substrate slice is implemented and closed.
 - the broader graph-native browse/read refactor is implemented and closed.

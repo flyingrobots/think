@@ -1,6 +1,6 @@
 # 0023 Remember Enhancements
 
-Status: approved for the next M4 remember-enhancement slice
+Status: implemented and closed
 
 ## Sponsor
 
@@ -234,11 +234,34 @@ Human stakeholder:
 - does `--brief` feel useful for quick "what do I have here?" checks, or does it just add a step before you read the full text anyway?
 - does `--limit` make recall feel calmer and more usable, or does it feel like unnecessary option clutter?
 
-## Next Move
+## Outcome
 
-After this design note:
+Human playback result:
 
-1. write failing specs for `--limit` and `--brief`
-2. implement the narrow remember-enhancement slice
-3. run dual playback on bounded recall and brief triage
-4. defer the rest of this note until playback proves these controls are earned
+- pass
+
+Agent playback result:
+
+- pass
+
+Delivered implementation:
+
+- `think --remember --limit=<n>` now returns a bounded recall set without changing the underlying ranking model
+- `think --remember --brief` now renders triage-friendly snippets instead of full multiline thought bodies
+- `--json --remember --brief --limit=<n>` preserves the explicit agent contract:
+  - `remember.scope`
+  - `remember.match`
+  - `entryId`
+  - `score`
+  - `tier`
+  - `matchKinds`
+  - `reasonText`
+- invalid `--limit` values now fail clearly as command validation errors
+
+Deferred items remain deferred:
+
+- session-start hook integration
+- tier 2 fallback reranking
+- score normalization / confidence values
+- ambient metadata visibility during capture
+- negative-signal or declassification mechanics

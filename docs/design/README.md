@@ -1,6 +1,6 @@
 # Design Review Package
 
-Status: design approved; `M0`, `M1`, `M2`, and `M3` complete; `M4` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, derivation-catalog, session-context-browse, session-traversal, remember, graph-versioning/migration, browse-bootstrap-benchmark, graph-migration-gating, graph-native-browse-read-refactor, and graph-migration-progress-ux designs implemented and under active use; `0023` remember-enhancements is the current active review slice
+Status: design approved; `M0`, `M1`, `M2`, and `M3` complete; `M4` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, derivation-catalog, session-context-browse, session-traversal, remember, remember-enhancements, graph-versioning/migration, browse-bootstrap-benchmark, graph-migration-gating, graph-native-browse-read-refactor, and graph-migration-progress-ux designs implemented and under active use
 
 This directory began as the pre-implementation design package for `think`.
 
@@ -40,7 +40,7 @@ This review is meant to answer five questions:
 - [`0020-browse-bootstrap-benchmark.md`](./0020-browse-bootstrap-benchmark.md): technical note for the reproducible synthetic browse benchmark fixture and the committed before/after bootstrap baselines.
 - [`0021-graph-migration-gating.md`](./0021-graph-migration-gating.md): technical/product note for when graph migration is required, when it may run automatically, and why capture remains exempt from blocking upgrades.
 - [`0022-graph-native-browse-read-refactor.md`](./0022-graph-native-browse-read-refactor.md): technical/product note for making browse and inspect use graph-native read paths, explicit traversal edges, and the committed browse bootstrap benchmark. This refactor is implemented and closed.
-- [`0023-remember-enhancements.md`](./0023-remember-enhancements.md): active design lock for the next `--remember` slice — `--limit`, `--brief`, and bounded recall triage, with later ideas still explicitly deferred.
+- [`0023-remember-enhancements.md`](./0023-remember-enhancements.md): implemented enhancement slice for `--remember` — `--limit`, `--brief`, and bounded recall triage, with later ideas still explicitly deferred.
 - [`0024-graph-migration-progress-ux.md`](./0024-graph-migration-progress-ux.md): product note for making the human interactive migration path visibly in progress after the user chooses `Upgrade now`, while keeping agent and non-interactive flows explicit failures.
 - [`ROADMAP.md`](./ROADMAP.md): milestone sequence, hill mapping, exit criteria, and review checkpoints.
 - [`../retrospectives/m1-capture-core-and-upstream-backup.md`](../retrospectives/m1-capture-core-and-upstream-backup.md): closeout for the first implemented milestone and the remaining validation follow-through.
@@ -52,6 +52,7 @@ This review is meant to answer five questions:
 - [`../retrospectives/m4-v3-read-edge-substrate.md`](../retrospectives/m4-v3-read-edge-substrate.md): closeout for the narrower sub-slice that lands `v3` graph-native read edges without yet claiming the browse bootstrap performance win.
 - [`../retrospectives/m4-graph-native-browse-read-refactor.md`](../retrospectives/m4-graph-native-browse-read-refactor.md): closeout for the slice that moves product reads onto `WarpApp -> worldline() -> observer(...)`, enables checkpoint-backed browse startup, and records the official `AFTER` benchmark.
 - [`../retrospectives/m4-graph-migration-progress-ux.md`](../retrospectives/m4-graph-migration-progress-ux.md): closeout for the slice that makes the human interactive upgrade moment visibly in progress while keeping agent and capture behavior unchanged.
+- [`../retrospectives/m4-remember-enhancements.md`](../retrospectives/m4-remember-enhancements.md): closeout for the slice that adds bounded and brief remember recall without changing the underlying ranking model.
 - [`BACKLOG.md`](../../BACKLOG.md): deferred ideas, cool ideas, and parking-lot items that should not silently become approved scope.
 
 ## Review Package Map
