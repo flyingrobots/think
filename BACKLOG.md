@@ -29,13 +29,6 @@ These should stay visible without being confused for unfinished milestone work.
 ### Measure Capture Latency Honestly
 
 - Add a small benchmark harness for warm-path local capture.
-- Keep the macOS prompt telemetry factual and boring:
-  - hotkey to panel visible
-  - time spent typing
-  - abandoned-empty vs abandoned-started vs submitted
-  - submit to panel hidden
-  - submit to local save complete
-- Add a simple read/report surface over the prompt telemetry so the data can actually inform product judgment.
 - Decide later whether any latency aggregates belong in `think --stats`; if they do, keep them factual and boring.
 - Keep this as measurement and regression detection, not a flaky timing assertion in the deterministic suite.
 
@@ -129,13 +122,11 @@ Example:
 
 ### Browse Session Presentation
 
-The first session drawer and session traversal are useful, but the human playback surfaced follow-through improvements worth keeping visible.
+The first session drawer and session traversal are useful, but there is still room for higher-signal structure.
 
 Possible future directions:
 
 - show sessions as a clearer list, tree, timeline, or stepper rather than a plain flat block of entries
-- show a visible session timestamp or session-start label
-- make session navigation feel more structured without replacing the current thought as the primary surface
 
 Important constraint:
 
@@ -147,7 +138,6 @@ The current browse metadata works, but it is still visually noisy in places.
 
 Possible future directions:
 
-- shorten visible entry ids in browse the way Git shortens hashes
 - use color or hierarchy to break up metadata more clearly
 - explore table-like metadata layout where that improves legibility
 
@@ -169,22 +159,6 @@ Possible future directions:
 Important constraint:
 
 - keep these factual and inspectable rather than turning them into dashboard theater or recommendation sludge
-
-### Graph Migration Progress UX
-
-The migration gate works, but the human playback surfaced a follow-through improvement:
-
-- interactive upgrades should feel visibly in progress rather than abrupt
-
-Possible future directions:
-
-- explicit `Upgrading` state
-- visible progress bar or progress-like affordance during migration
-- clearer completion cue before entering the requested graph-native command
-
-Important constraint:
-
-- keep capture exempt from any blocking or visually noisy migration moment
 
 ### Menu Bar Daily Report
 
@@ -472,23 +446,6 @@ This should stay explainable and deterministic.
 ## Additional Cool Ideas To Track
 
 These are my additions. They fit the doctrine, but they are deferred on purpose.
-
-### Capture Latency Ledger
-
-Track timing data around the capture loop so regressions stop hiding inside “feels fast enough.”
-
-Potential dimensions:
-
-- hotkey to panel visible
-- panel visible to first keystroke
-- submit to panel hidden
-- submit to local save complete
-
-Constraints:
-
-- no noisy telemetry UI in the capture path
-- no dashboard drift
-- use the data to sharpen product judgment, not to gamify usage
 
 ### Optional Capture Sounds
 
