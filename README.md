@@ -138,13 +138,6 @@ npm run benchmark:browse          # browse bootstrap benchmark
 
 The committed synthetic browse benchmark currently improved from a `4152 ms` median `BEFORE` baseline to a `346 ms` median `AFTER` baseline.
 
-Current release state:
-
-- current milestone release: `0.4.0`
-- capture, reflect, recent, remember, browse, inspect, and prompt telemetry read surfaces are all shipped
-- M4 is complete
-- the next milestone is additional ingress surfaces
-
 ## Project Structure
 
 - `bin/think.js` — CLI entrypoint
