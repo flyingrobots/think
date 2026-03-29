@@ -50,7 +50,7 @@ think --browse=<entryId>              # view one thought with neighbors
 think --browse                        # open the full-screen TUI
 ```
 
-The browse TUI is reader-first: one thought fills the screen. Navigate with `j`/`k`, jump sessions with `[`/`]`, summon drawers with `s` (session) and `l` (log), search with `/`, inspect with `i`, reflect with `r`, quit with `q`.
+The browse TUI is reader-first: one thought fills the screen. Navigate with `j`/`k`, jump sessions with `[`/`]`, summon drawers with `s` (session) and `l` (log), search with `/`, inspect with `i`, reflect with `r`, quit with `q`. Browse uses short visible ids for ordinary orientation, while `--inspect` keeps full exact ids.
 
 Under the hood, browse now uses graph-native `git-warp` read handles rather than app-local graph reconstruction, which is why startup is materially faster on real archives.
 

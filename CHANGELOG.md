@@ -26,6 +26,7 @@ Release discipline:
 - first full-screen Bijou browse TUI for bare `--browse` in a real TTY, with a reader-first default view, visible thought metadata, a summon-only thought-log drawer, a jump palette, inspect receipts, and in-shell reflect
 - session-context browse in both human and JSON surfaces, including visible session ids, a summon-only session drawer, and explicit `browse.context` / `browse.session_entry` rows
 - explicit session traversal in browse, including session-position metadata, previous/next same-session movement in the TUI, honest boundary notices, and `browse.session_step` rows in JSON output
+- calmer browse session presentation, including short visible entry ids in the reader-first shell, a structured session drawer, and a visible session start label without changing browse semantics
 - canonical `thought:<fingerprint>` identity exposed in `inspect`
 - first stored derivation bundle for raw thoughts:
   - canonical thought identity materialization

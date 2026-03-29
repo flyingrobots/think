@@ -956,32 +956,36 @@ function renderInspectPane(model, width, height) {
 function renderSessionPane(model, width, height) {
   const entry = currentEntry(model);
   const sessionTraversal = resolveSessionTraversal(model);
-  const sessionEntries = sessionTraversal.entries.filter((candidate) => candidate.id !== entry.id);
+  const sessionEntries = sessionTraversal.entries;
   const lines = [];
 
   if (!entry.sessionId) {
     lines.push(styleDim('Session context is not available for this thought yet.'));
   } else {
     lines.push(`Session ID: ${entry.sessionId}`);
+    if (sessionEntries[0]?.createdAt) {
+      lines.push(`Started: ${formatWhen(sessionEntries[0].createdAt)}`);
+    }
     if (sessionTraversal.position && sessionTraversal.count) {
       lines.push(`Session Position: ${sessionTraversal.position} of ${sessionTraversal.count}`);
     }
     lines.push('');
 
     if (sessionEntries.length === 0) {
-      lines.push(styleDim('No other entries in this session.'));
+      lines.push(styleDim('Session entries are not available for this thought yet.'));
     } else {
-      for (const sessionEntry of sessionEntries) {
+      const currentIndex = sessionEntries.findIndex((candidate) => candidate.id === entry.id);
+
+      for (const [index, sessionEntry] of sessionEntries.entries()) {
         const timestamp = formatCompactWhen(sessionEntry.createdAt);
         const summary = wrapLine(
-          `${sessionEntry.id} ${timestamp} ${normalizeWhitespace(sessionEntry.text)}`,
+          `${formatSessionEntryLabel(sessionEntry, entry.id, index, currentIndex)} ${formatVisibleEntryId(sessionEntry.id)} ${timestamp} ${normalizeWhitespace(sessionEntry.text)}`,
           width
         );
         lines.push(summary);
-        lines.push('');
-      }
-      if (lines[lines.length - 1] === '') {
-        lines.pop();
+        if (index + 1 < sessionEntries.length) {
+          lines.push('');
+        }
       }
     }
   }
@@ -1089,7 +1093,7 @@ function buildThoughtContent(model, width) {
     `When: ${formatWhen(entry.createdAt)}`,
     `Relative: ${formatRelativeTime(entry.createdAt)}`,
     ...(chronologyPosition ? [`Position: ${chronologyPosition}`] : []),
-    `Entry ID: ${entry.id}`,
+    `Entry ID: ${formatVisibleEntryId(entry.id)}`,
     `Session: ${entry.sessionId ?? 'pending'}`,
     `Session Position: ${formatSessionPosition(sessionTraversal)}`,
     '',
@@ -1506,6 +1510,30 @@ function truncatePlain(text, width) {
     return '…';
   }
   return `${normalized.slice(0, safeWidth - 1)}…`;
+}
+
+function formatVisibleEntryId(entryId) {
+  const value = String(entryId ?? '').trim();
+  if (!value) {
+    return 'pending';
+  }
+  return value.slice(0, 12);
+}
+
+function formatSessionEntryLabel(sessionEntry, currentEntryId, index, currentIndex) {
+  if (sessionEntry.id === currentEntryId) {
+    return 'Current:';
+  }
+  if (index === 0) {
+    return 'Start:';
+  }
+  if (currentIndex !== -1 && index < currentIndex) {
+    return 'Earlier:';
+  }
+  if (currentIndex !== -1 && index > currentIndex) {
+    return 'Later:';
+  }
+  return 'Thought:';
 }
 
 function styleTitle(text) {

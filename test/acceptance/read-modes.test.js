@@ -819,8 +819,16 @@ test('think --browse can reveal a summon-only session drawer that excludes out-o
 
   assertSuccess(browse, 'Expected scripted browse session drawer flow to succeed.');
   assertContains(browse, 'SESSION', 'Expected browse to expose a dedicated session drawer on demand.');
-  assertContains(browse, olderEntryId, 'Expected the session drawer to expose older entries in the same session.');
-  assertContains(browse, sameSessionNewerId, 'Expected the session drawer to expose newer entries in the same session.');
+  assertContains(
+    browse,
+    shortVisibleId(olderEntryId),
+    'Expected the session drawer to expose older entries in the same session using the shortened visible id.'
+  );
+  assertContains(
+    browse,
+    shortVisibleId(sameSessionNewerId),
+    'Expected the session drawer to expose newer entries in the same session using the shortened visible id.'
+  );
   assertNotContains(
     browse,
     'session two newer thought',
@@ -1018,8 +1026,8 @@ test('think --browse can move to the previous thought within the current session
   );
   assertContains(
     { ...browse, stdout: frame, stderr: '' },
-    `Entry ID: ${sessionOlderEntryId}`,
-    'Expected the browse shell to land on the previous same-session capture rather than a chronological neighbor from another session.'
+    `Entry ID: ${shortVisibleId(sessionOlderEntryId)}`,
+    'Expected the browse shell to land on the previous same-session capture rather than a chronological neighbor from another session, using the shortened visible id in browse.'
   );
   assertContains(
     { ...browse, stdout: frame, stderr: '' },
@@ -1059,8 +1067,8 @@ test('think --browse keeps the current thought in place when there is no next th
   const frame = finalFrame(browse);
   assertContains(
     { ...browse, stdout: frame, stderr: '' },
-    `Entry ID: ${sessionCurrentEntryId}`,
-    'Expected boundary session traversal to keep the current thought selected when there is no next same-session thought.'
+    `Entry ID: ${shortVisibleId(sessionCurrentEntryId)}`,
+    'Expected boundary session traversal to keep the current thought selected when there is no next same-session thought, using the shortened visible id in browse.'
   );
   assertContains(
     { ...browse, stdout: frame, stderr: '' },
