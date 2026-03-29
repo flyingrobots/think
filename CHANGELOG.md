@@ -12,6 +12,12 @@ Release discipline:
 
 ## [Unreleased]
 
+- No unreleased changes yet.
+
+## [0.4.0] - 2026-03-29
+
+Fourth milestone release for `think`.
+
 ### Added
 
 - config-driven local thought repo targeting via `THINK_REPO_DIR`, while keeping `~/.think/repo` as the default
@@ -64,6 +70,11 @@ Release discipline:
 ### Removed
 
 - deprecated CLI alias parsing for `--brainstorm*`, `--reflect-mode`, `--recent-count`, and `--recent-query`
+
+### Notes
+
+- `M4` is complete
+- `M5` is next
 
 ## [0.3.0] - 2026-03-23
 

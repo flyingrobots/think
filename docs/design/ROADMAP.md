@@ -1,6 +1,6 @@
 # Roadmap And Milestones
 
-Status: `M0`, `M1`, `M2`, and `M3` complete; `M4` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, derivation-catalog, session-context-browse, session-traversal, remember, remember-enhancements, graph-versioning/migration, browse-bootstrap-benchmark, graph-migration-gating, graph-native-browse-read-refactor, graph-migration-progress-ux, prompt-telemetry-read-surface, and session-presentation-polish designs implemented and under active use
+Status: `M0`, `M1`, `M2`, `M3`, and `M4` complete; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and the full M4 read/reentry stack are implemented and under active use; `M5` additional-ingress planning is next
 
 ## Planning Frame
 
@@ -15,7 +15,7 @@ Milestones exist to prove user value in sequence. They are not buckets for unrel
 - `M1` still has follow-through validation work around real-world usage and latency measurement.
 - `M2: macOS capture surface` is complete.
 - `M3: Brainstorm Mode` is complete.
-- `M4: Reentry, Browse, and Inspect` is in progress.
+- `M4: Reentry, Browse, and Inspect` is complete.
 - the first M4 session-context browse slice is implemented and closed.
 - the first M4 session-traversal browse slice is implemented and closed.
 - the remember-enhancements slice is implemented and closed.
@@ -24,6 +24,7 @@ Milestones exist to prove user value in sequence. They are not buckets for unrel
 - the broader graph-native browse/read refactor is implemented and closed.
 - the prompt-telemetry read surface slice is implemented and closed.
 - the session-presentation polish slice is implemented and closed.
+- `M5: Additional ingress surfaces` is next.
 
 ## Planning Principles
 
@@ -37,7 +38,7 @@ Milestones exist to prove user value in sequence. They are not buckets for unrel
 
 Some design notes are not standalone milestones, but they still shape how milestone work should be built.
 
-Current cross-cutting notes under review:
+Current cross-cutting notes in force:
 
 - [`0008-agent-native-cli.md`](./0008-agent-native-cli.md)
 - [`0009-graph-derivation-model.md`](./0009-graph-derivation-model.md)
@@ -218,6 +219,10 @@ Exit criteria:
 
 ## Milestone 4: Reentry, Browse, And Inspect
 
+Status:
+
+- complete
+
 Goal:
 
 - add richer read modes that revisit captures without violating raw-entry immutability or collapsing into one clever surface
@@ -253,6 +258,11 @@ Exit criteria:
 - `remember` remains inspectable and does not degrade into opaque search ranking
 - browse and inspect improve understanding without adding capture friction
 - the Bijou read shell remains optional porcelain over the explicit CLI contract
+
+Outcome:
+
+- delivered and closed
+- overall closeout: [`../retrospectives/m4-reentry-browse-inspect.md`](../retrospectives/m4-reentry-browse-inspect.md)
 
 ## Milestone 5: Additional Ingress Surfaces
 

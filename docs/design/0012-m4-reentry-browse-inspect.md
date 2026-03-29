@@ -1,6 +1,6 @@
 # 0012 M4 Reentry, Browse, And Inspect
 
-Status: draft for review
+Status: implemented and closed
 
 ## Intent
 
@@ -248,18 +248,47 @@ If it exists later, it should remain:
 
 It should not silently take over `browse` or `inspect`.
 
-## First M4 Slice
+## Outcome
 
-The smallest coherent slice now looks like:
+Human playback result:
 
-1. strengthen `recent` as a trustworthy reentry surface
-2. add the first explicit `browse` prototype
-3. add the first explicit `inspect` prototype
-4. add the first explicit Bijou read shell over `browse` and `inspect`
+- pass
 
-That is a better sequence than trying to jump directly to a dialogue-heavy “reflection” mode whose job is still ambiguous.
+Agent playback result:
 
-## Candidate Deliverables
+- pass
+
+Delivered milestone behavior:
+
+- `recent` stayed boring while gaining tighter scoped filters
+- `remember` became an explicit context-scoped recall surface, with bounded and brief follow-through enhancements
+- `browse` became a real reader-first shell rather than a prompt stack or giant list
+- `inspect` became a real machinery view with canonical identity and derived receipts
+- the Bijou shell stayed optional porcelain over the explicit CLI and JSON contract
+- session context, session traversal, and session presentation all became honest browse behaviors without turning into graph theater
+- the first derivation bundle gave `inspect` durable receipts
+- browse and inspect moved onto graph-native read paths with real performance wins
+
+The milestone also required adjacent correction and follow-through work:
+
+- graph versioning and migration
+- graph migration gating and progress UX
+- prompt telemetry read surface for product judgment
+
+## Retrospective Reference
+
+For the overall milestone closeout and slice-level follow-through, see:
+
+- [`../retrospectives/m4-reentry-browse-inspect.md`](../retrospectives/m4-reentry-browse-inspect.md)
+- [`../retrospectives/m4-session-context-browse.md`](../retrospectives/m4-session-context-browse.md)
+- [`../retrospectives/m4-session-traversal.md`](../retrospectives/m4-session-traversal.md)
+- [`../retrospectives/m4-v3-read-edge-substrate.md`](../retrospectives/m4-v3-read-edge-substrate.md)
+- [`../retrospectives/m4-graph-native-browse-read-refactor.md`](../retrospectives/m4-graph-native-browse-read-refactor.md)
+- [`../retrospectives/m4-remember-enhancements.md`](../retrospectives/m4-remember-enhancements.md)
+- [`../retrospectives/m4-prompt-telemetry-read-surface.md`](../retrospectives/m4-prompt-telemetry-read-surface.md)
+- [`../retrospectives/m4-session-presentation-polish.md`](../retrospectives/m4-session-presentation-polish.md)
+
+## Historical Deliverables And Exit Frame
 
 - richer `recent` filters by count, time window, and fuzzy text
 - a first browser surface over stored thoughts
@@ -267,11 +296,11 @@ That is a better sequence than trying to jump directly to a dialogue-heavy “re
 - a Bijou-based TUI shell for browse and inspect
 - first stored derivation artifacts that materially improve `inspect`
 
-## Immediate Next Slice
+## Historical Slice Evolution
 
-The first real derivation bundle and the first session-context browse slice now exist.
+During implementation, the first real derivation bundle and the first session-context browse slice landed first.
 
-The first session-traversal browse slice now exists.
+The first session-traversal browse slice followed after that.
 
 This keeps the current M4 posture honest:
 
@@ -292,7 +321,7 @@ See:
 - [`../retrospectives/m4-session-traversal.md`](../retrospectives/m4-session-traversal.md)
 - [`../retrospectives/m4-session-context-browse.md`](../retrospectives/m4-session-context-browse.md)
 
-## First Bijou Slice
+## First Bijou Slice (Historical)
 
 The first TUI slice should stay intentionally narrow:
 
@@ -318,7 +347,7 @@ It should not start with:
 The TUI is being adopted here because M4 is the first milestone whose core job is on-screen navigation and inspection.
 It is not a general permission slip to move the whole product into a terminal application.
 
-## Playback Questions
+## Playback Questions (Historical)
 
 - can the user find a prior thought they care about quickly?
 - does the first Bijou shell feel like navigation rather than terminal theater?
@@ -328,7 +357,7 @@ It is not a general permission slip to move the whole product into a terminal ap
 - does any new read surface remain honest about what is raw versus derived?
 - can an agent perform the same core read jobs without depending on the Bijou shell?
 
-## Exit Criteria
+## Exit Criteria (Historical)
 
 - raw entries remain immutable
 - `recent` becomes more useful without becoming a mini-dashboard

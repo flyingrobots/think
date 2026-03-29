@@ -1,6 +1,6 @@
 # Design Review Package
 
-Status: design approved; `M0`, `M1`, `M2`, and `M3` complete; `M4` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, derivation-catalog, session-context-browse, session-traversal, remember, remember-enhancements, graph-versioning/migration, browse-bootstrap-benchmark, graph-migration-gating, graph-native-browse-read-refactor, graph-migration-progress-ux, prompt-telemetry-read-surface, and session-presentation-polish designs implemented and under active use
+Status: design approved; `M0`, `M1`, `M2`, `M3`, and `M4` complete; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and the full M4 read/reentry stack are implemented and under active use; `M5` additional-ingress planning is next
 
 This directory began as the pre-implementation design package for `think`.
 
@@ -29,7 +29,7 @@ This review is meant to answer five questions:
 - [`0009-graph-derivation-model.md`](./0009-graph-derivation-model.md): technical graph model for raw capture, content identity, derived artifacts, sessions, and later mode outputs.
 - [`0010-ingress-and-derivation-pipeline.md`](./0010-ingress-and-derivation-pipeline.md): technical note for when derivation runs, which process owns it, and why Git hooks are not the correctness path.
 - [`0011-pressure-test-and-spitball.md`](./0011-pressure-test-and-spitball.md): product note separating deterministic pressure-testing from future explicit LLM-assisted spitballing.
-- [`0012-m4-reentry-browse-inspect.md`](./0012-m4-reentry-browse-inspect.md): product note defining the next human read surfaces as `recent`, `browse`, and `inspect`.
+- [`0012-m4-reentry-browse-inspect.md`](./0012-m4-reentry-browse-inspect.md): implemented milestone note for the human read surfaces `recent`, `browse`, and `inspect`.
 - [`0013-m4-bijou-read-shell.md`](./0013-m4-bijou-read-shell.md): IBM Design Thinking style product note for adopting a Bijou TUI as the first explicit human browse/inspect shell for M4.
 - [`0014-m4-first-derived-artifacts.md`](./0014-m4-first-derived-artifacts.md): IBM Design Thinking style product/technical note for the first real derivation bundle that makes `inspect` materially useful during M4.
 - [`0015-per-thought-derivation-catalog.md`](./0015-per-thought-derivation-catalog.md): consolidated catalog of what is derived from each raw thought, when it is derived, what its payload looks like, and what is currently implemented versus deferred.
@@ -57,6 +57,7 @@ This review is meant to answer five questions:
 - [`../retrospectives/m4-remember-enhancements.md`](../retrospectives/m4-remember-enhancements.md): closeout for the slice that adds bounded and brief remember recall without changing the underlying ranking model.
 - [`../retrospectives/m4-prompt-telemetry-read-surface.md`](../retrospectives/m4-prompt-telemetry-read-surface.md): closeout for the slice that turns recorded prompt telemetry into a factual CLI / JSON read surface without drifting into dashboards.
 - [`../retrospectives/m4-session-presentation-polish.md`](../retrospectives/m4-session-presentation-polish.md): closeout for the slice that makes browse session context calmer and more structured without changing session semantics.
+- [`../retrospectives/m4-reentry-browse-inspect.md`](../retrospectives/m4-reentry-browse-inspect.md): overall milestone closeout for M4 now that the read/reentry stack is complete.
 - [`BACKLOG.md`](../../BACKLOG.md): deferred ideas, cool ideas, and parking-lot items that should not silently become approved scope.
 
 ## Review Package Map
@@ -192,4 +193,4 @@ After review, we should either:
 - approve the package and start writing spec tests, or
 - return with specific changes to hills, architecture boundaries, or milestone sequencing
 
-That review is now complete. Production implementation began after approval, Milestones 1 through 3 have been closed, and Milestone 4 is now underway in implementation.
+That review is now complete. Production implementation began after approval, Milestones 1 through 4 have been closed, and Milestone 5 planning is now next.

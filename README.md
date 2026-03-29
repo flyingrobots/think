@@ -4,7 +4,7 @@
 
 Capture raw thoughts instantly. Revisit them later.
 
-`think` is a local-first tool for recording thoughts the moment they appear — before structure, before categories, before you forget. It stores everything in a private Git-backed repo on your machine and optionally backs up to a remote. Later, you can browse, search, inspect, and pressure-test what you captured.
+`think` is a local-first tool for recording thoughts the moment they appear — before structure, before categories, before you forget. It stores everything in a private Git-backed repo on your machine and optionally backs up to a remote. Later, you can browse, remember, inspect, and pressure-test what you captured.
 
 ## Install
 
@@ -137,6 +137,13 @@ npm run benchmark:browse          # browse bootstrap benchmark
 ```
 
 The committed synthetic browse benchmark currently improved from a `4152 ms` median `BEFORE` baseline to a `346 ms` median `AFTER` baseline.
+
+Current release state:
+
+- current milestone release: `0.4.0`
+- capture, reflect, recent, remember, browse, inspect, and prompt telemetry read surfaces are all shipped
+- M4 is complete
+- the next milestone is additional ingress surfaces
 
 ## Project Structure
 

@@ -13,11 +13,11 @@ It is not a commitment list. It is a pressure-release valve for good ideas that 
 - No item here should be promoted ahead of proving daily capture habit.
 - Items may move into roadmap milestones only after design review or playback says they are earned.
 
-## Operational Follow-Through Before Or Alongside M4
+## Operational Follow-Through After M4
 
 Milestones 1, 2, and 3 are implemented and closed. The remaining gaps here are validation, instrumentation, and a few focused operational improvements.
 
-These should stay visible without being confused for unfinished milestone implementation work.
+These should stay visible without being confused for unfinished milestone work.
 
 ### Validate Daily Capture Habit
 
