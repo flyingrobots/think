@@ -46,7 +46,7 @@ Specification:
 Supporting design work:
 
 - [docs/design/0021-graph-migration-gating.md](/Users/james/git/think/docs/design/0021-graph-migration-gating.md)
-- [docs/design/0024-graph-migration-progress-ux.md](/Users/james/git/think/docs/design/0024-graph-migration-progress-ux.md)
+- [docs/design/archive/0024-graph-migration-progress-ux.md](/Users/james/git/think/docs/design/archive/0024-graph-migration-progress-ux.md)
 
 ## Human Stakeholder Playback
 

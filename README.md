@@ -150,8 +150,8 @@ For contributors, the current system references are:
 ## Project Structure
 
 - `bin/think.js` — CLI entrypoint
-- `src/cli.js` — command parsing and dispatch
-- `src/store.js` — thought storage layer
+- `src/cli.js` and `src/cli/` — CLI entry, parsing, dispatch, and command runners
+- `src/store.js` and `src/store/` — thought storage, graph reads, derivation, and migration logic
 - `src/git.js` — Git operations
 - `macos/` — native macOS menu bar app (Swift)
 - `test/acceptance/` — acceptance specs

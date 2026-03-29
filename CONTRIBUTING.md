@@ -320,7 +320,7 @@ Before making non-trivial changes, read:
 
 - [README.md](/Users/james/git/think/README.md)
 - [docs/design/README.md](/Users/james/git/think/docs/design/README.md)
-- [docs/design/0005-m2-macos-capture-surface.md](/Users/james/git/think/docs/design/0005-m2-macos-capture-surface.md)
+- [docs/ARCHITECTURE.md](/Users/james/git/think/docs/ARCHITECTURE.md)
 - [docs/design/ROADMAP.md](/Users/james/git/think/docs/design/ROADMAP.md)
 - [docs/retrospectives/m1-capture-core-and-upstream-backup.md](/Users/james/git/think/docs/retrospectives/m1-capture-core-and-upstream-backup.md)
 - [BACKLOG.md](/Users/james/git/think/BACKLOG.md)

@@ -48,7 +48,7 @@ Specification:
 
 Supporting design work:
 
-- [docs/design/0007-m3-brainstorm-mode.md](/Users/james/git/think/docs/design/0007-m3-brainstorm-mode.md)
+- [docs/design/archive/0007-m3-brainstorm-mode.md](/Users/james/git/think/docs/design/archive/0007-m3-brainstorm-mode.md)
 - [docs/design/0011-pressure-test-and-spitball.md](/Users/james/git/think/docs/design/0011-pressure-test-and-spitball.md)
 
 Operational behavior:

@@ -47,8 +47,8 @@ Specification:
 
 Supporting design work:
 
-- [docs/design/0018-m4-remember.md](/Users/james/git/think/docs/design/0018-m4-remember.md)
-- [docs/design/0023-remember-enhancements.md](/Users/james/git/think/docs/design/0023-remember-enhancements.md)
+- [docs/design/archive/0018-m4-remember.md](/Users/james/git/think/docs/design/archive/0018-m4-remember.md)
+- [docs/design/archive/0023-remember-enhancements.md](/Users/james/git/think/docs/design/archive/0023-remember-enhancements.md)
 
 ## Human Stakeholder Playback
 
@@ -104,4 +104,4 @@ That was reverted before completion because the approved design explicitly defer
 
 Close this slice.
 
-The remaining ideas in [docs/design/0023-remember-enhancements.md](/Users/james/git/think/docs/design/0023-remember-enhancements.md) should stay deferred until new playback earns them.
+The remaining ideas in [docs/design/archive/0023-remember-enhancements.md](/Users/james/git/think/docs/design/archive/0023-remember-enhancements.md) should stay deferred until new playback earns them.

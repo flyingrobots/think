@@ -54,10 +54,10 @@ Key supporting slices:
 Representative design notes:
 
 - [docs/design/0012-m4-reentry-browse-inspect.md](/Users/james/git/think/docs/design/0012-m4-reentry-browse-inspect.md)
-- [docs/design/0013-m4-bijou-read-shell.md](/Users/james/git/think/docs/design/0013-m4-bijou-read-shell.md)
-- [docs/design/0014-m4-first-derived-artifacts.md](/Users/james/git/think/docs/design/0014-m4-first-derived-artifacts.md)
+- [docs/design/archive/0013-m4-bijou-read-shell.md](/Users/james/git/think/docs/design/archive/0013-m4-bijou-read-shell.md)
+- [docs/design/archive/0014-m4-first-derived-artifacts.md](/Users/james/git/think/docs/design/archive/0014-m4-first-derived-artifacts.md)
 - [docs/design/0015-per-thought-derivation-catalog.md](/Users/james/git/think/docs/design/0015-per-thought-derivation-catalog.md)
-- [docs/design/0018-m4-remember.md](/Users/james/git/think/docs/design/0018-m4-remember.md)
+- [docs/design/archive/0018-m4-remember.md](/Users/james/git/think/docs/design/archive/0018-m4-remember.md)
 - [docs/design/0022-graph-native-browse-read-refactor.md](/Users/james/git/think/docs/design/0022-graph-native-browse-read-refactor.md)
 
 Representative implementation closeouts:

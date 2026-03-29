@@ -246,9 +246,13 @@ This is the practical code map today:
 - [/Users/james/git/think/bin/think.js](/Users/james/git/think/bin/think.js)
   - CLI entrypoint
 - [/Users/james/git/think/src/cli.js](/Users/james/git/think/src/cli.js)
-  - command parsing, dispatch, user-facing orchestration
+  - thin CLI entry module and top-level dispatch
+- [/Users/james/git/think/src/cli/](/Users/james/git/think/src/cli/)
+  - argument parsing, validation, interactive migration/reflect helpers, output shaping, and command-family runners
 - [/Users/james/git/think/src/store.js](/Users/james/git/think/src/store.js)
-  - thought storage, read queries, derivation/migration logic, graph access
+  - thin storage barrel used by the rest of the app
+- [/Users/james/git/think/src/store/](/Users/james/git/think/src/store/)
+  - graph runtime helpers, read queries, capture flow, derivation logic, reflect flow, migrations, and prompt-metrics helpers
 - [/Users/james/git/think/src/browse-tui.js](/Users/james/git/think/src/browse-tui.js)
   - Bijou browse shell
 - [/Users/james/git/think/src/browse-benchmark.js](/Users/james/git/think/src/browse-benchmark.js)
@@ -258,30 +262,21 @@ This is the practical code map today:
 - [/Users/james/git/think/macos/](/Users/james/git/think/macos/)
   - native capture app and supporting Swift modules
 
-## Current Architectural Debt
+## Current Architectural Notes
 
-The editor report was right about one thing: the code organization still lags behind the conceptual architecture.
+The March 2026 editor-report follow-through corrected the largest code-shape mismatch:
 
-In particular:
+- historical slice notes are now archived under `docs/design/archive/`
+- `src/cli.js` is now a thin dispatcher over `src/cli/`
+- `src/store.js` is now a thin barrel over `src/store/`
 
-- `src/cli.js` is too large
-- `src/store.js` is too large
-
-The repo has clearer runtime boundaries now than it did earlier in M4, but those boundaries are not yet fully reflected in file/module decomposition.
-
-The current architectural direction should be:
+The important rule going forward is:
 
 - keep product behavior stable
-- decompose along real seams
+- decompose along real seams when pressure is real
 - do not perform architecture theater for its own sake
 
-Likely future decomposition seams:
-
-- store queries
-- derivation logic
-- graph migration logic
-- remember/inspect/browse read helpers
-- CLI command dispatch by feature area
+Further code-shape changes should be treated as normal design/spec/refactor slices, not as endless cleanup churn.
 
 ## Where To Look Next
 

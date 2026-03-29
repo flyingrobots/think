@@ -42,7 +42,7 @@ Specification:
 
 Supporting design work:
 
-- [docs/design/0016-m4-session-context-browse.md](/Users/james/git/think/docs/design/0016-m4-session-context-browse.md)
+- [docs/design/archive/0016-m4-session-context-browse.md](/Users/james/git/think/docs/design/archive/0016-m4-session-context-browse.md)
 - [docs/design/0012-m4-reentry-browse-inspect.md](/Users/james/git/think/docs/design/0012-m4-reentry-browse-inspect.md)
 
 ## What Went Well

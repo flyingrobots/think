@@ -45,22 +45,14 @@ Current cross-cutting notes in force:
 - [`0010-ingress-and-derivation-pipeline.md`](./0010-ingress-and-derivation-pipeline.md)
 - [`0011-pressure-test-and-spitball.md`](./0011-pressure-test-and-spitball.md)
 - [`0012-m4-reentry-browse-inspect.md`](./0012-m4-reentry-browse-inspect.md)
-- [`0013-m4-bijou-read-shell.md`](./0013-m4-bijou-read-shell.md)
-- [`0014-m4-first-derived-artifacts.md`](./0014-m4-first-derived-artifacts.md)
 - [`0015-per-thought-derivation-catalog.md`](./0015-per-thought-derivation-catalog.md)
-- [`0016-m4-session-context-browse.md`](./0016-m4-session-context-browse.md)
-- [`0017-m4-session-traversal.md`](./0017-m4-session-traversal.md)
-- [`0018-m4-remember.md`](./0018-m4-remember.md)
 - [`0019-graph-versioning-and-migration.md`](./0019-graph-versioning-and-migration.md)
-- [`0020-browse-bootstrap-benchmark.md`](./0020-browse-bootstrap-benchmark.md)
 - [`0021-graph-migration-gating.md`](./0021-graph-migration-gating.md)
 - [`0022-graph-native-browse-read-refactor.md`](./0022-graph-native-browse-read-refactor.md)
-- [`0023-remember-enhancements.md`](./0023-remember-enhancements.md)
-- [`0024-graph-migration-progress-ux.md`](./0024-graph-migration-progress-ux.md)
-- [`0025-prompt-telemetry-read-surface.md`](./0025-prompt-telemetry-read-surface.md)
-- [`0026-m4-session-presentation-polish.md`](./0026-m4-session-presentation-polish.md)
 
 These notes should constrain new CLI-facing, graph-facing, derivation-orchestration, and read-surface work without becoming separate milestones.
+
+Completed milestone and slice notes that are no longer part of the smallest current-reference set now live under [`docs/design/archive/`](/Users/james/git/think/docs/design/archive).
 
 ## Milestone Flow
 

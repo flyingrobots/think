@@ -43,9 +43,9 @@ Specification:
 
 Supporting design work:
 
-- [docs/design/0017-m4-session-traversal.md](/Users/james/git/think/docs/design/0017-m4-session-traversal.md)
+- [docs/design/archive/0017-m4-session-traversal.md](/Users/james/git/think/docs/design/archive/0017-m4-session-traversal.md)
 - [docs/design/0012-m4-reentry-browse-inspect.md](/Users/james/git/think/docs/design/0012-m4-reentry-browse-inspect.md)
-- [docs/design/0013-m4-bijou-read-shell.md](/Users/james/git/think/docs/design/0013-m4-bijou-read-shell.md)
+- [docs/design/archive/0013-m4-bijou-read-shell.md](/Users/james/git/think/docs/design/archive/0013-m4-bijou-read-shell.md)
 
 ## What Went Well
 

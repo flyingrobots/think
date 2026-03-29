@@ -43,7 +43,7 @@ Benchmark artifacts:
 
 Supporting design work:
 
-- [docs/design/0020-browse-bootstrap-benchmark.md](/Users/james/git/think/docs/design/0020-browse-bootstrap-benchmark.md)
+- [docs/design/archive/0020-browse-bootstrap-benchmark.md](/Users/james/git/think/docs/design/archive/0020-browse-bootstrap-benchmark.md)
 - [docs/design/0022-graph-native-browse-read-refactor.md](/Users/james/git/think/docs/design/0022-graph-native-browse-read-refactor.md)
 
 ## Human Stakeholder Playback

@@ -50,7 +50,7 @@ Specification:
 
 Supporting design work:
 
-- [docs/design/0026-m4-session-presentation-polish.md](/Users/james/git/think/docs/design/0026-m4-session-presentation-polish.md)
+- [docs/design/archive/0026-m4-session-presentation-polish.md](/Users/james/git/think/docs/design/archive/0026-m4-session-presentation-polish.md)
 
 ## Human Stakeholder Playback
 

@@ -10,7 +10,7 @@ This note exists because the derivation model and pipeline doctrine are already 
 
 - [`0009-graph-derivation-model.md`](./0009-graph-derivation-model.md)
 - [`0010-ingress-and-derivation-pipeline.md`](./0010-ingress-and-derivation-pipeline.md)
-- [`0014-m4-first-derived-artifacts.md`](./0014-m4-first-derived-artifacts.md)
+- [`archive/0014-m4-first-derived-artifacts.md`](./archive/0014-m4-first-derived-artifacts.md)
 
 Those notes define the architecture and the first bundle well enough to build against, but they do not give one compact answer to:
 

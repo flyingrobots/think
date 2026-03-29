@@ -50,7 +50,7 @@ This note does not:
 - redesign browse UX again
 - add x-ray, clustering, or recommendation behavior
 - optimize every read surface in `think`
-- replace the benchmark harness in [`0020-browse-bootstrap-benchmark.md`](./0020-browse-bootstrap-benchmark.md)
+- replace the benchmark harness in [`archive/0020-browse-bootstrap-benchmark.md`](./archive/0020-browse-bootstrap-benchmark.md)
 - remove compatibility properties immediately
 
 ## Problem

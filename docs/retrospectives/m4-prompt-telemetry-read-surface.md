@@ -56,7 +56,7 @@ Specification:
 
 Supporting design work:
 
-- [docs/design/0025-prompt-telemetry-read-surface.md](/Users/james/git/think/docs/design/0025-prompt-telemetry-read-surface.md)
+- [docs/design/archive/0025-prompt-telemetry-read-surface.md](/Users/james/git/think/docs/design/archive/0025-prompt-telemetry-read-surface.md)
 
 ## Human Stakeholder Playback
 

@@ -316,8 +316,8 @@ What is now true:
 
 See:
 
-- [`0016-m4-session-context-browse.md`](./0016-m4-session-context-browse.md)
-- [`0017-m4-session-traversal.md`](./0017-m4-session-traversal.md)
+- [`archive/0016-m4-session-context-browse.md`](./archive/0016-m4-session-context-browse.md)
+- [`archive/0017-m4-session-traversal.md`](./archive/0017-m4-session-traversal.md)
 - [`../retrospectives/m4-session-traversal.md`](../retrospectives/m4-session-traversal.md)
 - [`../retrospectives/m4-session-context-browse.md`](../retrospectives/m4-session-context-browse.md)
 
