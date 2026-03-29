@@ -21,6 +21,7 @@ const DERIVER_NAME = 'think';
 const DERIVER_VERSION = '1';
 const SCHEMA_VERSION = '1';
 const GRAPH_MODEL_VERSION = 3;
+const CHECKPOINT_POLICY = { every: 20 };
 const CHALLENGE_PROMPTS = [
   'What assumption is hiding here?',
   'What would make this false in practice?',
@@ -98,14 +99,7 @@ export async function finalizeCapturedThought(repoDir, entryId, { migrateIfNeede
 
 export async function getGraphModelStatus(repoDir) {
   const graph = await openGraph(repoDir);
-  const props = await graph.getNodeProps(GRAPH_META_ID);
-  const currentGraphModelVersion = Number(props?.graphModelVersion ?? 1);
-
-  return {
-    currentGraphModelVersion,
-    requiredGraphModelVersion: GRAPH_MODEL_VERSION,
-    migrationRequired: currentGraphModelVersion < GRAPH_MODEL_VERSION,
-  };
+  return getGraphModelStatusForGraph(graph);
 }
 
 export async function migrateGraphModel(repoDir) {
@@ -470,13 +464,53 @@ export async function listReflectableRecent(repoDir) {
 
 export async function loadBrowseChronologyEntries(repoDir) {
   const graph = await openGraph(repoDir);
-  return listChronologyEntries(graph);
+  return loadBrowseChronologyEntriesForGraph(graph);
 }
 
 export async function prepareBrowseBootstrap(repoDir) {
   const graph = await openGraph(repoDir);
-  const latestCaptureId = await getLatestCaptureId(graph);
+  return prepareBrowseBootstrapForGraph(graph);
+}
 
+export async function getBrowseWindow(repoDir, entryId) {
+  const graph = await openGraph(repoDir);
+  return getBrowseWindowForGraph(graph, entryId);
+}
+
+export async function inspectRawEntry(repoDir, entryId) {
+  const graph = await openGraph(repoDir);
+  return inspectRawEntryForGraph(graph, entryId);
+}
+
+export async function openGraphCore(repoDir) {
+  return openGraph(repoDir);
+}
+
+export async function getGraphModelStatusForGraph(graph) {
+  const latestCaptureId = await getLatestCaptureId(graph);
+  if (!latestCaptureId) {
+    return {
+      currentGraphModelVersion: 1,
+      requiredGraphModelVersion: GRAPH_MODEL_VERSION,
+      migrationRequired: true,
+    };
+  }
+  const props = await graph.getNodeProps(GRAPH_META_ID);
+  const currentGraphModelVersion = Number(props?.graphModelVersion ?? 1);
+
+  return {
+    currentGraphModelVersion,
+    requiredGraphModelVersion: GRAPH_MODEL_VERSION,
+    migrationRequired: currentGraphModelVersion < GRAPH_MODEL_VERSION,
+  };
+}
+
+export async function loadBrowseChronologyEntriesForGraph(graph) {
+  return listChronologyEntries(graph);
+}
+
+export async function prepareBrowseBootstrapForGraph(graph) {
+  const latestCaptureId = await getLatestCaptureId(graph);
   if (!latestCaptureId) {
     return {
       ok: false,
@@ -510,13 +544,11 @@ export async function prepareBrowseBootstrap(repoDir) {
   };
 }
 
-export async function getBrowseWindow(repoDir, entryId) {
-  const graph = await openGraph(repoDir);
+export async function getBrowseWindowForGraph(graph, entryId) {
   return buildBrowseWindow(graph, entryId);
 }
 
-export async function inspectRawEntry(repoDir, entryId) {
-  const graph = await openGraph(repoDir);
+export async function inspectRawEntryForGraph(graph, entryId) {
   let entry = await getStoredEntry(graph, entryId);
 
   if (!entry || entry.kind !== 'capture') {
@@ -572,6 +604,7 @@ async function openGraph(repoDir) {
     persistence,
     graphName: GRAPH_NAME,
     writerId: createWriterId(),
+    checkpointPolicy: CHECKPOINT_POLICY,
   });
 
   return app.core();
@@ -695,21 +728,18 @@ async function listChronologyEntries(graph) {
 }
 
 async function buildBrowseWindow(graph, entryId) {
-  let currentEntry = await getStoredEntry(graph, entryId);
+  const currentEntry = await getStoredEntry(graph, entryId);
 
   if (!currentEntry || currentEntry.kind !== 'capture') {
     return null;
   }
-
-  await ensureFirstDerivedArtifacts(graph, currentEntry);
-  currentEntry = await getStoredEntry(graph, entryId);
 
   const current = await toBrowseEntry(currentEntry);
   const olderNeighbor = await graph.neighbors(entryId, 'outgoing', 'older');
   const newerNeighbor = await graph.neighbors(entryId, 'incoming', 'older');
   const older = olderNeighbor[0] ? await toBrowseEntry(await getStoredEntry(graph, olderNeighbor[0].nodeId)) : null;
   const newer = newerNeighbor[0] ? await toBrowseEntry(await getStoredEntry(graph, newerNeighbor[0].nodeId)) : null;
-  const sessionAttribution = await getSessionAttributionReceipt(graph, currentEntry);
+  const sessionAttribution = await getSessionAttributionReceiptIfPresent(graph, currentEntry);
   const sessionTraversal = await resolveGraphSessionTraversal(graph, current);
 
   return {
@@ -1265,6 +1295,32 @@ async function getSessionAttributionReceipt(graph, entry) {
   const artifactId = thoughtId
     ? createArtifactId('session_attribution', entry.id, thoughtId)
     : (await deriveSessionAttribution(graph, entry)).artifactId;
+  const props = await graph.getNodeProps(artifactId);
+  if (!props) {
+    return null;
+  }
+
+  return {
+    artifactId,
+    kind: 'session_attribution',
+    primaryInputKind: props.primaryInputKind,
+    primaryInputId: props.primaryInputId,
+    sessionId: props.sessionId,
+    reasonKind: props.reasonKind,
+    reasonText: props.reasonText,
+    deriver: props.deriver,
+    deriverVersion: props.deriverVersion,
+    schemaVersion: props.schemaVersion,
+    createdAt: props.createdAt,
+  };
+}
+
+async function getSessionAttributionReceiptIfPresent(graph, entry) {
+  if (!entry.sessionId) {
+    return null;
+  }
+
+  const artifactId = createArtifactId('session_attribution', entry.id, entry.sessionId);
   const props = await graph.getNodeProps(artifactId);
   if (!props) {
     return null;
