@@ -1,6 +1,6 @@
 # Roadmap And Milestones
 
-Status: `M0`, `M1`, `M2`, and `M3` complete; `M4` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, derivation-catalog, session-context-browse, session-traversal, remember, remember-enhancements, graph-versioning/migration, browse-bootstrap-benchmark, graph-migration-gating, graph-native-browse-read-refactor, and graph-migration-progress-ux designs implemented and under active use
+Status: `M0`, `M1`, `M2`, and `M3` complete; `M4` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, derivation-catalog, session-context-browse, session-traversal, remember, remember-enhancements, graph-versioning/migration, browse-bootstrap-benchmark, graph-migration-gating, graph-native-browse-read-refactor, and graph-migration-progress-ux designs implemented and under active use; `0025` prompt-telemetry-read-surface is the current active review slice
 
 ## Planning Frame
 
@@ -54,6 +54,7 @@ Current cross-cutting notes under review:
 - [`0022-graph-native-browse-read-refactor.md`](./0022-graph-native-browse-read-refactor.md)
 - [`0023-remember-enhancements.md`](./0023-remember-enhancements.md)
 - [`0024-graph-migration-progress-ux.md`](./0024-graph-migration-progress-ux.md)
+- [`0025-prompt-telemetry-read-surface.md`](./0025-prompt-telemetry-read-surface.md)
 
 These notes should constrain new CLI-facing, graph-facing, derivation-orchestration, and read-surface work without becoming separate milestones.
 
