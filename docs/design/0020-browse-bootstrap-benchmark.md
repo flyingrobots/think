@@ -1,6 +1,6 @@
 # 0020 Browse Bootstrap Benchmark
 
-Status: draft for review
+Status: implemented and in active use
 
 ## Sponsor
 
@@ -225,6 +225,18 @@ This slice is successful when:
 - the benchmark produces a committed baseline report for the current implementation
 - future graph migration/read work can compare against that same benchmark fixture and metric definition
 
+That success criteria is now met.
+
+Committed benchmark artifacts:
+
+- `BEFORE`: [docs/benchmarks/browse-bootstrap-before.json](/Users/james/git/think/docs/benchmarks/browse-bootstrap-before.json)
+- `AFTER`: [docs/benchmarks/browse-bootstrap-after.json](/Users/james/git/think/docs/benchmarks/browse-bootstrap-after.json)
+
+Current comparison:
+
+- `BEFORE` median: `4152.16075 ms`
+- `AFTER` median: `345.786625 ms`
+
 ## Next Move
 
 After this design note:
@@ -233,3 +245,5 @@ After this design note:
 2. implement the harness
 3. capture and commit the `BEFORE` baseline
 4. only then start graph migration/read optimizations against it
+
+That follow-through has now happened.

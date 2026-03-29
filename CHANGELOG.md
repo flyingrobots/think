@@ -49,6 +49,13 @@ Release discipline:
   - reflect writes now maintain `seeded_by`, `produced_in`, and `responds_to` operational edges
   - `think --migrate-graph` now backfills those `v3` edges additively
   - `inspect` now prefers direct reflect receipts through graph-native edges before falling back to legacy linkage props
+- product read paths now follow `git-warp v15` read-handle discipline:
+  - `browse`, `inspect`, `recent`, `remember`, and `stats` now read through `WarpApp -> worldline() -> observer(...)`
+  - `core()` is no longer used for traversal/query in normal product paths
+  - targeted content attachment reads remain a narrow `core()` escape hatch because `Worldline` / `Observer` do not expose content blobs directly
+- official browse bootstrap `AFTER` benchmark captured:
+  - `BEFORE` median: `4152.16075 ms`
+  - `AFTER` median: `345.786625 ms`
 
 ### Removed
 

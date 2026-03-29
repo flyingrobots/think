@@ -48,6 +48,8 @@ think --browse                        # open the full-screen TUI
 
 The browse TUI is reader-first: one thought fills the screen. Navigate with `j`/`k`, jump sessions with `[`/`]`, summon drawers with `s` (session) and `l` (log), search with `/`, inspect with `i`, reflect with `r`, quit with `q`.
 
+Under the hood, browse now uses graph-native `git-warp` read handles rather than app-local graph reconstruction, which is why startup is materially faster on real archives.
+
 ## Inspect
 
 ```bash
@@ -56,7 +58,7 @@ think --inspect=<entryId>
 
 Shows exact metadata, canonical identity (`thought:<fingerprint>`), and any derived receipts — seed quality, session attribution, reflect descendants — without summarizing the thought itself.
 
-Under the hood, `inspect` now prefers explicit graph-native reflect receipts instead of reconstructing them only through legacy linkage properties.
+Under the hood, `inspect` now prefers explicit graph-native reflect receipts instead of reconstructing them only through legacy linkage properties, and product graph reads use `worldline()` / `observer(...)` rather than whole-state `core()` scans.
 
 ## Reflect
 
@@ -127,6 +129,8 @@ npm run test:benchmarks
 npm run install-hooks             # enable pre-push hook
 npm run benchmark:browse          # browse bootstrap benchmark
 ```
+
+The committed synthetic browse benchmark currently improved from a `4152 ms` median `BEFORE` baseline to a `346 ms` median `AFTER` baseline.
 
 ## Project Structure
 

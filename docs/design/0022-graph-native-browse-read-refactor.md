@@ -1,6 +1,6 @@
 # 0022 Graph-Native Browse And Inspect Refactor
 
-Status: in progress; `v3` read-edge substrate implemented, browse bootstrap hot-path refactor still open
+Status: implemented and closed
 
 ## Sponsor
 
@@ -23,9 +23,11 @@ Current implementation status:
   - additive migration for the new read-critical edges
   - graph-native reflect operational edges
   - edge-first direct reflect receipts in `inspect`
-- still open:
-  - moving live browse bootstrap onto graph-native anchors
-  - capturing the official `AFTER` benchmark against the committed `BEFORE` baseline
+  - live browse bootstrap moved onto graph-native anchors instead of whole-archive `core()` scans
+  - product read surfaces now use `WarpApp -> worldline() -> observer(...)` for traversal/query semantics
+  - official `AFTER` benchmark captured against the committed `BEFORE` baseline
+- narrow remaining escape hatch:
+  - targeted content attachment reads still use `core().getContent(...)` because `git-warp v15` does not expose content blobs through `Worldline` or `Observer`
 
 ## Playback Questions
 
@@ -118,6 +120,12 @@ This applies to:
 - `recent`
 - `remember`
 - `stats`
+
+Delivered implementation:
+
+- product graph reads now open through a product read handle built from `WarpApp`, `worldline()`, and `observer(...)`
+- traversal/query work no longer routes through `core()` in normal read paths
+- targeted content attachment reads remain a narrow `core()` escape hatch because the `v15` API surface does not expose content blobs through `Worldline` or `Observer`
 
 ### Inspection And Tooling
 
@@ -234,6 +242,28 @@ The refactor should continue to use the already-intended graph-native edges:
 
 The point is not to invent a second ontology.
 The point is to complete the read-critical edge set the product now actually needs.
+
+## Outcome
+
+Human playback result:
+
+- pass
+- real archive startup improved from roughly `8s` to roughly `2s`, then further playback judged browse as effectively instant
+
+Agent playback result:
+
+- pass
+- product reads no longer rebuild traversal/query semantics above `git-warp`
+
+Benchmark result:
+
+- committed `BEFORE` median: `4152.16075 ms`
+- committed `AFTER` median: `345.786625 ms`
+
+Official artifacts:
+
+- [docs/benchmarks/browse-bootstrap-before.json](/Users/james/git/think/docs/benchmarks/browse-bootstrap-before.json)
+- [docs/benchmarks/browse-bootstrap-after.json](/Users/james/git/think/docs/benchmarks/browse-bootstrap-after.json)
 
 ## Versioning Decision
 

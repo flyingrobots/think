@@ -1,6 +1,6 @@
 # Design Review Package
 
-Status: design approved; `M0`, `M1`, `M2`, and `M3` complete; `M4` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, derivation-catalog, session-context-browse, session-traversal, remember, remember-enhancements, graph-versioning/migration, browse-bootstrap-benchmark, graph-migration-gating, and graph-native-browse-read-refactor designs under active use
+Status: design approved; `M0`, `M1`, `M2`, and `M3` complete; `M4` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, derivation-catalog, session-context-browse, session-traversal, remember, remember-enhancements, graph-versioning/migration, browse-bootstrap-benchmark, graph-migration-gating, and graph-native-browse-read-refactor designs implemented and under active use
 
 This directory began as the pre-implementation design package for `think`.
 
@@ -37,9 +37,9 @@ This review is meant to answer five questions:
 - [`0017-m4-session-traversal.md`](./0017-m4-session-traversal.md): IBM Design Thinking style product note for adding explicit same-session traversal to `browse` without collapsing chronology and session into one navigation model.
 - [`0018-m4-remember.md`](./0018-m4-remember.md): IBM Design Thinking style product note for adding context-scoped recall through `think --remember`, with both ambient project recall and explicit query recall.
 - [`0019-graph-versioning-and-migration.md`](./0019-graph-versioning-and-migration.md): technical correction note for versioning the graph model and migrating from the current property-linked repos to explicit graph-native relationships.
-- [`0020-browse-bootstrap-benchmark.md`](./0020-browse-bootstrap-benchmark.md): technical note for a reproducible synthetic browse benchmark fixture and a committed before/after bootstrap baseline.
+- [`0020-browse-bootstrap-benchmark.md`](./0020-browse-bootstrap-benchmark.md): technical note for the reproducible synthetic browse benchmark fixture and the committed before/after bootstrap baselines.
 - [`0021-graph-migration-gating.md`](./0021-graph-migration-gating.md): technical/product note for when graph migration is required, when it may run automatically, and why capture remains exempt from blocking upgrades.
-- [`0022-graph-native-browse-read-refactor.md`](./0022-graph-native-browse-read-refactor.md): technical/product note for making browse and inspect use graph-native read paths, explicit traversal edges, and the committed browse bootstrap benchmark. The `v3` read-edge substrate is implemented; the browse hot-path refactor remains open.
+- [`0022-graph-native-browse-read-refactor.md`](./0022-graph-native-browse-read-refactor.md): technical/product note for making browse and inspect use graph-native read paths, explicit traversal edges, and the committed browse bootstrap benchmark. This refactor is implemented and closed.
 - [`0023-remember-enhancements.md`](./0023-remember-enhancements.md): dogfooding feedback and enhancement proposals for `--remember` — `--limit`, `--brief`, query composition, session-start hook integration, tier 2 fallback discrimination, and score normalization. Includes comparison to CARL with one borrowed concept adapted to Think's doctrine.
 - [`ROADMAP.md`](./ROADMAP.md): milestone sequence, hill mapping, exit criteria, and review checkpoints.
 - [`../retrospectives/m1-capture-core-and-upstream-backup.md`](../retrospectives/m1-capture-core-and-upstream-backup.md): closeout for the first implemented milestone and the remaining validation follow-through.
@@ -49,6 +49,7 @@ This review is meant to answer five questions:
 - [`../retrospectives/m4-session-traversal.md`](../retrospectives/m4-session-traversal.md): closeout for the M4 slice that makes same-session movement a first-class browse behavior for both humans and agents.
 - [`../retrospectives/m4-graph-migration-gating.md`](../retrospectives/m4-graph-migration-gating.md): closeout for the slice that makes migration explicit for graph-native commands while keeping raw capture migration-safe.
 - [`../retrospectives/m4-v3-read-edge-substrate.md`](../retrospectives/m4-v3-read-edge-substrate.md): closeout for the narrower sub-slice that lands `v3` graph-native read edges without yet claiming the browse bootstrap performance win.
+- [`../retrospectives/m4-graph-native-browse-read-refactor.md`](../retrospectives/m4-graph-native-browse-read-refactor.md): closeout for the slice that moves product reads onto `WarpApp -> worldline() -> observer(...)`, enables checkpoint-backed browse startup, and records the official `AFTER` benchmark.
 - [`BACKLOG.md`](../../BACKLOG.md): deferred ideas, cool ideas, and parking-lot items that should not silently become approved scope.
 
 ## Review Package Map

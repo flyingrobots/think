@@ -1,6 +1,6 @@
 # Roadmap And Milestones
 
-Status: `M0`, `M1`, `M2`, and `M3` complete; `M4` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, derivation-catalog, session-context-browse, session-traversal, remember, graph-versioning/migration, browse-bootstrap-benchmark, graph-migration-gating, and graph-native-browse-read-refactor designs under active use
+Status: `M0`, `M1`, `M2`, and `M3` complete; `M4` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, derivation-catalog, session-context-browse, session-traversal, remember, graph-versioning/migration, browse-bootstrap-benchmark, graph-migration-gating, and graph-native-browse-read-refactor designs implemented and under active use
 
 ## Planning Frame
 
@@ -20,7 +20,7 @@ Milestones exist to prove user value in sequence. They are not buckets for unrel
 - the first M4 session-traversal browse slice is implemented and closed.
 - the graph-migration-gating correction slice is implemented and closed.
 - the `v3` read-edge substrate slice is implemented and closed.
-- the broader graph-native browse/read refactor remains in progress until the live browse bootstrap hot path is actually moved onto the new graph-native anchors.
+- the broader graph-native browse/read refactor is implemented and closed.
 
 ## Planning Principles
 
