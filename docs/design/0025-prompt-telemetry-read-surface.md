@@ -1,6 +1,6 @@
 # 0025 Prompt Telemetry Read Surface
 
-Status: approved for the next telemetry read/report slice
+Status: implemented and closed
 
 ## Sponsor
 
@@ -313,9 +313,16 @@ Human stakeholder:
 
 ## Next Move
 
-After this design note:
+Delivered behavior:
 
-1. write failing specs for `--prompt-metrics`
-2. implement the first factual telemetry read surface
-3. run dual playback on the plain and JSON contracts
-4. defer menu bar reports and any `--stats` integration until playback proves this surface is genuinely useful
+1. `think --prompt-metrics` reads local prompt telemetry without bootstrapping the thought repo
+2. the human surface reports factual counts and timing medians
+3. `--since`, `--from`, `--to`, and `--bucket` work with the same filter language as `--stats`
+4. `think --json --prompt-metrics` emits explicit `prompt_metrics.summary`, `prompt_metrics.timing`, and `prompt_metrics.bucket` rows
+5. invalid positional text and invalid filter values fail clearly
+
+Follow-through beyond this slice remains deferred:
+
+- menu bar reporting UI
+- any `--stats` integration
+- charts, narration, or coaching
