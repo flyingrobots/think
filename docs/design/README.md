@@ -1,6 +1,6 @@
 # Design Review Package
 
-Status: design approved; `M0`, `M1`, `M2`, and `M3` complete; `M4` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, derivation-catalog, session-context-browse, session-traversal, remember, remember-enhancements, graph-versioning/migration, browse-bootstrap-benchmark, graph-migration-gating, graph-native-browse-read-refactor, graph-migration-progress-ux, and prompt-telemetry-read-surface designs implemented and under active use
+Status: design approved; `M0`, `M1`, `M2`, and `M3` complete; `M4` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, derivation-catalog, session-context-browse, session-traversal, remember, remember-enhancements, graph-versioning/migration, browse-bootstrap-benchmark, graph-migration-gating, graph-native-browse-read-refactor, graph-migration-progress-ux, and prompt-telemetry-read-surface designs implemented and under active use; `0026` session-presentation-polish is the current active review slice
 
 This directory began as the pre-implementation design package for `think`.
 
@@ -43,6 +43,7 @@ This review is meant to answer five questions:
 - [`0023-remember-enhancements.md`](./0023-remember-enhancements.md): implemented enhancement slice for `--remember` — `--limit`, `--brief`, and bounded recall triage, with later ideas still explicitly deferred.
 - [`0024-graph-migration-progress-ux.md`](./0024-graph-migration-progress-ux.md): product note for making the human interactive migration path visibly in progress after the user chooses `Upgrade now`, while keeping agent and non-interactive flows explicit failures.
 - [`0025-prompt-telemetry-read-surface.md`](./0025-prompt-telemetry-read-surface.md): implemented telemetry read slice for a factual CLI / JSON surface over the macOS prompt telemetry, kept separate from `--stats` and explicitly out of dashboard territory.
+- [`0026-m4-session-presentation-polish.md`](./0026-m4-session-presentation-polish.md): active design lock for the next browse-polish slice, focused on clearer session presentation, calmer metadata, and short visible ids without changing browse semantics.
 - [`ROADMAP.md`](./ROADMAP.md): milestone sequence, hill mapping, exit criteria, and review checkpoints.
 - [`../retrospectives/m1-capture-core-and-upstream-backup.md`](../retrospectives/m1-capture-core-and-upstream-backup.md): closeout for the first implemented milestone and the remaining validation follow-through.
 - [`../retrospectives/m2-macos-capture-surface.md`](../retrospectives/m2-macos-capture-surface.md): closeout for the native menu bar app and hotkey capture surface.
