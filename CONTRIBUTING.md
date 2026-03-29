@@ -36,6 +36,17 @@ In practice, that means:
 - keep future intelligence out of the capture path until it is earned
 - keep every CLI command machine-readable through `--json`
 
+## First Contributor Reads
+
+If you are new to the repo, start here before diving into the ADR trail:
+
+1. [README.md](/Users/james/git/think/README.md)
+2. [docs/GLOSSARY.md](/Users/james/git/think/docs/GLOSSARY.md)
+3. [docs/ARCHITECTURE.md](/Users/james/git/think/docs/ARCHITECTURE.md)
+4. [docs/design/ROADMAP.md](/Users/james/git/think/docs/design/ROADMAP.md)
+
+The design notes remain valuable, but contributors should not have to reconstruct the current system by reading milestone history in chronological order.
+
 ## Architectural Principles
 
 ### Hexagonal architecture

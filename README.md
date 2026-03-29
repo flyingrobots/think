@@ -8,14 +8,21 @@ Capture raw thoughts instantly. Revisit them later.
 
 ## Install
 
-Requires Node.js 22+.
+Requirements:
+
+- Node.js 22+
+- for the macOS menu bar app: macOS 14+ and an Xcode / Swift toolchain that supports Swift 6
 
 ```bash
 git clone https://github.com/flyingrobots/think.git
 cd think
 npm install
-npm link
+node ./bin/think.js "first captured thought"
 ```
+
+If you want a shell-wide `think` command while developing locally, `npm link` still works, but it is optional.
+
+The examples below use `think`. If you skip `npm link`, run the same commands as `node ./bin/think.js ...`.
 
 ## Capture
 
@@ -52,8 +59,6 @@ think --browse                        # open the full-screen TUI
 
 The browse TUI is reader-first: one thought fills the screen. Navigate with `j`/`k`, jump sessions with `[`/`]`, summon drawers with `s` (session) and `l` (log), search with `/`, inspect with `i`, reflect with `r`, quit with `q`. Browse uses short visible ids for ordinary orientation, while `--inspect` keeps full exact ids.
 
-Under the hood, browse now uses graph-native `git-warp` read handles rather than app-local graph reconstruction, which is why startup is materially faster on real archives.
-
 ## Inspect
 
 ```bash
@@ -61,8 +66,6 @@ think --inspect=<entryId>
 ```
 
 Shows exact metadata, canonical identity (`thought:<fingerprint>`), and any derived receipts — seed quality, session attribution, reflect descendants — without summarizing the thought itself.
-
-Under the hood, `inspect` now prefers explicit graph-native reflect receipts instead of reconstructing them only through legacy linkage properties, and product graph reads use `worldline()` / `observer(...)` rather than whole-state `core()` scans.
 
 ## Reflect
 
@@ -137,6 +140,12 @@ npm run benchmark:browse          # browse bootstrap benchmark
 ```
 
 The committed synthetic browse benchmark currently improved from a `4152 ms` median `BEFORE` baseline to a `346 ms` median `AFTER` baseline.
+
+For contributors, the current system references are:
+
+- [docs/ARCHITECTURE.md](/Users/james/git/think/docs/ARCHITECTURE.md)
+- [docs/GLOSSARY.md](/Users/james/git/think/docs/GLOSSARY.md)
+- [docs/design/ROADMAP.md](/Users/james/git/think/docs/design/ROADMAP.md)
 
 ## Project Structure
 

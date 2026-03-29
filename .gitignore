@@ -15,6 +15,7 @@ Icon?
 .vscode/
 .obsidian/
 .audit_reports/*
+EDITORS-REPORT.md
 
 # Dependencies
 node_modules/

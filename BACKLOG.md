@@ -51,6 +51,13 @@ These should stay visible without being confused for unfinished milestone work.
 - Reduce the amount of manual repo/bootstrap work needed to get private backup running.
 - Keep this boring and explicit; do not turn it into hosted-service scope creep.
 
+### Align Code Shape With Current Boundaries
+
+- Decompose `src/store.js` along real seams such as graph queries, derivation logic, and migration logic.
+- Decompose `src/cli.js` by command family instead of keeping one giant dispatch surface.
+- Keep this behavior-preserving and test-driven; do not use “clean architecture” as an excuse for abstraction theater.
+- Keep [/Users/james/git/think/docs/ARCHITECTURE.md](/Users/james/git/think/docs/ARCHITECTURE.md) and [/Users/james/git/think/docs/GLOSSARY.md](/Users/james/git/think/docs/GLOSSARY.md) current as the codebase shape changes.
+
 ### Tidy Backlog Routing
 
 - Keep follow-through tasks distinct from milestone deliverables so `M4` does not inherit stale `M1`/`M2` wording.
