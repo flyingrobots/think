@@ -265,6 +265,130 @@ test('think --remember falls back honestly to textual project-token matching for
   );
 });
 
+test('think --remember --limit returns only the top N matching thoughts in deterministic order', async () => {
+  const context = await createThinkContext();
+  const matchingOld = 'warp receipts need better explainability in inspect mode';
+  const matchingMiddle = 'warp receipts should stay explicit even in brief recall';
+  const matchingNew = 'warp receipts are still the right boundary for honest remember';
+  const nonMatch = 'turkey burritos remain underrated';
+
+  captureWithEntryId(context, matchingOld);
+  captureWithEntryId(context, nonMatch);
+  captureWithEntryId(context, matchingMiddle);
+  captureWithEntryId(context, matchingNew);
+
+  const remember = runThink(context, ['--remember', '--limit=2', 'warp receipts']);
+
+  assertSuccess(remember, 'Expected remember --limit to succeed.');
+  assertContains(remember, 'Scope: query', 'Expected limited remember to preserve explicit query scope.');
+  assertChronologicalOrder(
+    combinedOutput(remember),
+    [matchingNew, matchingMiddle],
+    'Expected remember --limit to preserve deterministic newest-first order among the bounded matches.'
+  );
+  assertContains(remember, matchingNew, 'Expected remember --limit to keep the top-ranked newer match.');
+  assertContains(remember, matchingMiddle, 'Expected remember --limit to keep the second-ranked match.');
+  assertNotContains(
+    remember,
+    matchingOld,
+    'Expected remember --limit to omit older matching thoughts beyond the requested result cap.'
+  );
+  assertNotContains(
+    remember,
+    nonMatch,
+    'Expected remember --limit not to degrade into generic recent listing.'
+  );
+});
+
+test('think --remember --brief returns a triage-friendly snippet instead of the full multiline thought', async () => {
+  const context = await createThinkContext();
+  const firstLine = 'bijou receipts should be triaged before we read the whole archive';
+  const hiddenLine = 'this follow-up detail should stay out of brief remember output';
+  const fullThought = `${firstLine}\n${hiddenLine}`;
+  const otherThought = 'bijou graph reads should stay local-first and explicit';
+
+  captureWithEntryId(context, fullThought);
+  captureWithEntryId(context, otherThought);
+
+  const remember = runThink(context, ['--remember', '--brief', '--limit=1', 'bijou receipts']);
+
+  assertSuccess(remember, 'Expected remember --brief to succeed.');
+  assertContains(remember, 'Remember', 'Expected brief remember to identify itself explicitly.');
+  assertContains(remember, firstLine, 'Expected brief remember to keep a useful first-line snippet.');
+  assertNotContains(
+    remember,
+    hiddenLine,
+    'Expected brief remember not to dump the full multiline thought body.'
+  );
+  assertContains(remember, 'Why:', 'Expected brief remember to preserve explicit receipts.');
+});
+
+test('think --json --remember --brief --limit preserves bounded explicit recall receipts for agents', async () => {
+  const context = await createThinkContext();
+  const firstLine = 'warp receipts should be easy to triage before deep inspection';
+  const hiddenLine = 'this second line should not appear in brief json remember output';
+  const fullThought = `${firstLine}\n${hiddenLine}`;
+  const olderMatch = 'warp receipts still need calmer metadata';
+  const nonMatch = 'turkey burritos remain underrated';
+
+  const { entryId: newestEntryId } = captureWithEntryId(context, fullThought);
+  captureWithEntryId(context, nonMatch);
+  captureWithEntryId(context, olderMatch);
+
+  const remember = runThink(context, ['--json', '--remember', '--brief', '--limit=1', 'warp receipts']);
+
+  assertSuccess(remember, 'Expected JSON remember --brief --limit to succeed.');
+  assertJsonStreams(remember);
+  assert.equal((remember.stderr || '').trim(), '', 'Expected successful JSON remember brief mode to keep stderr quiet.');
+  assert.doesNotMatch(
+    remember.stdout,
+    new RegExp(hiddenLine.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+    `Expected JSON brief remember not to include the full multiline body.\nstdout:\n${remember.stdout}`
+  );
+
+  const events = parseJsonLines(
+    remember.stdout,
+    'Expected JSON brief remember output to emit valid JSONL.'
+  );
+
+  const scope = getEvent(
+    events,
+    'remember.scope',
+    'Expected JSON brief remember to expose an explicit scope row.'
+  );
+  assert.equal(scope.scopeKind, 'query', 'Expected JSON brief remember to preserve explicit query scope.');
+
+  const matches = events.filter((event) => event.event === 'remember.match');
+  assert.equal(matches.length, 1, 'Expected JSON remember --limit to cap the match rows.');
+  assert.equal(matches[0].entryId, newestEntryId, 'Expected JSON brief remember to keep the top-ranked match.');
+  assert.equal(matches[0].text, firstLine, 'Expected JSON brief remember to expose only the triage snippet as text.');
+  assert.equal(typeof matches[0].score, 'number', 'Expected JSON brief remember to preserve deterministic scoring.');
+  assert.equal(typeof matches[0].tier, 'number', 'Expected JSON brief remember to preserve explicit match tier.');
+  assert.ok(Array.isArray(matches[0].matchKinds), 'Expected JSON brief remember to preserve explicit match kinds.');
+  assert.equal(typeof matches[0].reasonText, 'string', 'Expected JSON brief remember to preserve receipt text.');
+});
+
+test('think --remember rejects invalid --limit values', async () => {
+  const context = await createThinkContext();
+  captureWithEntryId(context, 'warp receipts should remain explicit');
+
+  const zero = runThink(context, ['--remember', '--limit=0']);
+  assertFailure(zero, 'Expected --limit=0 to fail loudly.');
+  assertContains(
+    zero,
+    'Invalid --limit value',
+    'Expected remember to reject zero as an invalid limit value.'
+  );
+
+  const negative = runThink(context, ['--remember', '--limit=-2']);
+  assertFailure(negative, 'Expected negative --limit to fail loudly.');
+  assertContains(
+    negative,
+    'Invalid --limit value',
+    'Expected remember to reject negative limits.'
+  );
+});
+
 test('think --browse shows one raw thought with its immediate newer and older neighbors', async () => {
   const context = await createThinkContext();
   const olderThought = 'older thought about warp receipts';
