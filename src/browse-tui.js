@@ -59,8 +59,9 @@ const browseKeymap = createKeyMap()
     .bind('escape', 'Close/Quit', { type: 'escape' }));
 
 export async function runBrowseTui({
-  entries,
-  initialEntryId = null,
+  bootstrap,
+  loadBrowseWindow = null,
+  loadChronologyEntries = null,
   loadInspectEntry = null,
   previewReflectEntry = null,
   startReflectSession = null,
@@ -70,7 +71,12 @@ export async function runBrowseTui({
 
   const app = {
     init() {
-      return [createBrowseModel({ entries, inspectCache: new Map(), initialEntryId }), []];
+      return [createWindowedBrowseModel({
+        bootstrap,
+        inspectCache: new Map(),
+        loadBrowseWindow,
+        loadChronologyEntries,
+      }), []];
     },
     update(msg, model) {
       if (msg.type === 'resize') {
@@ -89,6 +95,15 @@ export async function runBrowseTui({
             ? null
             : model.inspectLoadingEntryId,
         }, []];
+      }
+
+      if (msg.type === 'browse_window_loaded') {
+        const [nextModel, cmds] = applyBrowseWindowLoaded(model, msg, loadInspectEntry);
+        return [nextModel, cmds];
+      }
+
+      if (msg.type === 'chronology_loaded') {
+        return [applyChronologyLoaded(model, msg), []];
       }
 
       if (msg.type === 'reflect_previewed') {
@@ -221,6 +236,7 @@ export async function runBrowseTuiScript({
 
 function createBrowseModel({ entries, inspectCache, initialEntryId }) {
   return {
+    mode: 'scripted',
     entries,
     inspectCache,
     inspectLoadingEntryId: null,
@@ -230,6 +246,39 @@ function createBrowseModel({ entries, inspectCache, initialEntryId }) {
     rows: process.stdout.rows ?? DEFAULT_ROWS,
     contentScrollY: 0,
     jumpPalette: createJumpPalette(entries),
+    previousPanelMode: 'none',
+    notice: null,
+    reflect: {
+      status: 'idle',
+      entryId: null,
+      promptType: null,
+      question: '',
+      draft: '',
+    },
+  };
+}
+
+function createWindowedBrowseModel({
+  bootstrap,
+  inspectCache,
+  loadBrowseWindow,
+  loadChronologyEntries,
+}) {
+  return {
+    mode: 'windowed',
+    entries: bootstrap?.current ? [bootstrap.current] : [],
+    inspectCache,
+    inspectLoadingEntryId: null,
+    currentIndex: 0,
+    currentWindow: bootstrap ?? null,
+    chronologyLoaded: false,
+    chronologyLoading: false,
+    loadBrowseWindow,
+    loadChronologyEntries,
+    columns: process.stdout.columns ?? DEFAULT_COLUMNS,
+    rows: process.stdout.rows ?? DEFAULT_ROWS,
+    contentScrollY: 0,
+    jumpPalette: createJumpPalette([]),
     previousPanelMode: 'none',
     notice: null,
     reflect: {
@@ -262,6 +311,20 @@ function resolveInitialIndex(entries, initialEntryId) {
 function applyBrowseAction(model, action) {
   switch (action.type) {
     case 'move': {
+      if (model.mode === 'windowed') {
+        const neighbors = resolveNeighbors(model);
+        const targetEntry = action.delta > 0 ? neighbors.older : neighbors.newer;
+
+        if (!targetEntry) {
+          return {
+            model,
+            effect: null,
+          };
+        }
+
+        return queueBrowseWindowLoad(model, targetEntry.id);
+      }
+
       const nextIndex = clamp(model.currentIndex + action.delta, 0, model.entries.length - 1);
       return {
         model: {
@@ -273,6 +336,31 @@ function applyBrowseAction(model, action) {
       };
     }
     case 'jump': {
+      if (model.mode === 'windowed') {
+        if (!model.chronologyLoaded) {
+          return queueChronologyLoad({
+            ...model,
+            panelMode: model.panelMode === 'jump' ? 'jump' : model.panelMode,
+            notice: action.target === 'oldest'
+              ? 'Loading chronology to jump to the oldest thought...'
+              : 'Loading chronology to jump to the newest thought...',
+          });
+        }
+
+        const targetEntry = action.target === 'oldest'
+          ? model.entries.at(-1)
+          : model.entries[0];
+
+        if (!targetEntry) {
+          return {
+            model,
+            effect: null,
+          };
+        }
+
+        return queueBrowseWindowLoad(model, targetEntry.id, { panelMode: 'none' });
+      }
+
       const nextIndex = action.target === 'oldest' ? model.entries.length - 1 : 0;
       return {
         model: {
@@ -300,6 +388,10 @@ function applyBrowseAction(model, action) {
           },
           effect: null,
         };
+      }
+
+      if (model.mode === 'windowed') {
+        return queueBrowseWindowLoad(model, targetEntry.id);
       }
 
       const nextIndex = model.entries.findIndex((entry) => entry.id === targetEntry.id);
@@ -341,6 +433,14 @@ function applyBrowseAction(model, action) {
         effect: null,
       };
     case 'toggle_log':
+      if (model.mode === 'windowed' && model.panelMode !== 'log' && !model.chronologyLoaded) {
+        return queueChronologyLoad({
+          ...model,
+          panelMode: 'log',
+          contentScrollY: 0,
+          notice: null,
+        });
+      }
       return {
         model: {
           ...model,
@@ -351,11 +451,19 @@ function applyBrowseAction(model, action) {
         effect: null,
       };
     case 'open_jump':
+      if (model.mode === 'windowed' && !model.chronologyLoaded) {
+        return queueChronologyLoad({
+          ...model,
+          panelMode: 'jump',
+          contentScrollY: 0,
+          notice: null,
+        }, action.query ?? '');
+      }
       return {
         model: {
           ...model,
           panelMode: 'jump',
-          jumpPalette: cpFilter(createJumpPalette(model.entries), action.query ?? ''),
+          jumpPalette: cpFilter(createJumpPalette(resolveJumpEntries(model)), action.query ?? ''),
           contentScrollY: 0,
           notice: null,
         },
@@ -367,6 +475,10 @@ function applyBrowseAction(model, action) {
           model,
           effect: null,
         };
+      }
+
+      if (model.mode === 'windowed') {
+        return queueBrowseWindowLoad(model, action.entryId, { panelMode: 'none' });
       }
 
       const nextIndex = model.entries.findIndex((entry) => entry.id === action.entryId);
@@ -467,7 +579,7 @@ function handleJumpKey(model, msg) {
       model: {
         ...model,
         jumpPalette: cpFilter(
-          createJumpPalette(model.entries),
+          createJumpPalette(resolveJumpEntries(model)),
           model.jumpPalette.query.slice(0, -1)
         ),
       },
@@ -527,7 +639,7 @@ function handleJumpKey(model, msg) {
     model: {
       ...model,
       jumpPalette: cpFilter(
-        createJumpPalette(model.entries),
+        createJumpPalette(resolveJumpEntries(model)),
         `${model.jumpPalette.query}${character}`
       ),
     },
@@ -695,11 +807,14 @@ function isScriptJumpAction(rawAction) {
 function renderBrowseModel(model) {
   const layout = resolveLayout(model);
   const help = resolveHelpLine(model);
+  const counter = resolveBrowseCounter(model);
   const background = flex(
     { direction: 'column', width: model.columns, height: model.rows },
     {
       basis: 1,
-      content: `${styleTitle('THINK BROWSE')} ${styleDim(`(${model.currentIndex + 1}/${model.entries.length})`)}`,
+      content: counter
+        ? `${styleTitle('THINK BROWSE')} ${styleDim(counter)}`
+        : styleTitle('THINK BROWSE'),
     },
     {
       flex: 1,
@@ -800,10 +915,11 @@ function renderDrawerContent(model, layout) {
 function renderInspectPane(model, width, height) {
   const inspectEntry = currentInspectEntry(model);
   const lines = [];
+  const entry = currentEntry(model);
 
   if (!inspectEntry) {
     lines.push(styleDim(
-      model.inspectLoadingEntryId === currentEntry(model).id
+      model.inspectLoadingEntryId === entry.id
         ? 'Loading inspect receipts...'
         : 'Inspect data not loaded yet.'
     ));
@@ -879,6 +995,17 @@ function renderSessionPane(model, width, height) {
 }
 
 function renderLogPane(model, width, height) {
+  if (model.mode === 'windowed' && !model.chronologyLoaded) {
+    return viewport({
+      width,
+      height,
+      content: model.chronologyLoading
+        ? styleDim('Loading thought log...')
+        : styleDim('Thought log is not loaded yet.'),
+      scrollY: 0,
+    });
+  }
+
   const lines = [];
 
   for (const [index, entry] of model.entries.entries()) {
@@ -897,6 +1024,17 @@ function renderLogPane(model, width, height) {
 }
 
 function renderJumpPane(model, width, height) {
+  if (model.mode === 'windowed' && !model.chronologyLoaded) {
+    return viewport({
+      width,
+      height,
+      content: model.chronologyLoading
+        ? styleDim('Loading jump candidates...')
+        : styleDim('Jump candidates are not loaded yet.'),
+      scrollY: 0,
+    });
+  }
+
   const lines = [commandPalette(model.jumpPalette, {
     width,
     showCategory: false,
@@ -944,12 +1082,13 @@ function buildThoughtContent(model, width) {
   const entry = currentEntry(model);
   const neighbors = resolveNeighbors(model);
   const sessionTraversal = resolveSessionTraversal(model);
+  const chronologyPosition = resolveChronologyPosition(model);
   const lines = [
     styleSection('THOUGHT'),
     '',
     `When: ${formatWhen(entry.createdAt)}`,
     `Relative: ${formatRelativeTime(entry.createdAt)}`,
-    `Position: ${model.currentIndex + 1} of ${model.entries.length}`,
+    ...(chronologyPosition ? [`Position: ${chronologyPosition}`] : []),
     `Entry ID: ${entry.id}`,
     `Session: ${entry.sessionId ?? 'pending'}`,
     `Session Position: ${formatSessionPosition(sessionTraversal)}`,
@@ -1001,6 +1140,13 @@ function resolvePanelHeight(bodyHeight) {
 }
 
 function resolveNeighbors(model) {
+  if (model.mode === 'windowed' && model.currentWindow) {
+    return {
+      newer: model.currentWindow.newer ?? null,
+      older: model.currentWindow.older ?? null,
+    };
+  }
+
   return {
     newer: model.currentIndex > 0 ? model.entries[model.currentIndex - 1] : null,
     older: model.currentIndex + 1 < model.entries.length ? model.entries[model.currentIndex + 1] : null,
@@ -1009,6 +1155,22 @@ function resolveNeighbors(model) {
 
 function resolveSessionTraversal(model) {
   const entry = currentEntry(model);
+
+  if (model.mode === 'windowed' && model.currentWindow) {
+    const sessionContext = model.currentWindow.sessionContext;
+    const previous = model.currentWindow.sessionSteps
+      .find((step) => step.direction === 'previous') ?? null;
+    const next = model.currentWindow.sessionSteps
+      .find((step) => step.direction === 'next') ?? null;
+
+    return {
+      entries: [entry, ...model.currentWindow.sessionEntries].sort(compareEntriesOldestFirst),
+      count: sessionContext?.sessionCount ?? model.currentWindow.sessionEntries.length + 1,
+      position: sessionContext?.sessionPosition ?? null,
+      previous,
+      next,
+    };
+  }
 
   if (!entry?.sessionId) {
     return {
@@ -1045,6 +1207,9 @@ function resolveSessionTraversal(model) {
 }
 
 function currentEntry(model) {
+  if (model.mode === 'windowed' && model.currentWindow?.current) {
+    return model.currentWindow.current;
+  }
   return model.entries[model.currentIndex];
 }
 
@@ -1064,6 +1229,10 @@ function createJumpPalette(entries) {
 }
 
 function computeLogScroll(model, height) {
+  if (model.mode === 'windowed' && !model.chronologyLoaded) {
+    return 0;
+  }
+
   const selectedLine = 2 + model.currentIndex;
   const visibleHeight = Math.max(1, height);
   const target = selectedLine - Math.floor(visibleHeight / 2);
@@ -1084,6 +1253,139 @@ function resolveHelpLine(model) {
 
   const help = helpShort(browseKeymap);
   return model.notice ? `${model.notice} • ${help}` : help;
+}
+
+function resolveBrowseCounter(model) {
+  if (model.mode === 'windowed' && !model.chronologyLoaded) {
+    return null;
+  }
+
+  return `(${model.currentIndex + 1}/${model.entries.length})`;
+}
+
+function resolveChronologyPosition(model) {
+  if (model.mode === 'windowed' && !model.chronologyLoaded) {
+    return null;
+  }
+
+  return `${model.currentIndex + 1} of ${model.entries.length}`;
+}
+
+function resolveJumpEntries(model) {
+  if (model.mode !== 'windowed') {
+    return model.entries;
+  }
+
+  return model.chronologyLoaded ? model.entries : [];
+}
+
+function queueBrowseWindowLoad(model, entryId, overrides = {}) {
+  if (!model.loadBrowseWindow) {
+    return {
+      model,
+      effect: null,
+    };
+  }
+
+  return {
+    model: {
+      ...model,
+      notice: null,
+      contentScrollY: 0,
+      ...overrides,
+    },
+    effect: null,
+    cmds: [createBrowseWindowLoadCommand(entryId, model.loadBrowseWindow)],
+  };
+}
+
+function queueChronologyLoad(model, query = null) {
+  if (!model.loadChronologyEntries || model.chronologyLoaded || model.chronologyLoading) {
+    return {
+      model: {
+        ...model,
+        panelMode: model.panelMode,
+      },
+      effect: null,
+    };
+  }
+
+  return {
+    model: {
+      ...model,
+      chronologyLoading: true,
+      jumpPalette: query != null ? cpFilter(createJumpPalette([]), query) : model.jumpPalette,
+    },
+    effect: null,
+    cmds: [createChronologyLoadCommand(model.loadChronologyEntries, query)],
+  };
+}
+
+function createBrowseWindowLoadCommand(entryId, loadBrowseWindow) {
+  return async (emit) => {
+    const browseWindow = await loadBrowseWindow(entryId);
+    emit({
+      type: 'browse_window_loaded',
+      entryId,
+      browseWindow,
+    });
+  };
+}
+
+function createChronologyLoadCommand(loadChronologyEntries, query) {
+  return async (emit) => {
+    const entries = await loadChronologyEntries();
+    emit({
+      type: 'chronology_loaded',
+      entries,
+      query,
+    });
+  };
+}
+
+function applyBrowseWindowLoaded(model, msg, loadInspectEntry) {
+  if (!msg.browseWindow?.ok && !msg.browseWindow?.current && msg.browseWindow !== null) {
+    return [model, []];
+  }
+
+  const nextWindow = msg.browseWindow;
+  if (!nextWindow?.current) {
+    return [model, []];
+  }
+
+  const nextEntries = model.chronologyLoaded
+    ? model.entries
+    : [nextWindow.current];
+  const nextIndex = nextEntries.findIndex((entry) => entry.id === nextWindow.current.id);
+
+  const nextModel = {
+    ...model,
+    currentWindow: nextWindow,
+    entries: nextEntries,
+    currentIndex: nextIndex === -1 ? 0 : nextIndex,
+    contentScrollY: 0,
+    notice: null,
+  };
+
+  return maybeQueueInspectLoad(nextModel, loadInspectEntry);
+}
+
+function applyChronologyLoaded(model, msg) {
+  const entries = msg.entries ?? [];
+  const currentId = currentEntry(model)?.id ?? null;
+  const nextIndex = currentId
+    ? Math.max(0, entries.findIndex((entry) => entry.id === currentId))
+    : 0;
+
+  return {
+    ...model,
+    chronologyLoaded: true,
+    chronologyLoading: false,
+    entries,
+    currentIndex: nextIndex,
+    jumpPalette: cpFilter(createJumpPalette(entries), msg.query ?? model.jumpPalette.query ?? ''),
+    notice: null,
+  };
 }
 
 function resolveDrawerTitle(panelMode) {

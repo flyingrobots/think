@@ -475,14 +475,12 @@ export async function loadBrowseChronologyEntries(repoDir) {
 
 export async function prepareBrowseBootstrap(repoDir) {
   const graph = await openGraph(repoDir);
-  const entries = await listChronologyEntries(graph);
   const latestCaptureId = await getLatestCaptureId(graph);
 
-  if (!latestCaptureId || entries.length === 0) {
+  if (!latestCaptureId) {
     return {
       ok: false,
       reason: 'no_entries',
-      entries: [],
       current: null,
       newer: null,
       older: null,
@@ -497,7 +495,6 @@ export async function prepareBrowseBootstrap(repoDir) {
     return {
       ok: false,
       reason: 'entry_not_found',
-      entries,
       current: null,
       newer: null,
       older: null,
@@ -509,7 +506,6 @@ export async function prepareBrowseBootstrap(repoDir) {
 
   return {
     ok: true,
-    entries,
     ...window,
   };
 }

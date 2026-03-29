@@ -828,14 +828,14 @@ async function runInteractiveBrowseShell(output, reporter) {
     return 1;
   }
 
-  const entries = bootstrap.entries;
   const initialEntryId = bootstrap.current.id;
 
   reporter.event('browse.shell_started', { seedEntryId: initialEntryId });
 
   const effect = await runBrowseTui({
-    entries,
-    initialEntryId,
+    bootstrap,
+    loadBrowseWindow: (entryId) => getBrowseWindow(repoDir, entryId),
+    loadChronologyEntries: () => loadBrowseChronologyEntries(repoDir),
     loadInspectEntry: (entryId) => inspectRawEntry(repoDir, entryId),
     previewReflectEntry: (entryId, promptType) => previewReflect(repoDir, entryId, { promptType }),
     startReflectSession: async (entryId, promptType) => {

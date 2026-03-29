@@ -27,6 +27,8 @@ test('prepareBrowseBootstrap returns the latest capture window from graph-native
   const bootstrap = await prepareBrowseBootstrap(repoDir);
 
   assert.equal(bootstrap.ok, true, 'Expected graph-native browse bootstrap to succeed on a populated fixture.');
+  assert.equal('entries' in bootstrap, false,
+    'Expected browse bootstrap to return only the first-paint window, not a preloaded chronology corpus.');
   assert.equal(bootstrap.current.id, 'entry:1774023930000-bench-0012', 'Expected bootstrap to start from the latest capture anchor.');
   assert.match(bootstrap.current.text, /Benchmark thought 12\./, 'Expected bootstrap to load the current thought text.');
   assert.equal(bootstrap.older?.id, 'entry:1774023900000-bench-0011', 'Expected bootstrap to expose the immediate older chronology neighbor.');

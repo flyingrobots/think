@@ -91,6 +91,54 @@ Application code should still own:
 
 But it should stop reconstructing obvious graph relationships through archive-wide scans.
 
+## Read Handle Discipline
+
+`git-warp` `v15` makes the intended boundary explicit:
+
+- `WarpApp` is the application root
+- `Worldline` is the stable product-read handle
+- `Observer` is the filtered product-read handle
+- `core()` is the escape hatch for inspection, migration, receipts, and admin tooling
+
+`think` should follow that boundary directly.
+
+### Product Reads
+
+Product read surfaces should open through:
+
+- `WarpApp.open(...)`
+- `app.worldline()`
+- `worldline.query()` / `worldline.traverse`
+- `worldline.getNodeProps(...)` for targeted reads
+
+This applies to:
+
+- `browse`
+- `inspect`
+- `recent`
+- `remember`
+- `stats`
+
+### Inspection And Tooling
+
+`app.core()` should remain appropriate for:
+
+- graph migration
+- benchmark fixture creation
+- replay receipts
+- admin/debug inspection
+- tests that intentionally inspect whole visible state
+
+### Explicit Anti-Pattern
+
+The app must stop treating `core()` whole-state inspection as the normal product-read API.
+
+Specifically, product surfaces should not:
+
+- call `getNodes()` / `getEdges()` as their default read path
+- reconstruct chronology/session traversal in an app-local shadow graph
+- assume the full graph or full capture corpus can fit in memory
+
 ## Scope
 
 This slice is about the browse and inspect hot paths only.
@@ -261,6 +309,8 @@ It should not require:
 - full recent list materialization
 - jump-palette corpus build
 - full inspect preload
+
+And it should not carry a full `entries[]` archive corpus in memory just to paint the first screen.
 
 Any of those may happen later and on demand.
 
