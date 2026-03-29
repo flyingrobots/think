@@ -22,6 +22,17 @@ const DERIVER_VERSION = '1';
 const SCHEMA_VERSION = '1';
 const GRAPH_MODEL_VERSION = 3;
 const CHECKPOINT_POLICY = { every: 20 };
+const PRODUCT_READ_LENS = {
+  match: [
+    GRAPH_META_ID,
+    `${ENTRY_PREFIX}*`,
+    `${THOUGHT_PREFIX}*`,
+    `${SESSION_PREFIX}*`,
+    `${ARTIFACT_PREFIX}*`,
+    `${REFLECT_SESSION_PREFIX}*`,
+    `${LEGACY_BRAINSTORM_SESSION_PREFIX}*`,
+  ],
+};
 const CHALLENGE_PROMPTS = [
   'What assumption is hiding here?',
   'What would make this false in practice?',
@@ -43,11 +54,11 @@ const REFLECT_MARKERS = [
 ];
 
 export async function saveRawCapture(repoDir, thought) {
-  const graph = await openGraph(repoDir);
-  const entry = createEntry(thought, graph.writerId, { kind: 'capture', source: 'capture' });
+  const app = await openWarpApp(repoDir);
+  const entry = createEntry(thought, app.writerId, { kind: 'capture', source: 'capture' });
   const ambientContext = getAmbientProjectContext(process.cwd());
 
-  await graph.patch(async patch => {
+  await app.patch(async patch => {
     patch
       .addNode(entry.id)
       .setProperty(entry.id, 'kind', entry.kind)
@@ -77,8 +88,9 @@ export async function saveRawCapture(repoDir, thought) {
 }
 
 export async function finalizeCapturedThought(repoDir, entryId, { migrateIfNeeded = false } = {}) {
-  const graph = await openGraph(repoDir);
-  let entry = await getStoredEntry(graph, entryId);
+  const app = await openWarpApp(repoDir);
+  const read = await createProductReadHandle(app);
+  let entry = await getStoredEntry(read, entryId);
 
   if (!entry || entry.kind !== 'capture') {
     return {
@@ -87,9 +99,9 @@ export async function finalizeCapturedThought(repoDir, entryId, { migrateIfNeede
     };
   }
 
-  await ensureFirstDerivedArtifacts(graph, entry);
-  await ensureCaptureReadEdges(graph, entryId);
-  entry = await getStoredEntry(graph, entryId);
+  await ensureFirstDerivedArtifacts(app, read, entry);
+  await ensureCaptureReadEdges(app, read, entryId);
+  entry = await getStoredEntry(read, entryId);
 
   return {
     entry,
@@ -98,12 +110,13 @@ export async function finalizeCapturedThought(repoDir, entryId, { migrateIfNeede
 }
 
 export async function getGraphModelStatus(repoDir) {
-  const graph = await openGraph(repoDir);
-  return getGraphModelStatusForGraph(graph);
+  const read = await openProductReadHandle(repoDir);
+  return getGraphModelStatusForRead(read);
 }
 
 export async function migrateGraphModel(repoDir) {
-  const graph = await openGraph(repoDir);
+  const app = await openWarpApp(repoDir);
+  const graph = app.core();
   const nodes = await graph.getNodes();
   const edges = await graph.getEdges();
   const edgeKeys = new Set(edges.map(edge => `${edge.from}\0${edge.to}\0${edge.label}`));
@@ -231,8 +244,8 @@ export async function migrateGraphModel(repoDir) {
 }
 
 export async function rememberThoughts(repoDir, { cwd = process.cwd(), query = null } = {}) {
-  const graph = await openGraph(repoDir);
-  const captures = (await listEntriesByKind(graph, 'capture'))
+  const read = await openProductReadHandle(repoDir);
+  const captures = (await listEntriesByKind(read, 'capture'))
     .map((entry) => ({
       id: entry.id,
       text: entry.text,
@@ -267,15 +280,16 @@ export async function rememberThoughts(repoDir, { cwd = process.cwd(), query = n
 }
 
 export async function startReflect(repoDir, seedEntryId, { promptType = null } = {}) {
-  const graph = await openGraph(repoDir);
-  const planned = await planReflect(graph, seedEntryId, { promptType });
+  const app = await openWarpApp(repoDir);
+  const read = await createProductReadHandle(app);
+  const planned = await planReflect(read, seedEntryId, { promptType });
 
   if (!planned.ok) {
     return planned;
   }
 
   const promptPlan = planned.promptPlan;
-  const session = createReflectSession(graph.writerId, {
+  const session = createReflectSession(app.writerId, {
     seedEntryId,
     contrastEntryId: null,
     promptType: promptPlan.promptType,
@@ -283,7 +297,7 @@ export async function startReflect(repoDir, seedEntryId, { promptType = null } =
     selectionReason: promptPlan.selectionReason,
   });
 
-  await graph.patch(async patch => {
+  await app.patch(async patch => {
     patch
       .addNode(session.id)
       .setProperty(session.id, 'kind', session.kind)
@@ -322,8 +336,9 @@ export async function startReflect(repoDir, seedEntryId, { promptType = null } =
 }
 
 export async function previewReflect(repoDir, seedEntryId, { promptType = null } = {}) {
-  const graph = await openGraph(repoDir);
-  const planned = await planReflect(graph, seedEntryId, { promptType });
+  const app = await openWarpApp(repoDir);
+  const read = await createProductReadHandle(app);
+  const planned = await planReflect(read, seedEntryId, { promptType });
 
   if (!planned.ok) {
     return planned;
@@ -343,14 +358,15 @@ export async function previewReflect(repoDir, seedEntryId, { promptType = null }
 }
 
 export async function saveReflectResponse(repoDir, sessionId, response) {
-  const graph = await openGraph(repoDir);
-  const session = await getReflectSession(graph, sessionId);
+  const app = await openWarpApp(repoDir);
+  const read = await createProductReadHandle(app);
+  const session = await getReflectSession(read, sessionId);
 
   if (!session) {
     return null;
   }
 
-  const entry = createEntry(response, graph.writerId, {
+  const entry = createEntry(response, app.writerId, {
     kind: 'reflect',
     source: 'reflect',
   });
@@ -360,7 +376,7 @@ export async function saveReflectResponse(repoDir, sessionId, response) {
   entry.sessionId = session.id;
   entry.promptType = session.promptType;
 
-  await graph.patch(async patch => {
+  await app.patch(async patch => {
     patch
       .addNode(entry.id)
       .setProperty(entry.id, 'kind', entry.kind)
@@ -392,7 +408,7 @@ export async function saveReflectResponse(repoDir, sessionId, response) {
 }
 
 export async function getStats(repoDir, { from, to, since, bucket } = {}) {
-  const graph = await openGraph(repoDir);
+  const read = await openProductReadHandle(repoDir);
   const entries = [];
 
   const now = getCurrentTime();
@@ -404,7 +420,7 @@ export async function getStats(repoDir, { from, to, since, bucket } = {}) {
     toDate.setUTCHours(23, 59, 59, 999);
   }
 
-  for (const entry of await listEntriesByKind(graph, 'capture')) {
+  for (const entry of await listEntriesByKind(read, 'capture')) {
     const createdAt = new Date(entry.createdAt);
 
     if (sinceDate && createdAt < sinceDate) continue;
@@ -433,8 +449,8 @@ export async function getStats(repoDir, { from, to, since, bucket } = {}) {
 }
 
 export async function listRecent(repoDir, { count = null, query = null } = {}) {
-  const graph = await openGraph(repoDir);
-  const captures = await listEntriesByKind(graph, 'capture');
+  const read = await openProductReadHandle(repoDir);
+  const captures = await listEntriesByKind(read, 'capture');
 
   const recent = captures
     .map(entry => ({
@@ -463,31 +479,32 @@ export async function listReflectableRecent(repoDir) {
 }
 
 export async function loadBrowseChronologyEntries(repoDir) {
-  const graph = await openGraph(repoDir);
-  return loadBrowseChronologyEntriesForGraph(graph);
+  const read = await openProductReadHandle(repoDir);
+  return loadBrowseChronologyEntriesForRead(read);
 }
 
 export async function prepareBrowseBootstrap(repoDir) {
-  const graph = await openGraph(repoDir);
-  return prepareBrowseBootstrapForGraph(graph);
+  const read = await openProductReadHandle(repoDir);
+  return prepareBrowseBootstrapForRead(read);
 }
 
 export async function getBrowseWindow(repoDir, entryId) {
-  const graph = await openGraph(repoDir);
-  return getBrowseWindowForGraph(graph, entryId);
+  const read = await openProductReadHandle(repoDir);
+  return getBrowseWindowForRead(read, entryId);
 }
 
 export async function inspectRawEntry(repoDir, entryId) {
-  const graph = await openGraph(repoDir);
-  return inspectRawEntryForGraph(graph, entryId);
+  const read = await openProductReadHandle(repoDir);
+  return inspectRawEntryForRead(read, entryId);
 }
 
-export async function openGraphCore(repoDir) {
-  return openGraph(repoDir);
+export async function openProductReadHandle(repoDir) {
+  const app = await openWarpApp(repoDir);
+  return createProductReadHandle(app);
 }
 
-export async function getGraphModelStatusForGraph(graph) {
-  const latestCaptureId = await getLatestCaptureId(graph);
+export async function getGraphModelStatusForRead(read) {
+  const latestCaptureId = await getLatestCaptureId(read);
   if (!latestCaptureId) {
     return {
       currentGraphModelVersion: 1,
@@ -495,7 +512,7 @@ export async function getGraphModelStatusForGraph(graph) {
       migrationRequired: true,
     };
   }
-  const props = await graph.getNodeProps(GRAPH_META_ID);
+  const props = await read.view.getNodeProps(GRAPH_META_ID);
   const currentGraphModelVersion = Number(props?.graphModelVersion ?? 1);
 
   return {
@@ -505,12 +522,12 @@ export async function getGraphModelStatusForGraph(graph) {
   };
 }
 
-export async function loadBrowseChronologyEntriesForGraph(graph) {
-  return listChronologyEntries(graph);
+export async function loadBrowseChronologyEntriesForRead(read) {
+  return listChronologyEntries(read);
 }
 
-export async function prepareBrowseBootstrapForGraph(graph) {
-  const latestCaptureId = await getLatestCaptureId(graph);
+export async function prepareBrowseBootstrapForRead(read) {
+  const latestCaptureId = await getLatestCaptureId(read);
   if (!latestCaptureId) {
     return {
       ok: false,
@@ -524,7 +541,7 @@ export async function prepareBrowseBootstrapForGraph(graph) {
     };
   }
 
-  const window = await buildBrowseWindow(graph, latestCaptureId);
+  const window = await buildBrowseWindow(read, latestCaptureId);
   if (!window) {
     return {
       ok: false,
@@ -544,24 +561,24 @@ export async function prepareBrowseBootstrapForGraph(graph) {
   };
 }
 
-export async function getBrowseWindowForGraph(graph, entryId) {
-  return buildBrowseWindow(graph, entryId);
+export async function getBrowseWindowForRead(read, entryId) {
+  return buildBrowseWindow(read, entryId);
 }
 
-export async function inspectRawEntryForGraph(graph, entryId) {
-  let entry = await getStoredEntry(graph, entryId);
+export async function inspectRawEntryForRead(read, entryId) {
+  let entry = await getStoredEntry(read, entryId);
 
   if (!entry || entry.kind !== 'capture') {
     return null;
   }
 
-  await ensureFirstDerivedArtifacts(graph, entry);
-  entry = await getStoredEntry(graph, entryId);
+  await ensureFirstDerivedArtifacts(read.app, read, entry);
+  entry = await getStoredEntry(read, entryId);
 
-  const canonicalThought = await getCanonicalThought(graph, entry);
-  const seedQuality = await getSeedQualityReceipt(graph, entry);
-  const sessionAttribution = await getSessionAttributionReceipt(graph, entry);
-  const derivedReceipts = await listDirectDerivedReceipts(graph, entryId);
+  const canonicalThought = await getCanonicalThought(read, entry);
+  const seedQuality = await getSeedQualityReceipt(read, entry);
+  const sessionAttribution = await getSessionAttributionReceipt(read, entry);
+  const derivedReceipts = await listDirectDerivedReceipts(read, entryId);
 
   return {
     entryId: entry.id,
@@ -596,54 +613,71 @@ export function assessReflectability(text) {
   };
 }
 
-async function openGraph(repoDir) {
+async function openWarpApp(repoDir) {
   const plumbing = Plumbing.createDefault({ cwd: repoDir });
   const persistence = new GitGraphAdapter({ plumbing });
 
-  const app = await WarpApp.open({
+  return WarpApp.open({
     persistence,
     graphName: GRAPH_NAME,
     writerId: createWriterId(),
     checkpointPolicy: CHECKPOINT_POLICY,
   });
-
-  return app.core();
 }
 
-async function getStoredEntry(graph, nodeId) {
-  const props = await graph.getNodeProps(nodeId);
-  if (!props) {
+async function createProductReadHandle(app) {
+  const worldline = app.worldline();
+  const view = await worldline.observer('think-product', PRODUCT_READ_LENS);
+
+  return {
+    app,
+    worldline,
+    view,
+    contentCore: app.core(),
+    writerId: app.writerId,
+  };
+}
+
+async function getStoredEntry(read, nodeId, props = null) {
+  const resolvedProps = props ?? await read.view.getNodeProps(nodeId);
+  if (!resolvedProps) {
     return null;
   }
 
+  const kind = resolvedProps.kind;
+
   return {
     id: nodeId,
-    kind: props.kind,
-    source: props.source,
-    channel: props.channel,
-    writerId: props.writerId,
-    createdAt: props.createdAt,
-    sortKey: String(props.sortKey || ''),
-    thoughtId: props.thoughtId ?? null,
-    seedEntryId: props.seedEntryId ?? null,
-    contrastEntryId: props.contrastEntryId ?? null,
-    sessionId: props.sessionId ?? null,
-    promptType: props.promptType ?? null,
-    question: props.question ?? null,
-    ambientCwd: props.ambientCwd ?? null,
-    ambientGitRoot: props.ambientGitRoot ?? null,
-    ambientGitRemote: props.ambientGitRemote ?? null,
-    ambientGitBranch: props.ambientGitBranch ?? null,
-    selectionReason: props.selectionReasonKind
+    kind,
+    source: resolvedProps.source,
+    channel: resolvedProps.channel,
+    writerId: resolvedProps.writerId,
+    createdAt: resolvedProps.createdAt,
+    sortKey: String(resolvedProps.sortKey || ''),
+    thoughtId: resolvedProps.thoughtId ?? null,
+    seedEntryId: resolvedProps.seedEntryId ?? null,
+    contrastEntryId: resolvedProps.contrastEntryId ?? null,
+    sessionId: resolvedProps.sessionId ?? null,
+    promptType: resolvedProps.promptType ?? null,
+    question: resolvedProps.question ?? null,
+    ambientCwd: resolvedProps.ambientCwd ?? null,
+    ambientGitRoot: resolvedProps.ambientGitRoot ?? null,
+    ambientGitRemote: resolvedProps.ambientGitRemote ?? null,
+    ambientGitBranch: resolvedProps.ambientGitBranch ?? null,
+    selectionReason: resolvedProps.selectionReasonKind
       ? {
-          kind: props.selectionReasonKind,
-          text: props.selectionReasonText ?? '',
+          kind: resolvedProps.selectionReasonKind,
+          text: resolvedProps.selectionReasonText ?? '',
         }
       : null,
-    stepCount: Number(props.stepCount ?? 0),
-    maxSteps: Number(props.maxSteps ?? 0),
-    text: await readNodeText(graph, nodeId),
+    stepCount: Number(resolvedProps.stepCount ?? 0),
+    maxSteps: Number(resolvedProps.maxSteps ?? 0),
+    text: storesTextContent(kind) ? await readNodeText(read, nodeId) : '',
   };
+}
+
+function storesTextContent(kind) {
+  return kind === 'capture' || kind === 'reflect' || kind === 'thought';
 }
 
 async function toBrowseEntry(entry) {
@@ -660,8 +694,8 @@ async function toBrowseEntry(entry) {
   };
 }
 
-async function getReflectSession(graph, sessionId) {
-  const session = await getStoredEntry(graph, sessionId);
+async function getReflectSession(read, sessionId) {
+  const session = await getStoredEntry(read, sessionId);
   if (!session || (session.kind !== 'reflect_session' && session.kind !== 'brainstorm_session')) {
     return null;
   }
@@ -669,34 +703,49 @@ async function getReflectSession(graph, sessionId) {
   return session;
 }
 
-async function listEntriesByKind(graph, kind) {
-  const nodeIds = await graph.getNodes();
+async function listEntriesByKind(read, kind) {
+  const result = await read.view.query()
+    .match(getMatchPatternsForKind(kind))
+    .where({ kind })
+    .run();
+
   const entries = [];
-
-  for (const nodeId of nodeIds) {
-    if (
-      !nodeId.startsWith(ENTRY_PREFIX)
-      && !nodeId.startsWith(REFLECT_SESSION_PREFIX)
-      && !nodeId.startsWith(LEGACY_BRAINSTORM_SESSION_PREFIX)
-    ) {
-      continue;
+  for (const node of result.nodes ?? []) {
+    const entry = await getStoredEntry(read, node.id, node.props ?? null);
+    if (entry) {
+      entries.push(entry);
     }
-
-    const entry = await getStoredEntry(graph, nodeId);
-    if (!entry || entry.kind !== kind) {
-      continue;
-    }
-
-    entries.push(entry);
   }
 
   return entries;
 }
 
-async function listChronologyEntries(graph) {
-  const latestCaptureId = await getLatestCaptureId(graph);
+function getMatchPatternsForKind(kind) {
+  if (kind === 'capture' || kind === 'reflect') {
+    return `${ENTRY_PREFIX}*`;
+  }
+  if (kind === 'reflect_session' || kind === 'brainstorm_session') {
+    return [`${REFLECT_SESSION_PREFIX}*`, `${LEGACY_BRAINSTORM_SESSION_PREFIX}*`];
+  }
+  if (kind === 'session') {
+    return `${SESSION_PREFIX}*`;
+  }
+  if (kind === 'seed_quality' || kind === 'session_attribution') {
+    return `${ARTIFACT_PREFIX}*`;
+  }
+  if (kind === 'thought') {
+    return `${THOUGHT_PREFIX}*`;
+  }
+  if (kind === 'graph_meta') {
+    return GRAPH_META_ID;
+  }
+  return PRODUCT_READ_LENS.match;
+}
+
+async function listChronologyEntries(read) {
+  const latestCaptureId = await getLatestCaptureId(read);
   if (!latestCaptureId) {
-    const captures = await listEntriesByKind(graph, 'capture');
+    const captures = await listEntriesByKind(read, 'capture');
     return captures
       .map((entry) => ({
         id: entry.id,
@@ -708,39 +757,37 @@ async function listChronologyEntries(graph) {
       .sort(compareEntriesNewestFirst);
   }
 
+  const chronologyIds = await read.view.traverse.bfs(latestCaptureId, {
+    dir: 'out',
+    labelFilter: 'older',
+  });
   const entries = [];
-  const visited = new Set();
-  let currentId = latestCaptureId;
-
-  while (currentId && !visited.has(currentId)) {
-    visited.add(currentId);
-    const entry = await getStoredEntry(graph, currentId);
+  for (const currentId of chronologyIds) {
+    const entry = await getStoredEntry(read, currentId);
     if (!entry || entry.kind !== 'capture') {
-      break;
+      continue;
     }
 
     entries.push(await toBrowseEntry(entry));
-    const olderNeighbors = await graph.neighbors(currentId, 'outgoing', 'older');
-    currentId = olderNeighbors[0]?.nodeId ?? null;
   }
 
   return entries;
 }
 
-async function buildBrowseWindow(graph, entryId) {
-  const currentEntry = await getStoredEntry(graph, entryId);
+async function buildBrowseWindow(read, entryId) {
+  const currentEntry = await getStoredEntry(read, entryId);
 
   if (!currentEntry || currentEntry.kind !== 'capture') {
     return null;
   }
 
   const current = await toBrowseEntry(currentEntry);
-  const olderNeighbor = await graph.neighbors(entryId, 'outgoing', 'older');
-  const newerNeighbor = await graph.neighbors(entryId, 'incoming', 'older');
-  const older = olderNeighbor[0] ? await toBrowseEntry(await getStoredEntry(graph, olderNeighbor[0].nodeId)) : null;
-  const newer = newerNeighbor[0] ? await toBrowseEntry(await getStoredEntry(graph, newerNeighbor[0].nodeId)) : null;
-  const sessionAttribution = await getSessionAttributionReceiptIfPresent(graph, currentEntry);
-  const sessionTraversal = await resolveGraphSessionTraversal(graph, current);
+  const olderEntryId = await getSingleNeighborId(read, entryId, 'outgoing', 'older');
+  const newerEntryId = await getSingleNeighborId(read, entryId, 'incoming', 'older');
+  const older = olderEntryId ? await toBrowseEntry(await getStoredEntry(read, olderEntryId)) : null;
+  const newer = newerEntryId ? await toBrowseEntry(await getStoredEntry(read, newerEntryId)) : null;
+  const sessionAttribution = await getSessionAttributionReceiptIfPresent(read, currentEntry);
+  const sessionTraversal = await resolveGraphSessionTraversal(read, current);
 
   return {
     current,
@@ -780,13 +827,16 @@ async function buildBrowseWindow(graph, entryId) {
   };
 }
 
-async function listDirectDerivedReceipts(graph, seedEntryId) {
+async function listDirectDerivedReceipts(read, seedEntryId) {
   const receipts = [];
   const seenEntryIds = new Set();
-  const graphNativeNeighbors = await graph.neighbors(seedEntryId, 'incoming', 'responds_to');
+  const graphNativeNeighbors = await read.view.query()
+    .match(seedEntryId)
+    .incoming('responds_to')
+    .run();
 
-  for (const neighbor of graphNativeNeighbors) {
-    const entry = await getStoredEntry(graph, neighbor.nodeId);
+  for (const neighbor of graphNativeNeighbors.nodes ?? []) {
+    const entry = await getStoredEntry(read, neighbor.id, neighbor.props ?? null);
     if (!entry || entry.kind !== 'reflect' || seenEntryIds.has(entry.id)) {
       continue;
     }
@@ -796,14 +846,14 @@ async function listDirectDerivedReceipts(graph, seedEntryId) {
       relation: 'seed_of',
       kind: entry.kind,
       entryId: entry.id,
-      sessionId: await getProducedInSessionId(graph, entry),
+      sessionId: await getProducedInSessionId(read, entry),
       promptType: entry.promptType,
       createdAt: entry.createdAt,
       sortKey: entry.sortKey,
     });
   }
 
-  const reflectEntries = await listEntriesByKind(graph, 'reflect');
+  const reflectEntries = await listEntriesByKind(read, 'reflect');
   for (const entry of reflectEntries) {
     if (entry.seedEntryId !== seedEntryId || seenEntryIds.has(entry.id)) {
       continue;
@@ -825,8 +875,16 @@ async function listDirectDerivedReceipts(graph, seedEntryId) {
     .map(({ sortKey, ...receipt }) => receipt);
 }
 
-async function readNodeText(graph, nodeId) {
-  const content = await graph.getContent(nodeId);
+async function getSingleNeighborId(read, nodeId, direction, label) {
+  const query = read.view.query().match(nodeId);
+  const result = direction === 'incoming'
+    ? await query.incoming(label).run()
+    : await query.outgoing(label).run();
+  return result.nodes?.[0]?.id ?? null;
+}
+
+async function readNodeText(read, nodeId) {
+  const content = await read.contentCore.getContent(nodeId);
   return content ? new TextDecoder().decode(content) : '';
 }
 
@@ -877,14 +935,14 @@ function createReflectSession(writerId, {
   };
 }
 
-async function ensureFirstDerivedArtifacts(graph, entry) {
+async function ensureFirstDerivedArtifacts(app, read, entry) {
   if (!entry || entry.kind !== 'capture') {
     return null;
   }
 
   const thoughtId = createThoughtId(entry.text);
   const seedQuality = deriveSeedQuality(thoughtId, entry.text);
-  const sessionAttribution = await deriveSessionAttribution(graph, entry);
+  const sessionAttribution = await deriveSessionAttribution(read, entry);
 
   const [
     thoughtNodeExists,
@@ -894,12 +952,12 @@ async function ensureFirstDerivedArtifacts(graph, entry) {
     entryProps,
     graphMetaProps,
   ] = await Promise.all([
-    hasNode(graph, thoughtId),
-    hasNode(graph, seedQuality.artifactId),
-    hasNode(graph, sessionAttribution.sessionId),
-    hasNode(graph, sessionAttribution.artifactId),
-    graph.getNodeProps(entry.id),
-    graph.getNodeProps(GRAPH_META_ID),
+    hasNode(read, thoughtId),
+    hasNode(read, seedQuality.artifactId),
+    hasNode(read, sessionAttribution.sessionId),
+    hasNode(read, sessionAttribution.artifactId),
+    read.view.getNodeProps(entry.id),
+    read.view.getNodeProps(GRAPH_META_ID),
   ]);
 
   const needsCaptureThoughtLink = entryProps?.thoughtId !== thoughtId;
@@ -922,7 +980,7 @@ async function ensureFirstDerivedArtifacts(graph, entry) {
     };
   }
 
-  await graph.patch(async (patch) => {
+  await app.patch(async (patch) => {
     ensureGraphMetadataNode(patch, graphMetaProps);
 
     if (!thoughtNodeExists) {
@@ -971,28 +1029,30 @@ async function ensureFirstDerivedArtifacts(graph, entry) {
   };
 }
 
-async function ensureCaptureReadEdges(graph, entryId) {
-  const entry = await getStoredEntry(graph, entryId);
+async function ensureCaptureReadEdges(app, read, entryId) {
+  const entry = await getStoredEntry(read, entryId);
   if (!entry || entry.kind !== 'capture') {
     return;
   }
 
-  const latestCaptureId = await getLatestCaptureId(graph);
+  const latestCaptureId = await getLatestCaptureId(read);
   if (latestCaptureId === entry.id) {
     return;
   }
 
-  const latestEntry = latestCaptureId ? await getStoredEntry(graph, latestCaptureId) : null;
+  const latestEntry = latestCaptureId ? await getStoredEntry(read, latestCaptureId) : null;
   if (latestEntry && compareEntriesNewestFirst(entry, latestEntry) >= 0) {
     return;
   }
 
-  const latestCaptureEdges = (await graph.getEdges())
-    .filter((edge) => edge.from === GRAPH_META_ID && edge.label === 'latest_capture');
+  const latestCaptureNodes = await read.view.query()
+    .match(GRAPH_META_ID)
+    .outgoing('latest_capture')
+    .run();
 
-  await graph.patch((patch) => {
-    for (const edge of latestCaptureEdges) {
-      patch.removeEdge(edge.from, edge.to, edge.label);
+  await app.patch((patch) => {
+    for (const node of latestCaptureNodes.nodes ?? []) {
+      patch.removeEdge(GRAPH_META_ID, node.id, 'latest_capture');
     }
 
     patch.addEdge(GRAPH_META_ID, entry.id, 'latest_capture');
@@ -1116,8 +1176,8 @@ function selectReflectPrompt(seedEntry, requestedPromptType = null) {
   };
 }
 
-async function planReflect(graph, seedEntryId, { promptType = null } = {}) {
-  const seedEntry = await getStoredEntry(graph, seedEntryId);
+async function planReflect(read, seedEntryId, { promptType = null } = {}) {
+  const seedEntry = await getStoredEntry(read, seedEntryId);
 
   if (!seedEntry || seedEntry.kind !== 'capture') {
     return {
@@ -1191,8 +1251,8 @@ function deriveSeedQuality(thoughtId, text) {
   };
 }
 
-async function deriveSessionAttribution(graph, entry) {
-  const captures = await listEntriesByKind(graph, 'capture');
+async function deriveSessionAttribution(read, entry) {
+  const captures = await listEntriesByKind(read, 'capture');
   const ordered = captures
     .filter((candidate) => candidate.id !== entry.id)
     .concat([{ ...entry }])
@@ -1254,9 +1314,9 @@ async function deriveSessionAttribution(graph, entry) {
   };
 }
 
-async function getCanonicalThought(graph, entry) {
+async function getCanonicalThought(read, entry) {
   const thoughtId = entry.thoughtId ?? createThoughtId(entry.text);
-  const thoughtProps = await graph.getNodeProps(thoughtId);
+  const thoughtProps = await read.view.getNodeProps(thoughtId);
 
   return {
     entryId: entry.id,
@@ -1266,10 +1326,10 @@ async function getCanonicalThought(graph, entry) {
   };
 }
 
-async function getSeedQualityReceipt(graph, entry) {
+async function getSeedQualityReceipt(read, entry) {
   const thoughtId = entry.thoughtId ?? createThoughtId(entry.text);
   const artifactId = createArtifactId('seed_quality', thoughtId);
-  const props = await graph.getNodeProps(artifactId);
+  const props = await read.view.getNodeProps(artifactId);
   if (!props) {
     return null;
   }
@@ -1290,12 +1350,12 @@ async function getSeedQualityReceipt(graph, entry) {
   };
 }
 
-async function getSessionAttributionReceipt(graph, entry) {
+async function getSessionAttributionReceipt(read, entry) {
   const thoughtId = entry.sessionId ?? null;
   const artifactId = thoughtId
     ? createArtifactId('session_attribution', entry.id, thoughtId)
-    : (await deriveSessionAttribution(graph, entry)).artifactId;
-  const props = await graph.getNodeProps(artifactId);
+    : (await deriveSessionAttribution(read, entry)).artifactId;
+  const props = await read.view.getNodeProps(artifactId);
   if (!props) {
     return null;
   }
@@ -1315,13 +1375,13 @@ async function getSessionAttributionReceipt(graph, entry) {
   };
 }
 
-async function getSessionAttributionReceiptIfPresent(graph, entry) {
+async function getSessionAttributionReceiptIfPresent(read, entry) {
   if (!entry.sessionId) {
     return null;
   }
 
   const artifactId = createArtifactId('session_attribution', entry.id, entry.sessionId);
-  const props = await graph.getNodeProps(artifactId);
+  const props = await read.view.getNodeProps(artifactId);
   if (!props) {
     return null;
   }
@@ -1341,21 +1401,27 @@ async function getSessionAttributionReceiptIfPresent(graph, entry) {
   };
 }
 
-async function getLatestCaptureId(graph) {
-  const neighbors = await graph.neighbors(GRAPH_META_ID, 'outgoing', 'latest_capture');
-  return neighbors[0]?.nodeId ?? null;
+async function getLatestCaptureId(read) {
+  const result = await read.view.query()
+    .match(GRAPH_META_ID)
+    .outgoing('latest_capture')
+    .run();
+  return result.nodes?.[0]?.id ?? null;
 }
 
-async function getProducedInSessionId(graph, entry) {
-  const neighbors = await graph.neighbors(entry.id, 'outgoing', 'produced_in');
-  return neighbors[0]?.nodeId ?? entry.sessionId ?? null;
+async function getProducedInSessionId(read, entry) {
+  const result = await read.view.query()
+    .match(entry.id)
+    .outgoing('produced_in')
+    .run();
+  return result.nodes?.[0]?.id ?? entry.sessionId ?? null;
 }
 
-async function hasNode(graph, nodeId) {
-  return Boolean(await graph.getNodeProps(nodeId));
+async function hasNode(read, nodeId) {
+  return read.view.hasNode(nodeId);
 }
 
-async function resolveGraphSessionTraversal(graph, entry) {
+async function resolveGraphSessionTraversal(read, entry) {
   if (!entry?.sessionId) {
     return {
       entries: [],
@@ -1366,11 +1432,14 @@ async function resolveGraphSessionTraversal(graph, entry) {
     };
   }
 
-  const neighbors = await graph.neighbors(entry.sessionId, 'incoming', 'captured_in');
+  const neighbors = await read.view.query()
+    .match(entry.sessionId)
+    .incoming('captured_in')
+    .run();
   const sessionEntries = [];
 
-  for (const neighbor of neighbors) {
-    const capture = await getStoredEntry(graph, neighbor.nodeId);
+  for (const neighbor of neighbors.nodes ?? []) {
+    const capture = await getStoredEntry(read, neighbor.id, neighbor.props ?? null);
     if (!capture || capture.kind !== 'capture') {
       continue;
     }

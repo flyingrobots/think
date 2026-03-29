@@ -190,11 +190,9 @@ async function openGraph(repoDir) {
   const plumbing = Plumbing.createDefault({ cwd: repoDir });
   const persistence = new GitGraphAdapter({ plumbing });
 
-  const app = await WarpApp.open({
+  return WarpApp.open({
     persistence,
     graphName: GRAPH_NAME,
     writerId: 'benchmark-fixture',
   });
-
-  return app.core();
 }

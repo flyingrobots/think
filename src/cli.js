@@ -9,19 +9,19 @@ import {
   finalizeCapturedThought,
   GRAPH_NAME,
   getGraphModelStatus,
-  getGraphModelStatusForGraph,
+  getGraphModelStatusForRead,
   getBrowseWindow,
-  getBrowseWindowForGraph,
+  getBrowseWindowForRead,
   inspectRawEntry,
-  inspectRawEntryForGraph,
+  inspectRawEntryForRead,
   listReflectableRecent,
   listRecent,
   loadBrowseChronologyEntries,
-  loadBrowseChronologyEntriesForGraph,
+  loadBrowseChronologyEntriesForRead,
   migrateGraphModel,
-  openGraphCore,
+  openProductReadHandle,
   prepareBrowseBootstrap,
-  prepareBrowseBootstrapForGraph,
+  prepareBrowseBootstrapForRead,
   rememberThoughts,
   saveRawCapture,
   previewReflect,
@@ -758,8 +758,8 @@ async function runInteractiveBrowseShell(output, reporter) {
     return 1;
   }
 
-  const graph = await openGraphCore(repoDir);
-  const graphStatus = await getGraphModelStatusForGraph(graph);
+  const read = await openProductReadHandle(repoDir);
+  const graphStatus = await getGraphModelStatusForRead(read);
 
   if (!await ensureGraphModelReadyFromStatus(repoDir, 'browse', graphStatus, output, reporter)) {
     return 1;
@@ -768,7 +768,7 @@ async function runInteractiveBrowseShell(output, reporter) {
   const scripted = getBrowseTestScript();
 
   if (scripted) {
-    const entries = await loadBrowseChronologyEntriesForGraph(graph);
+    const entries = await loadBrowseChronologyEntriesForRead(read);
     if (entries.length === 0) {
       output.error('No raw captures available to browse', 'browse.entry_not_found');
       return 1;
@@ -780,7 +780,7 @@ async function runInteractiveBrowseShell(output, reporter) {
 
     const inspectById = new Map();
     for (const entry of entries) {
-      inspectById.set(entry.id, await inspectRawEntryForGraph(graph, entry.id));
+      inspectById.set(entry.id, await inspectRawEntryForRead(read, entry.id));
     }
 
     const result = await runBrowseTuiScript({
@@ -822,7 +822,7 @@ async function runInteractiveBrowseShell(output, reporter) {
         }
         return saved;
       },
-      loadInspectEntry: (entryId) => inspectRawEntryForGraph(graph, entryId),
+      loadInspectEntry: (entryId) => inspectRawEntryForRead(read, entryId),
     });
 
     output.out(result.output);
@@ -831,7 +831,7 @@ async function runInteractiveBrowseShell(output, reporter) {
     return 0;
   }
 
-  const bootstrap = await prepareBrowseBootstrapForGraph(graph);
+  const bootstrap = await prepareBrowseBootstrapForRead(read);
   if (!bootstrap.ok) {
     output.error('No raw captures available to browse', 'browse.entry_not_found');
     return 1;
@@ -843,9 +843,9 @@ async function runInteractiveBrowseShell(output, reporter) {
 
   const effect = await runBrowseTui({
     bootstrap,
-    loadBrowseWindow: (entryId) => getBrowseWindowForGraph(graph, entryId),
-    loadChronologyEntries: () => loadBrowseChronologyEntriesForGraph(graph),
-    loadInspectEntry: (entryId) => inspectRawEntryForGraph(graph, entryId),
+    loadBrowseWindow: (entryId) => getBrowseWindowForRead(read, entryId),
+    loadChronologyEntries: () => loadBrowseChronologyEntriesForRead(read),
+    loadInspectEntry: (entryId) => inspectRawEntryForRead(read, entryId),
     previewReflectEntry: (entryId, promptType) => previewReflect(repoDir, entryId, { promptType }),
     startReflectSession: async (entryId, promptType) => {
       const session = await startReflect(repoDir, entryId, { promptType });
