@@ -1,6 +1,6 @@
 # 0026 M4 Session Presentation Polish
 
-Status: approved for the next M4 browse-polish slice
+Status: implemented and closed
 
 ## Sponsor
 
@@ -243,11 +243,35 @@ Agent stakeholder:
 - did any human-facing presentation gain create hidden or exclusive semantics?
 - are full identities and session facts still available without scraping the TUI?
 
+## Outcome
+
+Human playback result:
+
+- pass
+
+Agent playback result:
+
+- pass
+
+Delivered implementation:
+
+- browse now uses short visible entry ids in the reader-first shell while `inspect` keeps full exact ids
+- the session drawer now exposes a visible `Started:` label
+- the session drawer now includes the current thought instead of hiding it from the session view
+- the session drawer now uses explicit structural labels:
+  - `Current:`
+  - `Start:`
+  - `Earlier:`
+  - `Later:`
+- no JSON browse semantics changed; the slice remained presentation-focused
+
 ## Recommended Next Step
 
-After this design note:
+This slice is complete.
 
-1. write failing specs for session drawer structure, short visible ids, and any necessary parity requirements
-2. implement the narrow browse-presentation improvements
-3. run dual playback with explicit attention to legibility and design drift
-4. keep richer session summaries and per-session stats deferred until later playback earns them
+Future follow-through should stay deferred until later playback clearly earns it:
+
+- richer session summaries
+- per-session stats
+- context-switch count
+- broader timeline or dashboard presentation
