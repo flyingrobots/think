@@ -738,6 +738,52 @@ test('think --browse surfaces session identity for the current thought without r
   );
 });
 
+test('think --browse uses a short visible entry id in the reader-first metadata while inspect keeps the full exact id', async () => {
+  const context = await createThinkContext();
+  const olderThought = 'older thought about calmer browse metadata';
+  const currentThought = 'current thought about short visible ids in browse';
+  const newerThought = 'newer thought about inspect keeping exact ids';
+
+  captureWithEntryId(context, olderThought);
+  const { entryId: currentEntryId } = captureWithEntryId(context, currentThought);
+  captureWithEntryId(context, newerThought);
+
+  const browse = runThink(
+    context,
+    ['--browse'],
+    {
+      THINK_TEST_INTERACTIVE: '1',
+      THINK_TEST_BROWSE_SCRIPT: JSON.stringify({
+        seedEntryId: currentEntryId,
+        actions: ['quit'],
+      }),
+    }
+  );
+
+  assertSuccess(browse, 'Expected browse to succeed for short-id presentation playback.');
+  const frame = finalFrame(browse);
+  const shortEntryId = shortVisibleId(currentEntryId);
+
+  assertContains(
+    { ...browse, stdout: frame, stderr: '' },
+    `Entry ID: ${shortEntryId}`,
+    'Expected browse metadata to shorten the visible entry id instead of always showing the full exact id.'
+  );
+  assertNotContains(
+    { ...browse, stdout: frame, stderr: '' },
+    `Entry ID: ${currentEntryId}`,
+    'Expected browse metadata not to default to the full exact entry id once short visible ids are implemented.'
+  );
+
+  const inspect = runThink(context, [`--inspect=${currentEntryId}`]);
+  assertSuccess(inspect, 'Expected standalone inspect to keep working after browse short-id presentation.');
+  assertContains(
+    inspect,
+    `Entry ID: ${currentEntryId}`,
+    'Expected inspect to preserve the full exact entry id even when browse uses a shortened visible form.'
+  );
+});
+
 test('think --browse can reveal a summon-only session drawer that excludes out-of-session thoughts', async () => {
   const context = await createThinkContext();
   const base = Date.UTC(2026, 2, 25, 10, 0, 0);
@@ -779,6 +825,94 @@ test('think --browse can reveal a summon-only session drawer that excludes out-o
     browse,
     'session two newer thought',
     'Expected the session drawer to exclude thoughts from different sessions.'
+  );
+});
+
+test('think --browse reveals a structured session drawer with a visible start label and current-thought marker', async () => {
+  const context = await createThinkContext();
+  const base = Date.UTC(2026, 2, 25, 10, 0, 0);
+
+  const { entryId: olderEntryId } = captureWithEntryId(
+    context,
+    'session one older thought',
+    { THINK_TEST_NOW: String(base) }
+  );
+  const { entryId: currentEntryId } = captureWithEntryId(
+    context,
+    'session one current thought',
+    { THINK_TEST_NOW: String(base + 60_000) }
+  );
+  const { entryId: newerEntryId } = captureWithEntryId(
+    context,
+    'session one newer thought',
+    { THINK_TEST_NOW: String(base + 120_000) }
+  );
+  captureWithEntryId(context, 'session two newer thought', { THINK_TEST_NOW: String(base + 600_000) });
+
+  const browse = runThink(
+    context,
+    ['--browse'],
+    {
+      THINK_TEST_INTERACTIVE: '1',
+      THINK_TEST_BROWSE_SCRIPT: JSON.stringify({
+        seedEntryId: currentEntryId,
+        actions: ['session', 'quit'],
+      }),
+    }
+  );
+
+  assertSuccess(browse, 'Expected scripted browse session drawer polish flow to succeed.');
+  const frame = finalFrame(browse);
+
+  assertContains(
+    { ...browse, stdout: frame, stderr: '' },
+    'SESSION',
+    'Expected the session drawer to remain explicitly labeled.'
+  );
+  assertContains(
+    { ...browse, stdout: frame, stderr: '' },
+    'Started:',
+    'Expected the session drawer to expose a visible session start label instead of forcing the user to infer timing from flat entry rows.'
+  );
+  assertContains(
+    { ...browse, stdout: frame, stderr: '' },
+    'Current:',
+    'Expected the structured session drawer to mark the current thought explicitly rather than excluding it from the session view.'
+  );
+  assertContains(
+    { ...browse, stdout: frame, stderr: '' },
+    shortVisibleId(olderEntryId),
+    'Expected the structured session drawer to use shortened visible ids for same-session entries.'
+  );
+  assertContains(
+    { ...browse, stdout: frame, stderr: '' },
+    shortVisibleId(currentEntryId),
+    'Expected the structured session drawer to keep the current thought visible inside the structured session view.'
+  );
+  assertContains(
+    { ...browse, stdout: frame, stderr: '' },
+    shortVisibleId(newerEntryId),
+    'Expected the structured session drawer to keep newer same-session entries visible inside the structured session view.'
+  );
+  assertNotContains(
+    { ...browse, stdout: frame, stderr: '' },
+    olderEntryId,
+    'Expected the structured session drawer not to default to the full exact older entry id.'
+  );
+  assertNotContains(
+    { ...browse, stdout: frame, stderr: '' },
+    currentEntryId,
+    'Expected the structured session drawer not to default to the full exact current entry id.'
+  );
+  assertNotContains(
+    { ...browse, stdout: frame, stderr: '' },
+    newerEntryId,
+    'Expected the structured session drawer not to default to the full exact newer entry id.'
+  );
+  assertNotContains(
+    { ...browse, stdout: frame, stderr: '' },
+    'session two newer thought',
+    'Expected the structured session drawer to continue excluding out-of-session thoughts.'
   );
 });
 
@@ -1336,4 +1470,8 @@ function assertJsonStreams(result) {
 function finalFrame(result) {
   const frames = combinedOutput(result).split('\n\n-----\n\n');
   return frames.at(-1) ?? '';
+}
+
+function shortVisibleId(entryId) {
+  return String(entryId).slice(0, 12);
 }
