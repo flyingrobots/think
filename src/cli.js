@@ -25,6 +25,7 @@ import {
   rememberThoughts,
   saveRawCapture,
   previewReflect,
+  getPromptMetrics,
   getStats,
   startReflect,
   saveReflectResponse,
@@ -73,6 +74,8 @@ export async function main(argv, { stdout, stderr }) {
       exitCode = await runMigrateGraph(output, reporter);
     } else if (command === 'stats') {
       exitCode = await runStats(output, reporter, options);
+    } else if (command === 'prompt_metrics') {
+      exitCode = await runPromptMetrics(output, reporter, options);
     } else if (command === 'reflect_start') {
       exitCode = await runReflectStart(options.reflect, output, reporter, {
         reflectMode: options.reflectMode,
@@ -130,6 +133,71 @@ async function runStats(output, reporter, options) {
     }
   }
 
+  return 0;
+}
+
+async function runPromptMetrics(output, reporter, options) {
+  reporter.event('prompt_metrics.start', { options });
+
+  const promptMetrics = await getPromptMetrics(options);
+  reporter.event('prompt_metrics.done', { sessions: promptMetrics.summary.sessions });
+
+  if (output.json) {
+    output.data('prompt_metrics.summary', promptMetrics.summary);
+    for (const [index, timing] of promptMetrics.timings.entries()) {
+      output.data('prompt_metrics.timing', {
+        ...timing,
+        index,
+      });
+    }
+    if (promptMetrics.buckets) {
+      for (const [index, bucket] of promptMetrics.buckets.entries()) {
+        output.data('prompt_metrics.bucket', {
+          ...bucket,
+          index,
+        });
+      }
+    }
+    return 0;
+  }
+
+  const lines = ['Prompt metrics'];
+
+  if (promptMetrics.summary.sessions === 0) {
+    lines.push('No prompt metrics recorded.');
+    output.out(lines.join('\n'));
+    return 0;
+  }
+
+  lines.push(`Sessions: ${promptMetrics.summary.sessions}`);
+  lines.push(`Submitted: ${promptMetrics.summary.submitted}`);
+  lines.push(`Abandoned empty: ${promptMetrics.summary.abandonedEmpty}`);
+  lines.push(`Abandoned started: ${promptMetrics.summary.abandonedStarted}`);
+  lines.push(`Hotkey: ${promptMetrics.summary.hotkey}`);
+  lines.push(`Menu: ${promptMetrics.summary.menu}`);
+
+  const timingLabels = new Map([
+    ['trigger_to_visible_ms', 'Trigger to visible'],
+    ['typing_duration_ms', 'Typing duration'],
+    ['submit_to_hide_ms', 'Submit to hide'],
+    ['submit_to_local_capture_ms', 'Submit to local save'],
+  ]);
+
+  for (const timing of promptMetrics.timings) {
+    if (timing.medianMs == null) {
+      continue;
+    }
+    lines.push(`${timingLabels.get(timing.metric)} (median): ${timing.medianMs} ms`);
+  }
+
+  if (promptMetrics.buckets) {
+    for (const bucket of promptMetrics.buckets) {
+      const abandoned = bucket.abandonedEmpty + bucket.abandonedStarted;
+      lines.push(`${bucket.key}: sessions ${bucket.sessions}, submitted ${bucket.submitted}, abandoned ${abandoned}`);
+    }
+  }
+
+  output.out(lines.join('\n'));
   return 0;
 }
 
@@ -1009,6 +1077,7 @@ function parseArgs(args) {
     verbose: false,
     json: false,
     stats: false,
+    promptMetrics: false,
     recent: false,
     remember: false,
     reflectFlag: false,
@@ -1046,6 +1115,8 @@ function parseArgs(args) {
         options.json = true;
       } else if (arg === '--stats') {
         options.stats = true;
+      } else if (arg === '--prompt-metrics') {
+        options.promptMetrics = true;
       } else if (arg === '--recent') {
         options.recent = true;
       } else if (arg === '--remember') {
@@ -1147,6 +1218,9 @@ function resolveCommand(options) {
   if (options.stats) {
     return 'stats';
   }
+  if (options.promptMetrics) {
+    return 'prompt_metrics';
+  }
   if (options.recent) {
     return 'recent';
   }
@@ -1158,11 +1232,12 @@ function validateOptions(options, command) {
     return options.optionError;
   }
 
-  const hasStatsFilter = Boolean(options.from || options.to || options.since || options.bucket);
+  const hasTimeFilters = Boolean(options.from || options.to || options.since || options.bucket);
   const hasRememberEnhancement = options.rememberLimit !== null || options.rememberBrief;
   const explicitCommands = [
     options.recent,
     options.remember,
+    options.promptMetrics,
     options.browseFlag,
     options.inspectFlag,
     options.migrateGraph,
@@ -1207,8 +1282,8 @@ function validateOptions(options, command) {
     return '--limit and --brief require --remember';
   }
 
-  if (command === 'remember' && hasStatsFilter) {
-    return '--from, --to, --since, and --bucket require --stats';
+  if (command === 'remember' && hasTimeFilters) {
+    return '--from, --to, --since, and --bucket require --stats or --prompt-metrics';
   }
 
   if (command === 'browse') {
@@ -1233,13 +1308,17 @@ function validateOptions(options, command) {
     if (options.positionals.length > 0) {
       return '--migrate-graph does not take a thought';
     }
-    if (hasStatsFilter || hasRecentFilter || options.reflectMode) {
+    if (hasTimeFilters || hasRecentFilter || options.reflectMode) {
       return '--migrate-graph cannot be combined with other command options';
     }
   }
 
   if (command === 'stats' && options.positionals.length > 0) {
     return '--stats does not take a thought';
+  }
+
+  if (command === 'prompt_metrics' && options.positionals.length > 0) {
+    return '--prompt-metrics does not take a thought';
   }
 
   if (command === 'reflect_start') {
@@ -1267,11 +1346,11 @@ function validateOptions(options, command) {
     return '--mode requires --reflect';
   }
 
-  if (command !== 'stats' && hasStatsFilter) {
-    return '--from, --to, --since, and --bucket require --stats';
+  if (command !== 'stats' && command !== 'prompt_metrics' && hasTimeFilters) {
+    return '--from, --to, --since, and --bucket require --stats or --prompt-metrics';
   }
 
-  if (command !== 'stats') {
+  if (command !== 'stats' && command !== 'prompt_metrics') {
     return null;
   }
 

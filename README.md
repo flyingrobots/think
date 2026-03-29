@@ -39,6 +39,8 @@ think --remember --limit=3            # keep recall bounded
 think --remember --brief --limit=5    # triage snippets before deep inspection
 think --stats                         # capture counts
 think --stats --since=7d --bucket=day # activity over the last week by day
+think --prompt-metrics                # prompt UX counts and latency
+think --prompt-metrics --since=7d     # recent prompt telemetry window
 ```
 
 ## Browse
@@ -93,6 +95,7 @@ think --json --recent
 think --json --browse=<entryId>
 think --json --inspect=<entryId>
 think --json --stats --bucket=day
+think --json --prompt-metrics --bucket=day
 think --json --reflect=<entryId>
 ```
 

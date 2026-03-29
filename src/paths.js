@@ -18,6 +18,15 @@ export function getLocalRepoDir() {
   return path.join(getThinkDir(), 'repo');
 }
 
+export function getPromptMetricsFile() {
+  const configuredMetricsFile = (process.env.THINK_PROMPT_METRICS_FILE || '').trim();
+  if (configuredMetricsFile) {
+    return path.resolve(configuredMetricsFile);
+  }
+
+  return path.join(getThinkDir(), 'metrics', 'prompt-ux.jsonl');
+}
+
 export function getUpstreamUrl() {
   return (process.env.THINK_UPSTREAM_URL || '').trim();
 }
