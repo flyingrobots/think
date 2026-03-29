@@ -1,6 +1,6 @@
 # Design Review Package
 
-Status: design approved; `M0`, `M1`, `M2`, and `M3` complete; `M4` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, derivation-catalog, session-context-browse, session-traversal, remember, remember-enhancements, graph-versioning/migration, browse-bootstrap-benchmark, graph-migration-gating, and graph-native-browse-read-refactor designs implemented and under active use
+Status: design approved; `M0`, `M1`, `M2`, and `M3` complete; `M4` implementation in progress; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and `M4` read-mode, Bijou read-shell, first-derived-artifact, derivation-catalog, session-context-browse, session-traversal, remember, remember-enhancements, graph-versioning/migration, browse-bootstrap-benchmark, graph-migration-gating, graph-native-browse-read-refactor, and graph-migration-progress-ux designs implemented or under active review
 
 This directory began as the pre-implementation design package for `think`.
 
@@ -41,6 +41,7 @@ This review is meant to answer five questions:
 - [`0021-graph-migration-gating.md`](./0021-graph-migration-gating.md): technical/product note for when graph migration is required, when it may run automatically, and why capture remains exempt from blocking upgrades.
 - [`0022-graph-native-browse-read-refactor.md`](./0022-graph-native-browse-read-refactor.md): technical/product note for making browse and inspect use graph-native read paths, explicit traversal edges, and the committed browse bootstrap benchmark. This refactor is implemented and closed.
 - [`0023-remember-enhancements.md`](./0023-remember-enhancements.md): dogfooding feedback and enhancement proposals for `--remember` — `--limit`, `--brief`, query composition, session-start hook integration, tier 2 fallback discrimination, and score normalization. Includes comparison to CARL with one borrowed concept adapted to Think's doctrine.
+- [`0024-graph-migration-progress-ux.md`](./0024-graph-migration-progress-ux.md): product note for making the human interactive migration path visibly in progress after the user chooses `Upgrade now`, while keeping agent and non-interactive flows explicit failures.
 - [`ROADMAP.md`](./ROADMAP.md): milestone sequence, hill mapping, exit criteria, and review checkpoints.
 - [`../retrospectives/m1-capture-core-and-upstream-backup.md`](../retrospectives/m1-capture-core-and-upstream-backup.md): closeout for the first implemented milestone and the remaining validation follow-through.
 - [`../retrospectives/m2-macos-capture-surface.md`](../retrospectives/m2-macos-capture-surface.md): closeout for the native menu bar app and hotkey capture surface.
@@ -79,6 +80,7 @@ flowchart TD
     R --> P21["0021 Graph Migration Gating"]
     R --> P22["0022 Graph-Native Browse Read Refactor"]
     R --> P23["0023 Remember Enhancements"]
+    R --> P24["0024 Graph Migration Progress UX"]
     R --> RD["Roadmap and Milestones"]
     R --> BL["Backlog (deferred ideas)"]
     P --> A
@@ -111,6 +113,7 @@ flowchart TD
     P19 --> P22
     P20 --> P22
     P21 --> P22
+    P21 --> P24
     B3 --> G9
     B3 --> P11
     P11 --> P12
@@ -152,6 +155,7 @@ flowchart TD
     P18 --> P23
     P22 --> RD
     P23 --> RD
+    P24 --> RD
 ```
 
 ## Review Standard
