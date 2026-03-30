@@ -44,6 +44,20 @@ These should stay visible without being confused for unfinished milestone work.
 - Reduce the amount of manual repo/bootstrap work needed to get private backup running.
 - Keep this boring and explicit; do not turn it into hosted-service scope creep.
 
+### Remote Relay And Periodic Pull
+
+- Design a distinct future lane for remote ingress rather than sneaking it into local `M5` ingress work.
+- Explore a small standalone relay package that can accept authenticated remote captures and write them into the upstream Git/WARP repo.
+- Support periodic local pull or an explicit sync path so remote captures land back in the local primary repo cleanly.
+- Keep the remote relay brutally narrow:
+  - accept exact raw thought text
+  - attach minimal explicit provenance
+  - write append-only into the upstream repo
+  - push refs upstream
+- Treat auth, replay protection, idempotency, and rate limiting as first-class requirements rather than optional polish.
+- Preserve local-first reading and browsing; the relay should be a bridge, not the new product center.
+- Target eventual phone/on-the-go capture through the relay once the auth and sync model are honest.
+
 ### Tidy Backlog Routing
 
 - Keep follow-through tasks distinct from milestone deliverables so `M4` does not inherit stale `M1`/`M2` wording.
