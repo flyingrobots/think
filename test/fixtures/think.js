@@ -33,6 +33,7 @@ export function runThink(context, args, extraEnv = {}, options = {}) {
   return spawnSync(process.execPath, [cliEntrypoint, ...args], {
     cwd: options.cwd ?? repoRoot,
     encoding: 'utf8',
+    input: options.input,
     env: {
       ...process.env,
       ...baseEnv,
