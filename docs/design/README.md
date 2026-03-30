@@ -1,6 +1,6 @@
 # Design Review Package
 
-Status: design approved; `M0`, `M1`, `M2`, `M3`, and `M4` complete; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and the full M4 read/reentry stack are implemented and under active use; `M5` is now in progress and its first explicit-ingest slice is implemented
+Status: design approved; `M0`, `M1`, `M2`, `M3`, and `M4` complete; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and the full M4 read/reentry stack are implemented and under active use; `M5` is now in progress and its explicit-ingest and URL-capture slices are implemented
 
 This directory began as the pre-implementation design package for `think`.
 
@@ -31,8 +31,9 @@ This review is meant to answer five questions:
 - [`0019-graph-versioning-and-migration.md`](./0019-graph-versioning-and-migration.md): technical correction note for versioning the graph model and migrating from the current property-linked repos to explicit graph-native relationships.
 - [`0021-graph-migration-gating.md`](./0021-graph-migration-gating.md): technical/product note for when graph migration is required, when it may run automatically, and why capture remains exempt from blocking upgrades.
 - [`0022-graph-native-browse-read-refactor.md`](./0022-graph-native-browse-read-refactor.md): technical/product note for making browse and inspect use graph-native read paths, explicit traversal edges, and the committed browse bootstrap benchmark. This refactor is implemented and closed.
-- [`0027-m5-additional-ingress-surfaces.md`](./0027-m5-additional-ingress-surfaces.md): milestone note for extending raw capture into additional human and agent ingress surfaces without changing the sacred capture core. The first explicit-ingest slice is implemented; the next planned slice is Shortcuts / URL-triggered capture.
-- [`0028-m5-shortcuts-url-capture.md`](./0028-m5-shortcuts-url-capture.md): current `M5` slice note for local URL-triggered capture and Apple Shortcuts as a thin human wrapper over the same raw-capture core.
+- [`0027-m5-additional-ingress-surfaces.md`](./0027-m5-additional-ingress-surfaces.md): milestone note for extending raw capture into additional human and agent ingress surfaces without changing the sacred capture core. The explicit-ingest and URL-capture slices are implemented, and the next planned slice is selected-text / share-based capture.
+- [`0028-m5-shortcuts-url-capture.md`](./0028-m5-shortcuts-url-capture.md): implemented `M5` slice note for local URL-triggered capture and Apple Shortcuts as a thin human wrapper over the same raw-capture core.
+- [`0029-m5-selected-text-share-capture.md`](./0029-m5-selected-text-share-capture.md): current `M5` slice note for explicit selected-text and share/send capture on macOS without drifting into clipping or import semantics.
 - [`ROADMAP.md`](./ROADMAP.md): milestone sequence, hill mapping, exit criteria, and review checkpoints.
 
 ## Archived Slice History
