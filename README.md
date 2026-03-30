@@ -28,11 +28,14 @@ The examples below use `think`. If you skip `npm link`, run the same commands as
 
 ```bash
 think "turkey is good in burritos"
+printf 'this came in through stdin\n' | think --ingest
 ```
 
 That's it. The thought is saved locally. If you've configured an upstream, it backs up automatically.
 
 Output is intentionally boring: `Saved locally`, `Backed up`, or `Backup pending`.
+
+`--ingest` is explicit stdin capture. Plain `think` still does not consume piped input accidentally.
 
 ## Read
 
@@ -94,6 +97,7 @@ Every command supports `--json` for JSONL output. Data goes to `stdout`, warning
 
 ```bash
 think --json "capture this"
+printf 'agent stdin capture\n' | think --json --ingest
 think --json --recent
 think --json --browse=<entryId>
 think --json --inspect=<entryId>

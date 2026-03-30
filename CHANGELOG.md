@@ -12,7 +12,8 @@ Release discipline:
 
 ## [Unreleased]
 
-- No unreleased changes yet.
+- added explicit stdin ingest via `think --ingest`, preserving the normal raw-capture contract and JSON envelope
+- canonicalized JSON parsing and JSONL output through a shared deterministic JSON port so key ordering stays stable on read-in and write-out
 
 ## [0.4.0] - 2026-03-29
 

@@ -1,6 +1,6 @@
 # 0027 M5 Additional Ingress Surfaces
 
-Status: draft for review
+Status: in progress
 
 ## Sponsor
 
@@ -142,6 +142,10 @@ Not allowed:
 
 ### First Slice: Explicit Pipe / Ingest Surface
 
+Status:
+
+- implemented and closed
+
 Recommended first slice:
 
 - `echo "thought" | think --ingest`
@@ -161,7 +165,19 @@ Required behavior:
 - same local-first durability model
 - explicit JSON parity
 
+Shipped behavior:
+
+- `think --ingest` now reads stdin explicitly and routes it through the normal raw-capture core
+- plain `think` without `--ingest` still does not consume piped stdin accidentally
+- `--json --ingest` preserves the normal machine-readable capture envelope
+- mixed positional capture text plus stdin text is rejected clearly
+- empty stdin is rejected clearly
+
 ### Second Slice: macOS Shortcuts / URL Scheme
+
+Status:
+
+- next
 
 Recommended second slice:
 
@@ -233,15 +249,15 @@ This note should be read alongside:
 
 ## Next Move
 
-The first design/spec/implementation slice under `M5` should be:
+The next design/spec/implementation slice under `M5` should be:
 
-- explicit stdin / pipe-friendly capture ingress
+- macOS Shortcuts / URL-triggered capture
 
 That slice should pin:
 
 - sponsor human
 - sponsor agent
-- exact CLI shape
+- exact invocation model
 - provenance model
-- JSON contract
-- non-goals that keep it from turning into generic import/clipping
+- JSON parity boundary
+- non-goals that keep it from turning into a daemon, import pipeline, or clipping workflow

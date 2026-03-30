@@ -1,6 +1,6 @@
 # Design Review Package
 
-Status: design approved; `M0`, `M1`, `M2`, `M3`, and `M4` complete; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and the full M4 read/reentry stack are implemented and under active use; `M5` additional-ingress framing is now in progress
+Status: design approved; `M0`, `M1`, `M2`, `M3`, and `M4` complete; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and the full M4 read/reentry stack are implemented and under active use; `M5` is now in progress and its first explicit-ingest slice is implemented
 
 This directory began as the pre-implementation design package for `think`.
 
@@ -31,7 +31,7 @@ This review is meant to answer five questions:
 - [`0019-graph-versioning-and-migration.md`](./0019-graph-versioning-and-migration.md): technical correction note for versioning the graph model and migrating from the current property-linked repos to explicit graph-native relationships.
 - [`0021-graph-migration-gating.md`](./0021-graph-migration-gating.md): technical/product note for when graph migration is required, when it may run automatically, and why capture remains exempt from blocking upgrades.
 - [`0022-graph-native-browse-read-refactor.md`](./0022-graph-native-browse-read-refactor.md): technical/product note for making browse and inspect use graph-native read paths, explicit traversal edges, and the committed browse bootstrap benchmark. This refactor is implemented and closed.
-- [`0027-m5-additional-ingress-surfaces.md`](./0027-m5-additional-ingress-surfaces.md): milestone note for extending raw capture into additional human and agent ingress surfaces without changing the sacred capture core.
+- [`0027-m5-additional-ingress-surfaces.md`](./0027-m5-additional-ingress-surfaces.md): milestone note for extending raw capture into additional human and agent ingress surfaces without changing the sacred capture core. The first explicit-ingest slice is implemented; the next planned slice is Shortcuts / URL-triggered capture.
 - [`ROADMAP.md`](./ROADMAP.md): milestone sequence, hill mapping, exit criteria, and review checkpoints.
 
 ## Archived Slice History
@@ -64,6 +64,7 @@ Completed milestone and slice notes that still matter as historical context, but
 - [`../retrospectives/m4-prompt-telemetry-read-surface.md`](../retrospectives/m4-prompt-telemetry-read-surface.md): closeout for the slice that turns recorded prompt telemetry into a factual CLI / JSON read surface without drifting into dashboards.
 - [`../retrospectives/m4-session-presentation-polish.md`](../retrospectives/m4-session-presentation-polish.md): closeout for the slice that makes browse session context calmer and more structured without changing session semantics.
 - [`../retrospectives/m4-reentry-browse-inspect.md`](../retrospectives/m4-reentry-browse-inspect.md): overall milestone closeout for M4 now that the read/reentry stack is complete.
+- [`../retrospectives/m5-ingest-surface.md`](../retrospectives/m5-ingest-surface.md): closeout for the first M5 slice that adds explicit stdin ingress without changing the sacred raw-capture core.
 - [`BACKLOG.md`](../../BACKLOG.md): deferred ideas, cool ideas, and parking-lot items that should not silently become approved scope.
 
 ## Review Package Map
