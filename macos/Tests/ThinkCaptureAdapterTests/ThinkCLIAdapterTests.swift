@@ -2,6 +2,31 @@ import XCTest
 @testable import ThinkCaptureAdapter
 
 final class ThinkCLIAdapterTests: XCTestCase {
+    func testCommandResolverFindsCLIBySearchingUpwardsFromBundleDirectory() throws {
+        let tempRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let repoRoot = tempRoot.appendingPathComponent("think-repo", isDirectory: true)
+        let binDirectory = repoRoot.appendingPathComponent("bin", isDirectory: true)
+        let appBundleDirectory = repoRoot
+            .appendingPathComponent("macos/.dist/ThinkMenuBarApp.app", isDirectory: true)
+
+        try FileManager.default.createDirectory(at: binDirectory, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: appBundleDirectory, withIntermediateDirectories: true)
+        FileManager.default.createFile(
+            atPath: binDirectory.appendingPathComponent("think.js").path,
+            contents: Data("console.log('think');".utf8)
+        )
+
+        let command = try ThinkCLICommandResolver.makeDefault(
+            environment: [:],
+            currentDirectoryPath: "/tmp",
+            bundleDirectoryPath: appBundleDirectory.path,
+            processExecutablePath: nil
+        )
+
+        XCTAssertEqual(command.baseArguments, ["node", binDirectory.appendingPathComponent("think.js").path])
+    }
+
     func testCaptureUsesConfiguredCommandAndPassesThoughtAsSingleArgument() async throws {
         let runner = RecordingRunner(output: ProcessOutput(
             status: 0,
