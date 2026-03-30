@@ -1,10 +1,12 @@
 import AppKit
 import SwiftUI
+import ThinkMenuBarSupport
 
 @main
 struct ThinkMenuBarApp: App {
     @NSApplicationDelegateAdaptor(ThinkMenuBarAppDelegate.self) private var appDelegate
     @StateObject private var appState = CaptureAppState()
+    private let buildInfo = AppBuildInfoReader.current()
 
     var body: some Scene {
         MenuBarExtra(menuBarTitle, systemImage: menuBarIcon) {
@@ -32,6 +34,12 @@ struct ThinkMenuBarApp: App {
             Button("New Thought") {
                 appState.togglePanel()
             }
+
+            Divider()
+
+            Text(buildInfo.displayString)
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
             Divider()
 
