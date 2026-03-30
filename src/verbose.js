@@ -1,3 +1,5 @@
+import { stringifyJson } from './json.js';
+
 export function createVerboseReporter(stream, enabled) {
   return {
     enabled,
@@ -17,7 +19,7 @@ export function createVerboseReporter(stream, enabled) {
         return;
       }
 
-      stream.write(`${JSON.stringify(payload)}\n`);
+      stream.write(`${stringifyJson(payload)}\n`);
     },
   };
 }

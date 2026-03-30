@@ -1,3 +1,4 @@
+import { parseJson, stringifyJson } from '../json.js';
 import {
   DERIVER_NAME,
   DERIVER_VERSION,
@@ -407,7 +408,7 @@ function addArtifactNode(patch, artifact) {
       .setProperty(artifact.artifactId, 'verdict', artifact.verdict)
       .setProperty(artifact.artifactId, 'reasonKind', artifact.reasonKind)
       .setProperty(artifact.artifactId, 'reasonText', artifact.reasonText)
-      .setProperty(artifact.artifactId, 'promptFamiliesJson', JSON.stringify(artifact.promptFamilies));
+      .setProperty(artifact.artifactId, 'promptFamiliesJson', stringifyJson(artifact.promptFamilies));
     patch.addEdge(artifact.artifactId, artifact.primaryInputId, 'derived_from');
     return;
   }
@@ -440,7 +441,7 @@ function parseJsonArray(value) {
   }
 
   try {
-    const parsed = JSON.parse(value);
+    const parsed = parseJson(value);
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];

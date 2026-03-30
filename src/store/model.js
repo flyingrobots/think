@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import os from 'node:os';
 
+import { parseJson } from '../json.js';
 import {
   ARTIFACT_PREFIX,
   DERIVER_VERSION,
@@ -61,7 +62,7 @@ export function parseJsonArray(value) {
   }
 
   try {
-    const parsed = JSON.parse(value);
+    const parsed = parseJson(value);
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];

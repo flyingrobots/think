@@ -1,4 +1,5 @@
 import { createVerboseReporter } from './verbose.js';
+import { stringifyJson } from './json.js';
 import { parseArgs, resolveCommand, validateOptions } from './cli/options.js';
 import { createOutput, resolveJsonStream } from './cli/output.js';
 import { runCapture, runIngest, runMigrateGraph } from './cli/commands/capture.js';
@@ -19,7 +20,7 @@ export async function main(argv, { stdout, stderr, stdin }) {
     options.json
       ? (payload) => {
           const stream = resolveJsonStream(payload) === 'stderr' ? stderr : stdout;
-          stream.write(`${JSON.stringify(payload)}\n`);
+          stream.write(`${stringifyJson(payload)}\n`);
         }
       : stderr,
     options.verbose || options.json

@@ -1,3 +1,4 @@
+import { parseJson } from '../../json.js';
 import { runBrowseTui, runBrowseTuiScript } from '../../browse-tui.js';
 import { hasGitRepo } from '../../git.js';
 import { getLocalRepoDir } from '../../paths.js';
@@ -588,7 +589,7 @@ function getBrowseTestScript() {
   }
 
   if (!globalThis.__thinkBrowseTestScript) {
-    globalThis.__thinkBrowseTestScript = JSON.parse(process.env.THINK_TEST_BROWSE_SCRIPT);
+    globalThis.__thinkBrowseTestScript = parseJson(process.env.THINK_TEST_BROWSE_SCRIPT);
   }
 
   return globalThis.__thinkBrowseTestScript;

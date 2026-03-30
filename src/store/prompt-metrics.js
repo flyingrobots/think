@@ -1,5 +1,7 @@
 import { readFile } from 'node:fs/promises';
 
+import { parseJson } from '../json.js';
+
 export async function readPromptMetricsRecords(filePath) {
   try {
     const contents = await readFile(filePath, 'utf8');
@@ -9,7 +11,7 @@ export async function readPromptMetricsRecords(filePath) {
       .filter(Boolean)
       .map((line) => {
         try {
-          return JSON.parse(line);
+          return parseJson(line);
         } catch {
           return null;
         }
