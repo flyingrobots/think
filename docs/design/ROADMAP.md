@@ -27,6 +27,7 @@ Milestones exist to prove user value in sequence. They are not buckets for unrel
 - `M5: Additional ingress surfaces` is in progress.
 - the first `M5` slice, explicit stdin / pipe-friendly ingest, is implemented and closed.
 - `0027-m5-additional-ingress-surfaces.md` now frames the milestone and its next slice.
+- `0028-m5-shortcuts-url-capture.md` now frames the next active `M5` slice.
 
 ## Planning Principles
 

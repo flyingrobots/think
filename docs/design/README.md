@@ -32,6 +32,7 @@ This review is meant to answer five questions:
 - [`0021-graph-migration-gating.md`](./0021-graph-migration-gating.md): technical/product note for when graph migration is required, when it may run automatically, and why capture remains exempt from blocking upgrades.
 - [`0022-graph-native-browse-read-refactor.md`](./0022-graph-native-browse-read-refactor.md): technical/product note for making browse and inspect use graph-native read paths, explicit traversal edges, and the committed browse bootstrap benchmark. This refactor is implemented and closed.
 - [`0027-m5-additional-ingress-surfaces.md`](./0027-m5-additional-ingress-surfaces.md): milestone note for extending raw capture into additional human and agent ingress surfaces without changing the sacred capture core. The first explicit-ingest slice is implemented; the next planned slice is Shortcuts / URL-triggered capture.
+- [`0028-m5-shortcuts-url-capture.md`](./0028-m5-shortcuts-url-capture.md): current `M5` slice note for local URL-triggered capture and Apple Shortcuts as a thin human wrapper over the same raw-capture core.
 - [`ROADMAP.md`](./ROADMAP.md): milestone sequence, hill mapping, exit criteria, and review checkpoints.
 
 ## Archived Slice History
@@ -96,6 +97,7 @@ flowchart TD
     R --> P23["0023 Remember Enhancements"]
     R --> P24["0024 Graph Migration Progress UX"]
     R --> P27["0027 M5 Additional Ingress Surfaces"]
+    R --> P28["0028 M5 Shortcuts And URL Capture"]
     R --> RD["Roadmap and Milestones"]
     R --> BL["Backlog (deferred ideas)"]
     P --> A
@@ -130,8 +132,11 @@ flowchart TD
     P21 --> P22
     P21 --> P24
     P --> P27
+    P27 --> P28
     A8 --> P27
     P10 --> P27
+    A8 --> P28
+    P10 --> P28
     B3 --> G9
     B3 --> P11
     P11 --> P12

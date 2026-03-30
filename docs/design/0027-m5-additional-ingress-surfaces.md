@@ -179,6 +179,10 @@ Status:
 
 - next
 
+Design note:
+
+- [`0028-m5-shortcuts-url-capture.md`](./0028-m5-shortcuts-url-capture.md)
+
 Recommended second slice:
 
 - local shortcut or URL-triggered capture
