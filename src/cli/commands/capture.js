@@ -96,6 +96,24 @@ export async function runCapture(thought, output, reporter) {
   return 0;
 }
 
+export async function runIngest(stdin, output, reporter) {
+  const thought = await readStdinText(stdin);
+
+  if (thought === '') {
+    if (output.json) {
+      output.error('No stdin content to ingest', 'capture.validation_failed', {
+        reason: 'empty_stdin',
+      });
+    } else {
+      output.error('No stdin content to ingest');
+      reporter.event('capture.validation_failed', { reason: 'empty_stdin' });
+    }
+    return 1;
+  }
+
+  return runCapture(thought, output, reporter);
+}
+
 export async function runMigrateGraph(output, reporter) {
   const repoDir = getLocalRepoDir();
 
@@ -128,4 +146,19 @@ export async function runMigrateGraph(output, reporter) {
   }
   output.out(lines.join('\n'));
   return 0;
+}
+
+async function readStdinText(stdin) {
+  if (!stdin || stdin.isTTY) {
+    return '';
+  }
+
+  stdin.setEncoding('utf8');
+  let text = '';
+
+  for await (const chunk of stdin) {
+    text += chunk;
+  }
+
+  return text;
 }

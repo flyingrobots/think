@@ -100,8 +100,17 @@ test('think --json --ingest preserves machine-readable capture semantics for age
   assert.equal((ingest.stderr || '').trim(), '', 'Expected successful JSON stdin ingest to keep stderr quiet.');
   assert.deepEqual(
     stdoutEvents.map((event) => event.event),
-    ['cli.start', 'capture.local_save.done', 'capture.status', 'cli.success'],
-    'Expected JSON stdin ingest to preserve the normal machine-readable capture contract.'
+    [
+      'cli.start',
+      'repo.ensure.start',
+      'repo.bootstrap.done',
+      'capture.local_save.start',
+      'capture.local_save.done',
+      'capture.status',
+      'backup.skipped',
+      'cli.success',
+    ],
+    'Expected JSON stdin ingest to preserve the full normal machine-readable capture contract.'
   );
   assert.equal(stderrEvents.length, 0, 'Expected successful JSON stdin ingest not to emit stderr events.');
 

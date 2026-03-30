@@ -13,6 +13,7 @@ export function parseArgs(args) {
     promptMetrics: false,
     recent: false,
     remember: false,
+    ingest: false,
     reflectFlag: false,
     reflect: null,
     reflectMode: null,
@@ -54,6 +55,8 @@ export function parseArgs(args) {
         options.recent = true;
       } else if (arg === '--remember') {
         options.remember = true;
+      } else if (arg === '--ingest') {
+        options.ingest = true;
       } else if (arg === '--brief') {
         options.rememberBrief = true;
       } else if (arg.startsWith('--limit=')) {
@@ -145,6 +148,9 @@ export function resolveCommand(options) {
   if (options.migrateGraph) {
     return 'migrate_graph';
   }
+  if (options.ingest) {
+    return 'ingest';
+  }
   if (options.remember) {
     return 'remember';
   }
@@ -170,6 +176,7 @@ export function validateOptions(options, command) {
   const explicitCommands = [
     options.recent,
     options.remember,
+    options.ingest,
     options.promptMetrics,
     options.browseFlag,
     options.inspectFlag,
@@ -217,6 +224,10 @@ export function validateOptions(options, command) {
 
   if (command === 'remember' && hasTimeFilters) {
     return '--from, --to, --since, and --bucket require --stats or --prompt-metrics';
+  }
+
+  if (command === 'ingest' && options.positionals.length > 0) {
+    return '--ingest does not take a thought';
   }
 
   if (command === 'browse') {

@@ -4,6 +4,7 @@ import { main } from '../src/cli.js';
 
 async function run() {
   const exitCode = await main(process.argv, {
+    stdin: process.stdin,
     stdout: process.stdout,
     stderr: process.stderr,
   });

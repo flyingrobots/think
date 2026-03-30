@@ -1,7 +1,7 @@
 import { createVerboseReporter } from './verbose.js';
 import { parseArgs, resolveCommand, validateOptions } from './cli/options.js';
 import { createOutput, resolveJsonStream } from './cli/output.js';
-import { runCapture, runMigrateGraph } from './cli/commands/capture.js';
+import { runCapture, runIngest, runMigrateGraph } from './cli/commands/capture.js';
 import {
   runBrowse,
   runInspect,
@@ -12,7 +12,7 @@ import {
 } from './cli/commands/read.js';
 import { runReflectReply, runReflectStart } from './cli/commands/reflect.js';
 
-export async function main(argv, { stdout, stderr }) {
+export async function main(argv, { stdout, stderr, stdin }) {
   const options = parseArgs(argv.slice(2));
   const command = resolveCommand(options);
   const reporter = createVerboseReporter(
@@ -52,6 +52,8 @@ export async function main(argv, { stdout, stderr }) {
       exitCode = await runInspect(options.inspect, output, reporter);
     } else if (command === 'migrate_graph') {
       exitCode = await runMigrateGraph(output, reporter);
+    } else if (command === 'ingest') {
+      exitCode = await runIngest(stdin, output, reporter);
     } else if (command === 'stats') {
       exitCode = await runStats(output, reporter, options);
     } else if (command === 'prompt_metrics') {
