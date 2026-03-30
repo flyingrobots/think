@@ -1,6 +1,6 @@
 # Roadmap And Milestones
 
-Status: `M0`, `M1`, `M2`, `M3`, and `M4` complete; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and the full M4 read/reentry stack are implemented and under active use; `M5` additional-ingress planning is next
+Status: `M0`, `M1`, `M2`, `M3`, and `M4` complete; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and the full M4 read/reentry stack are implemented and under active use; `M5` additional-ingress framing is now in progress
 
 ## Planning Frame
 
@@ -25,6 +25,7 @@ Milestones exist to prove user value in sequence. They are not buckets for unrel
 - the prompt-telemetry read surface slice is implemented and closed.
 - the session-presentation polish slice is implemented and closed.
 - `M5: Additional ingress surfaces` is next.
+- `0027-m5-additional-ingress-surfaces.md` now frames the milestone.
 
 ## Planning Principles
 
@@ -258,30 +259,41 @@ Outcome:
 
 ## Milestone 5: Additional Ingress Surfaces
 
+Status:
+
+- design framing in progress
+
 Goal:
 
-- add remote and ambient capture options without centralizing the system around a daemon
+- add thin additional ingress surfaces that let humans and agents capture from more real contexts without centralizing the system around a daemon or changing the sacred raw-capture contract
 
 Primary hill support:
 
 - Hill 1
 - Hill 2
 
-Candidates:
+Candidate order:
 
-- web capture URL
-- email ingress
-- text-to-think
+1. explicit pipe / ingest surface
+2. macOS Shortcuts / URL-triggered capture
+3. selected-text / share-based capture
+
+Governing note:
+
+- [`0027-m5-additional-ingress-surfaces.md`](./0027-m5-additional-ingress-surfaces.md)
 
 Playback:
 
-- user can capture from outside their Mac without learning a new mental model
-- provenance remains honest per ingress surface
+- human can capture from outside the current terminal/hotkey surfaces without learning a new capture doctrine
+- agent can reach the same raw-capture semantics through explicit machine-readable contracts
+- provenance remains honest per ingress surface without polluting the raw text
 
 Exit criteria:
 
 - each new ingress uses the same core capture contract
 - local and remote writers remain conceptually unified to the user
+- no ingress path centralizes the system around a daemon
+- no ingress path leaks interpretation into the capture moment
 
 ## Deferred Infrastructure
 

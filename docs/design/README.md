@@ -1,6 +1,6 @@
 # Design Review Package
 
-Status: design approved; `M0`, `M1`, `M2`, `M3`, and `M4` complete; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and the full M4 read/reentry stack are implemented and under active use; `M5` additional-ingress planning is next
+Status: design approved; `M0`, `M1`, `M2`, `M3`, and `M4` complete; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and the full M4 read/reentry stack are implemented and under active use; `M5` additional-ingress framing is now in progress
 
 This directory began as the pre-implementation design package for `think`.
 
@@ -31,6 +31,7 @@ This review is meant to answer five questions:
 - [`0019-graph-versioning-and-migration.md`](./0019-graph-versioning-and-migration.md): technical correction note for versioning the graph model and migrating from the current property-linked repos to explicit graph-native relationships.
 - [`0021-graph-migration-gating.md`](./0021-graph-migration-gating.md): technical/product note for when graph migration is required, when it may run automatically, and why capture remains exempt from blocking upgrades.
 - [`0022-graph-native-browse-read-refactor.md`](./0022-graph-native-browse-read-refactor.md): technical/product note for making browse and inspect use graph-native read paths, explicit traversal edges, and the committed browse bootstrap benchmark. This refactor is implemented and closed.
+- [`0027-m5-additional-ingress-surfaces.md`](./0027-m5-additional-ingress-surfaces.md): milestone note for extending raw capture into additional human and agent ingress surfaces without changing the sacred capture core.
 - [`ROADMAP.md`](./ROADMAP.md): milestone sequence, hill mapping, exit criteria, and review checkpoints.
 
 ## Archived Slice History
@@ -93,6 +94,7 @@ flowchart TD
     R --> P22["0022 Graph-Native Browse Read Refactor"]
     R --> P23["0023 Remember Enhancements"]
     R --> P24["0024 Graph Migration Progress UX"]
+    R --> P27["0027 M5 Additional Ingress Surfaces"]
     R --> RD["Roadmap and Milestones"]
     R --> BL["Backlog (deferred ideas)"]
     P --> A
@@ -126,6 +128,9 @@ flowchart TD
     P20 --> P22
     P21 --> P22
     P21 --> P24
+    P --> P27
+    A8 --> P27
+    P10 --> P27
     B3 --> G9
     B3 --> P11
     P11 --> P12
