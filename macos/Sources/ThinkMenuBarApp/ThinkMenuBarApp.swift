@@ -12,7 +12,7 @@ struct ThinkMenuBarApp: App {
                 Text(statusMessage)
                     .foregroundStyle(.secondary)
 
-                if appState.captureMenuState == .failed {
+                if appState.captureMenuState == .failed && appState.canRetryFailedCapture {
                     Button("Retry failed capture") {
                         appState.retryFailedCapture()
                     }

@@ -16,7 +16,10 @@ final class CaptureAppState: ObservableObject {
     let model: CapturePanelModel
     @Published private(set) var isRestartRecommended = false
     @Published private(set) var captureMenuState: CaptureMenuState = .idle
+    @Published private(set) var canRetryFailedCapture = false
 
+    private let client: ThinkCapturing
+    private let urlCaptureHandler: ThinkCaptureURLHandler
     private let metricsRecorder: PromptUXMetricsRecorder
     private let metricsTracker: PromptUXMetricsTracker
     private let panelController: CapturePanelController
@@ -27,9 +30,13 @@ final class CaptureAppState: ObservableObject {
     private var updatePollingTask: Task<Void, Never>?
     private var statusResetTask: Task<Void, Never>?
     private var lastFailedText: String?
+    private var openURLTask: Task<Void, Never>?
 
-    init() {
-        let client = CaptureAppState.makeClient()
+    init(
+        client: ThinkCapturing? = nil,
+        notificationCenter: NotificationCenter = .default
+    ) {
+        let client = client ?? CaptureAppState.makeClient()
         let model = CapturePanelModel(client: client)
         let metricsRecorder = PromptUXMetricsRecorder()
         let metricsTracker = PromptUXMetricsTracker { event in
@@ -51,6 +58,8 @@ final class CaptureAppState: ObservableObject {
         }
 
         self.model = model
+        self.client = client
+        self.urlCaptureHandler = ThinkCaptureURLHandler(client: client)
         self.metricsRecorder = metricsRecorder
         self.metricsTracker = metricsTracker
         self.panelController = panelController
@@ -79,6 +88,17 @@ final class CaptureAppState: ObservableObject {
         }
         self.hotKeyMonitor.start()
         self.updatePollingTask = startUpdatePolling()
+        self.openURLTask = Task { [weak self] in
+            for await notification in notificationCenter.notifications(named: .thinkCaptureOpenURL) {
+                guard
+                    let url = notification.userInfo?[ThinkCaptureOpenURLUserInfoKey.url] as? URL
+                else {
+                    continue
+                }
+
+                self?.handleCaptureURL(url)
+            }
+        }
     }
 
     func togglePanel(trigger: PromptUXTriggerSource = .menu) {
@@ -120,6 +140,25 @@ final class CaptureAppState: ObservableObject {
     deinit {
         updatePollingTask?.cancel()
         statusResetTask?.cancel()
+        openURLTask?.cancel()
+    }
+
+    func handleCaptureURL(_ url: URL) {
+        statusResetTask?.cancel()
+        canRetryFailedCapture = false
+        captureMenuState = .saving
+        lastFailedText = nil
+
+        Task { @MainActor in
+            do {
+                let result = try await urlCaptureHandler.handle(url: url)
+                captureMenuState = .saved
+                scheduleStatusReset()
+                _ = result
+            } catch {
+                captureMenuState = .failed
+            }
+        }
     }
 
     private static func makeClient() -> ThinkCapturing {
@@ -162,24 +201,22 @@ final class CaptureAppState: ObservableObject {
         case .started(let text):
             statusResetTask?.cancel()
             lastFailedText = text
+            canRetryFailedCapture = false
             captureMenuState = .saving
         case .succeeded(let result):
             statusResetTask?.cancel()
             lastFailedText = nil
+            canRetryFailedCapture = false
             captureMenuState = .saved
             metricsTracker.markCaptureSucceeded(backupState: backupStateName(result.backupState))
             Task {
                 await metricsRecorder.resumeFlushes()
             }
-            statusResetTask = Task { [weak self] in
-                try? await Task.sleep(for: .seconds(2))
-                await MainActor.run {
-                    self?.captureMenuState = .idle
-                }
-            }
+            scheduleStatusReset()
         case .failed(let retryText, _):
             statusResetTask?.cancel()
             lastFailedText = retryText
+            canRetryFailedCapture = true
             captureMenuState = .failed
             metricsTracker.markCaptureFailed()
             Task {
@@ -196,6 +233,15 @@ final class CaptureAppState: ObservableObject {
             return "backed_up"
         case .pending:
             return "pending"
+        }
+    }
+
+    private func scheduleStatusReset() {
+        statusResetTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(2))
+            await MainActor.run {
+                self?.captureMenuState = .idle
+            }
         }
     }
 }
