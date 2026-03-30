@@ -87,7 +87,10 @@ Reflect stores its output as derived entries, separate from raw captures.
 
 ```bash
 npm run macos
+npm run macos:dev
 ```
+
+`npm run macos` now builds and opens a real app bundle so macOS can register the `think://capture?...` URL scheme. `npm run macos:dev` keeps the old raw `swift run` path for debugging.
 
 Hit `Cmd+Shift+I` anywhere. A capture panel appears. Type, press Enter, done. The menu bar icon shows save status so the panel can vanish immediately.
 

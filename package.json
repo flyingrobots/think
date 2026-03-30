@@ -7,7 +7,9 @@
     "think": "./bin/think.js"
   },
   "scripts": {
-    "macos": "swift run --package-path macos ThinkMenuBarApp",
+    "macos": "node ./scripts/package-macos-app.mjs --open",
+    "macos:bundle": "node ./scripts/package-macos-app.mjs",
+    "macos:dev": "swift run --package-path macos ThinkMenuBarApp",
     "test:m1": "node --test test/acceptance/*.test.js",
     "test:benchmarks": "node --test test/benchmarks/*.test.js",
     "test:m2": "swift test --package-path macos",

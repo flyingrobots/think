@@ -14,6 +14,8 @@ Release discipline:
 
 - added explicit stdin ingest via `think --ingest`, preserving the normal raw-capture contract and JSON envelope
 - canonicalized JSON parsing and JSONL output through a shared deterministic JSON port so key ordering stays stable on read-in and write-out
+- added M5 URL-capture core and menu bar app routing for `think://capture?text=...`
+- added a real macOS app-bundle packaging path with registered `think` URL-scheme metadata via `npm run macos`
 
 ## [0.4.0] - 2026-03-29
 
