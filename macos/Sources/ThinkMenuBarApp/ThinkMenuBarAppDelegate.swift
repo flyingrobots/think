@@ -1,16 +1,32 @@
 import AppKit
+import ThinkCaptureAdapter
 
 extension Notification.Name {
     static let thinkCaptureOpenURL = Notification.Name("ThinkCaptureOpenURL")
+    static let thinkCaptureSharedText = Notification.Name("ThinkCaptureSharedText")
 }
 
 enum ThinkCaptureOpenURLUserInfoKey {
     static let url = "url"
 }
 
+enum ThinkCaptureSharedTextUserInfoKey {
+    static let request = "request"
+}
+
 final class ThinkMenuBarAppDelegate: NSObject, NSApplicationDelegate {
+    private lazy var sharedTextServiceProvider = ThinkSharedTextServiceProvider { request in
+        NotificationCenter.default.post(
+            name: .thinkCaptureSharedText,
+            object: nil,
+            userInfo: [ThinkCaptureSharedTextUserInfoKey.request: request]
+        )
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        NSApp.servicesProvider = sharedTextServiceProvider
+        NSUpdateDynamicServices()
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {

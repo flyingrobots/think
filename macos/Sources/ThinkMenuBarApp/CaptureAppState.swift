@@ -20,6 +20,7 @@ final class CaptureAppState: ObservableObject {
 
     private let client: ThinkCapturing
     private let urlCaptureHandler: ThinkCaptureURLHandler
+    private let sharedTextCaptureHandler: ThinkCaptureSharedTextHandler
     private let metricsRecorder: PromptUXMetricsRecorder
     private let metricsTracker: PromptUXMetricsTracker
     private let panelController: CapturePanelController
@@ -31,6 +32,7 @@ final class CaptureAppState: ObservableObject {
     private var statusResetTask: Task<Void, Never>?
     private var lastFailedText: String?
     private var openURLTask: Task<Void, Never>?
+    private var sharedTextTask: Task<Void, Never>?
 
     init(
         client: ThinkCapturing? = nil,
@@ -60,6 +62,7 @@ final class CaptureAppState: ObservableObject {
         self.model = model
         self.client = client
         self.urlCaptureHandler = ThinkCaptureURLHandler(client: client)
+        self.sharedTextCaptureHandler = ThinkCaptureSharedTextHandler(client: client)
         self.metricsRecorder = metricsRecorder
         self.metricsTracker = metricsTracker
         self.panelController = panelController
@@ -97,6 +100,17 @@ final class CaptureAppState: ObservableObject {
                 }
 
                 self?.handleCaptureURL(url)
+            }
+        }
+        self.sharedTextTask = Task { [weak self] in
+            for await notification in notificationCenter.notifications(named: .thinkCaptureSharedText) {
+                guard
+                    let request = notification.userInfo?[ThinkCaptureSharedTextUserInfoKey.request] as? ThinkCaptureSharedTextRequest
+                else {
+                    continue
+                }
+
+                self?.handleSharedTextRequest(request)
             }
         }
     }
@@ -141,23 +155,18 @@ final class CaptureAppState: ObservableObject {
         updatePollingTask?.cancel()
         statusResetTask?.cancel()
         openURLTask?.cancel()
+        sharedTextTask?.cancel()
     }
 
     func handleCaptureURL(_ url: URL) {
-        statusResetTask?.cancel()
-        canRetryFailedCapture = false
-        captureMenuState = .saving
-        lastFailedText = nil
+        performExternalCapture {
+            try await self.urlCaptureHandler.handle(url: url)
+        }
+    }
 
-        Task { @MainActor in
-            do {
-                let result = try await urlCaptureHandler.handle(url: url)
-                captureMenuState = .saved
-                scheduleStatusReset()
-                _ = result
-            } catch {
-                captureMenuState = .failed
-            }
+    func handleSharedTextRequest(_ request: ThinkCaptureSharedTextRequest) {
+        performExternalCapture {
+            try await self.sharedTextCaptureHandler.handle(request: request)
         }
     }
 
@@ -241,6 +250,26 @@ final class CaptureAppState: ObservableObject {
             try? await Task.sleep(for: .seconds(2))
             await MainActor.run {
                 self?.captureMenuState = .idle
+            }
+        }
+    }
+
+    private func performExternalCapture(
+        _ operation: @escaping @Sendable () async throws -> CaptureResult
+    ) {
+        statusResetTask?.cancel()
+        canRetryFailedCapture = false
+        captureMenuState = .saving
+        lastFailedText = nil
+
+        Task { @MainActor in
+            do {
+                let result = try await operation()
+                captureMenuState = .saved
+                scheduleStatusReset()
+                _ = result
+            } catch {
+                captureMenuState = .failed
             }
         }
     }
