@@ -15,6 +15,8 @@ enum ThinkCaptureSharedTextUserInfoKey {
 }
 
 final class ThinkMenuBarAppDelegate: NSObject, NSApplicationDelegate {
+    private let sharedTextServicePortName = "think"
+
     private lazy var sharedTextServiceProvider = ThinkSharedTextServiceProvider { request in
         NotificationCenter.default.post(
             name: .thinkCaptureSharedText,
@@ -26,6 +28,7 @@ final class ThinkMenuBarAppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         NSApp.servicesProvider = sharedTextServiceProvider
+        NSRegisterServicesProvider(sharedTextServiceProvider, sharedTextServicePortName)
         NSUpdateDynamicServices()
     }
 

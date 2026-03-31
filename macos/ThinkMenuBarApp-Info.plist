@@ -45,6 +45,8 @@
             <string>captureSelectedText:userData:error:</string>
             <key>NSPortName</key>
             <string>think</string>
+            <key>NSRequiredContext</key>
+            <dict/>
             <key>NSSendTypes</key>
             <array>
                 <string>NSStringPboardType</string>
