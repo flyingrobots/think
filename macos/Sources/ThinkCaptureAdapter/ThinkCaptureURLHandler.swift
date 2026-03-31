@@ -3,6 +3,8 @@ import Foundation
 public enum ThinkCaptureIngress: String, Equatable, Sendable {
     case url
     case shortcut
+    case selectedText = "selected_text"
+    case share
 }
 
 public struct ThinkCaptureURLRequest: Equatable, Sendable {
