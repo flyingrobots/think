@@ -4,15 +4,15 @@ Updated: 2026-04-03
 
 ## Where are we going?
 
-Validation and hardening. Five milestones are shipped. `v0.5.0` is released. METHOD is adopted. The capture habit, read surfaces, and ingress options all work. The next phase is proving them under real use, not adding features.
+Validation and hardening. `v0.5.0` is released. METHOD is adopted. Cycle 0001 (capture latency benchmark) is complete — first METHOD cycle closed with a full retro.
 
 ## What just shipped?
 
-`v0.5.0` — MCP server, stdin ingest, URL capture, macOS app bundling, ESLint, CI, tag-triggered release workflow, System-Style JavaScript adoption, METHOD adoption with three legends, complete GUIDE.md.
+Cycle 0001 — capture latency benchmark. Warm-path CLI capture measures ~2s median end-to-end. Baseline committed.
 
 ## What feels wrong?
 
-- **No active METHOD cycle.** Everything so far was pre-METHOD or migration work. The first real METHOD cycle hasn't started yet.
-- **Shape soup in the MCP service layer.** The MCP tools return plain objects — no runtime-backed domain types. Under SSJD, this is debt. Not blocking, but it's there.
-- **CONTRIBUTING.md is drifting.** It still references the old milestone development loop and IBM Design Thinking framing. Should be updated to reflect METHOD.
-- **The up-next items are all validation work.** That's correct — but it means the first METHOD cycle will be a measurement/observation cycle, not a feature cycle. That's fine. It's what the product needs.
+- **~2 seconds per capture is slow.** The benchmark reveals that CLI capture is dominated by Node startup and WARP graph overhead. A profiling cycle could find optimization targets.
+- **Shape soup in the MCP service layer.** Plain objects, no runtime-backed domain types. SSJD debt.
+- **CONTRIBUTING.md is drifting.** Still references the old milestone loop and IBM Design Thinking framing. Should be updated to reflect METHOD.
+- **The remaining up-next items are all observation/validation work.** That's correct for this phase.

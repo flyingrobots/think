@@ -12,6 +12,7 @@ Release discipline:
 
 ## [Unreleased]
 
+- added capture latency benchmark via `npm run benchmark:capture` with JSON and human output, isolated temp repo, and committed baseline (~2s median warm-path)
 - added GUIDE.md with complete user documentation, MCP configuration, and LLM advice
 - added VISION.md executive synthesis
 - added SECURITY.md and NOTICE
