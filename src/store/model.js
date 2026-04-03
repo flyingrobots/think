@@ -29,7 +29,7 @@ export function getCurrentTime() {
 
 export function parseSince(since, now) {
   const match = since.match(/^(\d+)([hdw])$/);
-  if (!match) return null;
+  if (!match) {return null;}
 
   const value = parseInt(match[1], 10);
   const unit = match[2];
@@ -45,8 +45,8 @@ export function parseSince(since, now) {
 
 export function formatBucketKey(date, bucket) {
   const iso = date.toISOString();
-  if (bucket === 'hour') return iso.substring(0, 13) + ':00';
-  if (bucket === 'day') return iso.substring(0, 10);
+  if (bucket === 'hour') {return `${iso.substring(0, 13)  }:00`;}
+  if (bucket === 'day') {return iso.substring(0, 10);}
   if (bucket === 'week') {
     const day = new Date(date);
     day.setUTCHours(0, 0, 0, 0);

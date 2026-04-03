@@ -9,6 +9,7 @@ const WITHIN_SESSION_GAP_MS = 30 * 1000;
 const BETWEEN_SESSION_GAP_MS = 10 * 60 * 1000;
 const TEXT_MIME = 'text/plain; charset=utf-8';
 
+// eslint-disable-next-line require-await -- wraps store call that returns a promise (git-warp)
 export async function prepareBrowseBootstrap(repoDir) {
   if (!hasGitRepo(repoDir)) {
     return {
@@ -26,6 +27,7 @@ export async function prepareBrowseBootstrap(repoDir) {
   return loadBrowseBootstrap(repoDir);
 }
 
+// eslint-disable-next-line require-await -- wraps store call that returns a promise (git-warp)
 export async function loadBrowseChronologyEntriesForBenchmark(repoDir) {
   if (!hasGitRepo(repoDir)) {
     return [];
@@ -126,6 +128,7 @@ export async function createSyntheticBrowseFixture({
 
       patch.addEdge(item.id, item.sessionId, 'captured_in');
 
+      // eslint-disable-next-line no-await-in-loop -- sequential graph writes within a patch transaction
       await patch.attachContent(item.id, item.text, { mime: TEXT_MIME });
     }
 
@@ -186,6 +189,7 @@ function createSyntheticEntry({ thoughtNumber, sessionNumber, captureNumberInSes
   };
 }
 
+// eslint-disable-next-line require-await -- wraps git-warp WarpApp.open which returns a promise
 async function openGraph(repoDir) {
   const plumbing = Plumbing.createDefault({ cwd: repoDir });
   const persistence = new GitGraphAdapter({ plumbing });

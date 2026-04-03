@@ -3,13 +3,15 @@ import { chmodSync, copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// eslint-disable-next-line no-shadow -- ESM shim for __filename
 const __filename = fileURLToPath(import.meta.url);
+// eslint-disable-next-line no-shadow -- ESM shim for __dirname
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, '..');
 
 const packageJsonPath = path.join(repoRoot, 'package.json');
 const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
-const version = packageJson.version;
+const {version} = packageJson;
 
 const macosDir = path.join(repoRoot, 'macos');
 const buildDir = path.join(macosDir, '.build', 'debug');

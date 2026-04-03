@@ -98,8 +98,8 @@ export async function runBrowseTui({
       }
 
       if (msg.type === 'browse_window_loaded') {
-        const [nextModel, cmds] = applyBrowseWindowLoaded(model, msg, loadInspectEntry);
-        return [nextModel, cmds];
+        const [windowModel, windowCmds] = applyBrowseWindowLoaded(model, msg, loadInspectEntry);
+        return [windowModel, windowCmds];
       }
 
       if (msg.type === 'chronology_loaded') {
@@ -127,14 +127,14 @@ export async function runBrowseTui({
 
       const jumpResult = handleJumpKey(model, msg);
       if (jumpResult) {
-        const [nextModel, cmds] = maybeQueueInspectLoad(jumpResult.model, loadInspectEntry);
-        return [nextModel, cmds];
+        const [jumpModel, jumpCmds] = maybeQueueInspectLoad(jumpResult.model, loadInspectEntry);
+        return [jumpModel, jumpCmds];
       }
 
       const reflectResult = handleReflectKey(model, msg);
       if (reflectResult) {
-        const [nextModel, cmds] = maybeQueueInspectLoad(reflectResult.model, loadInspectEntry);
-        return [nextModel, [...(reflectResult.cmds ?? []), ...cmds]];
+        const [reflectModel, reflectCmds] = maybeQueueInspectLoad(reflectResult.model, loadInspectEntry);
+        return [reflectModel, [...(reflectResult.cmds ?? []), ...reflectCmds]];
       }
 
       let action = browseKeymap.handle(msg);
@@ -154,7 +154,7 @@ export async function runBrowseTui({
 
       const result = applyBrowseAction(model, action);
       if (result.effect?.type === 'quit') {
-        effect = result.effect;
+        ({ effect } = result);
         return [result.model, [quit()]];
       }
 
@@ -190,7 +190,7 @@ export async function runBrowseTuiScript({
         type: 'open_jump',
         query: rawAction.query ?? '',
       });
-      model = opened.model;
+      ({ model } = opened);
       frames.push(renderBrowseModel(model));
 
       const selectedEntryId = rawAction.entryId
@@ -200,37 +200,38 @@ export async function runBrowseTuiScript({
         type: 'apply_jump_target',
         entryId: selectedEntryId,
       });
-      model = completed.model;
+      ({ model } = completed);
       frames.push(renderBrowseModel(model));
       continue;
     }
 
     if (isScriptReflectAction(rawAction)) {
-      const result = await runScriptReflectAction(model, rawAction, {
+      // eslint-disable-next-line no-await-in-loop -- sequential action execution in scripted test flow
+      const reflectResult = await runScriptReflectAction(model, rawAction, {
         previewReflectEntry,
         startReflectSession,
         saveReflectSessionResponse,
         loadInspectEntry,
       });
-      model = result.model;
-      frames.push(...result.frames);
+      ({ model } = reflectResult);
+      frames.push(...reflectResult.frames);
       continue;
     }
 
     const action = normalizeScriptAction(rawAction);
     const result = applyBrowseAction(model, action);
-    model = result.model;
+    ({ model } = result);
     frames.push(renderBrowseModel(model));
 
     if (result.effect?.type === 'quit') {
-      effect = result.effect;
+      ({ effect } = result);
       break;
     }
   }
 
   return {
     effect,
-    output: frames.join('\n\n' + styleDim('-----') + '\n\n'),
+    output: frames.join(`\n\n${  styleDim('-----')  }\n\n`),
   };
 }
 
@@ -918,13 +919,7 @@ function renderInspectPane(model, width, height) {
   const lines = [];
   const entry = currentEntry(model);
 
-  if (!inspectEntry) {
-    lines.push(styleDim(
-      model.inspectLoadingEntryId === entry.id
-        ? 'Loading inspect receipts...'
-        : 'Inspect data not loaded yet.'
-    ));
-  } else {
+  if (inspectEntry) {
     lines.push(`Thought ID: ${inspectEntry.thoughtId}`);
     lines.push(`Entry ID: ${inspectEntry.entryId}`);
     lines.push(`Kind: ${inspectEntry.kind}`);
@@ -944,6 +939,12 @@ function renderInspectPane(model, width, height) {
         );
       }
     }
+  } else {
+    lines.push(styleDim(
+      model.inspectLoadingEntryId === entry.id
+        ? 'Loading inspect receipts...'
+        : 'Inspect data not loaded yet.'
+    ));
   }
 
   return viewport({
@@ -960,9 +961,7 @@ function renderSessionPane(model, width, height) {
   const sessionEntries = sessionTraversal.entries;
   const lines = [];
 
-  if (!entry.sessionId) {
-    lines.push(styleDim('Session context is not available for this thought yet.'));
-  } else {
+  if (entry.sessionId) {
     lines.push(`Session ID: ${entry.sessionId}`);
     if (sessionEntries[0]?.createdAt) {
       lines.push(`Started: ${formatWhen(sessionEntries[0].createdAt)}`);
@@ -989,6 +988,8 @@ function renderSessionPane(model, width, height) {
         }
       }
     }
+  } else {
+    lines.push(styleDim('Session context is not available for this thought yet.'));
   }
 
   return viewport({
@@ -1162,7 +1163,7 @@ function resolveSessionTraversal(model) {
   const entry = currentEntry(model);
 
   if (model.mode === 'windowed' && model.currentWindow) {
-    const sessionContext = model.currentWindow.sessionContext;
+    const {sessionContext} = model.currentWindow;
     const previous = model.currentWindow.sessionSteps
       .find((step) => step.direction === 'previous') ?? null;
     const next = model.currentWindow.sessionSteps
@@ -1319,7 +1320,7 @@ function queueChronologyLoad(model, query = null) {
     model: {
       ...model,
       chronologyLoading: true,
-      jumpPalette: query != null ? cpFilter(createJumpPalette([]), query) : model.jumpPalette,
+      jumpPalette: query === null ? model.jumpPalette : cpFilter(createJumpPalette([]), query),
     },
     effect: null,
     cmds: [createChronologyLoadCommand(model.loadChronologyEntries, query)],
@@ -1427,7 +1428,7 @@ function wrapLine(text, width) {
       continue;
     }
 
-    if ((current + ' ' + word).length <= safeWidth) {
+    if ((`${current  } ${  word}`).length <= safeWidth) {
       current += ` ${word}`;
     } else {
       lines.push(current);

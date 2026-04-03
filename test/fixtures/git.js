@@ -34,7 +34,7 @@ export async function createGitRepo({
   return repoDir;
 }
 
-export async function createBareGitRepo(prefix = 'think-upstream-') {
+export function createBareGitRepo(prefix = 'think-upstream-') {
   return createGitRepo({
     prefix,
     bare: true,

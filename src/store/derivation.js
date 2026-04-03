@@ -181,6 +181,7 @@ export async function listDirectDerivedReceipts(read, seedEntryId) {
     .run();
 
   for (const neighbor of graphNativeNeighbors.nodes ?? []) {
+    // eslint-disable-next-line no-await-in-loop -- sequential graph traversal of neighbor nodes
     const entry = await getStoredEntry(read, neighbor.id, neighbor.props ?? null);
     if (!entry || entry.kind !== 'reflect' || seenEntryIds.has(entry.id)) {
       continue;
@@ -191,6 +192,7 @@ export async function listDirectDerivedReceipts(read, seedEntryId) {
       relation: 'seed_of',
       kind: entry.kind,
       entryId: entry.id,
+      // eslint-disable-next-line no-await-in-loop -- sequential graph read per neighbor
       sessionId: await getProducedInSessionId(read, entry),
       promptType: entry.promptType,
       createdAt: entry.createdAt,
@@ -217,7 +219,7 @@ export async function listDirectDerivedReceipts(read, seedEntryId) {
 
   return receipts
     .sort(compareEntriesNewestFirst)
-    .map(({ sortKey, ...receipt }) => receipt);
+    .map(({ sortKey: _sortKey, ...receipt }) => receipt);
 }
 
 export function deriveSeedQuality(thoughtId, text) {

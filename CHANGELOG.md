@@ -18,6 +18,8 @@ Release discipline:
 - adopted System-Style JavaScript as the engineering standard for this repo
 - adopted METHOD for project management with CORE, SURFACE, and REFLECT legends
 - decomposed monolithic BACKLOG.md into filesystem-based METHOD lanes
+- added ESLint with maximum strictness, CI workflow (GitHub Actions), and tag-triggered release workflow
+- migrated git hooks from `.githooks/` to `scripts/hooks/` with pre-commit lint gate
 - added M5 URL-capture core and menu bar app routing for `think://capture?text=...`
 - added a real macOS app-bundle packaging path with registered `think` URL-scheme metadata via `npm run macos`
 

@@ -4,7 +4,6 @@ import {
   formatBucketKey,
   parseSince,
   createThoughtId,
-  createArtifactId,
   getCurrentTime,
 } from './model.js';
 import {
@@ -23,7 +22,6 @@ import {
   summarizePromptMetricTimings,
 } from './prompt-metrics.js';
 import {
-  getGraphModelStatusForRead,
   getLatestCaptureId,
   getSingleNeighborId,
   getStoredEntry,
@@ -67,18 +65,18 @@ export async function rememberThoughts(
     .sort(compareEntriesNewestFirst);
 
   if (query && String(query).trim() !== '') {
-    const scope = buildExplicitRememberScope(query);
-    const matches = captures
-      .map((entry) => buildExplicitRememberMatch(entry, scope))
+    const explicitScope = buildExplicitRememberScope(query);
+    const explicitMatches = captures
+      .map((entry) => buildExplicitRememberMatch(entry, explicitScope))
       .filter(Boolean)
       .sort(compareRememberMatches);
     return {
       scope: {
-        ...scope,
+        ...explicitScope,
         brief,
         limit,
       },
-      matches: finalizeRememberMatches(matches, { brief, limit }),
+      matches: finalizeRememberMatches(explicitMatches, { brief, limit }),
     };
   }
 
@@ -113,9 +111,9 @@ export async function getStats(repoDir, { from, to, since, bucket } = {}) {
   for (const entry of await listEntriesByKind(read, 'capture')) {
     const createdAt = new Date(entry.createdAt);
 
-    if (sinceDate && createdAt < sinceDate) continue;
-    if (fromDate && createdAt < fromDate) continue;
-    if (toDate && createdAt > toDate) continue;
+    if (sinceDate && createdAt < sinceDate) {continue;}
+    if (fromDate && createdAt < fromDate) {continue;}
+    if (toDate && createdAt > toDate) {continue;}
 
     entries.push({ createdAt });
   }
@@ -154,9 +152,9 @@ export async function getPromptMetrics({ from, to, since, bucket } = {}) {
     if (Number.isNaN(ts.getTime())) {
       return false;
     }
-    if (sinceDate && ts < sinceDate) return false;
-    if (fromDate && ts < fromDate) return false;
-    if (toDate && ts > toDate) return false;
+    if (sinceDate && ts < sinceDate) {return false;}
+    if (fromDate && ts < fromDate) {return false;}
+    if (toDate && ts > toDate) {return false;}
     return true;
   });
 
@@ -185,7 +183,7 @@ export async function listRecent(repoDir, { count = null, query = null } = {}) {
     ? recent.filter((entry) => matchesRecentQuery(entry.text, query))
     : recent;
 
-  if (count == null) {
+  if (count === null) {
     return filtered;
   }
 
@@ -217,6 +215,7 @@ export async function inspectRawEntry(repoDir, entryId) {
   return inspectRawEntryForRead(read, entryId);
 }
 
+// eslint-disable-next-line require-await -- wraps git-warp runtime call that returns a promise
 export async function loadBrowseChronologyEntriesForRead(read) {
   return listChronologyEntries(read);
 }
@@ -256,6 +255,7 @@ export async function prepareBrowseBootstrapForRead(read) {
   };
 }
 
+// eslint-disable-next-line require-await -- wraps git-warp runtime call that returns a promise
 export async function getBrowseWindowForRead(read, entryId) {
   return buildBrowseWindow(read, entryId);
 }
@@ -296,11 +296,11 @@ async function buildBrowseWindow(read, entryId) {
     return null;
   }
 
-  const current = await toBrowseEntry(currentEntry);
+  const current = toBrowseEntry(currentEntry);
   const olderEntryId = await getSingleNeighborId(read, entryId, 'outgoing', 'older');
   const newerEntryId = await getSingleNeighborId(read, entryId, 'incoming', 'older');
-  const older = olderEntryId ? await toBrowseEntry(await getStoredEntry(read, olderEntryId)) : null;
-  const newer = newerEntryId ? await toBrowseEntry(await getStoredEntry(read, newerEntryId)) : null;
+  const older = olderEntryId ? toBrowseEntry(await getStoredEntry(read, olderEntryId)) : null;
+  const newer = newerEntryId ? toBrowseEntry(await getStoredEntry(read, newerEntryId)) : null;
   const sessionAttribution = await getSessionAttributionReceiptIfPresent(read, currentEntry);
   const sessionTraversal = await resolveGraphSessionTraversal(read, current);
 

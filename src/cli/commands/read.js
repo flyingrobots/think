@@ -99,7 +99,7 @@ export async function runPromptMetrics(output, reporter, options) {
   ]);
 
   for (const timing of promptMetrics.timings) {
-    if (timing.medianMs == null) {
+    if (timing.medianMs === null || timing.medianMs === undefined) {
       continue;
     }
     lines.push(`${timingLabels.get(timing.metric)} (median): ${timing.medianMs} ms`);
@@ -120,7 +120,7 @@ export async function runRecent(output, reporter, options) {
   const repoDir = getLocalRepoDir();
 
   reporter.event('recent.start', {
-    count: options.recentCount == null ? null : Number(options.recentCount),
+    count: options.recentCount === null || options.recentCount === undefined ? null : Number(options.recentCount),
     query: options.recentQuery ?? null,
   });
   if (!hasGitRepo(repoDir)) {
@@ -132,7 +132,7 @@ export async function runRecent(output, reporter, options) {
   }
 
   const entries = await listRecent(repoDir, {
-    count: options.recentCount == null ? null : Number(options.recentCount),
+    count: options.recentCount === null || options.recentCount === undefined ? null : Number(options.recentCount),
     query: options.recentQuery,
   });
   reporter.event('recent.done', { count: entries.length });
@@ -243,11 +243,11 @@ export async function runBrowse(entryId, output, reporter) {
   if (!entryId) {
     if (shouldUseInteractiveBrowseShell(output)) {
       return runInteractiveBrowseShell(output, reporter);
-    } else {
+    } 
       output.error('--browse requires an entry id outside interactive TTY use', 'cli.validation_failed', {
         command: 'browse',
       });
-    }
+    
     return 1;
   }
 
@@ -369,19 +369,20 @@ async function runInteractiveBrowseShell(output, reporter) {
       return 1;
     }
 
-    const initialEntryId = scripted.seedEntryId ?? entries[0].id;
+    const scriptedEntryId = scripted.seedEntryId ?? entries[0].id;
 
-    reporter.event('browse.shell_started', { seedEntryId: initialEntryId });
+    reporter.event('browse.shell_started', { seedEntryId: scriptedEntryId });
 
     const inspectById = new Map();
     for (const entry of entries) {
+      // eslint-disable-next-line no-await-in-loop -- sequential graph reads for each entry
       inspectById.set(entry.id, await inspectRawEntryForRead(read, entry.id));
     }
 
     const result = await runBrowseTuiScript({
       entries,
       inspectById,
-      initialEntryId,
+      initialEntryId: scriptedEntryId,
       actions: scripted.actions ?? [],
       previewReflectEntry: (thoughtEntryId, promptType) => previewReflect(repoDir, thoughtEntryId, { promptType }),
       startReflectSession: async (thoughtEntryId, promptType) => {
@@ -422,7 +423,7 @@ async function runInteractiveBrowseShell(output, reporter) {
 
     output.out(result.output);
 
-    reporter.event('browse.shell_finished', { entryId: initialEntryId });
+    reporter.event('browse.shell_finished', { entryId: scriptedEntryId });
     return 0;
   }
 

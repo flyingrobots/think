@@ -5,7 +5,6 @@ import { hasGitRepo } from '../../git.js';
 import { getLocalRepoDir } from '../../paths.js';
 import {
   listReflectableRecent,
-  previewReflect,
   saveReflectResponse,
   startReflect,
 } from '../../store.js';
@@ -14,13 +13,11 @@ import {
   formatIneligibleSeedMessage,
   normalizeForPicker,
   pickReflectMode,
-  renderInteractiveModeIntro,
   renderInteractiveReflectIntro,
   renderInteractiveReflectSkipped,
   renderInteractiveSeedIntro,
 } from '../interactive.js';
 import {
-  canInteractivelyPickReflectSeed,
   isInteractiveReflectAvailable,
   shouldUseInteractiveReflectShell,
 } from '../environment.js';
@@ -166,7 +163,7 @@ export async function runReflectReply(sessionId, response, output, reporter) {
   return 0;
 }
 
-async function pickReflectSeed(repoDir, output, reporter) {
+async function pickReflectSeed(repoDir, output, _reporter) {
   if (!isInteractiveReflectAvailable() || output.json) {
     output.error('--reflect requires a seed entry id', 'cli.validation_failed', {
       command: 'reflect_start',
@@ -195,7 +192,7 @@ async function pickReflectSeed(repoDir, output, reporter) {
   }
 
   const ctx = initDefaultContext();
-  ctx.io.write(renderInteractiveSeedIntro(ctx) + '\n');
+  ctx.io.write(`${renderInteractiveSeedIntro(ctx)  }\n`);
 
   return select({
     title: 'Seed thought',

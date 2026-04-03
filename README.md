@@ -163,7 +163,8 @@ npm run test:benchmarks
 ## Development
 
 ```bash
-npm run install-hooks             # enable pre-push hook
+npm run install-hooks             # enable git hooks (lint + test gates)
+npm run lint                      # ESLint
 npm run benchmark:browse          # browse bootstrap benchmark
 ```
 

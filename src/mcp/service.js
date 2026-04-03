@@ -123,7 +123,7 @@ export async function browseThought({ entryId = null } = {}) {
 
   await assertGraphReady('browse');
 
-  let window = null;
+  let window;
   if (entryId) {
     window = await getBrowseWindow(repoDir, entryId);
     if (!window) {
@@ -198,6 +198,7 @@ export async function getPromptMetricsForMcp({ from = null, to = null, since = n
   };
 }
 
+// eslint-disable-next-line require-await -- wraps store call that returns a promise (git-warp)
 export async function migrateThoughtGraph() {
   const repoDir = getLocalRepoDir();
   if (!hasGitRepo(repoDir)) {

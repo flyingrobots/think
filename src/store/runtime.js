@@ -21,6 +21,7 @@ import {
   storesTextContent,
 } from './model.js';
 
+// eslint-disable-next-line require-await -- wraps git-warp WarpApp.open which returns a promise
 export async function openWarpApp(repoDir) {
   const plumbing = Plumbing.createDefault({ cwd: repoDir });
   const persistence = new GitGraphAdapter({ plumbing });
@@ -77,7 +78,7 @@ export async function getStoredEntry(read, nodeId, props = null) {
     return null;
   }
 
-  const kind = resolvedProps.kind;
+  const {kind} = resolvedProps;
 
   return {
     id: nodeId,
@@ -109,7 +110,7 @@ export async function getStoredEntry(read, nodeId, props = null) {
   };
 }
 
-export async function toBrowseEntry(entry) {
+export function toBrowseEntry(entry) {
   if (!entry) {
     return null;
   }
@@ -140,6 +141,7 @@ export async function listEntriesByKind(read, kind) {
 
   const entries = [];
   for (const node of result.nodes ?? []) {
+    // eslint-disable-next-line no-await-in-loop -- sequential graph reads per query result node
     const entry = await getStoredEntry(read, node.id, node.props ?? null);
     if (entry) {
       entries.push(entry);
@@ -192,12 +194,13 @@ export async function listChronologyEntries(read) {
   });
   const entries = [];
   for (const currentId of chronologyIds) {
+    // eslint-disable-next-line no-await-in-loop -- sequential graph traversal following 'older' edges
     const entry = await getStoredEntry(read, currentId);
     if (!entry || entry.kind !== 'capture') {
       continue;
     }
 
-    entries.push(await toBrowseEntry(entry));
+    entries.push(toBrowseEntry(entry));
   }
 
   return entries;
@@ -232,6 +235,7 @@ export async function getProducedInSessionId(read, entry) {
   return result.nodes?.[0]?.id ?? entry.sessionId ?? null;
 }
 
+// eslint-disable-next-line require-await -- wraps git-warp view.hasNode which returns a promise
 export async function hasNode(read, nodeId) {
   return read.view.hasNode(nodeId);
 }
@@ -254,11 +258,12 @@ export async function resolveGraphSessionTraversal(read, entry) {
   const sessionEntries = [];
 
   for (const neighbor of neighbors.nodes ?? []) {
+    // eslint-disable-next-line no-await-in-loop -- sequential graph reads for session neighbor traversal
     const capture = await getStoredEntry(read, neighbor.id, neighbor.props ?? null);
     if (!capture || capture.kind !== 'capture') {
       continue;
     }
-    sessionEntries.push(await toBrowseEntry(capture));
+    sessionEntries.push(toBrowseEntry(capture));
   }
 
   sessionEntries.sort(compareEntriesOldestFirst);
