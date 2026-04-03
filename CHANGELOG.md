@@ -12,16 +12,31 @@ Release discipline:
 
 ## [Unreleased]
 
-- added explicit stdin ingest via `think --ingest`, preserving the normal raw-capture contract and JSON envelope
-- canonicalized JSON parsing and JSONL output through a shared deterministic JSON port so key ordering stays stable on read-in and write-out
-- added a local stdio MCP server via `think-mcp` / `npm run mcp`, exposing typed `capture`, `recent`, `remember`, `browse`, `inspect`, `stats`, `prompt_metrics`, and `migrate_graph` tools over the existing Think runtime
-- adopted System-Style JavaScript as the engineering standard for this repo
+## [0.5.0] - 2026-04-03
+
+Fifth milestone release for `think`.
+
+### Added
+
+- explicit stdin ingest via `think --ingest`, preserving the normal raw-capture contract and JSON envelope
+- canonical JSON parsing and JSONL output through a shared deterministic JSON port so key ordering stays stable on read-in and write-out
+- local stdio MCP server via `think-mcp` / `npm run mcp`, exposing typed `capture`, `recent`, `remember`, `browse`, `inspect`, `stats`, `prompt_metrics`, and `migrate_graph` tools over the existing Think runtime
+- M5 URL-capture core and menu bar app routing for `think://capture?text=...`
+- real macOS app-bundle packaging path with registered `think` URL-scheme metadata via `npm run macos`
+- ESLint with maximum strictness, CI workflow (GitHub Actions), and tag-triggered release workflow
+- pre-commit lint gate via `scripts/hooks/pre-commit`
+
+### Changed
+
+- adopted System-Style JavaScript as the engineering standard
 - adopted METHOD for project management with CORE, SURFACE, and REFLECT legends
-- decomposed monolithic BACKLOG.md into filesystem-based METHOD lanes
-- added ESLint with maximum strictness, CI workflow (GitHub Actions), and tag-triggered release workflow
-- migrated git hooks from `.githooks/` to `scripts/hooks/` with pre-commit lint gate
-- added M5 URL-capture core and menu bar app routing for `think://capture?text=...`
-- added a real macOS app-bundle packaging path with registered `think` URL-scheme metadata via `npm run macos`
+- decomposed monolithic BACKLOG.md into filesystem-based METHOD backlog lanes
+- migrated git hooks from `.githooks/` to `scripts/hooks/`
+
+### Notes
+
+- `M5` is complete
+- first release under METHOD discipline
 
 ## [0.4.0] - 2026-03-29
 
