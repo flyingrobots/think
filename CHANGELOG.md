@@ -12,6 +12,9 @@ Release discipline:
 
 ## [Unreleased]
 
+- added GUIDE.md with complete user documentation, MCP configuration, and LLM advice
+- added SECURITY.md and NOTICE
+
 ## [0.5.0] - 2026-04-03
 
 Fifth milestone release for `think`.
