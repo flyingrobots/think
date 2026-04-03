@@ -21,10 +21,31 @@ public final class ThinkMCPAdapter: ThinkCapturing, @unchecked Sendable {
 
     public func capture(text: String) async throws -> CaptureResult {
         try await Task.detached(priority: .userInitiated) { [self] in
-            try ensureInitialized()
-            let result = try callCaptureTool(text: text)
-            return result
+            do {
+                try ensureInitialized()
+                return try callCaptureTool(text: text)
+            } catch let error as CaptureFailure where !error.isTransportError {
+                // Application-level MCP error (e.g., validation) — don't retry
+                throw error
+            } catch {
+                // Transport failed — attempt one reconnection
+                reconnect()
+                do {
+                    try ensureInitialized()
+                    return try callCaptureTool(text: text)
+                } catch {
+                    throw CaptureFailure(message: "MCP capture failed after reconnection: \(error.localizedDescription)")
+                }
+            }
         }.value
+    }
+
+    private func reconnect() {
+        lock.lock()
+        defer { lock.unlock() }
+
+        transport.stop()
+        initialized = false
     }
 
     private func ensureInitialized() throws {

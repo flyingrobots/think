@@ -40,7 +40,7 @@ public final class StdioMCPTransport: MCPTransport, @unchecked Sendable {
 
     public func send(_ data: Data) throws {
         guard let stdinPipe else {
-            throw CaptureFailure(message: "MCP transport not started")
+            throw CaptureFailure(message: "MCP transport not started", isTransportError: true)
         }
 
         var message = data
@@ -50,7 +50,7 @@ public final class StdioMCPTransport: MCPTransport, @unchecked Sendable {
 
     public func receive() throws -> Data {
         guard let stdoutPipe else {
-            throw CaptureFailure(message: "MCP transport not started")
+            throw CaptureFailure(message: "MCP transport not started", isTransportError: true)
         }
 
         let handle = stdoutPipe.fileHandleForReading
@@ -60,9 +60,9 @@ public final class StdioMCPTransport: MCPTransport, @unchecked Sendable {
             let byte = handle.readData(ofLength: 1)
             if byte.isEmpty {
                 if let process, !process.isRunning {
-                    throw CaptureFailure(message: "MCP process exited unexpectedly")
+                    throw CaptureFailure(message: "MCP process exited unexpectedly", isTransportError: true)
                 }
-                throw CaptureFailure(message: "MCP transport read failed")
+                throw CaptureFailure(message: "MCP transport read failed", isTransportError: true)
             }
             if byte[0] == 0x0A {
                 break

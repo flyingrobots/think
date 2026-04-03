@@ -102,37 +102,35 @@ final class ThinkMCPAdapterTests: XCTestCase {
     }
 
     func testReconnectsAfterTransportDiesMidSession() async throws {
-        let transport = ReconnectableMockTransport(
-            phases: [
-                // Phase 1: initialize + first capture succeeds
-                .success(responses: [initializeResponse(), captureResponse(entryId: "entry:1", backupStatus: "skipped")]),
-                // Phase 2: transport dies on send (simulates crashed process)
-                .failOnSend,
-                // Phase 3: reconnect — fresh initialize + capture succeeds
-                .success(responses: [initializeResponse(), captureResponse(entryId: "entry:2", backupStatus: "skipped")]),
-            ]
+        let transport = CrashRecoveryMockTransport(
+            responses: [
+                initializeResponse(),
+                captureResponse(entryId: "entry:1", backupStatus: "skipped"),
+                // After reconnect: fresh init + capture
+                initializeResponse(),
+                captureResponse(entryId: "entry:2", backupStatus: "skipped"),
+            ],
+            failOnSendAtCallIndex: 4 // fail on the first send of the second capture
         )
         let adapter = ThinkMCPAdapter(transport: transport)
 
         let result1 = try await adapter.capture(text: "before crash")
         XCTAssertEqual(result1, CaptureResult(backupState: .skipped))
 
-        // Transport dies, adapter should reconnect and succeed
+        // Transport dies on next send, adapter should reconnect and succeed
         let result2 = try await adapter.capture(text: "after crash")
         XCTAssertEqual(result2, CaptureResult(backupState: .skipped))
         XCTAssertEqual(transport.startCount, 2, "Expected transport to be started twice (initial + reconnect).")
     }
 
     func testFailsGracefullyAfterReconnectionAlsoFails() async {
-        let transport = ReconnectableMockTransport(
-            phases: [
-                // Phase 1: initialize + first capture succeeds
-                .success(responses: [initializeResponse(), captureResponse(entryId: "entry:1", backupStatus: "skipped")]),
-                // Phase 2: transport dies
-                .failOnSend,
-                // Phase 3: reconnect also dies
-                .failOnSend,
-            ]
+        let transport = CrashRecoveryMockTransport(
+            responses: [
+                initializeResponse(),
+                captureResponse(entryId: "entry:1", backupStatus: "skipped"),
+            ],
+            failOnSendAtCallIndex: 4, // fail on second capture
+            failPermanently: true      // keep failing after reconnect too
         )
         let adapter = ThinkMCPAdapter(transport: transport)
 
@@ -142,28 +140,31 @@ final class ThinkMCPAdapterTests: XCTestCase {
             _ = try await adapter.capture(text: "after double crash")
             XCTFail("Expected capture to fail after reconnection failure")
         } catch let error as CaptureFailure {
-            XCTAssertTrue(error.message.contains("failed") || error.message.contains("transport"),
-                "Expected a descriptive failure message, got: \(error.message)")
+            XCTAssertTrue(error.message.contains("reconnection"),
+                "Expected a reconnection failure message, got: \(error.message)")
         } catch {
             XCTFail("Expected CaptureFailure, got \(error)")
         }
     }
 
     func testReconnectionResetsInitializedState() async throws {
-        let transport = ReconnectableMockTransport(
-            phases: [
-                .success(responses: [initializeResponse(), captureResponse(entryId: "entry:1", backupStatus: "skipped")]),
-                .failOnSend,
-                .success(responses: [initializeResponse(), captureResponse(entryId: "entry:2", backupStatus: "skipped")]),
-            ]
+        let transport = CrashRecoveryMockTransport(
+            responses: [
+                initializeResponse(),
+                captureResponse(entryId: "entry:1", backupStatus: "skipped"),
+                // After reconnect
+                initializeResponse(),
+                captureResponse(entryId: "entry:2", backupStatus: "skipped"),
+            ],
+            failOnSendAtCallIndex: 4
         )
         let adapter = ThinkMCPAdapter(transport: transport)
 
         _ = try await adapter.capture(text: "first")
         _ = try await adapter.capture(text: "after reconnect")
 
-        // After reconnect, should have sent: init+notification+capture (phase 1) + init+notification+capture (phase 3) = 6
-        XCTAssertEqual(transport.totalSentCount, 6, "Expected 6 total messages: two full init+capture sequences.")
+        // Two full init+notification+capture sequences = 6 successful sends
+        XCTAssertEqual(transport.successfulSendCount, 6, "Expected 6 successful sends: two full init+capture sequences.")
     }
 
     func testShutdownStopsTransport() async throws {
@@ -256,63 +257,57 @@ private func errorResponse(code: Int, message: String) -> Data {
     ])
 }
 
-// MARK: - Reconnectable Mock Transport
+// MARK: - Crash Recovery Mock Transport
 
-private enum MockPhase {
-    case success(responses: [Data])
-    case failOnSend
-}
-
-private final class ReconnectableMockTransport: MCPTransport, @unchecked Sendable {
-    private let phases: [MockPhase]
-    private var phaseIndex = 0
+private final class CrashRecoveryMockTransport: MCPTransport, @unchecked Sendable {
+    private let responses: [Data]
     private var responseIndex = 0
-    private var currentPhaseResponses: [Data] = []
-    private var shouldFailOnSend = false
+    private let failOnSendAtCallIndex: Int
+    private let failPermanently: Bool
+    private var sendCallCount = 0
+    private var crashed = false
+    private var recovered = false
     private(set) var startCount = 0
-    private(set) var totalSentCount = 0
+    private(set) var successfulSendCount = 0
 
-    init(phases: [MockPhase]) {
-        self.phases = phases
-        advancePhase()
+    init(responses: [Data], failOnSendAtCallIndex: Int, failPermanently: Bool = false) {
+        self.responses = responses
+        self.failOnSendAtCallIndex = failOnSendAtCallIndex
+        self.failPermanently = failPermanently
     }
 
     func start() throws {
         startCount += 1
-        advancePhase()
+        if startCount > 1 {
+            if failPermanently {
+                crashed = true
+            } else {
+                recovered = true
+                crashed = false
+            }
+        }
     }
 
     func send(_ data: Data) throws {
-        if shouldFailOnSend {
-            throw CaptureFailure(message: "Mock transport failed on send")
+        sendCallCount += 1
+        if crashed || (sendCallCount >= failOnSendAtCallIndex && !recovered) {
+            crashed = true
+            throw CaptureFailure(message: "Mock transport crashed", isTransportError: true)
         }
-        totalSentCount += 1
+        successfulSendCount += 1
     }
 
     func receive() throws -> Data {
-        guard responseIndex < currentPhaseResponses.count else {
-            throw CaptureFailure(message: "No more mock responses in current phase")
+        guard responseIndex < responses.count else {
+            throw CaptureFailure(message: "No more mock responses", isTransportError: true)
         }
-        let response = currentPhaseResponses[responseIndex]
+        let response = responses[responseIndex]
         responseIndex += 1
         return response
     }
 
-    func stop() {}
-
-    private func advancePhase() {
-        guard phaseIndex < phases.count else { return }
-        let phase = phases[phaseIndex]
-        phaseIndex += 1
-        responseIndex = 0
-
-        switch phase {
-        case .success(let responses):
-            currentPhaseResponses = responses
-            shouldFailOnSend = false
-        case .failOnSend:
-            currentPhaseResponses = []
-            shouldFailOnSend = true
-        }
+    func stop() {
+        crashed = false
     }
+
 }
