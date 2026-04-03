@@ -1,5 +1,6 @@
 import { ensureGitRepo, hasGitRepo, pushWarpRefs } from '../git.js';
 import { getLocalRepoDir, getUpstreamUrl } from '../paths.js';
+import { capturePolicy } from '../policies.js';
 import {
   finalizeCapturedThought,
   getBrowseWindow,
@@ -38,18 +39,22 @@ export async function captureThought(text) {
         migrationRequired: false,
       };
 
-  const entry = await saveRawCapture(repoDir, thought);
-  let migration = null;
-  const warnings = [];
+  const { entry, migration, warnings } = await capturePolicy.execute(async () => {
+    const saved = await saveRawCapture(repoDir, thought);
+    let mig = null;
+    const warns = [];
 
-  try {
-    const followthrough = await finalizeCapturedThought(repoDir, entry.id, {
-      migrateIfNeeded: graphStatus.migrationRequired,
-    });
-    migration = followthrough.migration ?? null;
-  } catch (error) {
-    warnings.push(error instanceof Error ? error.message : String(error));
-  }
+    try {
+      const followthrough = await finalizeCapturedThought(repoDir, saved.id, {
+        migrateIfNeeded: graphStatus.migrationRequired,
+      });
+      mig = followthrough.migration ?? null;
+    } catch (error) {
+      warns.push(error instanceof Error ? error.message : String(error));
+    }
+
+    return { entry: saved, migration: mig, warnings: warns };
+  });
 
   const upstreamUrl = getUpstreamUrl();
   let backupStatus = 'skipped';
