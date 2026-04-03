@@ -173,6 +173,7 @@ The committed synthetic browse benchmark currently improved from a `4152 ms` med
 For contributors, the current system references are:
 
 - [docs/GUIDE.md](./docs/GUIDE.md)
+- [docs/VISION.md](./docs/VISION.md)
 - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
 - [docs/BEARING.md](./docs/BEARING.md)
 - [docs/GLOSSARY.md](./docs/GLOSSARY.md)

@@ -13,7 +13,9 @@ Release discipline:
 ## [Unreleased]
 
 - added GUIDE.md with complete user documentation, MCP configuration, and LLM advice
+- added VISION.md executive synthesis
 - added SECURITY.md and NOTICE
+- updated BEARING.md post-release
 
 ## [0.5.0] - 2026-04-03
 
