@@ -4,12 +4,14 @@
   "version": "0.4.0",
   "type": "module",
   "bin": {
-    "think": "./bin/think.js"
+    "think": "./bin/think.js",
+    "think-mcp": "./bin/think-mcp.js"
   },
   "scripts": {
     "macos": "node ./scripts/package-macos-app.mjs --open",
     "macos:bundle": "node ./scripts/package-macos-app.mjs",
     "macos:dev": "swift run --package-path macos ThinkMenuBarApp",
+    "mcp": "node ./bin/think-mcp.js",
     "test:m1": "node --test test/acceptance/*.test.js",
     "test:benchmarks": "node --test test/benchmarks/*.test.js",
     "test:m2": "swift test --package-path macos",
@@ -27,6 +29,8 @@
     "@flyingrobots/bijou-tui": "^4.0.0",
     "@git-stunts/alfred": "0.4.0",
     "@git-stunts/git-warp": "15.0.0",
-    "@git-stunts/plumbing": "2.8.0"
+    "@git-stunts/plumbing": "2.8.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.3.6"
   }
 }
