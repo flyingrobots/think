@@ -16,6 +16,8 @@ Release discipline:
 - canonicalized JSON parsing and JSONL output through a shared deterministic JSON port so key ordering stays stable on read-in and write-out
 - added a local stdio MCP server via `think-mcp` / `npm run mcp`, exposing typed `capture`, `recent`, `remember`, `browse`, `inspect`, `stats`, `prompt_metrics`, and `migrate_graph` tools over the existing Think runtime
 - adopted System-Style JavaScript as the engineering standard for this repo
+- adopted METHOD for project management with CORE, SURFACE, and REFLECT legends
+- decomposed monolithic BACKLOG.md into filesystem-based METHOD lanes
 - added M5 URL-capture core and menu bar app routing for `think://capture?text=...`
 - added a real macOS app-bundle packaging path with registered `think` URL-scheme metadata via `npm run macos`
 

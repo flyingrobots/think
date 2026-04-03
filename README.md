@@ -172,9 +172,16 @@ The committed synthetic browse benchmark currently improved from a `4152 ms` med
 For contributors, the current system references are:
 
 - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
+- [docs/BEARING.md](./docs/BEARING.md)
 - [docs/GLOSSARY.md](./docs/GLOSSARY.md)
 - [docs/SYSTEMS_STYLE_JAVASCRIPT.md](./docs/SYSTEMS_STYLE_JAVASCRIPT.md)
 - [docs/design/ROADMAP.md](./docs/design/ROADMAP.md)
+
+## Process
+
+Think uses [METHOD](https://github.com/flyingrobots/method) for project management. Backlog lanes, cycle discipline, and retrospectives live in `docs/method/`. Historical milestones (M0–M5) and their retrospectives predate METHOD and remain in `docs/retrospectives/` and `docs/design/`.
+
+Legends: **CORE** (capture, storage, graph), **SURFACE** (CLI, MCP, macOS, browse, inspect), **REFLECT** (pressure-test, analysis).
 
 ## Project Structure
 
@@ -186,6 +193,7 @@ For contributors, the current system references are:
 - `src/git.js` — Git operations
 - `macos/` — native macOS menu bar app (Swift)
 - `test/acceptance/` — acceptance specs
+- `docs/method/` — METHOD backlog, legends, retrospectives, and process
 - `docs/design/` — design documents and roadmap
 
 ## Design Principles
