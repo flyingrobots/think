@@ -25,7 +25,8 @@
     "test": "npm run test:m1",
     "test:local": "npm run test:m1 && npm run test:m2",
     "install-hooks": "git config --local core.hooksPath scripts/hooks",
-    "benchmark:browse": "node benchmarks/browse-bootstrap.js"
+    "benchmark:browse": "node benchmarks/browse-bootstrap.js",
+    "benchmark:capture": "node benchmarks/capture-latency.js"
   },
   "engines": {
     "node": ">=22.0.0"
