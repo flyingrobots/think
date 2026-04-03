@@ -173,6 +173,7 @@ For contributors, the current system references are:
 
 - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
 - [docs/GLOSSARY.md](./docs/GLOSSARY.md)
+- [docs/SYSTEMS_STYLE_JAVASCRIPT.md](./docs/SYSTEMS_STYLE_JAVASCRIPT.md)
 - [docs/design/ROADMAP.md](./docs/design/ROADMAP.md)
 
 ## Project Structure
