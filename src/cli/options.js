@@ -189,6 +189,9 @@ export function validateOptions(options, command) {
   }
 
   if (options.help) {
+    if (explicitCommands === 0 && options.positionals.length > 0) {
+      return 'Use explicit command flags with --help, for example think --recent --help';
+    }
     return null;
   }
 
@@ -350,15 +353,7 @@ export function resolveHelpTopic(options, command) {
     return commandToHelpTopic(command);
   }
 
-  return resolvePositionalHelpTopic(options.positionals[0]) ?? 'general';
-}
-
-export function resolveReportedCommand(command, helpTopic) {
-  if (!helpTopic || helpTopic === 'general') {
-    return command;
-  }
-
-  return helpTopicToCommand(helpTopic);
+  return 'general';
 }
 
 function commandToHelpTopic(command) {
@@ -376,41 +371,4 @@ function commandToHelpTopic(command) {
   }
 
   return command;
-}
-
-function helpTopicToCommand(helpTopic) {
-  if (helpTopic === 'prompt-metrics') {
-    return 'prompt_metrics';
-  }
-  if (helpTopic === 'migrate-graph') {
-    return 'migrate_graph';
-  }
-  if (helpTopic === 'reflect') {
-    return 'reflect_start';
-  }
-  if (helpTopic === 'reflect-session') {
-    return 'reflect_reply';
-  }
-
-  return helpTopic;
-}
-
-function resolvePositionalHelpTopic(value) {
-  if (!value) {
-    return null;
-  }
-
-  return {
-    browse: 'browse',
-    capture: 'capture',
-    ingest: 'ingest',
-    inspect: 'inspect',
-    'migrate-graph': 'migrate-graph',
-    remember: 'remember',
-    recent: 'recent',
-    reflect: 'reflect',
-    'reflect-session': 'reflect-session',
-    stats: 'stats',
-    'prompt-metrics': 'prompt-metrics',
-  }[value] ?? null;
 }

@@ -19,18 +19,10 @@ const HELP_TEXT = {
     '',
     'Command help:',
     '  think --recent --help',
-    '  think recent --help',
     '  think --inspect -h',
     '',
     'To capture text that starts with a dash, end option parsing first:',
     '  think -- "-h"',
-  ].join('\n'),
-  capture: [
-    'Usage: think "raw thought"',
-    '       think -- "<text that starts with a dash>"',
-    '',
-    'Capture saves raw text exactly as written.',
-    'No classification, tagging, or retrieval happens before write.',
   ].join('\n'),
   ingest: [
     'Usage: think --ingest',

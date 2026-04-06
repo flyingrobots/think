@@ -9,6 +9,7 @@ import {
 
 import {
   assertContains,
+  assertFailure,
   assertNotContains,
   assertSuccess,
   parseJsonLines,
@@ -51,13 +52,17 @@ test('think --recent --help prints recent help instead of running the command', 
   );
 });
 
-test('think recent --help resolves to recent help without reserving the word recent by itself', async () => {
+test('think recent --help fails and points callers to the explicit flag form', async () => {
   const context = await createThinkContext();
 
   const result = runThink(context, ['recent', '--help']);
 
-  assertSuccess(result, 'Expected help-topic shorthand to exit successfully.');
-  assertContains(result, 'Usage: think --recent', 'Expected positional recent + --help to resolve to recent help.');
+  assertFailure(result, 'Expected positional help shorthand to fail loudly.');
+  assertContains(
+    result,
+    'Use explicit command flags with --help, for example think --recent --help',
+    'Expected positional help shorthand to point callers at the explicit flag form.'
+  );
 });
 
 test('think --inspect --help bypasses required entry validation', async () => {
@@ -91,18 +96,29 @@ test('think --json --help emits structured JSONL help output', async () => {
   assert.equal(stderrEvents.length, 0, 'Expected successful JSON help to keep stderr quiet.');
 });
 
-test('think recent --json --help reports the requested command in JSONL events', async () => {
+test('think recent --json --help fails machine-readably instead of acting as shorthand help', async () => {
   const context = await createThinkContext();
 
   const result = runThink(context, ['recent', '--json', '--help']);
 
-  assertSuccess(result, 'Expected shorthand recent help in JSON mode to exit successfully.');
-  const stdoutEvents = parseJsonLines(result.stdout, 'Expected shorthand recent help to emit JSONL on stdout.');
+  assertFailure(result, 'Expected shorthand recent help in JSON mode to fail.');
+  const stdoutEvents = parseJsonLines(result.stdout, 'Expected stdout JSONL for shorthand help failure.');
+  const stderrEvents = parseJsonLines(result.stderr, 'Expected stderr JSONL for shorthand help failure.');
 
   assert.deepEqual(
-    stdoutEvents.map((event) => event.command),
-    ['recent', 'recent', 'recent'],
-    'Expected shorthand help events to report the requested recent command instead of capture.'
+    stdoutEvents.map((event) => event.event),
+    ['cli.start'],
+    'Expected shorthand help failure to emit only the start event on stdout.'
+  );
+  assert.deepEqual(
+    stderrEvents.map((event) => event.event),
+    ['cli.validation_failed', 'cli.failure'],
+    'Expected shorthand help failure to remain machine-readable on stderr.'
+  );
+  assert.equal(
+    stderrEvents[0]?.message,
+    'Use explicit command flags with --help, for example think --recent --help',
+    'Expected shorthand help failure to point callers at the explicit flag form.'
   );
 });
 

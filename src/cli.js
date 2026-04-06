@@ -5,7 +5,6 @@ import {
   parseArgs,
   resolveCommand,
   resolveHelpTopic,
-  resolveReportedCommand,
   validateOptions,
 } from './cli/options.js';
 import { createOutput, resolveJsonStream } from './cli/output.js';
@@ -24,7 +23,6 @@ export async function main(argv, { stdout, stderr, stdin }) {
   const options = parseArgs(argv.slice(2));
   const command = resolveCommand(options);
   const helpTopic = resolveHelpTopic(options, command);
-  const reportedCommand = resolveReportedCommand(command, helpTopic);
   const reporter = createVerboseReporter(
     options.json
       ? (payload) => {
@@ -38,23 +36,23 @@ export async function main(argv, { stdout, stderr, stdin }) {
   const validationError = validateOptions(options, command);
 
   try {
-    reporter.event('cli.start', { command: reportedCommand });
+    reporter.event('cli.start', { command });
 
     if (validationError) {
       if (options.json) {
-        output.error(validationError, 'cli.validation_failed', { command: reportedCommand });
+        output.error(validationError, 'cli.validation_failed', { command });
       } else {
         output.error(validationError);
-        reporter.event('cli.validation_failed', { command: reportedCommand, message: validationError });
+        reporter.event('cli.validation_failed', { command, message: validationError });
       }
-      reporter.event('cli.failure', { command: reportedCommand, exitCode: 1 });
+      reporter.event('cli.failure', { command, exitCode: 1 });
       return 1;
     }
 
     if (helpTopic) {
       const help = renderHelp(helpTopic);
-      output.out(help.message, 'cli.help', { command: reportedCommand, topic: help.topic });
-      reporter.event('cli.success', { command: reportedCommand, exitCode: 0 });
+      output.out(help.message, 'cli.help', { command, topic: help.topic });
+      reporter.event('cli.success', { command, exitCode: 0 });
       return 0;
     }
 
@@ -93,11 +91,11 @@ export async function main(argv, { stdout, stderr, stdin }) {
       exitCode = await runCapture(thought, output, reporter);
     }
 
-    reporter.event(exitCode === 0 ? 'cli.success' : 'cli.failure', { command: reportedCommand, exitCode });
+    reporter.event(exitCode === 0 ? 'cli.success' : 'cli.failure', { command, exitCode });
     return exitCode;
   } catch (error) {
     reporter.event('cli.error', {
-      command: reportedCommand,
+      command,
       message: error instanceof Error ? error.message : String(error),
     });
     if (!options.json) {
