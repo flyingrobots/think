@@ -3,11 +3,9 @@ import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 
-import { retry, timeout, TimeoutError } from '@git-stunts/alfred';
+import { TimeoutError } from '@git-stunts/alfred';
 
-const PUSH_TIMEOUT_MS = 1500;
-const PUSH_RETRIES = 1;
-const PUSH_RETRY_DELAY_MS = 100;
+import { createPushPolicy } from './policies.js';
 
 const DEFAULT_GIT_ENV = {
   GIT_AUTHOR_NAME: 'think',
@@ -41,34 +39,24 @@ export async function pushWarpRefs(repoDir, upstreamUrl, graphName, { reporter }
   }
 
   try {
-    await retry(
-      () => timeout(
-        PUSH_TIMEOUT_MS,
-        signal => runGitPush(repoDir, upstreamUrl, graphName, signal),
-        {
-          onTimeout(elapsed) {
-            reporter?.event('backup.timeout', {
-              elapsedMs: elapsed,
-              timeoutMs: PUSH_TIMEOUT_MS,
-            });
-          },
-        }
-      ),
-      {
-        retries: PUSH_RETRIES,
-        delay: PUSH_RETRY_DELAY_MS,
-        backoff: 'exponential',
-        jitter: 'full',
-        shouldRetry: shouldRetryPush,
-        onRetry(error, attempt, delay) {
-          reporter?.event('backup.retry', {
-            attempt,
-            delayMs: delay,
-            reason: describePushError(error),
-          });
-        },
-      }
-    );
+    const policy = createPushPolicy({
+      shouldRetry: shouldRetryPush,
+      onTimeout(elapsed) {
+        reporter?.event('backup.timeout', {
+          elapsedMs: elapsed,
+          timeoutMs: 1500,
+        });
+      },
+      onRetry(error, attempt, delay) {
+        reporter?.event('backup.retry', {
+          attempt,
+          delayMs: delay,
+          reason: describePushError(error),
+        });
+      },
+    });
+
+    await policy.execute(signal => runGitPush(repoDir, upstreamUrl, graphName, signal));
 
     return true;
   } catch (error) {

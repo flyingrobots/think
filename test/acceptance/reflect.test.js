@@ -236,7 +236,7 @@ test('think --reflect validates explicit session entry and stays read-only on in
 
   const seededContext = await createThinkContext();
   const { entryId: seedEntryId } = captureWithEntryId(seededContext, 'seed thought');
-  const unexpectedResponse = runThink(seededContext, ['--reflect=' + seedEntryId, 'this should not be dropped']);
+  const unexpectedResponse = runThink(seededContext, [`--reflect=${  seedEntryId}`, 'this should not be dropped']);
 
   assertFailure(
     unexpectedResponse,
@@ -248,7 +248,7 @@ test('think --reflect validates explicit session entry and stays read-only on in
     'Expected reflect start and reflect response to remain separate commands.'
   );
 
-  const invalidMode = runThink(seededContext, ['--reflect=' + seedEntryId, '--mode=chaos']);
+  const invalidMode = runThink(seededContext, [`--reflect=${  seedEntryId}`, '--mode=chaos']);
   assertFailure(invalidMode, 'Expected invalid brainstorm prompt family selection to fail loudly.');
   assertContains(
     invalidMode,
@@ -287,7 +287,7 @@ test('think --reflect refuses status-like seeds that are not pressure-testable i
   captureWithEntryId(context, alternativeOne);
   captureWithEntryId(context, alternativeTwo);
 
-  const start = runThink(context, ['--reflect=' + seedEntryId]);
+  const start = runThink(context, [`--reflect=${  seedEntryId}`]);
 
   assertFailure(start, 'Expected brainstorm to refuse low-signal status or narrative notes.');
   assertContains(

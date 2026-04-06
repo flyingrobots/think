@@ -562,6 +562,7 @@ async function listArtifactNodes(graph) {
     if (!nodeId.startsWith('artifact:')) {
       continue;
     }
+    // eslint-disable-next-line no-await-in-loop -- sequential graph reads for test assertions
     const props = await graph.getNodeProps(nodeId);
     if (!props) {
       continue;

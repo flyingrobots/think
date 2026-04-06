@@ -16,9 +16,11 @@ public struct CaptureResult: Equatable, Sendable {
 
 public struct CaptureFailure: Error, Equatable, Sendable {
     public let message: String
+    public let isTransportError: Bool
 
-    public init(message: String) {
+    public init(message: String, isTransportError: Bool = false) {
         self.message = message
+        self.isTransportError = isTransportError
     }
 }
 

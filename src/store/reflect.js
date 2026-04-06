@@ -28,7 +28,7 @@ export async function startReflect(repoDir, seedEntryId, { promptType = null } =
     return planned;
   }
 
-  const promptPlan = planned.promptPlan;
+  const {promptPlan} = planned;
   const session = createReflectSession(app.writerId, {
     seedEntryId,
     contrastEntryId: null,
@@ -37,6 +37,7 @@ export async function startReflect(repoDir, seedEntryId, { promptType = null } =
     selectionReason: promptPlan.selectionReason,
   });
 
+  // eslint-disable-next-line require-await -- git-warp patch callback must be async for the library API
   await app.patch(async patch => {
     patch
       .addNode(session.id)

@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+pushing_to_main=false
+while read -r _ _ remote_ref _; do
+  if [[ "$remote_ref" == "refs/heads/main" ]]; then
+    pushing_to_main=true
+    break
+  fi
+done
+
+if [[ "$pushing_to_main" == "true" ]]; then
+  echo "Running local pre-push checks for think..."
+  npm run test:m1
+
+  if [ "$(uname -s)" = "Darwin" ] && command -v swift >/dev/null 2>&1; then
+    npm run test:m2
+  else
+    echo "Skipping macOS pre-push tests because Darwin/swift is unavailable."
+  fi
+else
+  local_branch=$(git rev-parse --abbrev-ref HEAD)
+  echo "pre-push: not pushing to main ($local_branch) — skipping test gate."
+fi

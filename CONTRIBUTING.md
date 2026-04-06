@@ -38,12 +38,13 @@ In practice, that means:
 
 ## First Contributor Reads
 
-If you are new to the repo, start here before diving into the ADR trail:
+If you are new to the repo, start here:
 
 1. [README.md](./README.md)
-2. [docs/GLOSSARY.md](./docs/GLOSSARY.md)
-3. [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
-4. [docs/design/ROADMAP.md](./docs/design/ROADMAP.md)
+2. [docs/GUIDE.md](./docs/GUIDE.md)
+3. [docs/GLOSSARY.md](./docs/GLOSSARY.md)
+4. [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
+5. [docs/design/ROADMAP.md](./docs/design/ROADMAP.md)
 
 The design notes remain valuable, but contributors should not have to reconstruct the current system by reading milestone history in chronological order.
 
@@ -319,11 +320,11 @@ The point is not aesthetic Git history. The point is trustworthy collaboration.
 Before making non-trivial changes, read:
 
 - [README.md](./README.md)
-- [docs/design/README.md](./docs/design/README.md)
+- [docs/GUIDE.md](./docs/GUIDE.md)
 - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
+- [docs/BEARING.md](./docs/BEARING.md)
+- [docs/SYSTEMS_STYLE_JAVASCRIPT.md](./docs/SYSTEMS_STYLE_JAVASCRIPT.md)
 - [docs/design/ROADMAP.md](./docs/design/ROADMAP.md)
-- [docs/retrospectives/m1-capture-core-and-upstream-backup.md](./docs/retrospectives/m1-capture-core-and-upstream-backup.md)
-- [BACKLOG.md](./BACKLOG.md)
 
 ## Decision Rule
 

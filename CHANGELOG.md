@@ -12,10 +12,41 @@ Release discipline:
 
 ## [Unreleased]
 
-- added explicit stdin ingest via `think --ingest`, preserving the normal raw-capture contract and JSON envelope
-- canonicalized JSON parsing and JSONL output through a shared deterministic JSON port so key ordering stays stable on read-in and write-out
-- added M5 URL-capture core and menu bar app routing for `think://capture?text=...`
-- added a real macOS app-bundle packaging path with registered `think` URL-scheme metadata via `npm run macos`
+- added capture latency benchmark via `npm run benchmark:capture` with JSON and human output, isolated temp repo, and committed baseline (~2s median warm-path)
+- added `--profile` flag to capture benchmark revealing module load (~2.3s) as the dominant bottleneck — actual Think runtime operations are sub-ms
+- added ThinkMCPAdapter for warm capture in the macOS menu bar app — spawns think-mcp once and reuses it, eliminating the ~2.3s cold start on every capture after the first
+- added MCP auto-restart — if the child process crashes, the adapter respawns it and retries the capture transparently
+- extracted named Alfred policies (`src/policies.js`) for upstream push and MCP capture timeout
+- added GUIDE.md with complete user documentation, MCP configuration, and LLM advice
+- added VISION.md executive synthesis
+- added SECURITY.md and NOTICE
+- updated BEARING.md post-release
+
+## [0.5.0] - 2026-04-03
+
+Fifth milestone release for `think`.
+
+### Added
+
+- explicit stdin ingest via `think --ingest`, preserving the normal raw-capture contract and JSON envelope
+- canonical JSON parsing and JSONL output through a shared deterministic JSON port so key ordering stays stable on read-in and write-out
+- local stdio MCP server via `think-mcp` / `npm run mcp`, exposing typed `capture`, `recent`, `remember`, `browse`, `inspect`, `stats`, `prompt_metrics`, and `migrate_graph` tools over the existing Think runtime
+- M5 URL-capture core and menu bar app routing for `think://capture?text=...`
+- real macOS app-bundle packaging path with registered `think` URL-scheme metadata via `npm run macos`
+- ESLint with maximum strictness, CI workflow (GitHub Actions), and tag-triggered release workflow
+- pre-commit lint gate via `scripts/hooks/pre-commit`
+
+### Changed
+
+- adopted System-Style JavaScript as the engineering standard
+- adopted METHOD for project management with CORE, SURFACE, and REFLECT legends
+- decomposed monolithic BACKLOG.md into filesystem-based METHOD backlog lanes
+- migrated git hooks from `.githooks/` to `scripts/hooks/`
+
+### Notes
+
+- `M5` is complete
+- first release under METHOD discipline
 
 ## [0.4.0] - 2026-03-29
 

@@ -15,6 +15,7 @@ export async function migrateGraphModel(repoDir) {
   const propsById = new Map();
 
   for (const nodeId of nodes) {
+    // eslint-disable-next-line no-await-in-loop -- sequential graph node reads during migration
     const props = await graph.getNodeProps(nodeId);
     if (props) {
       propsById.set(nodeId, props);

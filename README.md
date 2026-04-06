@@ -109,6 +109,27 @@ think --json --prompt-metrics --bucket=day
 think --json --reflect=<entryId>
 ```
 
+## MCP Service
+
+Think now ships a local stdio MCP server so agents can use the same capture and read core without shelling out through the CLI.
+
+```bash
+npm run mcp
+# or
+node ./bin/think-mcp.js
+```
+
+The first tool surface includes:
+
+- `capture`
+- `recent`
+- `remember`
+- `browse`
+- `inspect`
+- `stats`
+- `prompt_metrics`
+- `migrate_graph`
+
 ## Configuration
 
 | Variable | Purpose | Default |
@@ -142,7 +163,8 @@ npm run test:benchmarks
 ## Development
 
 ```bash
-npm run install-hooks             # enable pre-push hook
+npm run install-hooks             # enable git hooks (lint + test gates)
+npm run lint                      # ESLint
 npm run benchmark:browse          # browse bootstrap benchmark
 ```
 
@@ -150,18 +172,31 @@ The committed synthetic browse benchmark currently improved from a `4152 ms` med
 
 For contributors, the current system references are:
 
+- [docs/GUIDE.md](./docs/GUIDE.md)
+- [docs/VISION.md](./docs/VISION.md)
 - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
+- [docs/BEARING.md](./docs/BEARING.md)
 - [docs/GLOSSARY.md](./docs/GLOSSARY.md)
+- [docs/SYSTEMS_STYLE_JAVASCRIPT.md](./docs/SYSTEMS_STYLE_JAVASCRIPT.md)
 - [docs/design/ROADMAP.md](./docs/design/ROADMAP.md)
+
+## Process
+
+Think uses [METHOD](https://github.com/flyingrobots/method) for project management. Backlog lanes, cycle discipline, and retrospectives live in `docs/method/`. Historical milestones (M0–M5) and their retrospectives predate METHOD and remain in `docs/retrospectives/` and `docs/design/`.
+
+Legends: **CORE** (capture, storage, graph), **SURFACE** (CLI, MCP, macOS, browse, inspect), **REFLECT** (pressure-test, analysis).
 
 ## Project Structure
 
 - `bin/think.js` — CLI entrypoint
+- `bin/think-mcp.js` — stdio MCP server entrypoint
 - `src/cli.js` and `src/cli/` — CLI entry, parsing, dispatch, and command runners
+- `src/mcp/` — MCP server, tool registration, and service adapters
 - `src/store.js` and `src/store/` — thought storage, graph reads, derivation, and migration logic
 - `src/git.js` — Git operations
 - `macos/` — native macOS menu bar app (Swift)
 - `test/acceptance/` — acceptance specs
+- `docs/method/` — METHOD backlog, legends, retrospectives, and process
 - `docs/design/` — design documents and roadmap
 
 ## Design Principles

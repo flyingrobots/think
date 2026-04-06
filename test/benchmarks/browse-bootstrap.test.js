@@ -57,7 +57,7 @@ test('loadBrowseChronologyEntries follows graph-native older edges newest-first'
   assert.match(entries.at(-1)?.text ?? '', /Benchmark thought 1\./, 'Expected chronology traversal to preserve the oldest capture text.');
 });
 
-test('browse benchmark emits a deterministic JSON report for a synthetic fixture graph', async () => {
+test('browse benchmark emits a deterministic JSON report for a synthetic fixture graph', () => {
   const result = runBrowseBenchmark(['--json', '--thoughts=12', '--sessions=3', '--warmup=0', '--runs=2']);
 
   assert.equal(result.status, 0, formatResult(result));

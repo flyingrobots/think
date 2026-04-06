@@ -175,6 +175,11 @@ final class CaptureAppState: ObservableObject {
             return UnavailableCaptureClient(message: "Forced capture failure")
         }
 
+        // Prefer MCP (persistent warm process), fall back to CLI (cold start per capture)
+        if let transport = try? ThinkMCPCommandResolver.makeDefault() {
+            return ThinkMCPAdapter(transport: transport)
+        }
+
         do {
             return ThinkCLIAdapter(
                 runner: SystemProcessRunner(),

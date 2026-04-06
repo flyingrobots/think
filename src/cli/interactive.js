@@ -5,9 +5,9 @@ export function normalizeForPicker(text) {
   return String(text).replace(/\s+/g, ' ').trim();
 }
 
-export async function pickReflectMode() {
+export function pickReflectMode() {
   const ctx = initDefaultContext();
-  ctx.io.write(renderInteractiveModeIntro(ctx) + '\n');
+  ctx.io.write(`${renderInteractiveModeIntro(ctx)  }\n`);
 
   return select({
     title: 'Pressure mode',
@@ -34,14 +34,14 @@ export async function pickReflectMode() {
   });
 }
 
-export async function promptForGraphMigration(command, status) {
+export function promptForGraphMigration(command, status) {
   const scriptedDecision = process.env.THINK_TEST_CONFIRM_MIGRATION;
   if (scriptedDecision === 'upgrade' || scriptedDecision === 'cancel') {
     return scriptedDecision;
   }
 
   const ctx = initDefaultContext();
-  ctx.io.write(renderGraphMigrationIntro(command, status, ctx) + '\n');
+  ctx.io.write(`${renderGraphMigrationIntro(command, status, ctx)  }\n`);
 
   return select({
     title: 'Graph upgrade',
