@@ -23,8 +23,8 @@
 
 ### Human perspective
 
-5. Can a new contributor understand the current workflow from one doc? **Yes** — the guide now starts with the product doctrine, first reads, current workflow, and verification commands.
-6. Is the capture doctrine still obvious? **Yes** — the capture-path guardrails remain explicit and prominent.
+1. Can a new contributor understand the current workflow from one doc? **Yes** — the guide now starts with the product doctrine, first reads, current workflow, and verification commands.
+2. Is the capture doctrine still obvious? **Yes** — the capture-path guardrails remain explicit and prominent.
 
 ## Drift check
 

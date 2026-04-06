@@ -57,7 +57,7 @@ At cycle kickoff, the design note should state:
 At cycle close:
 
 - update [`CHANGELOG.md`](./CHANGELOG.md)
-- update [`README.md`](./README.md) if the user-facing surface changed
+- update [`README.md`](./README.md) when the user-facing surface changed
 - update [`docs/BEARING.md`](./docs/BEARING.md) when direction, tensions, or recently shipped work changed
 - write the retrospective before calling the slice done
 
@@ -104,7 +104,7 @@ Release rules:
 - milestone or cycle closeout produces the release-candidate state
 - `package.json` is bumped on the release commit
 - the Git tag is created on the commit that lands on `main`
-- every cycle close updates the changelog and README, even if no release is cut
+- every cycle close updates the changelog; update README when the user-facing surface changed
 
 ## Capture-path guardrails
 
