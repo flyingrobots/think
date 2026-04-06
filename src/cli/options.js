@@ -353,6 +353,14 @@ export function resolveHelpTopic(options, command) {
   return resolvePositionalHelpTopic(options.positionals[0]) ?? 'general';
 }
 
+export function resolveReportedCommand(command, helpTopic) {
+  if (!helpTopic || helpTopic === 'general') {
+    return command;
+  }
+
+  return helpTopicToCommand(helpTopic);
+}
+
 function commandToHelpTopic(command) {
   if (command === 'prompt_metrics') {
     return 'prompt-metrics';
@@ -368,6 +376,23 @@ function commandToHelpTopic(command) {
   }
 
   return command;
+}
+
+function helpTopicToCommand(helpTopic) {
+  if (helpTopic === 'prompt-metrics') {
+    return 'prompt_metrics';
+  }
+  if (helpTopic === 'migrate-graph') {
+    return 'migrate_graph';
+  }
+  if (helpTopic === 'reflect') {
+    return 'reflect_start';
+  }
+  if (helpTopic === 'reflect-session') {
+    return 'reflect_reply';
+  }
+
+  return helpTopic;
 }
 
 function resolvePositionalHelpTopic(value) {

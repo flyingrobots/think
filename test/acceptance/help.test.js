@@ -91,6 +91,21 @@ test('think --json --help emits structured JSONL help output', async () => {
   assert.equal(stderrEvents.length, 0, 'Expected successful JSON help to keep stderr quiet.');
 });
 
+test('think recent --json --help reports the requested command in JSONL events', async () => {
+  const context = await createThinkContext();
+
+  const result = runThink(context, ['recent', '--json', '--help']);
+
+  assertSuccess(result, 'Expected shorthand recent help in JSON mode to exit successfully.');
+  const stdoutEvents = parseJsonLines(result.stdout, 'Expected shorthand recent help to emit JSONL on stdout.');
+
+  assert.deepEqual(
+    stdoutEvents.map((event) => event.command),
+    ['recent', 'recent', 'recent'],
+    'Expected shorthand help events to report the requested recent command instead of capture.'
+  );
+});
+
 test('think -- -h captures the literal text after option parsing is terminated', async () => {
   const context = await createThinkContext();
 
