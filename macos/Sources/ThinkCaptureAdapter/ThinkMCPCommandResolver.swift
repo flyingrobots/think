@@ -23,7 +23,7 @@ public enum ThinkMCPCommandResolver {
         )
     }
 
-    private static func resolveMCPPath(
+    static func resolveMCPPath(
         environment: [String: String],
         currentDirectoryPath: String,
         bundleDirectoryPath: String?,

@@ -4,7 +4,7 @@ Updated: 2026-04-06
 
 ## Where are we going?
 
-Validation and hardening. `v0.5.0` is released. METHOD is adopted. Cycle 0001 (capture latency benchmark) is complete — first METHOD cycle closed with a full retro.
+Validation and hardening. `v0.5.0` is released. METHOD is adopted. Recent cycles have focused on capture-latency measurement, warm-path hardening, and adapter cleanup.
 
 ## What just shipped?
 

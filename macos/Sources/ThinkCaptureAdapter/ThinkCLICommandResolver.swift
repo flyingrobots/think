@@ -23,7 +23,7 @@ public enum ThinkCLICommandResolver {
         )
     }
 
-    private static func resolveCLIPath(
+    static func resolveCLIPath(
         environment: [String: String],
         currentDirectoryPath: String,
         bundleDirectoryPath: String?,
