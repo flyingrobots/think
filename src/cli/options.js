@@ -9,6 +9,7 @@ export function parseArgs(args) {
   const options = {
     verbose: false,
     json: false,
+    help: false,
     stats: false,
     promptMetrics: false,
     recent: false,
@@ -47,6 +48,8 @@ export function parseArgs(args) {
         options.verbose = true;
       } else if (arg === '--json') {
         options.json = true;
+      } else if (arg === '--help') {
+        options.help = true;
       } else if (arg === '--stats') {
         options.stats = true;
       } else if (arg === '--prompt-metrics') {
@@ -123,6 +126,11 @@ export function parseArgs(args) {
       continue;
     }
 
+    if (parsingFlags && arg === '-h') {
+      options.help = true;
+      continue;
+    }
+
     positionals.push(arg);
   }
 
@@ -173,22 +181,15 @@ export function validateOptions(options, command) {
 
   const hasTimeFilters = Boolean(options.from || options.to || options.since || options.bucket);
   const hasRememberEnhancement = options.rememberLimit !== null || options.rememberBrief;
-  const explicitCommands = [
-    options.recent,
-    options.remember,
-    options.ingest,
-    options.promptMetrics,
-    options.browseFlag,
-    options.inspectFlag,
-    options.migrateGraph,
-    options.stats,
-    options.reflectFlag,
-    options.reflectSessionFlag,
-  ].filter(Boolean).length;
+  const explicitCommands = countExplicitCommands(options);
   const hasRecentFilter = options.recentCount !== null || options.recentQuery !== null;
 
   if (explicitCommands > 1) {
     return 'Commands cannot be combined';
+  }
+
+  if (options.help) {
+    return null;
   }
 
   if (command === 'recent' && options.positionals.length > 0) {
@@ -321,4 +322,70 @@ function setOptionError(options, message) {
   if (!options.optionError) {
     options.optionError = message;
   }
+}
+
+export function countExplicitCommands(options) {
+  return [
+    options.recent,
+    options.remember,
+    options.ingest,
+    options.promptMetrics,
+    options.browseFlag,
+    options.inspectFlag,
+    options.migrateGraph,
+    options.stats,
+    options.reflectFlag,
+    options.reflectSessionFlag,
+  ].filter(Boolean).length;
+}
+
+export function resolveHelpTopic(options, command) {
+  if (!options.help) {
+    return null;
+  }
+
+  const explicitCommands = countExplicitCommands(options);
+
+  if (explicitCommands === 1) {
+    return commandToHelpTopic(command);
+  }
+
+  return resolvePositionalHelpTopic(options.positionals[0]) ?? 'general';
+}
+
+function commandToHelpTopic(command) {
+  if (command === 'prompt_metrics') {
+    return 'prompt-metrics';
+  }
+  if (command === 'migrate_graph') {
+    return 'migrate-graph';
+  }
+  if (command === 'reflect_start') {
+    return 'reflect';
+  }
+  if (command === 'reflect_reply') {
+    return 'reflect-session';
+  }
+
+  return command;
+}
+
+function resolvePositionalHelpTopic(value) {
+  if (!value) {
+    return null;
+  }
+
+  return {
+    browse: 'browse',
+    capture: 'capture',
+    ingest: 'ingest',
+    inspect: 'inspect',
+    'migrate-graph': 'migrate-graph',
+    remember: 'remember',
+    recent: 'recent',
+    reflect: 'reflect',
+    'reflect-session': 'reflect-session',
+    stats: 'stats',
+    'prompt-metrics': 'prompt-metrics',
+  }[value] ?? null;
 }
