@@ -52,6 +52,20 @@ test('think --recent --help prints recent help instead of running the command', 
   );
 });
 
+test('think --recent -h prints recent help instead of running the command', async () => {
+  const context = await createThinkContext();
+
+  const result = runThink(context, ['--recent', '-h']);
+
+  assertSuccess(result, 'Expected command-specific short help to exit successfully.');
+  assertContains(result, 'Usage: think --recent', 'Expected recent short help to render a recent-specific usage line.');
+  assertContains(result, '--count=N', 'Expected recent short help to mention the count filter.');
+  assert.ok(
+    !existsSync(context.localRepoDir),
+    `Expected recent short help to remain read-only and avoid creating ${context.localRepoDir}.`
+  );
+});
+
 test('think recent --help fails and points callers to the explicit flag form', async () => {
   const context = await createThinkContext();
 
