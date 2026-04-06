@@ -1,6 +1,6 @@
 # 0007 Shared Path Search
 
-Status: proposed
+Status: implemented and closed
 
 ## Sponsor
 

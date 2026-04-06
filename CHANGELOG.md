@@ -12,6 +12,7 @@ Release discipline:
 
 ## [Unreleased]
 
+- extracted shared Swift `PathSearcher` utility for macOS CLI/MCP resolver lookup and added direct resolver coverage for explicit path, repo-root, bundle, and process-directory search behavior
 - added capture latency benchmark via `npm run benchmark:capture` with JSON and human output, isolated temp repo, and committed baseline (~2s median warm-path)
 - added `--profile` flag to capture benchmark revealing module load (~2.3s) as the dominant bottleneck — actual Think runtime operations are sub-ms
 - added ThinkMCPAdapter for warm capture in the macOS menu bar app — spawns think-mcp once and reuses it, eliminating the ~2.3s cold start on every capture after the first
