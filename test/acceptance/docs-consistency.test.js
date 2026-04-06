@@ -49,10 +49,13 @@ test('METHOD docs use one consistent cycle-only release and README closeout poli
 
 test('cycle 0006 retrospective restarts ordered numbering for the human playback section', () => {
   const retro = readRepoFile('docs/method/retro/0006/refresh-contributing.md');
+  const humanPerspective = retro.match(
+    /### Human perspective[\s\S]*?(?=\n### |\n## |\n# |$)/
+  )?.[0] ?? '';
 
   assert.match(
-    retro,
-    /### Human perspective\s+1\. Can a new contributor understand the current workflow from one doc\?[\s\S]*\n2\. Is the capture doctrine still obvious\?/,
+    humanPerspective,
+    /(^|\n)1\. Can a new contributor understand the current workflow from one doc\?[\s\S]*\n2\. Is the capture doctrine still obvious\?/,
     'Expected the Human perspective list to restart numbering at 1 and 2.'
   );
 });

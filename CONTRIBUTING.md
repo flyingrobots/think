@@ -83,7 +83,7 @@ npm run benchmark:browse
 
 - `npm test` is the default acceptance suite.
 - `npm run test:m2` runs the macOS Swift tests and is Darwin-only.
-- `npm run test:local` runs the default suite plus the macOS suite together.
+- `npm run test:local` runs the default suite plus the macOS suite together (Darwin-only).
 - Only run one `swift test` at a time. SwiftPM locks the build directory.
 - After changing Swift source, rebuild the macOS app with `npm run macos:bundle`.
 - Install hooks with `npm run install-hooks`. `pre-commit` runs lint, and `pre-push` enforces the main-branch test gate.
