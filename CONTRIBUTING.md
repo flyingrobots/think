@@ -101,7 +101,7 @@ Think starts versioning at `0.1.0`.
 Release rules:
 
 - releases happen when externally meaningful behavior changes, not automatically for every cycle
-- milestone or cycle closeout produces the release-candidate state
+- cycle closeout produces the release-candidate state
 - `package.json` is bumped on the release commit
 - the Git tag is created on the commit that lands on `main`
 - every cycle close updates the changelog; update README when the user-facing surface changed
