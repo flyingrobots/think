@@ -142,6 +142,10 @@ public final class ThinkCLIAdapter: ThinkCapturing, @unchecked Sendable {
 
     private func mergedEnvironment(for provenance: ThinkCaptureProvenance?) -> [String: String] {
         var environment = command.environment
+        environment.removeValue(forKey: "THINK_CAPTURE_INGRESS")
+        environment.removeValue(forKey: "THINK_CAPTURE_SOURCE_APP")
+        environment.removeValue(forKey: "THINK_CAPTURE_SOURCE_URL")
+
         guard let provenance else {
             return environment
         }

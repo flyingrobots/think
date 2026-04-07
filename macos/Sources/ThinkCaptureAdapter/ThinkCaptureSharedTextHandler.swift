@@ -19,7 +19,7 @@ public struct ThinkCaptureSharedTextRequest: Equatable, Sendable {
     ) throws {
         switch item {
         case .text(let text):
-            guard !text.isEmpty else {
+            guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 throw CaptureFailure(message: "Shared-text capture requires text")
             }
 

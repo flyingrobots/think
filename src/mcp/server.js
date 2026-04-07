@@ -3,6 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import * as z from 'zod/v4';
 
 import pkg from '../../package.json' with { type: 'json' };
+import { VALID_CAPTURE_INGRESSES } from '../capture-provenance.js';
 import { toToolResult } from './result.js';
 import {
   browseThought,
@@ -71,7 +72,7 @@ export function createThinkMcpServer() {
   server.registerTool('capture', {
     description: 'Capture a raw thought into Think using the normal local-first capture core.',
     inputSchema: {
-      ingress: z.enum(['url', 'shortcut', 'selected_text', 'share']).optional().describe('Optional additive provenance describing the ingress surface.'),
+      ingress: z.enum([...VALID_CAPTURE_INGRESSES]).optional().describe('Optional additive provenance describing the ingress surface.'),
       sourceApp: z.string().optional().describe('Optional additive provenance naming the source application.'),
       sourceURL: z.string().url().optional().describe('Optional additive provenance naming the source URL when the sender provides one explicitly.'),
       text: z.string().describe('The raw thought text to capture exactly as written.'),

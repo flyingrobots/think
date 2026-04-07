@@ -56,6 +56,10 @@ public struct ThinkCaptureURLHandler: Sendable {
 
     public func handle(url: URL) async throws -> CaptureResult {
         let request = try ThinkCaptureURLRequest(url: url)
+        return try await handle(request: request)
+    }
+
+    public func handle(request: ThinkCaptureURLRequest) async throws -> CaptureResult {
         return try await client.capture(
             text: request.text,
             provenance: ThinkCaptureProvenance(

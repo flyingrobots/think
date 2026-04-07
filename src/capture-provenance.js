@@ -1,4 +1,4 @@
-const VALID_CAPTURE_INGRESSES = new Set([
+export const VALID_CAPTURE_INGRESSES = new Set([
   'url',
   'shortcut',
   'selected_text',
@@ -44,7 +44,8 @@ function normalizeString(value) {
     return null;
   }
 
-  return value.trim() === '' ? null : value;
+  const trimmed = value.trim();
+  return trimmed === '' ? null : trimmed;
 }
 
 function normalizeUrl(value) {

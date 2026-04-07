@@ -16,6 +16,8 @@ export async function saveRawCapture(repoDir, thought, { provenance = null } = {
   const app = await openWarpApp(repoDir);
   const entry = createEntry(thought, app.writerId, { kind: 'capture', source: 'capture' });
   const ambientContext = getAmbientProjectContext(process.cwd());
+  // Keep the store boundary defensive because direct callers can bypass the
+  // CLI and MCP normalization helpers before reaching persistence.
   const captureProvenance = normalizeCaptureProvenance(provenance);
 
   await app.patch(async patch => {
