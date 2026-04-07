@@ -12,6 +12,7 @@ Release discipline:
 
 ## [Unreleased]
 
+- added splash screen to browse TUI — shows the Think logo (large/medium/small based on terminal size) with "Press [ Enter ]" prompt before entering browse mode
 - pruned stale `bad-code` backlog notes for already-shipped cycle `0006` and `0007` work, and aligned changelog release wording with the current cycle-based METHOD docs
 - restricted command help to explicit flag forms like `think --recent --help`, preserving positional text capture and returning a clear validation error for ambiguous `think recent --help`
 - extracted shared Swift `PathSearcher` utility for macOS CLI/MCP resolver lookup and added direct resolver coverage for explicit path, repo-root, bundle, and process-directory search behavior

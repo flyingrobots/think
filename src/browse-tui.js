@@ -1,5 +1,6 @@
 import { initDefaultContext } from '@flyingrobots/bijou-node';
 import { parseAnsiToSurface } from '@flyingrobots/bijou';
+import { renderSplash } from './splash.js';
 import {
   composite,
   commandPalette,
@@ -83,6 +84,16 @@ export async function runBrowseTui({
         return [resizeBrowseModel(model, msg.columns, msg.rows), []];
       }
 
+      if (model.phase === 'splash') {
+        if (msg.type === 'key' && msg.key === 'return') {
+          return [{ ...model, phase: 'browse' }, []];
+        }
+        if (msg.type === 'key' && (msg.key === 'q' || msg.key === 'escape')) {
+          return [model, [quit()]];
+        }
+        return [model, []];
+      }
+
       if (msg.type === 'inspect_loaded') {
         const nextCache = new Map(model.inspectCache);
         if (msg.inspectEntry) {
@@ -162,6 +173,9 @@ export async function runBrowseTui({
       return [nextModel, [...(result.cmds ?? []), ...cmds]];
     },
     view(model) {
+      if (model.phase === 'splash') {
+        return parseAnsiToSurface(renderSplash(model.columns, model.rows), model.columns, model.rows);
+      }
       return parseAnsiToSurface(renderBrowseModel(model), model.columns, model.rows);
     },
   };
@@ -266,6 +280,7 @@ export function createWindowedBrowseModel({
   loadChronologyEntries,
 }) {
   return {
+    phase: 'splash',
     mode: 'windowed',
     entries: bootstrap?.current ? [bootstrap.current] : [],
     inspectCache,
