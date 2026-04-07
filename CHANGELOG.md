@@ -6,12 +6,13 @@ This project starts versioning at `0.1.0`.
 
 Release discipline:
 
-- milestone closeout produces the release candidate state
+- cycle closeout produces the release candidate state
 - `package.json` version is bumped on the release commit
-- a Git tag is created on the commit that lands on `main` for that milestone release
+- a Git tag is created on the commit that lands on `main` for that release
 
 ## [Unreleased]
 
+- pruned stale `bad-code` backlog notes for already-shipped cycle `0006` and `0007` work, and aligned changelog release wording with the current cycle-based METHOD docs
 - restricted command help to explicit flag forms like `think --recent --help`, preserving positional text capture and returning a clear validation error for ambiguous `think recent --help`
 - extracted shared Swift `PathSearcher` utility for macOS CLI/MCP resolver lookup and added direct resolver coverage for explicit path, repo-root, bundle, and process-directory search behavior
 - refreshed `CONTRIBUTING.md` to match METHOD, current backlog/design/retro locations, and current verification/release guidance

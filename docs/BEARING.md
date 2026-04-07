@@ -8,7 +8,7 @@ Validation and hardening. `v0.5.0` is released. METHOD is adopted. Recent cycles
 
 ## What just shipped?
 
-Cycle 0007 — shared Swift path search. The macOS CLI and MCP resolvers now share one path-search utility with direct resolver tests for explicit path, repo-root, bundle, and process-directory lookup.
+Cycle 0008 — pruned stale `bad-code` backlog debt. The shipped shared-path-search and CONTRIBUTING refresh slices are no longer listed as open bad-code work, and release-discipline wording is now aligned across the current METHOD docs.
 
 ## What feels wrong?
 
