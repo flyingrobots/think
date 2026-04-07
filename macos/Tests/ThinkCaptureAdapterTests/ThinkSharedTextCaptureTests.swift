@@ -46,6 +46,20 @@ final class ThinkSharedTextCaptureTests: XCTestCase {
         }
     }
 
+    func testSharedTextRequestRejectsWhitespaceOnlyText() {
+        XCTAssertThrowsError(
+            try ThinkCaptureSharedTextRequest(
+                item: .text("   \n\t  "),
+                ingress: .selectedText
+            )
+        ) { error in
+            XCTAssertEqual(
+                error as? CaptureFailure,
+                CaptureFailure(message: "Shared-text capture requires text")
+            )
+        }
+    }
+
     func testSharedTextRequestRejectsUnsupportedSharedItem() {
         XCTAssertThrowsError(
             try ThinkCaptureSharedTextRequest(

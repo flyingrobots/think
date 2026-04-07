@@ -105,6 +105,33 @@ test('think MCP capture preserves additive provenance separately from the raw te
   });
 });
 
+test('think MCP capture trims additive provenance strings before persistence', async () => {
+  const context = await createThinkContext();
+
+  await withThinkMcpClient(context, async ({ client }) => {
+    const capture = await callTool(client, 'capture', {
+      text: 'selected text',
+      ingress: 'selected_text',
+      sourceApp: '  Safari  ',
+      sourceURL: 'https://example.com/article',
+    });
+
+    const inspect = await callTool(client, 'inspect', {
+      entryId: capture.entryId,
+    });
+
+    assert.deepEqual(
+      inspect.entry.captureProvenance,
+      {
+        ingress: 'selected_text',
+        sourceApp: 'Safari',
+        sourceURL: 'https://example.com/article',
+      },
+      'Expected additive provenance strings to be normalized before persistence.'
+    );
+  });
+});
+
 test('think MCP remember, stats, and prompt_metrics expose structured read results', async () => {
   const context = await createThinkContext();
   const metricsFile = seedPromptMetricsFile(context, [

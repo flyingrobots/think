@@ -88,6 +88,75 @@ final class ThinkCLIAdapterTests: XCTestCase {
         XCTAssertEqual(runner.environment["THINK_CAPTURE_SOURCE_URL"], "https://example.com/article")
     }
 
+    func testCaptureClearsManagedProvenanceKeysWhenIncomingProvenanceIsNil() async throws {
+        let runner = RecordingRunner(output: ProcessOutput(
+            status: 0,
+            stdout: jsonLines(
+                ["event": "cli.start"],
+                ["event": "capture.status", "status": "saved_locally"],
+                ["event": "backup.skipped"],
+                ["event": "cli.success"]
+            ),
+            stderr: ""
+        ))
+        let adapter = ThinkCLIAdapter(
+            runner: runner,
+            command: ThinkCLICommand(
+                executablePath: "/usr/bin/env",
+                baseArguments: ["node", "/repo/bin/think.js"],
+                environment: [
+                    "HOME": "/tmp/think-home",
+                    "THINK_CAPTURE_INGRESS": "share",
+                    "THINK_CAPTURE_SOURCE_APP": "Mail",
+                    "THINK_CAPTURE_SOURCE_URL": "https://example.com/stale",
+                ]
+            )
+        )
+
+        _ = try await adapter.capture(text: "one thought", provenance: nil)
+
+        XCTAssertNil(runner.environment["THINK_CAPTURE_INGRESS"])
+        XCTAssertNil(runner.environment["THINK_CAPTURE_SOURCE_APP"])
+        XCTAssertNil(runner.environment["THINK_CAPTURE_SOURCE_URL"])
+        XCTAssertEqual(runner.environment["HOME"], "/tmp/think-home")
+    }
+
+    func testCaptureClearsStaleManagedProvenanceKeysBeforeApplyingPartialProvenance() async throws {
+        let runner = RecordingRunner(output: ProcessOutput(
+            status: 0,
+            stdout: jsonLines(
+                ["event": "cli.start"],
+                ["event": "capture.status", "status": "saved_locally"],
+                ["event": "backup.skipped"],
+                ["event": "cli.success"]
+            ),
+            stderr: ""
+        ))
+        let adapter = ThinkCLIAdapter(
+            runner: runner,
+            command: ThinkCLICommand(
+                executablePath: "/usr/bin/env",
+                baseArguments: ["node", "/repo/bin/think.js"],
+                environment: [
+                    "HOME": "/tmp/think-home",
+                    "THINK_CAPTURE_INGRESS": "share",
+                    "THINK_CAPTURE_SOURCE_APP": "Mail",
+                    "THINK_CAPTURE_SOURCE_URL": "https://example.com/stale",
+                ]
+            )
+        )
+
+        _ = try await adapter.capture(
+            text: "one thought",
+            provenance: ThinkCaptureProvenance(sourceApp: "Safari")
+        )
+
+        XCTAssertNil(runner.environment["THINK_CAPTURE_INGRESS"])
+        XCTAssertEqual(runner.environment["THINK_CAPTURE_SOURCE_APP"], "Safari")
+        XCTAssertNil(runner.environment["THINK_CAPTURE_SOURCE_URL"])
+        XCTAssertEqual(runner.environment["HOME"], "/tmp/think-home")
+    }
+
     func testSavedLocallyOnlyMapsToSkippedBackupState() async throws {
         let adapter = ThinkCLIAdapter(
             runner: RecordingRunner(output: ProcessOutput(
