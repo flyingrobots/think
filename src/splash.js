@@ -2,7 +2,6 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseAnsiToSurface } from '@flyingrobots/bijou';
-import { flex } from '@flyingrobots/bijou-tui';
 
 const LOGOS_DIR = join(dirname(fileURLToPath(import.meta.url)), 'logos');
 
@@ -53,41 +52,41 @@ export function renderSplashView(columns, rows, ctx) {
   return parseAnsiToSurface(ansi, columns, rows);
 }
 
+// eslint-disable-next-line no-control-regex -- stripping ANSI escapes requires matching control chars
+const ANSI_PATTERN = /\x1b\[[0-9;]*m/g;
+
+function visualLength(text) {
+  return text.replace(ANSI_PATTERN, '').length;
+}
+
+function centerLine(text, width) {
+  const pad = Math.max(0, Math.floor((width - visualLength(text)) / 2));
+  return ' '.repeat(pad) + text;
+}
+
 function renderSplashString(columns, rows, prompt) {
   const logo = selectLogo(columns, rows);
   const logoLines = logo.split('\n');
-  const logoHeight = logoLines.length;
 
-  const contentHeight = logoHeight + PROMPT_ROWS;
+  const contentHeight = logoLines.length + PROMPT_ROWS;
   const topPad = Math.max(0, Math.floor((rows - contentHeight) / 2));
-  const bottomPad = Math.max(0, rows - topPad - contentHeight);
 
-  return flex(
-    { direction: 'column', width: columns, height: rows },
-    { basis: topPad, content: '' },
-    { basis: logoHeight, content: logo, align: 'center' },
-    { basis: 1, content: '' },
-    { basis: 1, content: prompt, align: 'center' },
-    { basis: bottomPad, content: '' },
-  );
+  const lines = [];
+  for (let i = 0; i < topPad; i++) {
+    lines.push('');
+  }
+  for (const line of logoLines) {
+    lines.push(centerLine(line, columns));
+  }
+  lines.push('');
+  lines.push(centerLine(prompt, columns));
+  while (lines.length < rows) {
+    lines.push('');
+  }
+  return lines.slice(0, rows).join('\n');
 }
 
 export function renderSplash(columns, rows) {
-  const logo = selectLogo(columns, rows);
-  const logoLines = logo.split('\n');
-  const logoHeight = logoLines.length;
   const prompt = `${ANSI_DIM}Press [ Enter ]${ANSI_RESET}`;
-
-  const contentHeight = logoHeight + PROMPT_ROWS;
-  const topPad = Math.max(0, Math.floor((rows - contentHeight) / 2));
-  const bottomPad = Math.max(0, rows - topPad - contentHeight);
-
-  return flex(
-    { direction: 'column', width: columns, height: rows },
-    { basis: topPad, content: '' },
-    { basis: logoHeight, content: logo, align: 'center' },
-    { basis: 1, content: '' },
-    { basis: 1, content: prompt, align: 'center' },
-    { basis: bottomPad, content: '' },
-  );
+  return renderSplashString(columns, rows, prompt);
 }
