@@ -99,6 +99,7 @@ flowchart TD
     R --> P24["0024 Graph Migration Progress UX"]
     R --> P27["0027 M5 Additional Ingress Surfaces"]
     R --> P28["0028 M5 Shortcuts And URL Capture"]
+    R --> P29["0029 M5 Selected-Text And Share Capture"]
     R --> RD["Roadmap and Milestones"]
     R --> BL["Backlog (deferred ideas)"]
     P --> A
@@ -134,10 +135,13 @@ flowchart TD
     P21 --> P24
     P --> P27
     P27 --> P28
+    P27 --> P29
     A8 --> P27
     P10 --> P27
     A8 --> P28
     P10 --> P28
+    A8 --> P29
+    P10 --> P29
     B3 --> G9
     B3 --> P11
     P11 --> P12
