@@ -45,9 +45,10 @@ public final class ThinkCLIAdapter: ThinkCapturing, @unchecked Sendable {
         self.command = command
     }
 
-    public func capture(text: String) async throws -> CaptureResult {
+    public func capture(text: String, provenance: ThinkCaptureProvenance?) async throws -> CaptureResult {
         let runner = self.runner
         let command = self.command
+        let _ = provenance
 
         let output = try await Task.detached(priority: .userInitiated) {
             try runner.run(

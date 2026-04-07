@@ -73,6 +73,38 @@ test('think MCP capture, recent, browse, and inspect route through the existing 
   });
 });
 
+test('think MCP capture preserves additive provenance separately from the raw text', async () => {
+  const context = await createThinkContext();
+
+  await withThinkMcpClient(context, async ({ client }) => {
+    const capture = await callTool(client, 'capture', {
+      text: 'selected text should stay exact while provenance remains additive',
+      ingress: 'selected_text',
+      sourceApp: 'Safari',
+      sourceURL: 'https://example.com/article',
+    });
+
+    const inspect = await callTool(client, 'inspect', {
+      entryId: capture.entryId,
+    });
+
+    assert.equal(
+      inspect.entry.text,
+      'selected text should stay exact while provenance remains additive',
+      'Expected inspect to preserve the exact raw capture text.'
+    );
+    assert.deepEqual(
+      inspect.entry.captureProvenance,
+      {
+        ingress: 'selected_text',
+        sourceApp: 'Safari',
+        sourceURL: 'https://example.com/article',
+      },
+      'Expected inspect to expose additive capture provenance separately from the raw text.'
+    );
+  });
+});
+
 test('think MCP remember, stats, and prompt_metrics expose structured read results', async () => {
   const context = await createThinkContext();
   const metricsFile = seedPromptMetricsFile(context, [

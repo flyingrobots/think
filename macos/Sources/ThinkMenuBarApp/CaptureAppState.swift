@@ -283,7 +283,7 @@ final class CaptureAppState: ObservableObject {
 private struct UnavailableCaptureClient: ThinkCapturing {
     let message: String
 
-    func capture(text: String) async throws -> CaptureResult {
+    func capture(text: String, provenance: ThinkCaptureProvenance?) async throws -> CaptureResult {
         throw CaptureFailure(message: message)
     }
 }

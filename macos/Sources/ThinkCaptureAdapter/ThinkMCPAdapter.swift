@@ -19,8 +19,9 @@ public final class ThinkMCPAdapter: ThinkCapturing, @unchecked Sendable {
         self.environment = environment
     }
 
-    public func capture(text: String) async throws -> CaptureResult {
-        try await Task.detached(priority: .userInitiated) { [self] in
+    public func capture(text: String, provenance: ThinkCaptureProvenance?) async throws -> CaptureResult {
+        let _ = provenance
+        return try await Task.detached(priority: .userInitiated) { [self] in
             do {
                 try ensureInitialized()
                 return try callCaptureTool(text: text)

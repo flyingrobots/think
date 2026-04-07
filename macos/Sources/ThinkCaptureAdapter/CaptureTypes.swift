@@ -24,6 +24,28 @@ public struct CaptureFailure: Error, Equatable, Sendable {
     }
 }
 
+public struct ThinkCaptureProvenance: Equatable, Sendable {
+    public let ingress: ThinkCaptureIngress?
+    public let sourceApp: String?
+    public let sourceURL: URL?
+
+    public init(
+        ingress: ThinkCaptureIngress? = nil,
+        sourceApp: String? = nil,
+        sourceURL: URL? = nil
+    ) {
+        self.ingress = ingress
+        self.sourceApp = sourceApp
+        self.sourceURL = sourceURL
+    }
+}
+
 public protocol ThinkCapturing: Sendable {
-    func capture(text: String) async throws -> CaptureResult
+    func capture(text: String, provenance: ThinkCaptureProvenance?) async throws -> CaptureResult
+}
+
+public extension ThinkCapturing {
+    func capture(text: String) async throws -> CaptureResult {
+        try await capture(text: text, provenance: nil)
+    }
 }

@@ -61,33 +61,53 @@ final class ThinkSharedTextCaptureTests: XCTestCase {
         }
     }
 
-    func testSharedTextHandlerRoutesExactTextThroughExistingCaptureCore() async throws {
+    func testSharedTextHandlerRoutesExactTextAndProvenanceThroughExistingCaptureCore() async throws {
         let client = RecordingCapturer(result: CaptureResult(backupState: .backedUp))
         let handler = ThinkCaptureSharedTextHandler(client: client)
+        let sourceURL = URL(string: "https://example.com/article")!
         let request = try ThinkCaptureSharedTextRequest(
             item: .text("line one\nline two\n"),
             ingress: .selectedText,
-            sourceApp: "Safari"
+            sourceApp: "Safari",
+            sourceURL: sourceURL
         )
 
         let result = try await handler.handle(request: request)
+        let capturedCalls = await client.capturedCalls
 
         XCTAssertEqual(result, CaptureResult(backupState: .backedUp))
-        XCTAssertEqual(client.capturedTexts, ["line one\nline two\n"])
+        XCTAssertEqual(
+            capturedCalls,
+            [
+                CaptureCall(
+                    text: "line one\nline two\n",
+                    provenance: ThinkCaptureProvenance(
+                        ingress: .selectedText,
+                        sourceApp: "Safari",
+                        sourceURL: sourceURL
+                    )
+                ),
+            ]
+        )
     }
 }
 
-private final class RecordingCapturer: ThinkCapturing, @unchecked Sendable {
+private actor RecordingCapturer: ThinkCapturing {
     private let result: CaptureResult
 
-    private(set) var capturedTexts: [String] = []
+    private(set) var capturedCalls: [CaptureCall] = []
 
     init(result: CaptureResult) {
         self.result = result
     }
 
-    func capture(text: String) async throws -> CaptureResult {
-        capturedTexts.append(text)
+    func capture(text: String, provenance: ThinkCaptureProvenance?) async throws -> CaptureResult {
+        capturedCalls.append(CaptureCall(text: text, provenance: provenance))
         return result
     }
+}
+
+private struct CaptureCall: Equatable {
+    let text: String
+    let provenance: ThinkCaptureProvenance?
 }

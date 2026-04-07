@@ -61,12 +61,71 @@ final class ThinkSharedTextServiceProviderTests: XCTestCase {
         XCTAssertTrue(recorder.requests.isEmpty)
         XCTAssertEqual(errorMessage as String?, "Shared-text capture requires plain text")
     }
+
+    func testServiceProviderReportsErrorForEmptyPasteboard() {
+        let pasteboard = NSPasteboard.withUniqueName()
+        pasteboard.clearContents()
+
+        let recorder = SharedTextRequestRecorder()
+        let provider = ThinkSharedTextServiceProvider(
+            onRequest: { recorder.record($0) },
+            sourceAppProvider: { "Safari" }
+        )
+        var errorMessage: NSString?
+
+        provider.captureSelectedText(pasteboard, userData: nil, error: &errorMessage)
+
+        XCTAssertTrue(recorder.requests.isEmpty)
+        XCTAssertEqual(errorMessage as String?, "Shared-text capture requires plain text")
+    }
+
+    func testServiceProviderRoutesSourceAppLookupAndRequestDeliveryOntoMainThread() {
+        let pasteboard = NSPasteboard.withUniqueName()
+        pasteboard.clearContents()
+        pasteboard.setString("selected text from Safari", forType: .string)
+
+        let recorder = SharedTextRequestRecorder()
+        let sourceAppExpectation = expectation(description: "source app provider runs on main thread")
+        let requestExpectation = expectation(description: "request delivery runs on main thread")
+        let provider = ThinkSharedTextServiceProvider(
+            onRequest: { request in
+                XCTAssertTrue(Thread.isMainThread)
+                recorder.record(request)
+                requestExpectation.fulfill()
+            },
+            sourceAppProvider: {
+                XCTAssertTrue(Thread.isMainThread)
+                sourceAppExpectation.fulfill()
+                return "Safari"
+            }
+        )
+
+        let invocationExpectation = expectation(description: "background invocation completes")
+        DispatchQueue.global().async {
+            var errorMessage: NSString?
+            provider.captureSelectedText(pasteboard, userData: nil, error: &errorMessage)
+            XCTAssertNil(errorMessage)
+            invocationExpectation.fulfill()
+        }
+
+        wait(for: [sourceAppExpectation, requestExpectation, invocationExpectation], timeout: 2)
+        XCTAssertEqual(recorder.requests.count, 1)
+    }
 }
 
 private final class SharedTextRequestRecorder: @unchecked Sendable {
-    private(set) var requests: [ThinkCaptureSharedTextRequest] = []
+    private let lock = NSLock()
+    private var storage: [ThinkCaptureSharedTextRequest] = []
+
+    var requests: [ThinkCaptureSharedTextRequest] {
+        lock.lock()
+        defer { lock.unlock() }
+        return storage
+    }
 
     func record(_ request: ThinkCaptureSharedTextRequest) {
-        requests.append(request)
+        lock.lock()
+        storage.append(request)
+        lock.unlock()
     }
 }
