@@ -10,7 +10,8 @@ function loadLogo(relativePath) {
 }
 
 const LOGOS = [
-  { name: 'large', art: loadLogo('large/mind.txt') },
+  { name: 'xlarge', art: loadLogo('large/mind.txt') },
+  { name: 'large', art: loadLogo('large/think.txt') },
   { name: 'medium', art: loadLogo('medium/think.txt') },
   { name: 'small', art: loadLogo('small/think-2.txt') },
 ];
@@ -27,7 +28,7 @@ for (const logo of LOGOS) {
   Object.assign(logo, measure(logo.art));
 }
 
-const PADDING = 6;
+const PADDING = 4;
 const PROMPT_ROWS = 2;
 
 export function selectLogo(columns, rows) {

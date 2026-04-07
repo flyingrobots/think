@@ -4,14 +4,20 @@ import test from 'node:test';
 import { selectLogo, renderSplash } from '../../src/splash.js';
 import { createWindowedBrowseModel } from '../../src/browse-tui/model.js';
 
-test('selectLogo picks large logo when terminal is wide and tall enough', () => {
+test('selectLogo picks xlarge mind logo when terminal is very tall', () => {
   const logo = selectLogo(160, 70);
-  assert.ok(logo.includes('⣿'), 'Expected large logo to contain braille characters');
-  assert.ok(logo.split('\n').length > 40, 'Expected large logo to be tall');
+  assert.ok(logo.includes('⣿'), 'Expected xlarge logo to contain braille characters');
+  assert.ok(logo.split('\n').length > 40, 'Expected xlarge logo to be tall');
+});
+
+test('selectLogo picks large logo when terminal fits large but not xlarge', () => {
+  const logo = selectLogo(160, 43);
+  assert.ok(logo.includes('██'), 'Expected large logo to contain block characters');
+  assert.ok(logo.split('\n').length > 20, 'Expected large logo to be tall');
 });
 
 test('selectLogo picks medium logo when terminal fits medium but not large', () => {
-  const logo = selectLogo(90, 30);
+  const logo = selectLogo(90, 26);
   assert.ok(logo.includes('+++'), 'Expected medium logo to contain + characters');
   assert.ok(logo.split('\n').length <= 20, 'Expected medium logo to be shorter than large');
 });
