@@ -34,6 +34,8 @@ final class CaptureAppState: ObservableObject {
     private var lastFailedExternalCapture: ThinkExternalCaptureRetryPayload?
     private var openURLTask: Task<Void, Never>?
     private var sharedTextTask: Task<Void, Never>?
+    private var externalCaptureTask: Task<Void, Never>?
+    private var externalCaptureAttemptTracker = LatestAttemptTracker()
 
     init(
         client: ThinkCapturing? = nil,
@@ -173,6 +175,7 @@ final class CaptureAppState: ObservableObject {
         statusResetTask?.cancel()
         openURLTask?.cancel()
         sharedTextTask?.cancel()
+        externalCaptureTask?.cancel()
     }
 
     func handleCaptureURL(_ url: URL) {
@@ -295,14 +298,26 @@ final class CaptureAppState: ObservableObject {
         _ operation: @escaping @Sendable () async throws -> CaptureResult
     ) {
         statusResetTask?.cancel()
+        externalCaptureTask?.cancel()
+        let attemptID = externalCaptureAttemptTracker.begin()
         canRetryFailedCapture = false
         captureMenuState = .saving
         lastFailedText = retryPayload?.retryText
         lastFailedExternalCapture = retryPayload
 
-        Task { @MainActor in
+        externalCaptureTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                if self.externalCaptureAttemptTracker.isLatest(attemptID) {
+                    self.externalCaptureTask = nil
+                }
+            }
+
             do {
                 let result = try await operation()
+                guard !Task.isCancelled, self.externalCaptureAttemptTracker.isLatest(attemptID) else {
+                    return
+                }
                 lastFailedText = nil
                 lastFailedExternalCapture = nil
                 canRetryFailedCapture = false
@@ -313,6 +328,9 @@ final class CaptureAppState: ObservableObject {
                 }
                 scheduleStatusReset()
             } catch {
+                guard !Task.isCancelled, self.externalCaptureAttemptTracker.isLatest(attemptID) else {
+                    return
+                }
                 lastFailedText = retryPayload?.retryText
                 lastFailedExternalCapture = retryPayload
                 canRetryFailedCapture = retryPayload != nil

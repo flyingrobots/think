@@ -31,6 +31,22 @@ test('capture provenance trims source strings while preserving valid ingress and
   );
 });
 
+test('capture provenance trims ingress strings before validation', () => {
+  assert.deepEqual(
+    normalizeCaptureProvenance({
+      ingress: '  url  ',
+      sourceApp: '  Safari  ',
+      sourceURL: 'https://example.com/article',
+    }),
+    {
+      ingress: 'url',
+      sourceApp: 'Safari',
+      sourceURL: 'https://example.com/article',
+    },
+    'Expected ingress normalization to accept valid values with surrounding whitespace.'
+  );
+});
+
 test('capture provenance reads and normalizes environment input', () => {
   assert.deepEqual(
     captureProvenanceFromEnvironment({

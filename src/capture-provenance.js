@@ -36,7 +36,8 @@ function normalizeIngress(value) {
     return null;
   }
 
-  return VALID_CAPTURE_INGRESSES.has(value) ? value : null;
+  const trimmed = value.trim();
+  return VALID_CAPTURE_INGRESSES.has(trimmed) ? trimmed : null;
 }
 
 function normalizeString(value) {
