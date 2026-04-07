@@ -14,5 +14,4 @@ Cycle 0007 — shared Swift path search. The macOS CLI and MCP resolvers now sha
 
 - **~2 seconds per capture is slow.** The benchmark reveals that CLI capture is dominated by Node startup and WARP graph overhead. A profiling cycle could find optimization targets.
 - **Shape soup in the MCP service layer.** Plain objects, no runtime-backed domain types. SSJD debt.
-- **CONTRIBUTING.md is drifting.** Still references the old milestone loop and IBM Design Thinking framing. Should be updated to reflect METHOD.
 - **The remaining up-next items are all observation/validation work.** That's correct for this phase.
