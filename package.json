@@ -25,6 +25,7 @@
     "test": "npm run test:m1",
     "test:local": "npm run test:m1 && npm run test:m2",
     "install-hooks": "git config --local core.hooksPath scripts/hooks",
+    "tui": "node ./bin/think.js --browse",
     "benchmark:browse": "node benchmarks/browse-bootstrap.js",
     "benchmark:capture": "node benchmarks/capture-latency.js"
   },
