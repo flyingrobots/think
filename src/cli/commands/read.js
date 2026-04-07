@@ -561,6 +561,17 @@ export async function runInspect(entryId, output, reporter) {
   }
 
   lines.push('Context');
+  if (entry.captureProvenance) {
+    if (entry.captureProvenance.ingress) {
+      lines.push(`Ingress: ${entry.captureProvenance.ingress}`);
+    }
+    if (entry.captureProvenance.sourceApp) {
+      lines.push(`Source app: ${entry.captureProvenance.sourceApp}`);
+    }
+    if (entry.captureProvenance.sourceURL) {
+      lines.push(`Source URL: ${entry.captureProvenance.sourceURL}`);
+    }
+  }
   if (entry.sessionAttribution) {
     lines.push(`Session: ${entry.sessionAttribution.sessionId}`);
     lines.push(`Why: ${entry.sessionAttribution.reasonText}`);

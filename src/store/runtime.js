@@ -98,6 +98,13 @@ export async function getStoredEntry(read, nodeId, props = null) {
     ambientGitRoot: resolvedProps.ambientGitRoot ?? null,
     ambientGitRemote: resolvedProps.ambientGitRemote ?? null,
     ambientGitBranch: resolvedProps.ambientGitBranch ?? null,
+    captureProvenance: resolvedProps.captureIngress || resolvedProps.captureSourceApp || resolvedProps.captureSourceURL
+      ? {
+          ingress: resolvedProps.captureIngress ?? null,
+          sourceApp: resolvedProps.captureSourceApp ?? null,
+          sourceURL: resolvedProps.captureSourceURL ?? null,
+        }
+      : null,
     selectionReason: resolvedProps.selectionReasonKind
       ? {
           kind: resolvedProps.selectionReasonKind,

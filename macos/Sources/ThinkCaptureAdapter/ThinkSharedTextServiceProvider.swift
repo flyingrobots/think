@@ -8,7 +8,13 @@ public final class ThinkSharedTextServiceProvider: NSObject {
     public init(
         onRequest: @escaping @Sendable (ThinkCaptureSharedTextRequest) -> Void,
         sourceAppProvider: @escaping @Sendable () -> String? = {
-            NSWorkspace.shared.frontmostApplication?.localizedName
+            if Thread.isMainThread {
+                return NSWorkspace.shared.frontmostApplication?.localizedName
+            }
+
+            return DispatchQueue.main.sync {
+                NSWorkspace.shared.frontmostApplication?.localizedName
+            }
         }
     ) {
         self.onRequest = onRequest
@@ -23,7 +29,13 @@ public final class ThinkSharedTextServiceProvider: NSObject {
     ) {
         do {
             let request = try makeRequest(from: pasteboard, ingress: .selectedText)
-            onRequest(request)
+            if Thread.isMainThread {
+                onRequest(request)
+            } else {
+                DispatchQueue.main.sync { [onRequest] in
+                    onRequest(request)
+                }
+            }
         } catch let failure as CaptureFailure {
             errorPointer.pointee = failure.message as NSString
         } catch {
@@ -35,20 +47,23 @@ public final class ThinkSharedTextServiceProvider: NSObject {
         from pasteboard: NSPasteboard,
         ingress: ThinkCaptureIngress
     ) throws -> ThinkCaptureSharedTextRequest {
+        let sourceApp = resolveSourceApp()
+        let sourceURL = extractSourceURL(from: pasteboard)
+
         guard let text = pasteboard.string(forType: .string) else {
             return try ThinkCaptureSharedTextRequest(
                 item: .unsupported(typeIdentifier: primaryTypeIdentifier(from: pasteboard) ?? "unknown"),
                 ingress: ingress,
-                sourceApp: sourceAppProvider(),
-                sourceURL: extractSourceURL(from: pasteboard)
+                sourceApp: sourceApp,
+                sourceURL: sourceURL
             )
         }
 
         return try ThinkCaptureSharedTextRequest(
             item: .text(text),
             ingress: ingress,
-            sourceApp: sourceAppProvider(),
-            sourceURL: extractSourceURL(from: pasteboard)
+            sourceApp: sourceApp,
+            sourceURL: sourceURL
         )
     }
 
@@ -70,5 +85,15 @@ public final class ThinkSharedTextServiceProvider: NSObject {
         }
 
         return nil
+    }
+
+    private func resolveSourceApp() -> String? {
+        if Thread.isMainThread {
+            return sourceAppProvider()
+        }
+
+        return DispatchQueue.main.sync { [sourceAppProvider] in
+            sourceAppProvider()
+        }
     }
 }

@@ -1,6 +1,7 @@
 import { ensureGitRepo, hasGitRepo, pushWarpRefs } from '../git.js';
 import { getLocalRepoDir, getUpstreamUrl } from '../paths.js';
 import { capturePolicy } from '../policies.js';
+import { normalizeCaptureProvenance } from '../capture-provenance.js';
 import {
   finalizeCapturedThought,
   getBrowseWindow,
@@ -20,11 +21,12 @@ import {
   buildExplicitRememberScope,
 } from '../store/remember.js';
 
-export async function captureThought(text) {
+export async function captureThought(text, { provenance = null } = {}) {
   const thought = String(text ?? '');
   if (thought.trim() === '') {
     throw new Error('Thought cannot be empty');
   }
+  const captureProvenance = normalizeCaptureProvenance(provenance);
 
   const repoDir = getLocalRepoDir();
   const repoAlreadyExists = hasGitRepo(repoDir);
@@ -40,7 +42,9 @@ export async function captureThought(text) {
       };
 
   const { entry, migration, warnings } = await capturePolicy.execute(async () => {
-    const saved = await saveRawCapture(repoDir, thought);
+    const saved = await saveRawCapture(repoDir, thought, {
+      provenance: captureProvenance,
+    });
     let mig = null;
     const warns = [];
 

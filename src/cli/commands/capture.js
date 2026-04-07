@@ -1,4 +1,5 @@
 import { ensureGitRepo, hasGitRepo, pushWarpRefs } from '../../git.js';
+import { captureProvenanceFromEnvironment } from '../../capture-provenance.js';
 import { getLocalRepoDir, getUpstreamUrl } from '../../paths.js';
 import {
   finalizeCapturedThought,
@@ -32,9 +33,10 @@ export async function runCapture(thought, output, reporter) {
         requiredGraphModelVersion: null,
         migrationRequired: false,
       };
+  const provenance = captureProvenanceFromEnvironment(process.env);
 
   reporter.event('capture.local_save.start');
-  const entry = await saveRawCapture(repoDir, thought);
+  const entry = await saveRawCapture(repoDir, thought, { provenance });
   reporter.event('capture.local_save.done', { entryId: entry.id });
 
   output.out('Saved locally', 'capture.status', {

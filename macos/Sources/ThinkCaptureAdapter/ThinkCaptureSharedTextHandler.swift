@@ -42,6 +42,13 @@ public struct ThinkCaptureSharedTextHandler: Sendable {
     }
 
     public func handle(request: ThinkCaptureSharedTextRequest) async throws -> CaptureResult {
-        try await client.capture(text: request.text)
+        try await client.capture(
+            text: request.text,
+            provenance: ThinkCaptureProvenance(
+                ingress: request.ingress,
+                sourceApp: request.sourceApp,
+                sourceURL: request.sourceURL
+            )
+        )
     }
 }

@@ -99,17 +99,29 @@ final class ThinkSharedTextServiceProviderTests: XCTestCase {
                 return "Safari"
             }
         )
+        let providerBox = SendableBox(provider)
+        let pasteboardBox = SendableBox(pasteboard)
 
         let invocationExpectation = expectation(description: "background invocation completes")
-        DispatchQueue.global().async {
+        Thread.detachNewThread {
+            autoreleasepool {
             var errorMessage: NSString?
-            provider.captureSelectedText(pasteboard, userData: nil, error: &errorMessage)
+            providerBox.value.captureSelectedText(pasteboardBox.value, userData: nil, error: &errorMessage)
             XCTAssertNil(errorMessage)
             invocationExpectation.fulfill()
+            }
         }
 
         wait(for: [sourceAppExpectation, requestExpectation, invocationExpectation], timeout: 2)
         XCTAssertEqual(recorder.requests.count, 1)
+    }
+}
+
+private struct SendableBox<Value>: @unchecked Sendable {
+    let value: Value
+
+    init(_ value: Value) {
+        self.value = value
     }
 }
 

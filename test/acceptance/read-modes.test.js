@@ -1185,6 +1185,58 @@ test('think --json --inspect emits JSONL for the exact raw entry metadata', asyn
   assert.equal(typeof inspectedEntry.sortKey, 'string', 'Expected JSON inspect to expose stable ordering metadata.');
 });
 
+test('think --inspect exposes additive capture provenance separately from the raw text', async () => {
+  const context = await createThinkContext();
+  const thought = 'selected text should remain exact while inspect shows provenance separately';
+  const { entryId } = captureWithEntryId(context, thought, {
+    THINK_CAPTURE_INGRESS: 'selected_text',
+    THINK_CAPTURE_SOURCE_APP: 'Safari',
+    THINK_CAPTURE_SOURCE_URL: 'https://example.com/article',
+  });
+
+  const inspect = runThink(context, [`--inspect=${entryId}`]);
+
+  assertSuccess(inspect, 'Expected inspect to succeed for a capture with additive provenance.');
+  assertContains(inspect, thought, 'Expected inspect to preserve the raw capture text exactly.');
+  assertContains(inspect, 'Ingress: selected_text', 'Expected inspect to show ingress separately from the raw text.');
+  assertContains(inspect, 'Source app: Safari', 'Expected inspect to show the source application separately from the raw text.');
+  assertContains(inspect, 'Source URL: https://example.com/article', 'Expected inspect to show the source URL separately from the raw text.');
+});
+
+test('think --json --inspect includes additive capture provenance in the inspected entry payload', async () => {
+  const context = await createThinkContext();
+  const thought = 'selected text should remain exact while JSON inspect shows provenance separately';
+  const { entryId } = captureWithEntryId(context, thought, {
+    THINK_CAPTURE_INGRESS: 'selected_text',
+    THINK_CAPTURE_SOURCE_APP: 'Safari',
+    THINK_CAPTURE_SOURCE_URL: 'https://example.com/article',
+  });
+
+  const inspect = runThink(context, ['--json', `--inspect=${entryId}`]);
+
+  assertSuccess(inspect, 'Expected JSON inspect to succeed for a capture with additive provenance.');
+  assertJsonStreams(inspect);
+  const events = parseJsonLines(
+    inspect.stdout,
+    'Expected JSON inspect provenance output to emit valid JSONL.'
+  );
+  const inspectedEntry = getEvent(
+    events,
+    'inspect.entry',
+    'Expected JSON inspect provenance output to include the inspected entry payload.'
+  );
+
+  assert.deepEqual(
+    inspectedEntry.captureProvenance,
+    {
+      ingress: 'selected_text',
+      sourceApp: 'Safari',
+      sourceURL: 'https://example.com/article',
+    },
+    'Expected JSON inspect to expose additive capture provenance separately from the raw text.'
+  );
+});
+
 test('think --inspect exposes canonical content identity and direct derived receipts when they exist', async () => {
   const context = await createThinkContext();
   const seedThought = 'We should make warp graph the thought substrate';

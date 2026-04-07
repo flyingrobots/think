@@ -1,4 +1,5 @@
 import { getAmbientProjectContext } from '../project-context.js';
+import { normalizeCaptureProvenance } from '../capture-provenance.js';
 import { TEXT_MIME } from './constants.js';
 import { createEntry } from './model.js';
 import {
@@ -11,10 +12,11 @@ import {
 import { ensureCaptureReadEdges, ensureFirstDerivedArtifacts } from './derivation.js';
 import { migrateGraphModel } from './migrations.js';
 
-export async function saveRawCapture(repoDir, thought) {
+export async function saveRawCapture(repoDir, thought, { provenance = null } = {}) {
   const app = await openWarpApp(repoDir);
   const entry = createEntry(thought, app.writerId, { kind: 'capture', source: 'capture' });
   const ambientContext = getAmbientProjectContext(process.cwd());
+  const captureProvenance = normalizeCaptureProvenance(provenance);
 
   await app.patch(async patch => {
     patch
@@ -37,6 +39,15 @@ export async function saveRawCapture(repoDir, thought) {
     }
     if (ambientContext.gitBranch) {
       patch.setProperty(entry.id, 'ambientGitBranch', ambientContext.gitBranch);
+    }
+    if (captureProvenance?.ingress) {
+      patch.setProperty(entry.id, 'captureIngress', captureProvenance.ingress);
+    }
+    if (captureProvenance?.sourceApp) {
+      patch.setProperty(entry.id, 'captureSourceApp', captureProvenance.sourceApp);
+    }
+    if (captureProvenance?.sourceURL) {
+      patch.setProperty(entry.id, 'captureSourceURL', captureProvenance.sourceURL);
     }
 
     await patch.attachContent(entry.id, thought, { mime: TEXT_MIME });
