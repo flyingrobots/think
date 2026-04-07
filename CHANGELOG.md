@@ -12,6 +12,7 @@ Release discipline:
 
 ## [Unreleased]
 
+- refreshed `CONTRIBUTING.md` to match METHOD, current backlog/design/retro locations, and current verification/release guidance
 - added capture latency benchmark via `npm run benchmark:capture` with JSON and human output, isolated temp repo, and committed baseline (~2s median warm-path)
 - added `--profile` flag to capture benchmark revealing module load (~2.3s) as the dominant bottleneck — actual Think runtime operations are sub-ms
 - added ThinkMCPAdapter for warm capture in the macOS menu bar app — spawns think-mcp once and reuses it, eliminating the ~2.3s cold start on every capture after the first

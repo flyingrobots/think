@@ -1,339 +1,123 @@
-# Contributing To `think`
+# Contributing to `think`
 
-`think` is not a generic note-taking app. It is a local-first system for cheap, exact, replayable thought capture.
+`think` is a local-first tool for cheap, exact, replayable thought capture.
 
-If you contribute here, the job is not just to write code that works. The job is to protect the product doctrine while making the implementation more capable.
+If you contribute here, the job is not just to make code pass. The job is to protect the product doctrine while making the system more capable.
 
-## Core Product Philosophy
+## Product doctrine
 
 - Raw capture is sacred.
-- Capture must be cheap.
+- Capture must stay cheap, exact, and local-first.
 - Capture first. Interpret later.
-- Never mix capture and interpretation in the same user moment.
-- Provenance matters.
-- Replay matters.
-- The substrate may be sophisticated; the capture experience cannot feel sophisticated.
+- CLI and MCP are two surfaces for one product, not two products.
+- Every CLI command supports `--json`.
 
-The highest-level rule is simple:
+The highest-level rule is still simple:
 
 If a change makes capture slower, smarter, noisier, or more demanding, it is probably the wrong change.
 
-## Development Philosophy
-
-This project prefers:
-
-- DX over ceremony
-- behavior over architecture theater
-- explicit boundaries over clever coupling
-- local-first operation over network dependency
-- boring user-facing flows over impressive internals
-
-In practice, that means:
-
-- keep commands small and obvious
-- keep default UX boring and legible
-- keep product language free of Git/WARP jargon
-- keep future intelligence out of the capture path until it is earned
-- keep every CLI command machine-readable through `--json`
-
-## First Contributor Reads
+## First reads
 
 If you are new to the repo, start here:
 
 1. [README.md](./README.md)
 2. [docs/GUIDE.md](./docs/GUIDE.md)
-3. [docs/GLOSSARY.md](./docs/GLOSSARY.md)
-4. [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
-5. [docs/design/ROADMAP.md](./docs/design/ROADMAP.md)
+3. [docs/BEARING.md](./docs/BEARING.md)
+4. [docs/VISION.md](./docs/VISION.md)
+5. [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
+6. [docs/method/process.md](./docs/method/process.md)
+7. [docs/SYSTEMS_STYLE_JAVASCRIPT.md](./docs/SYSTEMS_STYLE_JAVASCRIPT.md)
 
-The design notes remain valuable, but contributors should not have to reconstruct the current system by reading milestone history in chronological order.
+## Workflow
 
-## Architectural Principles
+Think follows [METHOD](https://github.com/flyingrobots/method).
 
-### Hexagonal architecture
+The cycle loop is:
 
-The product should have clear boundaries between:
+`pull -> design -> RED -> GREEN -> playback -> retro -> close`
 
-- domain behavior
-- application/use-case orchestration
-- ingress adapters such as CLI or macOS UI
-- infrastructure such as Git/WARP persistence and replication
+Current repo locations:
 
-Do not let UI concerns leak into persistence.
-Do not let storage details leak into normal UX.
+- backlog lanes live in [`docs/method/backlog/`](./docs/method/backlog/)
+- active cycle design docs live in `docs/design/<cycle>/`
+- completed cycle retros live in `docs/method/retro/<cycle>/`
+- legends live in [`docs/method/legends/`](./docs/method/legends/)
 
-### SOLID, pragmatically applied
+Historical milestones `M0` through `M5` predate METHOD. Their docs remain in `docs/design/` and `docs/retrospectives/` as archive, but new work should use the METHOD structure above.
 
-Use SOLID as a boundary discipline, not as a reason to create needless classes or abstractions.
+At cycle kickoff, the design note should state:
 
-Good:
-
-- narrow modules
-- explicit seams
-- dependency inversion around important adapters
-
-Bad:
-
-- abstraction for its own sake
-- indirection before there is pressure for it
-- “clean architecture” rituals that slow down delivery without protecting behavior
-
-## Product Management Philosophy
-
-This project uses IBM Design Thinking style framing for milestone design:
-
-- sponsor user
-- sponsor agent
-- hills
-- playback questions
-- explicit non-goals
-
-Milestones should be grounded in user value, not in backend vanity.
-
-For `think`, this means every meaningful design cycle should name both:
-
-- the human sponsor perspective
-- the agent sponsor perspective
-
-The human sponsor keeps the product honest about actual use.
-The agent sponsor keeps the CLI/JSON contract honest about machine use.
-
-Before promoting a new direction, ask:
-
-- which hill does this support?
-- what user behavior or trust does this improve?
-- does this preserve cheap capture?
-
-If the answer is unclear, the work probably belongs in the backlog, not the roadmap.
-
-## Build Order
-
-The expected order of work is:
-
-1. Write or revise design docs first.
-2. Encode behavior as executable tests second.
-3. Implement third.
-
-Tests are the spec.
-
-Do not insert a second prose-spec layer between design and tests.
-Do not treat implementation details as the primary unit of correctness.
-
-## Milestone Development Loop
-
-Each milestone should follow the same explicit loop:
-
-1. design docs first
-2. tests as spec second
-3. implementation third
-4. retrospective after delivery
-5. rewrite the root README to reflect reality
-6. close the milestone in roadmap/status docs
-
-This loop is part of the process, not optional cleanup.
-
-At design kickoff, define explicitly:
-
-- sponsor human
-- sponsor agent
+- human sponsor
+- agent sponsor
 - hill
 - playback questions
+- scope
 - non-goals
 
-At cycle close, evaluate explicitly from both perspectives:
+At cycle close:
 
-- human stakeholder playback
-- agent stakeholder playback
+- update [`CHANGELOG.md`](./CHANGELOG.md)
+- update [`README.md`](./README.md) when the user-facing surface changed
+- update [`docs/BEARING.md`](./docs/BEARING.md) when direction, tensions, or recently shipped work changed
+- write the retrospective before calling the slice done
 
-Retrospectives must also perform an explicit design-drift check:
+## Development rules
 
-- compare the delivered behavior against the approved design note(s) for the slice
-- call out anything that deviated from the intended design
-- say whether that deviation was intentional, accidental, or a sign that the design note itself was wrong
-- if the design changed in practice, update the design docs or record the correction before calling the slice closed
+- Tests are the spec. Prefer failing tests before implementation when behavior changes.
+- Do not weaken a failing test just to make the suite pass. If the test is wrong, stop and fix the misunderstanding first.
+- Use isolated temp state for storage and Git tests. Do not rely on real home-directory state, ambient Git config, or live network services.
+- Keep user-facing language free of Git and WARP jargon unless the surface is explicitly for operators.
+- Preserve parity between CLI and MCP semantics; agents should not have to learn a second product.
+- Keep changes narrow and explicit. Runtime truth beats shape soup.
 
-In practice, that means:
+## Build and verification
 
-- the user acts as the human stakeholder
-- the coding agent acts as the agent stakeholder
+```bash
+npm test
+npm run test:m2
+npm run test:local
+npm run lint
+npm run benchmark:capture
+npm run benchmark:browse
+```
 
-The responsibility split should stay explicit:
+- `npm test` is the default acceptance suite.
+- `npm run test:m2` runs the macOS Swift tests and is Darwin-only.
+- `npm run test:local` runs the default suite plus the macOS suite together (Darwin-only).
+- Only run one `swift test` at a time. SwiftPM locks the build directory.
+- After changing Swift source, rebuild the macOS app with `npm run macos:bundle`.
+- Install hooks with `npm run install-hooks`. `pre-commit` runs lint, and `pre-push` enforces the main-branch test gate.
 
-- the human stakeholder judges whether the experience is actually good to use
-- the agent stakeholder judges whether the explicit command and JSON contract remains semantically complete and parity-preserving
+## Coding standard
 
-When running human playback, the coding agent should provide:
+New JavaScript should follow [System-Style JavaScript](./docs/SYSTEMS_STYLE_JAVASCRIPT.md): runtime-backed domain concepts, boundary validation, explicit ownership of behavior, and narrow seams instead of object-shape soup.
 
-- exact commands to run
-- exact steps to take
-- what to look for during the playback
+Read [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) before making structural changes. Do not let storage concerns leak into normal UX, and do not let surface-specific concerns infect the capture core.
 
-Then stop and wait for the human verdict before proceeding beyond playback, closeout, or the next slice.
+## Release discipline
 
-Do not close a cycle without that dual playback check.
+Think starts versioning at `0.1.0`.
 
-The point is to keep the repo honest about:
+Release rules:
 
-- what is planned
-- what is specified
-- what is actually implemented
-- what was learned
+- releases happen when externally meaningful behavior changes, not automatically for every cycle
+- cycle closeout produces the release-candidate state
+- `package.json` is bumped on the release commit
+- the Git tag is created on the commit that lands on `main`
+- every cycle close updates the changelog; update README when the user-facing surface changed
 
-## Release Discipline
+## Capture-path guardrails
 
-Milestone closure and release discipline are coupled.
-
-Rules:
-
-- keep a root [CHANGELOG.md](./CHANGELOG.md)
-- start versioning at `0.1.0`
-- when a milestone is closed, bump `package.json` on the release commit
-- create a Git tag on the commit that lands on `main` for that milestone release
-
-Examples:
-
-- `v0.1.0`
-- `v0.2.0`
-
-The version/tag should reflect milestone reality, not aspirational scope.
-
-## Testing Rules
-
-Tests must be deterministic.
-
-That means:
-
-- no real network dependency
-- no real home-directory state
-- no ambient Git config assumptions
-- no interactive shell expectations
-- no timing-based flakes
-- no global hotkey dependence in the core suite
-
-Every test that touches storage should use isolated temp state.
-
-Prefer:
-
-- temp app homes
-- throwaway local repos
-- throwaway bare remotes
-- fixed env and fixed IDs where practical
-
-Tests should pin:
-
-- user-visible behavior
-- exact raw preservation
-- immutability boundaries
-- honest backup semantics
-- mode separation
-- `--json` output contracts for each CLI command
-
-When a slice serves both humans and agents, acceptance coverage should represent both perspectives where practical:
-
-- human-facing behavior or presentation contract
-- agent-facing machine-readable contract
-
-They should not overfit:
-
-- class layout
-- file-private helpers
-- incidental implementation structure
-
-Local testing policy:
-
-- `npm test` is the default fast suite and should stay safe for CI/CD use
-- macOS Swift tests stay local and should run through the repo pre-push hook
-- `npm run test:local` runs both the default suite and the macOS Swift suite together
-- install hooks with `npm run install-hooks`
-
-## Capture-Path Guardrails
-
-Do not introduce any of the following into the plain capture path unless explicitly re-approved:
+Do not introduce any of the following into plain capture without explicit re-approval:
 
 - embeddings
 - clustering
-- concept matching
 - retrieval-before-write
 - suggestions during capture
-- tags or ontology prompts
-- dashboard behavior
+- tags, ontology prompts, or classification prompts
+- dashboard-first capture UX
+- proactive AI interruptions
+- hosted collaborative thinking
+- public sharing surfaces
 
-The capture path should feel closer to a trapdoor than a workflow.
-
-## Read-Path Guardrails
-
-`recent` must stay boring.
-
-That means:
-
-- plain
-- chronological
-- not “smart”
-- not summary-driven
-- not cluster-driven
-
-Reflection, brainstorm, and x-ray can become richer later. `recent` should not quietly absorb their responsibilities.
-
-## UX Language Rules
-
-Default user-facing language should avoid substrate terms.
-
-Prefer:
-
-- `Saved locally`
-- `Backed up`
-- `Backup pending`
-
-Avoid exposing:
-
-- commit
-- push
-- pull
-- ref
-- repo
-- graph internals
-
-Every CLI command must also support `--json`.
-
-In `--json` mode:
-
-- 100% of command output must be JSONL
-- `stdout` should carry ordinary data rows
-- `stderr` should carry structured warnings and errors
-- human-readable text should be suppressed
-- machine-readable rows should include real command data, not just trace noise
-
-If the system is doing something sophisticated under the hood, the default UX should still read as simple and trustworthy.
-
-## Git Workflow
-
-Prefer small, honest commits.
-
-Do not rewrite shared history casually.
-Prefer additive commits over history surgery.
-Prefer merges over rebases for shared collaboration unless there is a compelling, explicitly discussed reason otherwise.
-
-The point is not aesthetic Git history. The point is trustworthy collaboration.
-
-## What To Read First
-
-Before making non-trivial changes, read:
-
-- [README.md](./README.md)
-- [docs/GUIDE.md](./docs/GUIDE.md)
-- [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
-- [docs/BEARING.md](./docs/BEARING.md)
-- [docs/SYSTEMS_STYLE_JAVASCRIPT.md](./docs/SYSTEMS_STYLE_JAVASCRIPT.md)
-- [docs/design/ROADMAP.md](./docs/design/ROADMAP.md)
-
-## Decision Rule
-
-When in doubt:
-
-- choose less structure
-- choose lower latency
-- choose fewer fields
-- choose local-first
-- choose behavior over architecture
-- keep `recent` boring
-- protect the capture moment from intelligence creep
+The system may become more capable over time, but the capture moment must stay boring, fast, and exact.
