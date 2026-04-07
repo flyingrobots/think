@@ -1,6 +1,12 @@
 import { createVerboseReporter } from './verbose.js';
 import { stringifyJson } from './json.js';
-import { parseArgs, resolveCommand, validateOptions } from './cli/options.js';
+import { renderHelp } from './cli/help.js';
+import {
+  parseArgs,
+  resolveCommand,
+  resolveHelpTopic,
+  validateOptions,
+} from './cli/options.js';
 import { createOutput, resolveJsonStream } from './cli/output.js';
 import { runCapture, runIngest, runMigrateGraph } from './cli/commands/capture.js';
 import {
@@ -16,6 +22,7 @@ import { runReflectReply, runReflectStart } from './cli/commands/reflect.js';
 export async function main(argv, { stdout, stderr, stdin }) {
   const options = parseArgs(argv.slice(2));
   const command = resolveCommand(options);
+  const helpTopic = resolveHelpTopic(options, command);
   const reporter = createVerboseReporter(
     options.json
       ? (payload) => {
@@ -40,6 +47,13 @@ export async function main(argv, { stdout, stderr, stdin }) {
       }
       reporter.event('cli.failure', { command, exitCode: 1 });
       return 1;
+    }
+
+    if (helpTopic) {
+      const help = renderHelp(helpTopic);
+      output.out(help.message, 'cli.help', { command, topic: help.topic });
+      reporter.event('cli.success', { command, exitCode: 0 });
+      return 0;
     }
 
     let exitCode = 0;
