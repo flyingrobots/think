@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { flex } from '@flyingrobots/bijou-tui';
 
 const LOGOS_DIR = join(dirname(fileURLToPath(import.meta.url)), 'logos');
 
@@ -44,30 +45,19 @@ const ANSI_RESET = '\x1b[0m';
 export function renderSplash(columns, rows) {
   const logo = selectLogo(columns, rows);
   const logoLines = logo.split('\n');
-  const prompt = 'Press [ Enter ]';
+  const logoHeight = logoLines.length;
+  const prompt = `${ANSI_DIM}Press [ Enter ]${ANSI_RESET}`;
 
-  const totalHeight = logoLines.length + PROMPT_ROWS;
-  const topPad = Math.max(0, Math.floor((rows - totalHeight) / 2));
+  const contentHeight = logoHeight + PROMPT_ROWS;
+  const topPad = Math.max(0, Math.floor((rows - contentHeight) / 2));
+  const bottomPad = Math.max(0, rows - topPad - contentHeight);
 
-  const lines = [];
-
-  for (let i = 0; i < topPad; i++) {
-    lines.push('');
-  }
-
-  for (const line of logoLines) {
-    const leftPad = Math.max(0, Math.floor((columns - line.length) / 2));
-    lines.push(' '.repeat(leftPad) + line);
-  }
-
-  lines.push('');
-
-  const promptPad = Math.max(0, Math.floor((columns - prompt.length) / 2));
-  lines.push(' '.repeat(promptPad) + ANSI_DIM + prompt + ANSI_RESET);
-
-  while (lines.length < rows) {
-    lines.push('');
-  }
-
-  return lines.slice(0, rows).join('\n');
+  return flex(
+    { direction: 'column', width: columns, height: rows },
+    { basis: topPad, content: '' },
+    { basis: logoHeight, content: logo, align: 'center' },
+    { basis: 1, content: '' },
+    { basis: 1, content: prompt, align: 'center' },
+    { basis: bottomPad, content: '' },
+  );
 }

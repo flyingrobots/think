@@ -85,7 +85,7 @@ export async function runBrowseTui({
       }
 
       if (model.phase === 'splash') {
-        if (msg.type === 'key' && msg.key === 'return') {
+        if (msg.type === 'key' && msg.key === 'enter') {
           return [{ ...model, phase: 'browse' }, []];
         }
         if (msg.type === 'key' && (msg.key === 'q' || msg.key === 'escape')) {
