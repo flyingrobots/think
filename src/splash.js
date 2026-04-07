@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { flex, flexSurface } from '@flyingrobots/bijou-tui';
+import { parseAnsiToSurface } from '@flyingrobots/bijou';
+import { flex } from '@flyingrobots/bijou-tui';
 
 const LOGOS_DIR = join(dirname(fileURLToPath(import.meta.url)), 'logos');
 
@@ -44,19 +45,25 @@ const ANSI_DIM = '\x1b[2m';
 const ANSI_RESET = '\x1b[0m';
 
 export function renderSplashView(columns, rows, ctx) {
-  const logo = selectLogo(columns, rows);
-  const logoLines = logo.split('\n');
-  const logoHeight = logoLines.length;
   const prompt = ctx
     ? ctx.style.styled(ctx.semantic('muted'), 'Press [ Enter ]')
     : `${ANSI_DIM}Press [ Enter ]${ANSI_RESET}`;
+
+  const ansi = renderSplashString(columns, rows, prompt);
+  return parseAnsiToSurface(ansi, columns, rows);
+}
+
+function renderSplashString(columns, rows, prompt) {
+  const logo = selectLogo(columns, rows);
+  const logoLines = logo.split('\n');
+  const logoHeight = logoLines.length;
 
   const contentHeight = logoHeight + PROMPT_ROWS;
   const topPad = Math.max(0, Math.floor((rows - contentHeight) / 2));
   const bottomPad = Math.max(0, rows - topPad - contentHeight);
 
-  return flexSurface(
-    { direction: 'column', width: columns, height: rows, ctx },
+  return flex(
+    { direction: 'column', width: columns, height: rows },
     { basis: topPad, content: '' },
     { basis: logoHeight, content: logo, align: 'center' },
     { basis: 1, content: '' },
