@@ -15,6 +15,7 @@ Icon?
 .vscode/
 .obsidian/
 .claude/
+.codex/
 .audit_reports/*
 EDITORS-REPORT.md
 
