@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { selectLogo, renderSplash } from '../../src/splash.js';
-import { createWindowedBrowseModel } from '../../src/browse-tui.js';
+import { createWindowedBrowseModel } from '../../src/browse-tui/model.js';
 
 test('selectLogo picks large logo when terminal is wide and tall enough', () => {
   const logo = selectLogo(160, 44);

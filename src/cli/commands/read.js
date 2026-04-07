@@ -1,5 +1,6 @@
 import { parseJson } from '../../json.js';
-import { runBrowseTui, runBrowseTuiScript } from '../../browse-tui.js';
+import { runBrowseTui } from '../../browse-tui/app.js';
+import { runBrowseTuiScript } from '../../browse-tui/script.js';
 import { hasGitRepo } from '../../git.js';
 import { getLocalRepoDir } from '../../paths.js';
 import {

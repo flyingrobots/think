@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createWindowedBrowseModel, renderBrowseModel } from '../../src/browse-tui.js';
+import { createWindowedBrowseModel } from '../../src/browse-tui/model.js';
+import { renderBrowseModel } from '../../src/browse-tui/view.js';
 
 test('windowed browse initializes with no drawer open', () => {
   const model = createWindowedBrowseModel({
