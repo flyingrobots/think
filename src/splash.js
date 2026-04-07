@@ -49,7 +49,9 @@ export function renderSplashView(columns, rows, ctx) {
     : `${ANSI_DIM}Press [ Enter ]${ANSI_RESET}`;
 
   const ansi = renderSplashString(columns, rows, prompt);
-  return parseAnsiToSurface(ansi, columns, rows);
+  // Replace braille blank (U+2800) with regular space — visually identical
+  // but bijou's surface parser handles regular spaces correctly.
+  return parseAnsiToSurface(ansi.replaceAll('⠀', ' '), columns, rows);
 }
 
 // eslint-disable-next-line no-control-regex -- stripping ANSI escapes requires matching control chars
