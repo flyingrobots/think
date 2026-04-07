@@ -54,38 +54,36 @@ export function renderSplashView(columns, rows, ctx) {
   return parseAnsiToSurface(ansi.replaceAll('⠀', ' '), columns, rows);
 }
 
-// eslint-disable-next-line no-control-regex -- stripping ANSI escapes requires matching control chars
-const ANSI_PATTERN = /\x1b\[[0-9;]*m/g;
-
-function visualLength(text) {
-  return text.replace(ANSI_PATTERN, '').length;
-}
-
-function centerLine(text, width) {
-  const pad = Math.max(0, Math.floor((width - visualLength(text)) / 2));
-  return ' '.repeat(pad) + text;
+function centerLogoLines(logo, columns) {
+  const lines = logo.split('\n');
+  const maxWidth = Math.max(...lines.map((l) => l.length));
+  const offset = Math.max(0, Math.floor((columns - maxWidth) / 2));
+  // Pad with braille blank (U+2800) to keep the character space uniform
+  const pad = '⠀'.repeat(offset);
+  return lines.map((line) => `${pad}${line}`).join('\n');
 }
 
 function renderSplashString(columns, rows, prompt) {
   const logo = selectLogo(columns, rows);
-  const logoLines = logo.split('\n');
+  const centeredLogo = centerLogoLines(logo, columns);
+  const logoLines = centeredLogo.split('\n');
+
+  const promptText = `Press [ Enter ]`;
+  const promptPad = Math.max(0, Math.floor((columns - promptText.length) / 2));
+  const centeredPrompt = `${' '.repeat(promptPad)}${prompt}`;
 
   const contentHeight = logoLines.length + PROMPT_ROWS;
   const topPad = Math.max(0, Math.floor((rows - contentHeight) / 2));
 
-  const lines = [];
+  const output = [];
   for (let i = 0; i < topPad; i++) {
-    lines.push('');
+    output.push('');
   }
-  for (const line of logoLines) {
-    lines.push(centerLine(line, columns));
-  }
-  lines.push('');
-  lines.push(centerLine(prompt, columns));
-  while (lines.length < rows) {
-    lines.push('');
-  }
-  return lines.slice(0, rows).join('\n');
+  output.push(centeredLogo);
+  output.push('');
+  output.push(centeredPrompt);
+
+  return output.join('\n');
 }
 
 export function renderSplash(columns, rows) {
