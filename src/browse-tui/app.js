@@ -1,6 +1,7 @@
 import { initDefaultContext } from '@flyingrobots/bijou-node';
 import { quit, run } from '@flyingrobots/bijou-tui';
-import { renderSplash } from '../splash.js';
+import { selectLogo } from '../splash.js';
+import { shaderFrame, compositeAndRender } from '../splash-shader.js';
 import { createWindowedBrowseModel, resizeBrowseModel } from './model.js';
 import { handleJumpKey, handleReflectKey, clearNoticeOnKey } from './keys.js';
 import { applyBrowseAction } from './actions.js';
@@ -139,12 +140,22 @@ export async function runBrowseTui({
 function showSplash() {
   const cols = process.stdout.columns || 80;
   const rows = process.stdout.rows || 24;
-  const frame = renderSplash(cols, rows);
+  const logo = selectLogo(cols, rows);
+  const startTime = Date.now();
 
   process.stdout.write('\x1b[?1049h'); // enter alt screen
   process.stdout.write('\x1b[?25l');   // hide cursor
-  process.stdout.write('\x1b[H');      // move to top-left
-  process.stdout.write(frame);
+
+  function renderFrame() {
+    const elapsed = Date.now() - startTime;
+    const grid = shaderFrame(cols, rows, elapsed);
+    const frame = compositeAndRender(grid, logo, cols, rows);
+    process.stdout.write('\x1b[H');    // move to top-left
+    process.stdout.write(frame);
+  }
+
+  renderFrame();
+  const interval = setInterval(renderFrame, 50); // ~20fps
 
   return new Promise((resolve) => {
     process.stdin.setRawMode(true);
@@ -165,6 +176,7 @@ function showSplash() {
     }
 
     function cleanup() {
+      clearInterval(interval);
       process.stdin.removeListener('data', onData);
       process.stdin.setRawMode(false);
       process.stdin.pause();
