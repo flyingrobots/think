@@ -1,6 +1,6 @@
 import { initDefaultContext } from '@flyingrobots/bijou-node';
 import { quit, run } from '@flyingrobots/bijou-tui';
-import { renderSplashView } from '../splash.js';
+import { renderSplash } from '../splash.js';
 import { createWindowedBrowseModel, resizeBrowseModel } from './model.js';
 import { handleJumpKey, handleReflectKey, clearNoticeOnKey } from './keys.js';
 import { applyBrowseAction } from './actions.js';
@@ -26,30 +26,26 @@ export async function runBrowseTui({
   startReflectSession = null,
   saveReflectSessionResponse = null,
 }) {
+  const splashResult = await showSplash();
+  if (splashResult === 'quit') {
+    return { type: 'quit' };
+  }
+
   let effect = { type: 'quit' };
 
   const app = {
     init() {
-      return [createWindowedBrowseModel({
+      const model = createWindowedBrowseModel({
         bootstrap,
         inspectCache: new Map(),
         loadBrowseWindow,
         loadChronologyEntries,
-      }), []];
+      });
+      return [{ ...model, phase: 'browse' }, []];
     },
     update(msg, model) {
       if (msg.type === 'resize') {
         return [resizeBrowseModel(model, msg.columns, msg.rows), []];
-      }
-
-      if (model.phase === 'splash') {
-        if (msg.type === 'key' && msg.key === 'enter') {
-          return [{ ...model, phase: 'browse' }, []];
-        }
-        if (msg.type === 'key' && (msg.key === 'q' || msg.key === 'escape')) {
-          return [model, [quit()]];
-        }
-        return [model, []];
       }
 
       if (msg.type === 'inspect_loaded') {
@@ -132,13 +128,48 @@ export async function runBrowseTui({
     },
     view(model) {
       const ctx = initDefaultContext();
-      if (model.phase === 'splash') {
-        return renderSplashView(model.columns, model.rows, ctx);
-      }
       return renderBrowseView(model, ctx);
     },
   };
 
   await run(app, { ctx: initDefaultContext() });
   return effect;
+}
+
+function showSplash() {
+  const cols = process.stdout.columns || 80;
+  const rows = process.stdout.rows || 24;
+  const frame = renderSplash(cols, rows);
+
+  process.stdout.write('\x1b[?1049h'); // enter alt screen
+  process.stdout.write('\x1b[?25l');   // hide cursor
+  process.stdout.write('\x1b[H');      // move to top-left
+  process.stdout.write(frame);
+
+  return new Promise((resolve) => {
+    process.stdin.setRawMode(true);
+    process.stdin.resume();
+
+    function onData(data) {
+      const key = data[0];
+      // Enter (13), q (113), Escape (27)
+      if (key === 13) {
+        cleanup();
+        resolve('enter');
+      } else if (key === 113 || key === 27) {
+        cleanup();
+        process.stdout.write('\x1b[?25h');   // show cursor
+        process.stdout.write('\x1b[?1049l'); // leave alt screen
+        resolve('quit');
+      }
+    }
+
+    function cleanup() {
+      process.stdin.removeListener('data', onData);
+      process.stdin.setRawMode(false);
+      process.stdin.pause();
+    }
+
+    process.stdin.on('data', onData);
+  });
 }
