@@ -10,7 +10,7 @@ function loadLogo(relativePath) {
 }
 
 const LOGOS = [
-  { name: 'large', art: loadLogo('large/think.txt') },
+  { name: 'large', art: loadLogo('large/mind.txt') },
   { name: 'medium', art: loadLogo('medium/think.txt') },
   { name: 'small', art: loadLogo('small/think-2.txt') },
 ];
