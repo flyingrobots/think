@@ -4,11 +4,11 @@ Updated: 2026-04-06
 
 ## Where are we going?
 
-Validation and hardening. `v0.5.0` is released. METHOD is adopted. Cycle 0001 (capture latency benchmark) is complete — first METHOD cycle closed with a full retro.
+Validation and hardening. `v0.5.0` is released. METHOD is adopted. Recent cycles have focused on capture-latency measurement, warm-path hardening, and adapter cleanup.
 
 ## What just shipped?
 
-Cycle 0006 — contributor docs refresh. `CONTRIBUTING.md` now reflects METHOD, current repo references, and current release/verification guidance.
+Cycle 0007 — shared Swift path search. The macOS CLI and MCP resolvers now share one path-search utility with direct resolver tests for explicit path, repo-root, bundle, and process-directory lookup.
 
 ## What feels wrong?
 
