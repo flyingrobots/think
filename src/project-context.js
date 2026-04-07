@@ -2,26 +2,49 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 export function getAmbientProjectContext(cwd = process.cwd()) {
-  const resolvedCwd = path.resolve(cwd);
-  const gitRoot = runGitString(['-C', resolvedCwd, 'rev-parse', '--show-toplevel']);
-  const gitRemote = runGitString(['-C', resolvedCwd, 'config', '--get', 'remote.origin.url']);
-  const gitBranch = runGitString(['-C', resolvedCwd, 'branch', '--show-current']);
+  const baseContext = getCaptureAmbientContext(cwd);
+  const gitRoot = runGitString(['-C', baseContext.cwd, 'rev-parse', '--show-toplevel']);
+  const gitRemote = runGitString(['-C', baseContext.cwd, 'config', '--get', 'remote.origin.url']);
+  const gitBranch = runGitString(['-C', baseContext.cwd, 'branch', '--show-current']);
   const projectName = selectProjectName({
-    cwd: resolvedCwd,
+    cwd: baseContext.cwd,
     gitRoot,
     gitRemote,
   });
 
   return {
-    cwd: resolvedCwd,
+    cwd: baseContext.cwd,
     gitRoot,
     gitRemote,
     gitBranch,
     projectName,
     projectTokens: buildProjectTokens({
-      cwd: resolvedCwd,
+      cwd: baseContext.cwd,
       gitRoot,
       gitRemote,
+      projectName,
+    }),
+  };
+}
+
+export function getCaptureAmbientContext(cwd = process.cwd()) {
+  const resolvedCwd = path.resolve(cwd);
+  const projectName = selectProjectName({
+    cwd: resolvedCwd,
+    gitRoot: null,
+    gitRemote: null,
+  });
+
+  return {
+    cwd: resolvedCwd,
+    gitRoot: null,
+    gitRemote: null,
+    gitBranch: null,
+    projectName,
+    projectTokens: buildProjectTokens({
+      cwd: resolvedCwd,
+      gitRoot: null,
+      gitRemote: null,
       projectName,
     }),
   };
