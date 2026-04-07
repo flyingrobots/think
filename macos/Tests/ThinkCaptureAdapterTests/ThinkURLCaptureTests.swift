@@ -38,29 +38,46 @@ final class ThinkURLCaptureTests: XCTestCase {
         }
     }
 
-    func testURLHandlerRoutesExactDecodedTextThroughExistingCaptureCore() async throws {
+    func testURLHandlerRoutesExactDecodedTextAndProvenanceThroughExistingCaptureCore() async throws {
         let client = RecordingCapturer(result: CaptureResult(backupState: .pending))
         let handler = ThinkCaptureURLHandler(client: client)
-        let url = URL(string: "think://capture?text=%20keep%20leading%20space%0Aand%20newline%20&ingress=shortcut")!
+        let url = URL(string: "think://capture?text=%20keep%20leading%20space%0Aand%20newline%20&ingress=shortcut&sourceApp=Shortcuts")!
 
         let result = try await handler.handle(url: url)
+        let capturedCalls = await client.capturedCalls
 
         XCTAssertEqual(result, CaptureResult(backupState: .pending))
-        XCTAssertEqual(client.capturedTexts, [" keep leading space\nand newline "])
+        XCTAssertEqual(
+            capturedCalls,
+            [
+                CaptureCall(
+                    text: " keep leading space\nand newline ",
+                    provenance: ThinkCaptureProvenance(
+                        ingress: .shortcut,
+                        sourceApp: "Shortcuts"
+                    )
+                ),
+            ]
+        )
     }
 }
 
-private final class RecordingCapturer: ThinkCapturing, @unchecked Sendable {
+private actor RecordingCapturer: ThinkCapturing {
     private let result: CaptureResult
 
-    private(set) var capturedTexts: [String] = []
+    private(set) var capturedCalls: [CaptureCall] = []
 
     init(result: CaptureResult) {
         self.result = result
     }
 
-    func capture(text: String) async throws -> CaptureResult {
-        capturedTexts.append(text)
+    func capture(text: String, provenance: ThinkCaptureProvenance?) async throws -> CaptureResult {
+        capturedCalls.append(CaptureCall(text: text, provenance: provenance))
         return result
     }
+}
+
+private struct CaptureCall: Equatable {
+    let text: String
+    let provenance: ThinkCaptureProvenance?
 }

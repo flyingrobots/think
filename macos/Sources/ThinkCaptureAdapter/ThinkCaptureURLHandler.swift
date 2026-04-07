@@ -3,6 +3,8 @@ import Foundation
 public enum ThinkCaptureIngress: String, Equatable, Sendable {
     case url
     case shortcut
+    case selectedText = "selected_text"
+    case share = "share"
 }
 
 public struct ThinkCaptureURLRequest: Equatable, Sendable {
@@ -54,6 +56,16 @@ public struct ThinkCaptureURLHandler: Sendable {
 
     public func handle(url: URL) async throws -> CaptureResult {
         let request = try ThinkCaptureURLRequest(url: url)
-        return try await client.capture(text: request.text)
+        return try await handle(request: request)
+    }
+
+    public func handle(request: ThinkCaptureURLRequest) async throws -> CaptureResult {
+        return try await client.capture(
+            text: request.text,
+            provenance: ThinkCaptureProvenance(
+                ingress: request.ingress,
+                sourceApp: request.sourceApp
+            )
+        )
     }
 }

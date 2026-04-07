@@ -20,6 +20,7 @@ final class CaptureAppState: ObservableObject {
 
     private let client: ThinkCapturing
     private let urlCaptureHandler: ThinkCaptureURLHandler
+    private let sharedTextCaptureHandler: ThinkCaptureSharedTextHandler
     private let metricsRecorder: PromptUXMetricsRecorder
     private let metricsTracker: PromptUXMetricsTracker
     private let panelController: CapturePanelController
@@ -30,7 +31,11 @@ final class CaptureAppState: ObservableObject {
     private var updatePollingTask: Task<Void, Never>?
     private var statusResetTask: Task<Void, Never>?
     private var lastFailedText: String?
+    private var lastFailedExternalCapture: ThinkExternalCaptureRetryPayload?
     private var openURLTask: Task<Void, Never>?
+    private var sharedTextTask: Task<Void, Never>?
+    private var externalCaptureTask: Task<Void, Never>?
+    private var externalCaptureAttemptTracker = LatestAttemptTracker()
 
     init(
         client: ThinkCapturing? = nil,
@@ -60,6 +65,7 @@ final class CaptureAppState: ObservableObject {
         self.model = model
         self.client = client
         self.urlCaptureHandler = ThinkCaptureURLHandler(client: client)
+        self.sharedTextCaptureHandler = ThinkCaptureSharedTextHandler(client: client)
         self.metricsRecorder = metricsRecorder
         self.metricsTracker = metricsTracker
         self.panelController = panelController
@@ -96,7 +102,22 @@ final class CaptureAppState: ObservableObject {
                     continue
                 }
 
-                self?.handleCaptureURL(url)
+                await MainActor.run {
+                    self?.handleCaptureURL(url)
+                }
+            }
+        }
+        self.sharedTextTask = Task { [weak self] in
+            for await notification in notificationCenter.notifications(named: .thinkCaptureSharedText) {
+                guard
+                    let request = notification.userInfo?[ThinkCaptureSharedTextUserInfoKey.request] as? ThinkCaptureSharedTextRequest
+                else {
+                    continue
+                }
+
+                await MainActor.run {
+                    self?.handleSharedTextRequest(request)
+                }
             }
         }
     }
@@ -112,7 +133,19 @@ final class CaptureAppState: ObservableObject {
     }
 
     func retryFailedCapture() {
-        guard let lastFailedText, !model.isSubmitting else { return }
+        guard !model.isSubmitting else { return }
+
+        if let lastFailedExternalCapture {
+            performExternalCapture(retryPayload: lastFailedExternalCapture) {
+                try await lastFailedExternalCapture.retry(
+                    using: self.urlCaptureHandler,
+                    sharedTextHandler: self.sharedTextCaptureHandler
+                )
+            }
+            return
+        }
+
+        guard let lastFailedText else { return }
 
         Task { @MainActor in
             _ = await model.submit(text: lastFailedText)
@@ -141,23 +174,30 @@ final class CaptureAppState: ObservableObject {
         updatePollingTask?.cancel()
         statusResetTask?.cancel()
         openURLTask?.cancel()
+        sharedTextTask?.cancel()
+        externalCaptureTask?.cancel()
     }
 
     func handleCaptureURL(_ url: URL) {
-        statusResetTask?.cancel()
-        canRetryFailedCapture = false
-        captureMenuState = .saving
-        lastFailedText = nil
+        let retryPayload = (try? ThinkCaptureURLRequest(url: url)).map(ThinkExternalCaptureRetryPayload.url)
 
-        Task { @MainActor in
-            do {
-                let result = try await urlCaptureHandler.handle(url: url)
-                captureMenuState = .saved
-                scheduleStatusReset()
-                _ = result
-            } catch {
-                captureMenuState = .failed
+        performExternalCapture(retryPayload: retryPayload) {
+            if let retryPayload {
+                return try await retryPayload.retry(
+                    using: self.urlCaptureHandler,
+                    sharedTextHandler: self.sharedTextCaptureHandler
+                )
             }
+
+            return try await self.urlCaptureHandler.handle(url: url)
+        }
+    }
+
+    func handleSharedTextRequest(_ request: ThinkCaptureSharedTextRequest) {
+        let retryPayload = ThinkExternalCaptureRetryPayload.sharedText(request)
+
+        performExternalCapture(retryPayload: retryPayload) {
+            try await self.sharedTextCaptureHandler.handle(request: request)
         }
     }
 
@@ -206,11 +246,13 @@ final class CaptureAppState: ObservableObject {
         case .started(let text):
             statusResetTask?.cancel()
             lastFailedText = text
+            lastFailedExternalCapture = nil
             canRetryFailedCapture = false
             captureMenuState = .saving
         case .succeeded(let result):
             statusResetTask?.cancel()
             lastFailedText = nil
+            lastFailedExternalCapture = nil
             canRetryFailedCapture = false
             captureMenuState = .saved
             metricsTracker.markCaptureSucceeded(backupState: backupStateName(result.backupState))
@@ -221,6 +263,7 @@ final class CaptureAppState: ObservableObject {
         case .failed(let retryText, _):
             statusResetTask?.cancel()
             lastFailedText = retryText
+            lastFailedExternalCapture = nil
             canRetryFailedCapture = true
             captureMenuState = .failed
             metricsTracker.markCaptureFailed()
@@ -249,12 +292,62 @@ final class CaptureAppState: ObservableObject {
             }
         }
     }
+
+    private func performExternalCapture(
+        retryPayload: ThinkExternalCaptureRetryPayload?,
+        _ operation: @escaping @Sendable () async throws -> CaptureResult
+    ) {
+        statusResetTask?.cancel()
+        externalCaptureTask?.cancel()
+        let attemptID = externalCaptureAttemptTracker.begin()
+        canRetryFailedCapture = false
+        captureMenuState = .saving
+        lastFailedText = retryPayload?.retryText
+        lastFailedExternalCapture = retryPayload
+
+        externalCaptureTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                if self.externalCaptureAttemptTracker.isLatest(attemptID) {
+                    self.externalCaptureTask = nil
+                }
+            }
+
+            do {
+                let result = try await operation()
+                guard !Task.isCancelled, self.externalCaptureAttemptTracker.isLatest(attemptID) else {
+                    return
+                }
+                lastFailedText = nil
+                lastFailedExternalCapture = nil
+                canRetryFailedCapture = false
+                captureMenuState = .saved
+                metricsTracker.markCaptureSucceeded(backupState: backupStateName(result.backupState))
+                Task {
+                    await metricsRecorder.resumeFlushes()
+                }
+                scheduleStatusReset()
+            } catch {
+                guard !Task.isCancelled, self.externalCaptureAttemptTracker.isLatest(attemptID) else {
+                    return
+                }
+                lastFailedText = retryPayload?.retryText
+                lastFailedExternalCapture = retryPayload
+                canRetryFailedCapture = retryPayload != nil
+                captureMenuState = .failed
+                metricsTracker.markCaptureFailed()
+                Task {
+                    await metricsRecorder.resumeFlushes()
+                }
+            }
+        }
+    }
 }
 
 private struct UnavailableCaptureClient: ThinkCapturing {
     let message: String
 
-    func capture(text: String) async throws -> CaptureResult {
+    func capture(text: String, provenance: ThinkCaptureProvenance?) async throws -> CaptureResult {
         throw CaptureFailure(message: message)
     }
 }

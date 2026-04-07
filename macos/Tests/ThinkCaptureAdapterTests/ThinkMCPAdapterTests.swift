@@ -75,13 +75,60 @@ final class ThinkMCPAdapterTests: XCTestCase {
 
         _ = try await adapter.capture(text: "my exact thought")
 
-        let captureMessage = transport.sentMessages.last!
-        let decoded = try JSONSerialization.jsonObject(with: captureMessage) as! [String: Any]
-        let params = decoded["params"] as! [String: Any]
-        let arguments = params["arguments"] as! [String: String]
+        guard let captureMessage = transport.sentMessages.last else {
+            XCTFail("Expected at least one sent message")
+            return
+        }
+
+        let decoded = try JSONSerialization.jsonObject(with: captureMessage)
+        guard
+            let decodedDict = decoded as? [String: Any],
+            let params = decodedDict["params"] as? [String: Any],
+            let arguments = params["arguments"] as? [String: String]
+        else {
+            XCTFail("Unexpected message structure: \(decoded)")
+            return
+        }
 
         XCTAssertEqual(params["name"] as? String, "capture")
         XCTAssertEqual(arguments["text"], "my exact thought")
+    }
+
+    func testCapturePassesProvenanceInToolCallArguments() async throws {
+        let transport = MockMCPTransport(responses: [
+            initializeResponse(),
+            captureResponse(entryId: "entry:abc", backupStatus: "skipped"),
+        ])
+        let adapter = ThinkMCPAdapter(transport: transport)
+
+        _ = try await adapter.capture(
+            text: "selected text",
+            provenance: ThinkCaptureProvenance(
+                ingress: .selectedText,
+                sourceApp: "Safari",
+                sourceURL: URL(string: "https://example.com/article")!
+            )
+        )
+
+        guard let captureMessage = transport.sentMessages.last else {
+            XCTFail("Expected at least one sent message")
+            return
+        }
+
+        let decoded = try JSONSerialization.jsonObject(with: captureMessage)
+        guard
+            let decodedDict = decoded as? [String: Any],
+            let params = decodedDict["params"] as? [String: Any],
+            let arguments = params["arguments"] as? [String: String]
+        else {
+            XCTFail("Unexpected message structure: \(decoded)")
+            return
+        }
+
+        XCTAssertEqual(arguments["text"], "selected text")
+        XCTAssertEqual(arguments["ingress"], "selected_text")
+        XCTAssertEqual(arguments["sourceApp"], "Safari")
+        XCTAssertEqual(arguments["sourceURL"], "https://example.com/article")
     }
 
     func testMCPErrorBecomesACaptureFailure() async {

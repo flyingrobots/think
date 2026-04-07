@@ -19,11 +19,11 @@ public final class ThinkMCPAdapter: ThinkCapturing, @unchecked Sendable {
         self.environment = environment
     }
 
-    public func capture(text: String) async throws -> CaptureResult {
-        try await Task.detached(priority: .userInitiated) { [self] in
+    public func capture(text: String, provenance: ThinkCaptureProvenance?) async throws -> CaptureResult {
+        return try await Task.detached(priority: .userInitiated) { [self] in
             do {
                 try ensureInitialized()
-                return try callCaptureTool(text: text)
+                return try callCaptureTool(text: text, provenance: provenance)
             } catch let error as CaptureFailure where !error.isTransportError {
                 // Application-level MCP error (e.g., validation) — don't retry
                 throw error
@@ -32,7 +32,7 @@ public final class ThinkMCPAdapter: ThinkCapturing, @unchecked Sendable {
                 reconnect()
                 do {
                     try ensureInitialized()
-                    return try callCaptureTool(text: text)
+                    return try callCaptureTool(text: text, provenance: provenance)
                 } catch {
                     throw CaptureFailure(message: "MCP capture failed after reconnection: \(error.localizedDescription)")
                 }
@@ -79,7 +79,7 @@ public final class ThinkMCPAdapter: ThinkCapturing, @unchecked Sendable {
         initialized = true
     }
 
-    private func callCaptureTool(text: String) throws -> CaptureResult {
+    private func callCaptureTool(text: String, provenance: ThinkCaptureProvenance?) throws -> CaptureResult {
         lock.lock()
         let requestId = nextId()
         lock.unlock()
@@ -90,7 +90,7 @@ public final class ThinkMCPAdapter: ThinkCapturing, @unchecked Sendable {
             method: "tools/call",
             params: ToolCallParams(
                 name: "capture",
-                arguments: ["text": text]
+                arguments: captureArguments(text: text, provenance: provenance)
             )
         )
         try sendRequest(request)
@@ -118,6 +118,22 @@ public final class ThinkMCPAdapter: ThinkCapturing, @unchecked Sendable {
         case "pending": return .pending
         default: return .skipped
         }
+    }
+
+    private func captureArguments(text: String, provenance: ThinkCaptureProvenance?) -> [String: String] {
+        var arguments = ["text": text]
+
+        if let ingress = provenance?.ingress?.rawValue {
+            arguments["ingress"] = ingress
+        }
+        if let sourceApp = provenance?.sourceApp, !sourceApp.isEmpty {
+            arguments["sourceApp"] = sourceApp
+        }
+        if let sourceURL = provenance?.sourceURL?.absoluteString, !sourceURL.isEmpty {
+            arguments["sourceURL"] = sourceURL
+        }
+
+        return arguments
     }
 
     private func nextId() -> Int {

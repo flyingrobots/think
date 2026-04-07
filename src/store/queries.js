@@ -282,6 +282,7 @@ export async function inspectRawEntryForRead(read, entryId) {
     text: entry.text,
     sortKey: entry.sortKey,
     createdAt: entry.createdAt,
+    captureProvenance: entry.captureProvenance,
     canonicalThought,
     seedQuality,
     sessionAttribution,

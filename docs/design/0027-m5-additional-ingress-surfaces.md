@@ -177,7 +177,7 @@ Shipped behavior:
 
 Status:
 
-- next
+- implemented and closed
 
 Design note:
 
@@ -199,7 +199,23 @@ Required behavior:
 - clear local invocation model
 - no dependency on a hosted service
 
+Shipped behavior:
+
+- `think://capture?text=...` is now a real local ingress contract
+- the menu bar app owns the `think` URL scheme and routes accepted payloads into the same capture core
+- Apple Shortcuts can use the URL scheme as a thin wrapper rather than a separate save path
+- the packaged `.app` resolves the CLI correctly when launched by macOS
+- the tray menu now exposes build/version metadata for debugging and supportability
+
 ### Third Slice: Selected-Text / Share-Based Capture
+
+Status:
+
+- next
+
+Design note:
+
+- [`0029-m5-selected-text-share-capture.md`](./0029-m5-selected-text-share-capture.md)
 
 Recommended third slice:
 

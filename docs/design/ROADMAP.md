@@ -1,6 +1,6 @@
 # Roadmap And Milestones
 
-Status: `M0`, `M1`, `M2`, `M3`, and `M4` complete; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and the full M4 read/reentry stack are implemented and under active use; `M5` is in progress and its first explicit-ingest slice is now implemented
+Status: `M0`, `M1`, `M2`, `M3`, and `M4` complete; agent-native CLI, graph derivation, ingress pipeline, pressure-test/spitball split, and the full M4 read/reentry stack are implemented and under active use; `M5` is in progress and its explicit-ingest and URL-capture slices are now implemented
 
 ## Planning Frame
 
@@ -26,8 +26,9 @@ Milestones exist to prove user value in sequence. They are not buckets for unrel
 - the session-presentation polish slice is implemented and closed.
 - `M5: Additional ingress surfaces` is in progress.
 - the first `M5` slice, explicit stdin / pipe-friendly ingest, is implemented and closed.
+- the second `M5` slice, local URL-triggered capture and Apple Shortcuts, is implemented and closed.
 - `0027-m5-additional-ingress-surfaces.md` now frames the milestone and its next slice.
-- `0028-m5-shortcuts-url-capture.md` now frames the next active `M5` slice.
+- `0029-m5-selected-text-share-capture.md` now frames the next active `M5` slice.
 
 ## Planning Principles
 

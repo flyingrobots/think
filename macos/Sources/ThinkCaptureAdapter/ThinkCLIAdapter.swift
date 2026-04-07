@@ -45,15 +45,16 @@ public final class ThinkCLIAdapter: ThinkCapturing, @unchecked Sendable {
         self.command = command
     }
 
-    public func capture(text: String) async throws -> CaptureResult {
+    public func capture(text: String, provenance: ThinkCaptureProvenance?) async throws -> CaptureResult {
         let runner = self.runner
         let command = self.command
+        let environment = mergedEnvironment(for: provenance)
 
         let output = try await Task.detached(priority: .userInitiated) {
             try runner.run(
                 executablePath: command.executablePath,
                 arguments: command.baseArguments + ["--json", text],
-                environment: command.environment
+                environment: environment
             )
         }.value
 
@@ -137,6 +138,29 @@ public final class ThinkCLIAdapter: ThinkCapturing, @unchecked Sendable {
                 throw CaptureFailure(message: "Could not decode think JSON output")
             }
         }
+    }
+
+    private func mergedEnvironment(for provenance: ThinkCaptureProvenance?) -> [String: String] {
+        var environment = command.environment
+        environment.removeValue(forKey: "THINK_CAPTURE_INGRESS")
+        environment.removeValue(forKey: "THINK_CAPTURE_SOURCE_APP")
+        environment.removeValue(forKey: "THINK_CAPTURE_SOURCE_URL")
+
+        guard let provenance else {
+            return environment
+        }
+
+        if let ingress = provenance.ingress?.rawValue {
+            environment["THINK_CAPTURE_INGRESS"] = ingress
+        }
+        if let sourceApp = provenance.sourceApp, !sourceApp.isEmpty {
+            environment["THINK_CAPTURE_SOURCE_APP"] = sourceApp
+        }
+        if let sourceURL = provenance.sourceURL?.absoluteString, !sourceURL.isEmpty {
+            environment["THINK_CAPTURE_SOURCE_URL"] = sourceURL
+        }
+
+        return environment
     }
 }
 

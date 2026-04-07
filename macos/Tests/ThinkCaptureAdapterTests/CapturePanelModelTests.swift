@@ -147,7 +147,7 @@ private final class FakeCaptureClient: ThinkCapturing, @unchecked Sendable {
         self.result = result
     }
 
-    func capture(text: String) async throws -> CaptureResult {
+    func capture(text: String, provenance: ThinkCaptureProvenance?) async throws -> CaptureResult {
         receivedTexts.append(text)
 
         switch result {
@@ -163,7 +163,7 @@ private final class ControlledCaptureClient: ThinkCapturing, @unchecked Sendable
     var receivedTexts: [String] = []
     private var continuation: CheckedContinuation<CaptureResult, Error>?
 
-    func capture(text: String) async throws -> CaptureResult {
+    func capture(text: String, provenance: ThinkCaptureProvenance?) async throws -> CaptureResult {
         receivedTexts.append(text)
 
         return try await withCheckedThrowingContinuation { continuation in
