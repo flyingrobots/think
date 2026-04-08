@@ -9,7 +9,7 @@ import {
   viewport,
   viewportSurface,
 } from '@flyingrobots/bijou-tui';
-import { styleTitle, styleDim, styleSection } from './style.js';
+import { styleTitle, styleDim, styleSection, PALETTE } from './style.js';
 import {
   capitalize,
   formatWhen,
@@ -112,12 +112,17 @@ export function renderBrowseModel(model, ctx = null) {
   return composite(background, overlays, { dim: model.panelMode === 'reflect' });
 }
 
+const BG_TOKEN = {
+  hex: `#${PALETTE.cream.map((c) => c.toString(16).padStart(2, '0')).join('')}`,
+  bg: `#${PALETTE.bg.map((c) => c.toString(16).padStart(2, '0')).join('')}`,
+};
+
 export function renderBrowseView(model, ctx) {
   const layout = resolveLayout(model);
   const help = resolveHelpLine(model);
   const counter = resolveBrowseCounter(model);
   const background = flexSurface(
-    { direction: 'column', width: model.columns, height: model.rows, ctx },
+    { direction: 'column', width: model.columns, height: model.rows, ctx, bgToken: BG_TOKEN },
     {
       basis: 1,
       content: counter
@@ -144,6 +149,7 @@ export function renderBrowseView(model, ctx) {
       screenWidth: model.columns,
       screenHeight: model.rows,
       ctx,
+      bgToken: BG_TOKEN,
       region: {
         row: 1,
         col: 0,
@@ -164,6 +170,7 @@ export function renderBrowseView(model, ctx) {
       screenHeight: model.rows,
       width: modalWidth,
       ctx,
+      bgToken: BG_TOKEN,
     }));
   }
 

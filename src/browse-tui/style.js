@@ -1,28 +1,43 @@
-const ANSI_FALLBACK = {
-  reset: '\x1b[0m',
-  bold: '\x1b[1m',
-  dim: '\x1b[2m',
-  cyan: '\x1b[36m',
-  yellow: '\x1b[33m',
+// Warm palette from the splash screen
+// Background: #2d1922 (dark plum)
+// Stroke/primary: #fffcc9 (cream)
+// Accent colors: #ed555d (coral), #41b797 (teal), #eda126 (amber), #7b5770 (mauve)
+
+const PALETTE = {
+  bg: [45, 25, 34],
+  cream: [255, 252, 201],
+  coral: [237, 85, 93],
+  teal: [65, 183, 151],
+  amber: [237, 161, 38],
+  mauve: [123, 87, 112],
+  dimCream: [140, 138, 110],
 };
 
-export function styleTitle(ctx, text) {
-  if (ctx) {
-    return ctx.style.styled(ctx.semantic('accent'), ctx.style.bold(text));
-  }
-  return `${ANSI_FALLBACK.bold}${ANSI_FALLBACK.cyan}${text}${ANSI_FALLBACK.reset}`;
+function fg(rgb) {
+  return `\x1b[38;2;${rgb[0]};${rgb[1]};${rgb[2]}m`;
 }
 
-export function styleSection(ctx, text) {
-  if (ctx) {
-    return ctx.style.styled(ctx.ui('sectionHeader'), ctx.style.bold(text));
-  }
-  return `${ANSI_FALLBACK.bold}${ANSI_FALLBACK.yellow}${text}${ANSI_FALLBACK.reset}`;
+const RESET = '\x1b[0m';
+const BOLD = '\x1b[1m';
+
+export function styleTitle(_ctx, text) {
+  return `${BOLD}${fg(PALETTE.teal)}${text}${RESET}`;
 }
 
-export function styleDim(ctx, text) {
-  if (ctx) {
-    return ctx.style.styled(ctx.semantic('muted'), text);
-  }
-  return `${ANSI_FALLBACK.dim}${text}${ANSI_FALLBACK.reset}`;
+export function styleSection(_ctx, text) {
+  return `${BOLD}${fg(PALETTE.amber)}${text}${RESET}`;
 }
+
+export function styleDim(_ctx, text) {
+  return `${fg(PALETTE.mauve)}${text}${RESET}`;
+}
+
+export function styleAccent(_ctx, text) {
+  return `${fg(PALETTE.coral)}${text}${RESET}`;
+}
+
+export function stylePrimary(_ctx, text) {
+  return `${fg(PALETTE.cream)}${text}${RESET}`;
+}
+
+export { PALETTE };
