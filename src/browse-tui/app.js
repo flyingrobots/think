@@ -1,7 +1,7 @@
 import { initDefaultContext } from '@flyingrobots/bijou-node';
 import { quit, run } from '@flyingrobots/bijou-tui';
 import { selectLogo } from '../splash.js';
-import { shaderFrame, compositeAndRender } from '../splash-shader.js';
+import { shaderFrame, compositeAndRender, buildLogoMask, buildDistanceField, BG } from '../splash-shader.js';
 import { createWindowedBrowseModel, resizeBrowseModel } from './model.js';
 import { handleJumpKey, handleReflectKey, clearNoticeOnKey } from './keys.js';
 import { applyBrowseAction } from './actions.js';
@@ -141,16 +141,19 @@ function showSplash() {
   const cols = process.stdout.columns || 80;
   const rows = process.stdout.rows || 24;
   const logo = selectLogo(cols, rows);
+  const logoInfo = buildLogoMask(logo, cols, rows);
+  const alphaField = buildDistanceField(logoInfo.mask, cols, rows);
   const startTime = Date.now();
+  const mode = 2; // 1=normal, 2=distance fade, 3=mask only
 
   process.stdout.write('\x1b[?1049h'); // enter alt screen
   process.stdout.write('\x1b[?25l');   // hide cursor
-  process.stdout.write('\x1b[48;2;45;25;34m'); // background #2d1922
+  process.stdout.write(`\x1b[48;2;${BG[0]};${BG[1]};${BG[2]}m`);
 
   function renderFrame() {
     const elapsed = Date.now() - startTime;
     const grid = shaderFrame(cols, rows, elapsed);
-    const frame = compositeAndRender(grid, logo, cols, rows);
+    const frame = compositeAndRender(grid, logoInfo, alphaField, cols, rows, mode);
     process.stdout.write('\x1b[H');    // move to top-left
     process.stdout.write(frame);
   }
