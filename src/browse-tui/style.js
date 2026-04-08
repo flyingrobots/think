@@ -1,7 +1,5 @@
-// Warm palette from the splash screen
-// Background: #2d1922 (dark plum)
-// Stroke/primary: #fffcc9 (cream)
-// Accent colors: #ed555d (coral), #41b797 (teal), #eda126 (amber), #7b5770 (mauve)
+// Warm palette — used by both ctx-aware (bijou theme) and fallback (raw ANSI) paths.
+// The custom theme in theme.js maps these to bijou's token vocabulary.
 
 const PALETTE = {
   bg: [45, 25, 34],
@@ -20,23 +18,38 @@ function fg(rgb) {
 const RESET = '\x1b[0m';
 const BOLD = '\x1b[1m';
 
-export function styleTitle(_ctx, text) {
+export function styleTitle(ctx, text) {
+  if (ctx) {
+    return ctx.style.styled(ctx.semantic('accent'), ctx.style.bold(text));
+  }
   return `${BOLD}${fg(PALETTE.teal)}${text}${RESET}`;
 }
 
-export function styleSection(_ctx, text) {
+export function styleSection(ctx, text) {
+  if (ctx) {
+    return ctx.style.styled(ctx.ui('sectionHeader'), text);
+  }
   return `${BOLD}${fg(PALETTE.amber)}${text}${RESET}`;
 }
 
-export function styleDim(_ctx, text) {
+export function styleDim(ctx, text) {
+  if (ctx) {
+    return ctx.style.styled(ctx.semantic('muted'), text);
+  }
   return `${fg(PALETTE.mauve)}${text}${RESET}`;
 }
 
-export function styleAccent(_ctx, text) {
+export function styleAccent(ctx, text) {
+  if (ctx) {
+    return ctx.style.styled(ctx.semantic('accent'), text);
+  }
   return `${fg(PALETTE.coral)}${text}${RESET}`;
 }
 
-export function stylePrimary(_ctx, text) {
+export function stylePrimary(ctx, text) {
+  if (ctx) {
+    return ctx.style.styled(ctx.semantic('primary'), text);
+  }
   return `${fg(PALETTE.cream)}${text}${RESET}`;
 }
 

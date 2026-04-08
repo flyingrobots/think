@@ -16,6 +16,9 @@ Release discipline:
 - decomposed browse TUI monolith (`src/browse-tui.js`, 1864 lines) into 14 focused modules under `src/browse-tui/` — barrel re-exports preserve the public API
 - converted browse TUI rendering to bijou's surface-native pipeline (`flexSurface`, `viewportSurface`, `compositeSurface`) eliminating the `parseAnsiToSurface` roundtrip, and threaded bijou context for themed borders and overlays
 - replaced raw ANSI escape codes in browse TUI with bijou semantic tokens (`ctx.semantic('accent')`, `ctx.semantic('muted')`, `ctx.ui('sectionHeader')`)
+- migrated browse TUI from plain `run(app)` to bijou's `createFramedApp` for framed shell architecture with automatic chrome, help overlay, overlay management, and input routing
+- defined a custom bijou theme (`thinkTheme`) mapping the warm palette (plum, cream, teal, amber, mauve, coral) to all bijou token categories (semantic, status, border, surface, ui, gradient) so frame chrome, drawers, modals, and built-in components render in Think's visual identity
+- upgraded bijou to 4.2.0 — new bijou-mcp rendering server, RE-007 framed shell migration, inspector fix
 - pruned stale `bad-code` backlog notes for already-shipped cycle `0006` and `0007` work, and aligned changelog release wording with the current cycle-based METHOD docs
 - restricted command help to explicit flag forms like `think --recent --help`, preserving positional text capture and returning a clear validation error for ambiguous `think recent --help`
 - extracted shared Swift `PathSearcher` utility for macOS CLI/MCP resolver lookup and added direct resolver coverage for explicit path, repo-root, bundle, and process-directory search behavior

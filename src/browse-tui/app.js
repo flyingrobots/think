@@ -1,5 +1,7 @@
-import { initDefaultContext } from '@flyingrobots/bijou-node';
+import { createBijou } from '@flyingrobots/bijou';
+import { nodeRuntime, nodeIO, chalkStyle } from '@flyingrobots/bijou-node';
 import { createFramedApp, run } from '@flyingrobots/bijou-tui';
+import { thinkTheme } from './theme.js';
 import { selectLogo } from '../splash.js';
 import { shaderFrame, compositeAndRender, buildLogoMask, buildInteriorMask, buildDistanceFromOutline, BG } from '../splash-shader.js';
 import { createBrowsePage } from './page.js';
@@ -30,7 +32,12 @@ export async function runBrowseTui({
     saveReflectSessionResponse,
   });
 
-  const ctx = initDefaultContext();
+  const ctx = createBijou({
+    runtime: nodeRuntime(),
+    io: nodeIO(),
+    style: chalkStyle(),
+    theme: thinkTheme,
+  });
 
   const app = createFramedApp({
     pages: [browsePage],
