@@ -253,8 +253,9 @@ export function compositeAndRender(grid, logoInfo, alphaField, cols, rows, logoT
         continue;
       }
 
-      // --- Logo foreground (braille) ---
-      if (logoLine) {
+      // --- Logo foreground (braille) — only for text logos ---
+      // Mind logos use the braille as a mask for the shader instead
+      if (shaderMode === 'full' && logoLine) {
         const lx = x - logoInfo.offsetX;
         if (lx >= 0 && lx < logoLine.length) {
           const cp = logoLine.codePointAt(lx);
