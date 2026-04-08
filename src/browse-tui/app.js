@@ -1,22 +1,10 @@
 import { initDefaultContext } from '@flyingrobots/bijou-node';
-import { quit, run } from '@flyingrobots/bijou-tui';
+import { createFramedApp, run } from '@flyingrobots/bijou-tui';
 import { selectLogo } from '../splash.js';
 import { shaderFrame, compositeAndRender, buildLogoMask, buildInteriorMask, buildDistanceFromOutline, BG } from '../splash-shader.js';
-import { createWindowedBrowseModel, resizeBrowseModel } from './model.js';
-import { handleJumpKey, handleReflectKey, clearNoticeOnKey } from './keys.js';
-import { applyBrowseAction } from './actions.js';
-import {
-  applyBrowseWindowLoaded,
-  applyChronologyLoaded,
-  maybeQueueInspectLoad,
-} from './loaders.js';
-import {
-  applyReflectPreviewed,
-  applyReflectSaved,
-  applyReflectFailed,
-} from './reflect.js';
-import { renderBrowseView } from './view.js';
-import { browseKeymap } from './keymap.js';
+import { createBrowsePage } from './page.js';
+import { buildBrowseOverlays } from './overlays.js';
+import { resolveHelpLine } from './resolve.js';
 
 export async function runBrowseTui({
   bootstrap,
@@ -32,109 +20,43 @@ export async function runBrowseTui({
     return { type: 'quit' };
   }
 
-  let effect = { type: 'quit' };
+  const browsePage = createBrowsePage({
+    bootstrap,
+    loadBrowseWindow,
+    loadChronologyEntries,
+    loadInspectEntry,
+    previewReflectEntry,
+    startReflectSession,
+    saveReflectSessionResponse,
+  });
 
-  const app = {
-    init() {
-      const model = createWindowedBrowseModel({
-        bootstrap,
-        inspectCache: new Map(),
-        loadBrowseWindow,
-        loadChronologyEntries,
-      });
-      return [{ ...model, phase: 'browse' }, []];
+  const ctx = initDefaultContext();
+
+  const app = createFramedApp({
+    pages: [browsePage],
+    keyPriority: 'page-first',
+    bodyTopRows: 1,
+    bodyBottomRows: 1,
+    helpLineSource: ({ model }) => {
+      const pageModel = model.pageModels?.[browsePage.id];
+      if (!pageModel) {
+        return browsePage.keyMap;
+      }
+      return resolveHelpLine(pageModel);
     },
-    update(msg, model) {
-      if (msg.type === 'resize') {
-        return [resizeBrowseModel(model, msg.columns, msg.rows), []];
+    overlayFactory: (overlayCtx) => buildBrowseOverlays(overlayCtx.pageModel, overlayCtx.screenRect, ctx),
+    observeKey: (msg, route) => {
+      // Let the frame handle its own bindings (help, quit confirm, etc.)
+      if (route === 'frame' || route === 'help' || route === 'palette') {
+        return undefined;
       }
-
-      if (msg.type === 'inspect_loaded') {
-        const nextCache = new Map(model.inspectCache);
-        if (msg.inspectEntry) {
-          nextCache.set(msg.entryId, msg.inspectEntry);
-        }
-        return [{
-          ...model,
-          inspectCache: nextCache,
-          inspectLoadingEntryId: model.inspectLoadingEntryId === msg.entryId
-            ? null
-            : model.inspectLoadingEntryId,
-        }, []];
-      }
-
-      if (msg.type === 'browse_window_loaded') {
-        const [windowModel, windowCmds] = applyBrowseWindowLoaded(model, msg, loadInspectEntry);
-        return [windowModel, windowCmds];
-      }
-
-      if (msg.type === 'chronology_loaded') {
-        return [applyChronologyLoaded(model, msg), []];
-      }
-
-      if (msg.type === 'reflect_previewed') {
-        return [applyReflectPreviewed(model, msg), []];
-      }
-
-      if (msg.type === 'reflect_saved') {
-        return [applyReflectSaved(model, msg), []];
-      }
-
-      if (msg.type === 'reflect_failed') {
-        return [applyReflectFailed(model, msg), []];
-      }
-
-      if (msg.type !== 'key') {
-        return [model, []];
-      }
-
-      const maybeCleared = clearNoticeOnKey(model);
-      model = maybeCleared;
-
-      const jumpResult = handleJumpKey(model, msg);
-      if (jumpResult) {
-        const [jumpModel, jumpCmds] = maybeQueueInspectLoad(jumpResult.model, loadInspectEntry);
-        return [jumpModel, jumpCmds];
-      }
-
-      const reflectResult = handleReflectKey(model, msg);
-      if (reflectResult) {
-        const [reflectModel, reflectCmds] = maybeQueueInspectLoad(reflectResult.model, loadInspectEntry);
-        return [reflectModel, [...(reflectResult.cmds ?? []), ...reflectCmds]];
-      }
-
-      let action = browseKeymap.handle(msg);
-      if (!action) {
-        return [model, []];
-      }
-
-      if (action.type === 'reflect') {
-        action = {
-          ...action,
-          previewReflectEntry,
-          startReflectSession,
-          saveReflectSessionResponse,
-          loadInspectEntry,
-        };
-      }
-
-      const result = applyBrowseAction(model, action);
-      if (result.effect?.type === 'quit') {
-        ({ effect } = result);
-        return [result.model, [quit()]];
-      }
-
-      const [nextModel, cmds] = maybeQueueInspectLoad(result.model, loadInspectEntry);
-      return [nextModel, [...(result.cmds ?? []), ...cmds]];
+      // Forward unhandled keys to the page for jump/reflect handling
+      return { type: 'raw_key', key: msg };
     },
-    view(model) {
-      const ctx = initDefaultContext();
-      return renderBrowseView(model, ctx);
-    },
-  };
+  });
 
-  await run(app, { ctx: initDefaultContext() });
-  return effect;
+  await run(app, { ctx });
+  return { type: 'quit' };
 }
 
 function showSplash() {
@@ -161,7 +83,7 @@ function showSplash() {
   let fps = 0;
   let frameCount = 0;
   let fpsAccum = 0;
-  let transition = null; // { startTime, progress }
+  let transition = null;
 
   function renderFrame() {
     const now = Date.now();
@@ -192,7 +114,7 @@ function showSplash() {
   }
 
   renderFrame();
-  const interval = setInterval(renderFrame, 50); // ~20fps
+  const interval = setInterval(renderFrame, 50);
 
   function onResize() {
     cols = process.stdout.columns || 80;
@@ -209,9 +131,8 @@ function showSplash() {
 
     function onData(data) {
       const key = data[0];
-      if (key === 13 && !transition) {            // Enter — start transition
+      if (key === 13 && !transition) {
         transition = { startTime: Date.now(), progress: 0 };
-        // Wait for transition to complete, then resolve
         const checkDone = setInterval(() => {
           if (transition && transition.progress >= 1.0) {
             clearInterval(checkDone);
@@ -219,7 +140,7 @@ function showSplash() {
             resolve('enter');
           }
         }, 50);
-      } else if (key === 113 || key === 27) {     // q / Escape
+      } else if (key === 113 || key === 27) {
         cleanup();
         process.stdout.write('\x1b[?25h');
         process.stdout.write('\x1b[?1049l');

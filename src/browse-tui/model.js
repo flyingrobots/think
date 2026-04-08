@@ -10,7 +10,6 @@ export function createWindowedBrowseModel({
   loadChronologyEntries,
 }) {
   return {
-    phase: 'splash',
     mode: 'windowed',
     entries: bootstrap?.current ? [bootstrap.current] : [],
     inspectCache,

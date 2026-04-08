@@ -88,12 +88,13 @@ const STUB_BOOTSTRAP = {
   sessionSteps: [],
 };
 
-test('windowed browse model starts in splash phase', () => {
+test('windowed browse model initializes in windowed mode', () => {
   const model = createWindowedBrowseModel({
     bootstrap: STUB_BOOTSTRAP,
     inspectCache: new Map(),
     loadBrowseWindow: null,
     loadChronologyEntries: null,
   });
-  assert.equal(model.phase, 'splash');
+  assert.equal(model.mode, 'windowed');
+  assert.equal(model.panelMode, 'none');
 });
