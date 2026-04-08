@@ -145,6 +145,7 @@ function showSplash() {
 
   process.stdout.write('\x1b[?1049h'); // enter alt screen
   process.stdout.write('\x1b[?25l');   // hide cursor
+  process.stdout.write('\x1b[48;2;45;25;34m'); // background #2d1922
 
   function renderFrame() {
     const elapsed = Date.now() - startTime;

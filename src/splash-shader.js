@@ -2,13 +2,14 @@ const { min, sin, cos, floor, sqrt } = Math;
 
 const DENSITY = '#Wabc:+-. ';
 const COLORS = [
-  [198, 0, 108],  // deeppink
-  [0, 0, 0],      // black
-  [196, 0, 0],    // red
-  [0, 0, 196],    // blue
-  [208, 128, 0],  // orange
-  [226, 226, 0],  // yellow
+  [237, 85, 93],   // #ed555d
+  [255, 252, 201], // #fffcc9
+  [65, 183, 151],  // #41b797
+  [237, 161, 38],  // #eda126
+  [123, 87, 112],  // #7b5770
 ];
+const BG = [45, 25, 34]; // #2d1922
+const STROKE = [255, 252, 201]; // #fffcc9
 
 function map(value, inMin, inMax, outMin, outMax) {
   return outMin + (outMax - outMin) * ((value - inMin) / (inMax - inMin));
@@ -75,12 +76,13 @@ export function compositeAndRender(grid, logoText, cols, rows) {
   const promptX = Math.max(0, floor((cols - promptText.length) / 2));
 
   const output = [];
+  const bgAnsi = `\x1b[48;2;${BG[0]};${BG[1]};${BG[2]}m`;
   let lastR = -1;
   let lastG = -1;
   let lastB = -1;
 
   for (let y = 0; y < rows; y++) {
-    let line = '';
+    let line = bgAnsi;
     const logoLineIndex = y - offsetY;
     const logoLine = (logoLineIndex >= 0 && logoLineIndex < logoHeight)
       ? logoLines[logoLineIndex]
@@ -95,7 +97,7 @@ export function compositeAndRender(grid, logoText, cols, rows) {
           const cp = ch.codePointAt(0);
           // Non-blank braille overrides shader
           if (cp > 0x2800 && cp <= 0x28FF) {
-            line += '\x1b[38;2;255;255;255m';
+            line += `\x1b[38;2;${STROKE[0]};${STROKE[1]};${STROKE[2]}m`;
             line += ch;
             lastR = 255;
             lastG = 255;
