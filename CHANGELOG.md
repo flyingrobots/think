@@ -10,7 +10,7 @@ Release discipline:
 - `package.json` version is bumped on the release commit
 - a Git tag is created on the commit that lands on `main` for that release
 
-## [Unreleased]
+## [0.6.0] - 2026-04-08
 
 - added splash screen to browse TUI — shows the Think logo (large/medium/small based on terminal size) with "Press [ Enter ]" prompt before entering browse mode
 - decomposed browse TUI monolith (`src/browse-tui.js`, 1864 lines) into 14 focused modules under `src/browse-tui/` — barrel re-exports preserve the public API
@@ -19,6 +19,14 @@ Release discipline:
 - migrated browse TUI from plain `run(app)` to bijou's `createFramedApp` for framed shell architecture with automatic chrome, help overlay, overlay management, and input routing
 - defined a custom bijou theme (`thinkTheme`) mapping the warm palette (plum, cream, teal, amber, mauve, coral) to all bijou token categories (semantic, status, border, surface, ui, gradient) so frame chrome, drawers, modals, and built-in components render in Think's visual identity
 - upgraded bijou to 4.2.0 — new bijou-mcp rendering server, RE-007 framed shell migration, inspector fix
+- added animated shader background to splash screen with 5 effects (warp, plasma, ripple, rain, heartbeat) — random on launch, left/right arrows to cycle, shader name displayed in upper-left
+- added splash-to-browse transition — shader expands outward from the brain, floods the screen, then fades to black before browse mode appears
+- added splash screen chrome — version badge, FPS counter, centered copyright footer, "Press [ Enter ]" boxed prompt, fade-in animation, slow color drift
+- replaced hand-rolled browse panels with bijou components — inspector for metadata, stepper for session progression
+- added rich bijou-formatted output to MCP server responses — tables for stats/metrics, inspector for inspect, boxed thoughts for browse
+- session boundary notices now render as floating overlay boxes instead of shifting the main content
+- selected-text capture from macOS share sheet (M5)
+- deferred git context enrichment until followthrough to keep the capture path fast
 - pruned stale `bad-code` backlog notes for already-shipped cycle `0006` and `0007` work, and aligned changelog release wording with the current cycle-based METHOD docs
 - restricted command help to explicit flag forms like `think --recent --help`, preserving positional text capture and returning a clear validation error for ambiguous `think recent --help`
 - extracted shared Swift `PathSearcher` utility for macOS CLI/MCP resolver lookup and added direct resolver coverage for explicit path, repo-root, bundle, and process-directory search behavior
