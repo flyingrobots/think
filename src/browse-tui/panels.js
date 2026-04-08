@@ -56,21 +56,44 @@ export function buildInspectContent(model, width, ctx) {
     });
   }
 
-  return inspector({
-    title: 'Inspect',
-    currentValue: inspectEntry.thoughtId,
-    currentValueLabel: 'Thought ID',
-    supportingText: [
-      `Entry ID: ${inspectEntry.entryId}`,
-      `Kind: ${inspectEntry.kind}`,
-      `Sort Key: ${inspectEntry.sortKey}`,
-    ].join('\n'),
-    supportingTextLabel: 'Metadata',
-    sections,
-    chrome: 'none',
-    width,
-    ctx,
-  });
+  if (ctx) {
+    return inspector({
+      title: 'Inspect',
+      currentValue: inspectEntry.thoughtId,
+      currentValueLabel: 'Thought ID',
+      supportingText: [
+        `Entry ID: ${inspectEntry.entryId}`,
+        `Kind: ${inspectEntry.kind}`,
+        `Sort Key: ${inspectEntry.sortKey}`,
+      ].join('\n'),
+      supportingTextLabel: 'Metadata',
+      sections,
+      chrome: 'none',
+      width,
+      ctx,
+    });
+  }
+
+  // Fallback for script path (no bijou context)
+  const lines = [
+    `Thought ID: ${inspectEntry.thoughtId}`,
+    `Entry ID: ${inspectEntry.entryId}`,
+    `Kind: ${inspectEntry.kind}`,
+    `Sort Key: ${inspectEntry.sortKey}`,
+    '',
+    styleDim(null, 'RECEIPTS'),
+  ];
+  if (inspectEntry.derivedReceipts.length === 0) {
+    lines.push(styleDim(null, 'No direct derived receipts yet.'));
+  } else {
+    for (const receipt of inspectEntry.derivedReceipts) {
+      lines.push(wrapLine(
+        `Reflect: ${receipt.entryId} (${receipt.promptType}, ${receipt.relation}, session ${receipt.sessionId})`,
+        width
+      ));
+    }
+  }
+  return lines.join('\n');
 }
 
 export function buildSessionContent(model, width, ctx) {
@@ -102,7 +125,12 @@ export function buildSessionContent(model, width, ctx) {
     header.push(`Position: ${sessionTraversal.position} of ${sessionTraversal.count}`);
   }
 
-  return `${header.join('\n')}\n\n${stepper(steps, { current: Math.max(0, currentIndex), ctx })}`;
+  if (ctx) {
+    return `${header.join('\n')}\n\n${stepper(steps, { current: Math.max(0, currentIndex), ctx })}`;
+  }
+
+  // Fallback for script path (no bijou context)
+  return `${header.join('\n')}\n\n${steps.map((s, i) => `${i === currentIndex ? '>' : ' '} ${s.label}`).join('\n')}`;
 }
 
 export function buildLogContent(model, width, ctx) {
