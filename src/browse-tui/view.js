@@ -43,7 +43,8 @@ import {
 
 export function renderBrowseModel(model, ctx = null) {
   const layout = resolveLayout(model);
-  const help = resolveHelpLine(model);
+  const baseHelp = resolveHelpLine(model);
+  const help = model.notice ? `${model.notice} • ${baseHelp}` : baseHelp;
   const counter = resolveBrowseCounter(model);
   const background = flex(
     { direction: 'column', width: model.columns, height: model.rows },
