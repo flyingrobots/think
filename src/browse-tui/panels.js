@@ -3,12 +3,16 @@ import {
   viewport,
 } from '@flyingrobots/bijou-tui';
 import {
+  inspector,
+  stepper,
+} from '@flyingrobots/bijou';
+import {
   currentEntry,
   currentInspectEntry,
   resolveSessionTraversal,
   computeLogScroll,
 } from './resolve.js';
-import { styleDim, styleSection, styleTitle } from './style.js';
+import { styleDim, styleTitle } from './style.js';
 import {
   formatWhen,
   formatCompactWhen,
@@ -22,78 +26,83 @@ import {
 
 export function buildInspectContent(model, width, ctx) {
   const inspectEntry = currentInspectEntry(model);
-  const lines = [];
   const entry = currentEntry(model);
 
-  if (inspectEntry) {
-    lines.push(`Thought ID: ${inspectEntry.thoughtId}`);
-    lines.push(`Entry ID: ${inspectEntry.entryId}`);
-    lines.push(`Kind: ${inspectEntry.kind}`);
-    lines.push(`Sort Key: ${inspectEntry.sortKey}`);
-    lines.push('');
-    lines.push(styleSection(ctx, 'RECEIPTS'));
-
-    if (inspectEntry.derivedReceipts.length === 0) {
-      lines.push(styleDim(ctx, 'No direct derived receipts yet.'));
-    } else {
-      for (const receipt of inspectEntry.derivedReceipts) {
-        lines.push(
-          wrapLine(
-            `Reflect: ${receipt.entryId} (${receipt.promptType}, ${receipt.relation}, session ${receipt.sessionId})`,
-            width
-          )
-        );
-      }
-    }
-  } else {
-    lines.push(styleDim(ctx,
+  if (!inspectEntry) {
+    return styleDim(ctx,
       model.inspectLoadingEntryId === entry.id
         ? 'Loading inspect receipts...'
         : 'Inspect data not loaded yet.'
-    ));
+    );
   }
 
-  return lines.join('\n');
+  const sections = [];
+
+  if (inspectEntry.derivedReceipts.length === 0) {
+    sections.push({
+      title: 'Receipts',
+      content: 'No direct derived receipts yet.',
+      tone: 'muted',
+    });
+  } else {
+    sections.push({
+      title: 'Receipts',
+      content: inspectEntry.derivedReceipts.map((receipt) =>
+        wrapLine(
+          `${receipt.entryId} (${receipt.promptType}, ${receipt.relation}, session ${receipt.sessionId})`,
+          Math.max(10, width - 4)
+        )
+      ).join('\n'),
+    });
+  }
+
+  return inspector({
+    title: 'Inspect',
+    currentValue: inspectEntry.thoughtId,
+    currentValueLabel: 'Thought ID',
+    supportingText: [
+      `Entry ID: ${inspectEntry.entryId}`,
+      `Kind: ${inspectEntry.kind}`,
+      `Sort Key: ${inspectEntry.sortKey}`,
+    ].join('\n'),
+    supportingTextLabel: 'Metadata',
+    sections,
+    chrome: 'none',
+    width,
+    ctx,
+  });
 }
 
 export function buildSessionContent(model, width, ctx) {
   const entry = currentEntry(model);
   const sessionTraversal = resolveSessionTraversal(model);
   const sessionEntries = sessionTraversal.entries;
-  const lines = [];
 
-  if (entry.sessionId) {
-    lines.push(`Session ID: ${entry.sessionId}`);
-    if (sessionEntries[0]?.createdAt) {
-      lines.push(`Started: ${formatWhen(sessionEntries[0].createdAt)}`);
-    }
-    if (sessionTraversal.position && sessionTraversal.count) {
-      lines.push(`Session Position: ${sessionTraversal.position} of ${sessionTraversal.count}`);
-    }
-    lines.push('');
-
-    if (sessionEntries.length === 0) {
-      lines.push(styleDim(ctx, 'Session entries are not available for this thought yet.'));
-    } else {
-      const currentIndex = sessionEntries.findIndex((candidate) => candidate.id === entry.id);
-
-      for (const [index, sessionEntry] of sessionEntries.entries()) {
-        const timestamp = formatCompactWhen(sessionEntry.createdAt);
-        const summary = wrapLine(
-          `${formatSessionEntryLabel(sessionEntry, entry.id, index, currentIndex)} ${formatVisibleEntryId(sessionEntry.id)} ${timestamp} ${normalizeWhitespace(sessionEntry.text)}`,
-          width
-        );
-        lines.push(summary);
-        if (index + 1 < sessionEntries.length) {
-          lines.push('');
-        }
-      }
-    }
-  } else {
-    lines.push(styleDim(ctx, 'Session context is not available for this thought yet.'));
+  if (!entry.sessionId) {
+    return styleDim(ctx, 'Session context is not available for this thought yet.');
   }
 
-  return lines.join('\n');
+  if (sessionEntries.length === 0) {
+    return styleDim(ctx, 'Session entries are not available for this thought yet.');
+  }
+
+  const currentIndex = sessionEntries.findIndex((candidate) => candidate.id === entry.id);
+  const steps = sessionEntries.map((sessionEntry, index) => {
+    const timestamp = formatCompactWhen(sessionEntry.createdAt);
+    const label = `${formatSessionEntryLabel(sessionEntry, entry.id, index, currentIndex)} ${formatVisibleEntryId(sessionEntry.id)} ${timestamp}`;
+    return { label };
+  });
+
+  const header = [];
+  header.push(`Session ID: ${entry.sessionId}`);
+  if (sessionEntries[0]?.createdAt) {
+    header.push(`Started: ${formatWhen(sessionEntries[0].createdAt)}`);
+  }
+  if (sessionTraversal.position && sessionTraversal.count) {
+    header.push(`Position: ${sessionTraversal.position} of ${sessionTraversal.count}`);
+  }
+
+  return `${header.join('\n')}\n\n${stepper(steps, { current: Math.max(0, currentIndex), ctx })}`;
 }
 
 export function buildLogContent(model, width, ctx) {
@@ -128,6 +137,7 @@ export function buildJumpContent(model, width, ctx) {
     width,
     showCategory: false,
     showShortcut: false,
+    ctx,
   });
 }
 

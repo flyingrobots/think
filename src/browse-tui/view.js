@@ -9,7 +9,8 @@ import {
   viewport,
   viewportSurface,
 } from '@flyingrobots/bijou-tui';
-import { styleTitle, styleDim, styleSection, PALETTE } from './style.js';
+import { accordion } from '@flyingrobots/bijou';
+import { styleTitle, styleDim, PALETTE } from './style.js';
 import {
   capitalize,
   formatWhen,
@@ -279,25 +280,24 @@ export function buildThoughtContent(model, width, ctx = null) {
   const neighbors = resolveNeighbors(model);
   const sessionTraversal = resolveSessionTraversal(model);
   const chronologyPosition = resolveChronologyPosition(model);
-  const lines = [
-    styleSection(ctx, 'THOUGHT'),
-    '',
+
+  const metadata = [
     `When: ${formatWhen(entry.createdAt)}`,
     `Relative: ${formatRelativeTime(entry.createdAt)}`,
     ...(chronologyPosition ? [`Position: ${chronologyPosition}`] : []),
     `Entry ID: ${formatVisibleEntryId(entry.id)}`,
     `Session: ${entry.sessionId ?? 'pending'}`,
     `Session Position: ${formatSessionPosition(sessionTraversal)}`,
-    '',
-    wrapParagraphs(entry.text, width),
-    '',
-    styleSection(ctx, 'NEIGHBORS'),
-    '',
+  ].join('\n');
+
+  const thoughtBody = `${metadata}\n\n${wrapParagraphs(entry.text, width)}`;
+
+  const neighborsBody = [
     wrapLine(`Newer: ${neighbors.newer ? neighbors.newer.text : 'none'}`, width),
     wrapLine(`Older: ${neighbors.older ? neighbors.older.text : 'none'}`, width),
-    '',
-    styleSection(ctx, 'SESSION'),
-    '',
+  ].join('\n');
+
+  const sessionBody = [
     wrapLine(
       `Previous in session: ${sessionTraversal.previous ? sessionTraversal.previous.text : 'none'}`,
       width
@@ -306,7 +306,25 @@ export function buildThoughtContent(model, width, ctx = null) {
       `Next in session: ${sessionTraversal.next ? sessionTraversal.next.text : 'none'}`,
       width
     ),
-  ];
+  ].join('\n');
 
-  return lines.join('\n');
+  // Use accordion when ctx is available (interactive path),
+  // plain text sections for the script/test path (no bijou context)
+  if (ctx) {
+    return accordion([
+      { title: 'THOUGHT', content: thoughtBody, expanded: true },
+      { title: 'NEIGHBORS', content: neighborsBody, expanded: true },
+      { title: 'SESSION', content: sessionBody, expanded: true },
+    ], {
+      indicatorToken: ctx.semantic('accent'),
+      titleToken: ctx.ui('sectionHeader'),
+      ctx,
+    });
+  }
+
+  return [
+    styleDim(null, 'THOUGHT'), '', thoughtBody, '',
+    styleDim(null, 'NEIGHBORS'), '', neighborsBody, '',
+    styleDim(null, 'SESSION'), '', sessionBody,
+  ].join('\n');
 }
