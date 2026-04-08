@@ -1,7 +1,11 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 const { min, max, sin, cos, floor, sqrt, round } = Math;
 
 const DENSITY = '#Wabc:+-. ';
-const COLORS = [
+const BASE_COLORS = [
   [237, 85, 93],   // #ed555d
   [255, 252, 201], // #fffcc9
   [65, 183, 151],  // #41b797
@@ -10,6 +14,13 @@ const COLORS = [
 ];
 export const BG = [45, 25, 34]; // #2d1922
 const STROKE = [255, 252, 201]; // #fffcc9
+const DIM_STROKE = [140, 138, 110]; // dimmed version of stroke
+
+const VERSION = JSON.parse(
+  readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'package.json'), 'utf8')
+).version;
+
+// --- Math helpers ---
 
 function mapRange(value, inMin, inMax, outMin, outMax) {
   return outMin + (outMax - outMin) * ((value - inMin) / (inMax - inMin));
@@ -27,6 +38,17 @@ function lerp(a, b, t) {
   return round(a + (b - a) * t);
 }
 
+function hueShift(rgb, angle) {
+  const cosA = cos(angle);
+  const sinA = sin(angle);
+  const [r, g, b] = rgb;
+  return [
+    clamp(round(r * (0.299 + 0.701 * cosA + 0.168 * sinA) + g * (0.587 - 0.587 * cosA + 0.330 * sinA) + b * (0.114 - 0.114 * cosA - 0.497 * sinA)), 0, 255),
+    clamp(round(r * (0.299 - 0.299 * cosA - 0.328 * sinA) + g * (0.587 + 0.413 * cosA + 0.035 * sinA) + b * (0.114 - 0.114 * cosA + 0.292 * sinA)), 0, 255),
+    clamp(round(r * (0.299 - 0.300 * cosA + 1.250 * sinA) + g * (0.587 - 0.588 * cosA - 1.050 * sinA) + b * (0.114 + 0.886 * cosA - 0.203 * sinA)), 0, 255),
+  ];
+}
+
 // --- Logo mask & distance field ---
 
 export function buildLogoMask(logoText, cols, rows) {
@@ -34,10 +56,9 @@ export function buildLogoMask(logoText, cols, rows) {
   const logoHeight = logoLines.length;
   const logoWidth = max(...logoLines.map((l) => l.length));
 
-  const offsetY = max(0, floor((rows - logoHeight - 3) / 2));
+  const offsetY = max(0, floor((rows - logoHeight - 6) / 2));
   const offsetX = max(0, floor((cols - logoWidth) / 2));
 
-  // Boolean mask: true where logo has visible braille
   const mask = [];
   for (let y = 0; y < rows; y++) {
     const row = [];
@@ -59,69 +80,34 @@ export function buildLogoMask(logoText, cols, rows) {
 
 export function buildDistanceField(mask, cols, rows) {
   const FADE_RADIUS = 20;
+  const INF = cols + rows;
   const dist = [];
 
-  // Collect all logo cells for distance computation
-  const sources = [];
-  for (let y = 0; y < rows; y++) {
-    for (let x = 0; x < cols; x++) {
-      if (mask[y][x]) {
-        sources.push([x, y]);
-      }
-    }
-  }
-
-  // Multi-source BFS for approximate distance (Chebyshev)
-  const INF = cols + rows;
   for (let y = 0; y < rows; y++) {
     const row = [];
     for (let x = 0; x < cols; x++) {
-      if (mask[y][x]) {
-        row.push(0);
-      } else {
-        row.push(INF);
-      }
+      row.push(mask[y][x] ? 0 : INF);
     }
     dist.push(row);
   }
 
-  // Two-pass distance transform (Chebyshev approximation)
-  // Forward pass
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
-      if (y > 0) {
-        dist[y][x] = min(dist[y][x], dist[y - 1][x] + 1);
-      }
-      if (x > 0) {
-        dist[y][x] = min(dist[y][x], dist[y][x - 1] + 1);
-      }
-      if (y > 0 && x > 0) {
-        dist[y][x] = min(dist[y][x], dist[y - 1][x - 1] + 1);
-      }
-      if (y > 0 && x < cols - 1) {
-        dist[y][x] = min(dist[y][x], dist[y - 1][x + 1] + 1);
-      }
+      if (y > 0) { dist[y][x] = min(dist[y][x], dist[y - 1][x] + 1); }
+      if (x > 0) { dist[y][x] = min(dist[y][x], dist[y][x - 1] + 1); }
+      if (y > 0 && x > 0) { dist[y][x] = min(dist[y][x], dist[y - 1][x - 1] + 1); }
+      if (y > 0 && x < cols - 1) { dist[y][x] = min(dist[y][x], dist[y - 1][x + 1] + 1); }
     }
   }
-  // Backward pass
   for (let y = rows - 1; y >= 0; y--) {
     for (let x = cols - 1; x >= 0; x--) {
-      if (y < rows - 1) {
-        dist[y][x] = min(dist[y][x], dist[y + 1][x] + 1);
-      }
-      if (x < cols - 1) {
-        dist[y][x] = min(dist[y][x], dist[y][x + 1] + 1);
-      }
-      if (y < rows - 1 && x < cols - 1) {
-        dist[y][x] = min(dist[y][x], dist[y + 1][x + 1] + 1);
-      }
-      if (y < rows - 1 && x > 0) {
-        dist[y][x] = min(dist[y][x], dist[y + 1][x - 1] + 1);
-      }
+      if (y < rows - 1) { dist[y][x] = min(dist[y][x], dist[y + 1][x] + 1); }
+      if (x < cols - 1) { dist[y][x] = min(dist[y][x], dist[y][x + 1] + 1); }
+      if (y < rows - 1 && x < cols - 1) { dist[y][x] = min(dist[y][x], dist[y + 1][x + 1] + 1); }
+      if (y < rows - 1 && x > 0) { dist[y][x] = min(dist[y][x], dist[y + 1][x - 1] + 1); }
     }
   }
 
-  // Normalize to [0, 1] alpha: 1 at logo, 0 at FADE_RADIUS+
   const alpha = [];
   for (let y = 0; y < rows; y++) {
     const row = [];
@@ -136,10 +122,13 @@ export function buildDistanceField(mask, cols, rows) {
 
 // --- Shader ---
 
-export function shaderFrame(cols, rows, time) {
+export function shaderFrame(cols, rows, time, hueAngle) {
   const t = time * 0.0002;
   const m = min(cols, rows);
   const aspect = cols / rows * 0.5;
+
+  const colors = BASE_COLORS.map((c) => hueShift(c, hueAngle));
+
   const grid = [];
 
   for (let y = 0; y < rows; y++) {
@@ -170,9 +159,9 @@ export function shaderFrame(cols, rows, time) {
       c = mapRange(sin(c * 0.5), -1, 1, 0, 1);
 
       const charIndex = floor(c * (DENSITY.length - 1));
-      const colorIndex = floor(c * (COLORS.length - 1));
+      const colorIndex = floor(c * (colors.length - 1));
 
-      row.push({ char: DENSITY[charIndex], color: COLORS[colorIndex] });
+      row.push({ char: DENSITY[charIndex], color: colors[colorIndex] });
     }
     grid.push(row);
   }
@@ -180,11 +169,7 @@ export function shaderFrame(cols, rows, time) {
   return grid;
 }
 
-// --- Compositing modes ---
-
-// Mode 1: shader everywhere, logo on top
-// Mode 2: shader fades out with distance from logo
-// Mode 3: shader only inside the logo mask
+// --- Compositing ---
 
 function buildPromptBox(text) {
   const pad = 2;
@@ -201,12 +186,28 @@ function buildPromptBox(text) {
   };
 }
 
-export function compositeAndRender(grid, logoInfo, alphaField, cols, rows, mode) {
+export function compositeAndRender(grid, logoInfo, alphaField, cols, rows, mode, elapsed) {
   const { mask, offsetY, logoLines, logoHeight } = logoInfo;
 
+  // Fade-in: 0 → 1 over first 1.5s
+  const fadeIn = clamp(elapsed / 1500, 0, 1);
+
+  // Prompt blink: visible for 700ms, hidden for 300ms
+  const blinkCycle = elapsed % 1000;
+  const promptVisible = blinkCycle < 700;
+
+  // Color drift: slow hue rotation
+  const hueAngle = elapsed * 0.0001;
+
+  // Prompt box
   const promptBox = buildPromptBox('Press [ Enter ]');
   const promptStartY = offsetY + logoHeight + 1;
   const promptStartX = max(0, floor((cols - promptBox.width) / 2));
+
+  // Footer
+  const copyright = `Copyright \u00A9 ${new Date().getFullYear()} \u2022 Flying Robots`;
+  const versionTag = `v${VERSION}`;
+  const footerY = rows - 1;
 
   const bgAnsi = `\x1b[48;2;${BG[0]};${BG[1]};${BG[2]}m`;
   const output = [];
@@ -220,72 +221,97 @@ export function compositeAndRender(grid, logoInfo, alphaField, cols, rows, mode)
       : null;
 
     for (let x = 0; x < cols; x++) {
-      // Logo foreground: visible braille overrides everything
+
+      // --- Version badge (upper-right) ---
+      if (y === 0 && x >= cols - versionTag.length - 1 && x < cols - 1) {
+        const vi = x - (cols - versionTag.length - 1);
+        if (vi >= 0 && vi < versionTag.length) {
+          const dimFg = `\x1b[38;2;${DIM_STROKE[0]};${DIM_STROKE[1]};${DIM_STROKE[2]}m`;
+          if (dimFg !== lastFg) { line += dimFg; lastFg = dimFg; }
+          line += versionTag[vi];
+          continue;
+        }
+      }
+
+      // --- Footer gutter ---
+      if (y === footerY) {
+        // Copyright (left)
+        if (x >= 1 && x < 1 + copyright.length) {
+          const dimFg = `\x1b[38;2;${DIM_STROKE[0]};${DIM_STROKE[1]};${DIM_STROKE[2]}m`;
+          if (dimFg !== lastFg) { line += dimFg; lastFg = dimFg; }
+          line += copyright[x - 1];
+          continue;
+        }
+        line += ' ';
+        lastFg = '';
+        continue;
+      }
+
+      // --- Logo foreground ---
       if (logoLine) {
         const lx = x - logoInfo.offsetX;
         if (lx >= 0 && lx < logoLine.length) {
           const cp = logoLine.codePointAt(lx);
           if (cp > 0x2800 && cp <= 0x28FF) {
-            const strokeFg = `\x1b[38;2;${STROKE[0]};${STROKE[1]};${STROKE[2]}m`;
-            if (strokeFg !== lastFg) {
-              line += strokeFg;
-              lastFg = strokeFg;
-            }
+            const lr = lerp(BG[0], STROKE[0], fadeIn);
+            const lg = lerp(BG[1], STROKE[1], fadeIn);
+            const lb = lerp(BG[2], STROKE[2], fadeIn);
+            const strokeFg = `\x1b[38;2;${lr};${lg};${lb}m`;
+            if (strokeFg !== lastFg) { line += strokeFg; lastFg = strokeFg; }
             line += logoLine[lx];
             continue;
           }
         }
       }
 
-      // Prompt box
+      // --- Prompt box (with blink) ---
       const boxLineIndex = y - promptStartY;
-      if (boxLineIndex >= 0 && boxLineIndex < promptBox.height) {
+      if (boxLineIndex >= 0 && boxLineIndex < promptBox.height && promptVisible) {
         const bx = x - promptStartX;
         if (bx >= 0 && bx < promptBox.width) {
-          const promptFg = `\x1b[38;2;${STROKE[0]};${STROKE[1]};${STROKE[2]}m`;
-          if (promptFg !== lastFg) {
-            line += promptFg;
-            lastFg = promptFg;
-          }
+          const pr = lerp(BG[0], STROKE[0], fadeIn);
+          const pg = lerp(BG[1], STROKE[1], fadeIn);
+          const pb = lerp(BG[2], STROKE[2], fadeIn);
+          const promptFg = `\x1b[38;2;${pr};${pg};${pb}m`;
+          if (promptFg !== lastFg) { line += promptFg; lastFg = promptFg; }
           line += promptBox.lines[boxLineIndex][bx];
           continue;
         }
       }
 
-      // Shader cell with mode-dependent visibility
+      // --- Shader cell ---
       const cell = grid[y]?.[x];
       if (!cell) {
         line += ' ';
         continue;
       }
 
-      let alpha = 1.0;
+      let cellAlpha = 1.0;
       if (mode === 2) {
-        alpha = alphaField?.[y]?.[x] ?? 0;
+        cellAlpha = alphaField?.[y]?.[x] ?? 0;
       } else if (mode === 3) {
-        alpha = mask[y]?.[x] ? 1.0 : 0;
+        cellAlpha = mask[y]?.[x] ? 1.0 : 0;
       }
 
-      if (alpha <= 0.01) {
+      // Apply fade-in to shader too
+      cellAlpha *= fadeIn;
+
+      if (cellAlpha <= 0.01) {
         line += ' ';
         lastFg = '';
         continue;
       }
 
       const [sr, sg, sb] = cell.color;
-      const r = lerp(BG[0], sr, alpha);
-      const g = lerp(BG[1], sg, alpha);
-      const b = lerp(BG[2], sb, alpha);
+      const r = lerp(BG[0], sr, cellAlpha);
+      const g = lerp(BG[1], sg, cellAlpha);
+      const b = lerp(BG[2], sb, cellAlpha);
 
       const fg = `\x1b[38;2;${r};${g};${b}m`;
-      if (fg !== lastFg) {
-        line += fg;
-        lastFg = fg;
-      }
+      if (fg !== lastFg) { line += fg; lastFg = fg; }
 
-      if (alpha < 0.5) {
-        // Use sparser density char for faded regions
-        const fadedIndex = floor(alpha * 2 * (DENSITY.length - 1));
+      if (cellAlpha < 0.5) {
+        const fadedIndex = floor(cellAlpha * 2 * (DENSITY.length - 1));
         line += DENSITY[max(fadedIndex, DENSITY.length - 2)];
       } else {
         line += cell.char;
@@ -294,5 +320,5 @@ export function compositeAndRender(grid, logoInfo, alphaField, cols, rows, mode)
     output.push(line);
   }
 
-  return `${output.join('\n')}\x1b[0m`;
+  return { frame: `${output.join('\n')}\x1b[0m`, hueAngle };
 }

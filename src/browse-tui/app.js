@@ -157,12 +157,15 @@ function showSplash() {
   process.stdout.write(`\x1b[48;2;${BG[0]};${BG[1]};${BG[2]}m`);
   process.stdout.write('\x1b[2J');     // clear screen
 
+  let hueAngle = 0;
+
   function renderFrame() {
     const elapsed = Date.now() - startTime;
-    const grid = shaderFrame(cols, rows, elapsed);
-    const frame = compositeAndRender(grid, layout.logoInfo, layout.alphaField, cols, rows, mode);
+    hueAngle = elapsed * 0.0001; // slow color drift
+    const grid = shaderFrame(cols, rows, elapsed, hueAngle);
+    const result = compositeAndRender(grid, layout.logoInfo, layout.alphaField, cols, rows, mode, elapsed);
     process.stdout.write('\x1b[H');    // move to top-left
-    process.stdout.write(frame);
+    process.stdout.write(result.frame);
   }
 
   renderFrame();
