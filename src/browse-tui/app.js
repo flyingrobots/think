@@ -138,22 +138,29 @@ export async function runBrowseTui({
 }
 
 function showSplash() {
-  const cols = process.stdout.columns || 80;
-  const rows = process.stdout.rows || 24;
-  const logo = selectLogo(cols, rows);
-  const logoInfo = buildLogoMask(logo, cols, rows);
-  const alphaField = buildDistanceField(logoInfo.mask, cols, rows);
+  let cols = process.stdout.columns || 80;
+  let rows = process.stdout.rows || 24;
+  let mode = 2; // 1=normal, 2=distance fade, 3=mask only
   const startTime = Date.now();
-  const mode = 2; // 1=normal, 2=distance fade, 3=mask only
+
+  function rebuildLayout() {
+    const logo = selectLogo(cols, rows);
+    const logoInfo = buildLogoMask(logo, cols, rows);
+    const alphaField = buildDistanceField(logoInfo.mask, cols, rows);
+    return { logoInfo, alphaField };
+  }
+
+  let layout = rebuildLayout();
 
   process.stdout.write('\x1b[?1049h'); // enter alt screen
   process.stdout.write('\x1b[?25l');   // hide cursor
   process.stdout.write(`\x1b[48;2;${BG[0]};${BG[1]};${BG[2]}m`);
+  process.stdout.write('\x1b[2J');     // clear screen
 
   function renderFrame() {
     const elapsed = Date.now() - startTime;
     const grid = shaderFrame(cols, rows, elapsed);
-    const frame = compositeAndRender(grid, logoInfo, alphaField, cols, rows, mode);
+    const frame = compositeAndRender(grid, layout.logoInfo, layout.alphaField, cols, rows, mode);
     process.stdout.write('\x1b[H');    // move to top-left
     process.stdout.write(frame);
   }
@@ -161,26 +168,41 @@ function showSplash() {
   renderFrame();
   const interval = setInterval(renderFrame, 50); // ~20fps
 
+  function onResize() {
+    cols = process.stdout.columns || 80;
+    rows = process.stdout.rows || 24;
+    layout = rebuildLayout();
+    process.stdout.write('\x1b[2J');   // clear screen on resize
+  }
+
+  process.stdout.on('resize', onResize);
+
   return new Promise((resolve) => {
     process.stdin.setRawMode(true);
     process.stdin.resume();
 
     function onData(data) {
       const key = data[0];
-      // Enter (13), q (113), Escape (27)
-      if (key === 13) {
+      if (key === 13) {                           // Enter
         cleanup();
         resolve('enter');
-      } else if (key === 113 || key === 27) {
+      } else if (key === 113 || key === 27) {     // q / Escape
         cleanup();
-        process.stdout.write('\x1b[?25h');   // show cursor
-        process.stdout.write('\x1b[?1049l'); // leave alt screen
+        process.stdout.write('\x1b[?25h');
+        process.stdout.write('\x1b[?1049l');
         resolve('quit');
+      } else if (key === 49) {                     // 1
+        mode = 1;
+      } else if (key === 50) {                     // 2
+        mode = 2;
+      } else if (key === 51) {                     // 3
+        mode = 3;
       }
     }
 
     function cleanup() {
       clearInterval(interval);
+      process.stdout.removeListener('resize', onResize);
       process.stdin.removeListener('data', onData);
       process.stdin.setRawMode(false);
       process.stdin.pause();

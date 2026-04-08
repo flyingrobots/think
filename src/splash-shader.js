@@ -186,12 +186,27 @@ export function shaderFrame(cols, rows, time) {
 // Mode 2: shader fades out with distance from logo
 // Mode 3: shader only inside the logo mask
 
+function buildPromptBox(text) {
+  const pad = 2;
+  const inner = `${' '.repeat(pad)}${text}${' '.repeat(pad)}`;
+  const w = inner.length;
+  return {
+    lines: [
+      `╭${'─'.repeat(w)}╮`,
+      `│${inner}│`,
+      `╰${'─'.repeat(w)}╯`,
+    ],
+    width: w + 2,
+    height: 3,
+  };
+}
+
 export function compositeAndRender(grid, logoInfo, alphaField, cols, rows, mode) {
   const { mask, offsetY, logoLines, logoHeight } = logoInfo;
 
-  const promptText = 'Press [ Enter ]';
-  const promptY = offsetY + logoHeight + 1;
-  const promptX = max(0, floor((cols - promptText.length) / 2));
+  const promptBox = buildPromptBox('Press [ Enter ]');
+  const promptStartY = offsetY + logoHeight + 1;
+  const promptStartX = max(0, floor((cols - promptBox.width) / 2));
 
   const bgAnsi = `\x1b[48;2;${BG[0]};${BG[1]};${BG[2]}m`;
   const output = [];
@@ -222,16 +237,17 @@ export function compositeAndRender(grid, logoInfo, alphaField, cols, rows, mode)
         }
       }
 
-      // Prompt
-      if (y === promptY) {
-        const px = x - promptX;
-        if (px >= 0 && px < promptText.length) {
+      // Prompt box
+      const boxLineIndex = y - promptStartY;
+      if (boxLineIndex >= 0 && boxLineIndex < promptBox.height) {
+        const bx = x - promptStartX;
+        if (bx >= 0 && bx < promptBox.width) {
           const promptFg = `\x1b[38;2;${STROKE[0]};${STROKE[1]};${STROKE[2]}m`;
           if (promptFg !== lastFg) {
             line += promptFg;
             lastFg = promptFg;
           }
-          line += promptText[px];
+          line += promptBox.lines[boxLineIndex][bx];
           continue;
         }
       }
