@@ -1,7 +1,7 @@
 import { initDefaultContext } from '@flyingrobots/bijou-node';
 import { quit, run } from '@flyingrobots/bijou-tui';
 import { selectLogo } from '../splash.js';
-import { shaderFrame, compositeAndRender, buildLogoMask, buildDistanceField, BG } from '../splash-shader.js';
+import { shaderFrame, compositeAndRender, buildLogoMask, buildInteriorMask, BG } from '../splash-shader.js';
 import { createWindowedBrowseModel, resizeBrowseModel } from './model.js';
 import { handleJumpKey, handleReflectKey, clearNoticeOnKey } from './keys.js';
 import { applyBrowseAction } from './actions.js';
@@ -145,8 +145,8 @@ function showSplash() {
   function rebuildLayout() {
     const { art, type } = selectLogo(cols, rows);
     const logoInfo = buildLogoMask(art, cols, rows);
-    const alphaField = buildDistanceField(logoInfo.mask, cols, rows);
-    return { logoInfo, alphaField, logoType: type };
+    const interiorMask = buildInteriorMask(logoInfo.mask, cols, rows);
+    return { logoInfo, interiorMask, logoType: type };
   }
 
   let layout = rebuildLayout();
@@ -178,7 +178,7 @@ function showSplash() {
     const hueAngle = elapsed * 0.0001;
     const grid = shaderFrame(cols, rows, elapsed, hueAngle);
     const frame = compositeAndRender(
-      grid, layout.logoInfo, layout.alphaField,
+      grid, layout.logoInfo, layout.interiorMask,
       cols, rows, layout.logoType, elapsed, fps
     );
     process.stdout.write('\x1b[H');

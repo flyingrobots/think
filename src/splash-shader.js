@@ -78,6 +78,51 @@ export function buildLogoMask(logoText, cols, rows) {
   return { mask, offsetX, offsetY, logoLines, logoHeight, logoWidth };
 }
 
+export function buildInteriorMask(mask, cols, rows) {
+  // Flood-fill from edges to find exterior cells.
+  // Interior = empty cells NOT reachable from outside and NOT on the braille outline.
+  const exterior = [];
+  for (let y = 0; y < rows; y++) {
+    exterior.push(new Uint8Array(cols));
+  }
+
+  const queue = [];
+  // Seed from all edge cells that aren't braille
+  for (let x = 0; x < cols; x++) {
+    if (!mask[0][x]) { exterior[0][x] = 1; queue.push([x, 0]); }
+    if (!mask[rows - 1][x]) { exterior[rows - 1][x] = 1; queue.push([x, rows - 1]); }
+  }
+  for (let y = 1; y < rows - 1; y++) {
+    if (!mask[y][0]) { exterior[y][0] = 1; queue.push([0, y]); }
+    if (!mask[y][cols - 1]) { exterior[y][cols - 1] = 1; queue.push([cols - 1, y]); }
+  }
+
+  // BFS flood
+  while (queue.length > 0) {
+    const [cx, cy] = queue.shift();
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+      const nx = cx + dx;
+      const ny = cy + dy;
+      if (nx >= 0 && nx < cols && ny >= 0 && ny < rows && !exterior[ny][nx] && !mask[ny][nx]) {
+        exterior[ny][nx] = 1;
+        queue.push([nx, ny]);
+      }
+    }
+  }
+
+  // Interior = not braille outline AND not exterior
+  const interior = [];
+  for (let y = 0; y < rows; y++) {
+    const row = [];
+    for (let x = 0; x < cols; x++) {
+      row.push(!mask[y][x] && !exterior[y][x]);
+    }
+    interior.push(row);
+  }
+
+  return interior;
+}
+
 export function buildDistanceField(mask, cols, rows) {
   const FADE_RADIUS = 20;
   const INF = cols + rows;
@@ -186,8 +231,8 @@ function buildPromptBox(text) {
   };
 }
 
-export function compositeAndRender(grid, logoInfo, alphaField, cols, rows, logoType, elapsed, fps) {
-  const { mask, offsetY, logoLines, logoHeight } = logoInfo;
+export function compositeAndRender(grid, logoInfo, interiorMask, cols, rows, logoType, elapsed, fps) {
+  const { offsetY, logoLines, logoHeight } = logoInfo;
 
   const fadeIn = clamp(elapsed / 1500, 0, 1);
 
@@ -253,9 +298,8 @@ export function compositeAndRender(grid, logoInfo, alphaField, cols, rows, logoT
         continue;
       }
 
-      // --- Logo foreground (braille) — only for text logos ---
-      // Mind logos use the braille as a mask for the shader instead
-      if (shaderMode === 'full' && logoLine) {
+      // --- Logo foreground (braille outline) ---
+      if (logoLine) {
         const lx = x - logoInfo.offsetX;
         if (lx >= 0 && lx < logoLine.length) {
           const cp = logoLine.codePointAt(lx);
@@ -295,8 +339,8 @@ export function compositeAndRender(grid, logoInfo, alphaField, cols, rows, logoT
 
       let cellAlpha;
       if (shaderMode === 'mask') {
-        // Only render shader inside the head shape
-        cellAlpha = mask[y]?.[x] ? 1.0 : 0;
+        // Only render shader in the interior of the head shape
+        cellAlpha = interiorMask?.[y]?.[x] ? 1.0 : 0;
       } else {
         // Full background shader
         cellAlpha = 1.0;
