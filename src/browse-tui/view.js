@@ -9,8 +9,7 @@ import {
   viewport,
   viewportSurface,
 } from '@flyingrobots/bijou-tui';
-import { accordion } from '@flyingrobots/bijou';
-import { styleTitle, styleDim, PALETTE } from './style.js';
+import { styleTitle, styleDim, styleSection, styleAccent, PALETTE } from './style.js';
 import {
   capitalize,
   formatWhen,
@@ -308,23 +307,17 @@ export function buildThoughtContent(model, width, ctx = null) {
     ),
   ].join('\n');
 
-  // Use accordion when ctx is available (interactive path),
-  // plain text sections for the script/test path (no bijou context)
-  if (ctx) {
-    return accordion([
-      { title: 'THOUGHT', content: thoughtBody, expanded: true },
-      { title: 'NEIGHBORS', content: neighborsBody, expanded: true },
-      { title: 'SESSION', content: sessionBody, expanded: true },
-    ], {
-      indicatorToken: ctx.semantic('accent'),
-      titleToken: ctx.ui('sectionHeader'),
-      ctx,
-    });
+  const sections = [];
+
+  if (model.notice) {
+    sections.push(styleAccent(ctx, model.notice), '');
   }
 
-  return [
-    styleDim(null, 'THOUGHT'), '', thoughtBody, '',
-    styleDim(null, 'NEIGHBORS'), '', neighborsBody, '',
-    styleDim(null, 'SESSION'), '', sessionBody,
-  ].join('\n');
+  sections.push(
+    styleSection(ctx, 'THOUGHT'), '', thoughtBody, '',
+    styleSection(ctx, 'NEIGHBORS'), '', neighborsBody, '',
+    styleSection(ctx, 'SESSION'), '', sessionBody,
+  );
+
+  return sections.join('\n');
 }

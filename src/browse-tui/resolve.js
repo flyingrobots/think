@@ -120,17 +120,14 @@ function resolvePanelHeight(bodyHeight) {
 
 export function resolveHelpLine(model) {
   if (model.panelMode === 'reflect') {
-    return model.notice
-      ? `${model.notice} • Type to respond • Enter save • Backspace delete • Esc cancel`
-      : 'Type to respond • Enter save • Backspace delete • Esc cancel';
+    return 'Type to respond • Enter save • Backspace delete • Esc cancel';
   }
 
   if (model.panelMode === 'jump') {
     return 'Type to filter • ↑/↓ move • Enter open • Backspace erase • Esc close';
   }
 
-  const help = helpShort(browseKeymap);
-  return model.notice ? `${model.notice} • ${help}` : help;
+  return helpShort(browseKeymap);
 }
 
 export function resolveBrowseCounter(model) {
