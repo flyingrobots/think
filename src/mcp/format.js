@@ -1,8 +1,22 @@
-import { table, inspector, box } from '@flyingrobots/bijou';
-import { createTestContext } from '@flyingrobots/bijou/adapters/test';
+import { createBijou, table, inspector, box, stripAnsi } from '@flyingrobots/bijou';
+import { nodeRuntime, nodeIO, chalkStyle } from '@flyingrobots/bijou-node';
 
-function mcpCtx(columns = 80) {
-  return createTestContext({ mode: 'interactive', runtime: { columns } });
+let _mcpCtx = null;
+
+function mcpCtx() {
+  if (!_mcpCtx) {
+    _mcpCtx = createBijou({
+      runtime: nodeRuntime(),
+      io: nodeIO(),
+      style: chalkStyle(),
+    });
+  }
+  return _mcpCtx;
+}
+
+function renderPlain(bijouFn) {
+  const raw = bijouFn(mcpCtx());
+  return stripAnsi(raw);
 }
 
 export function formatRecentEntries(entries) {
@@ -10,8 +24,7 @@ export function formatRecentEntries(entries) {
     return 'No recent thoughts.';
   }
 
-  const ctx = mcpCtx();
-  return table({
+  return renderPlain((ctx) => table({
     columns: [
       { header: 'When', width: 20 },
       { header: 'Thought' },
@@ -21,22 +34,21 @@ export function formatRecentEntries(entries) {
       truncate(e.text, 50),
     ]),
     ctx,
-  });
+  }));
 }
 
 export function formatBrowseWindow(browseResult) {
-  const ctx = mcpCtx();
   const { current } = browseResult;
   if (!current) {
     return 'No thought to display.';
   }
 
   const lines = [
-    box(`${current.text}`, {
+    renderPlain((ctx) => box(`${current.text}`, {
       title: 'Current Thought',
       width: 76,
       ctx,
-    }),
+    })),
     '',
     `Entry ID: ${current.entryId}`,
     `When: ${formatTimestamp(current.createdAt)}`,
@@ -58,7 +70,6 @@ export function formatBrowseWindow(browseResult) {
 }
 
 export function formatInspectEntry(inspectResult) {
-  const ctx = mcpCtx();
   const { entry } = inspectResult;
   if (!entry) {
     return 'Entry not found.';
@@ -75,7 +86,7 @@ export function formatInspectEntry(inspectResult) {
     });
   }
 
-  return inspector({
+  return renderPlain((ctx) => inspector({
     title: 'Thought Inspection',
     currentValue: entry.thoughtId,
     currentValueLabel: 'Thought ID',
@@ -89,30 +100,28 @@ export function formatInspectEntry(inspectResult) {
     chrome: 'boxed',
     width: 76,
     ctx,
-  });
+  }));
 }
 
 export function formatStats(statsResult) {
   const lines = [`Total thoughts: ${statsResult.total}`];
 
   if (statsResult.buckets && statsResult.buckets.length > 0) {
-    const ctx = mcpCtx();
     lines.push('');
-    lines.push(table({
+    lines.push(renderPlain((ctx) => table({
       columns: [
         { header: 'Period', width: 24 },
         { header: 'Count', width: 8 },
       ],
       rows: statsResult.buckets.map((b) => [b.key, String(b.count)]),
       ctx,
-    }));
+    })));
   }
 
   return lines.join('\n');
 }
 
 export function formatPromptMetrics(metricsResult) {
-  const ctx = mcpCtx();
   const { summary, timings } = metricsResult;
 
   const lines = [
@@ -122,7 +131,7 @@ export function formatPromptMetrics(metricsResult) {
 
   if (timings.length > 0) {
     lines.push('');
-    lines.push(table({
+    lines.push(renderPlain((ctx) => table({
       columns: [
         { header: 'Metric', width: 24 },
         { header: 'Median', width: 10 },
@@ -140,7 +149,7 @@ export function formatPromptMetrics(metricsResult) {
         String(t.sampleCount),
       ]),
       ctx,
-    }));
+    })));
   }
 
   return lines.join('\n');
