@@ -226,16 +226,28 @@ function rippleShader(cols, rows, time, colors) {
   const t = time * 0.003;
   const m = min(cols, rows);
   const aspect = cols / rows * 0.5;
-  const grid = [];
 
+  // Multiple ripple sources that drift over time
+  const sources = [
+    { x: sin(t * 0.3) * 0.3, y: cos(t * 0.2) * 0.3 },
+    { x: cos(t * 0.4 + 2) * 0.4, y: sin(t * 0.3 + 1) * 0.3 },
+    { x: sin(t * 0.2 + 4) * 0.3, y: cos(t * 0.5 + 3) * 0.2 },
+    { x: cos(t * 0.35 + 5) * 0.25, y: sin(t * 0.25 + 2) * 0.35 },
+  ];
+
+  const grid = [];
   for (let y = 0; y < rows; y++) {
     const row = [];
     for (let x = 0; x < cols; x++) {
       const nx = (x - cols / 2) / m * aspect;
       const ny = (y - rows / 2) / m;
-      const d = len(nx, ny);
-      let c = sin(d * 20 - t) * 0.5 + 0.5;
-      c *= max(0, 1.0 - d * 1.5);
+
+      let c = 0;
+      for (const src of sources) {
+        const d = len(nx - src.x, ny - src.y);
+        c += sin(d * 18 - t * 1.5) * max(0, 1.0 - d * 2.5);
+      }
+      c = mapRange(sin(c), -1, 1, 0, 1);
 
       const charIndex = floor(c * (DENSITY.length - 1));
       const colorIndex = floor(c * (colors.length - 1));

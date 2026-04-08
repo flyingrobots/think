@@ -77,6 +77,19 @@ export function buildBrowseOverlays(model, screenRect, ctx) {
     }));
   }
 
+  // Transient notice overlay (session boundary, etc.)
+  if (model.notice) {
+    const pad = 2;
+    const text = ` ${model.notice} `;
+    const noticeWidth = text.length + pad * 2;
+    const col = Math.max(0, Math.floor((screenRect.width - noticeWidth) / 2));
+    overlays.push({
+      content: `╭${'─'.repeat(text.length)}╮\n│${text}│\n╰${'─'.repeat(text.length)}╯`,
+      row: 1,
+      col,
+    });
+  }
+
   return overlays;
 }
 

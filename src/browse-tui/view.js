@@ -9,7 +9,7 @@ import {
   viewport,
   viewportSurface,
 } from '@flyingrobots/bijou-tui';
-import { styleTitle, styleDim, styleSection, styleAccent, PALETTE } from './style.js';
+import { styleTitle, styleDim, styleSection, PALETTE } from './style.js';
 import {
   capitalize,
   formatWhen,
@@ -307,17 +307,9 @@ export function buildThoughtContent(model, width, ctx = null) {
     ),
   ].join('\n');
 
-  const sections = [];
-
-  if (model.notice) {
-    sections.push(styleAccent(ctx, model.notice), '');
-  }
-
-  sections.push(
+  return [
     styleSection(ctx, 'THOUGHT'), '', thoughtBody, '',
     styleSection(ctx, 'NEIGHBORS'), '', neighborsBody, '',
     styleSection(ctx, 'SESSION'), '', sessionBody,
-  );
-
-  return sections.join('\n');
+  ].join('\n');
 }
