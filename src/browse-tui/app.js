@@ -3,7 +3,7 @@ import { nodeRuntime, nodeIO, chalkStyle } from '@flyingrobots/bijou-node';
 import { createFramedApp, run } from '@flyingrobots/bijou-tui';
 import { thinkTheme } from './theme.js';
 import { selectLogo } from '../splash.js';
-import { shaderFrame, compositeAndRender, buildLogoMask, buildInteriorMask, buildDistanceFromOutline, getShaderCount, BG } from '../splash-shader.js';
+import { shaderFrame, compositeAndRender, buildLogoMask, buildInteriorMask, buildDistanceFromOutline, getShaderCount, getShaderName, BG } from '../splash-shader.js';
 import { createBrowsePage } from './page.js';
 import { buildBrowseOverlays } from './overlays.js';
 import { resolveHelpLine } from './resolve.js';
@@ -120,7 +120,8 @@ function showSplash() {
     const grid = shaderFrame(cols, rows, elapsed, hueAngle, shaderIndex);
     const frame = compositeAndRender(
       grid, layout.logoInfo, layout.interiorMask, layout.distField,
-      cols, rows, layout.logoType, elapsed, fps, transition
+      cols, rows, layout.logoType, elapsed, fps, transition,
+      getShaderName(shaderIndex)
     );
     process.stdout.write('\x1b[H');
     process.stdout.write(frame);
@@ -143,8 +144,9 @@ function showSplash() {
     process.stdin.resume();
 
     function onData(data) {
+      const seq = data.toString();
       const key = data[0];
-      if (key === 13 && !transition) {
+      if (key === 13 && !transition) {                    // Enter
         transition = { startTime: Date.now(), progress: 0 };
         const checkDone = setInterval(() => {
           if (transition && transition.progress >= 1.0) {
@@ -153,13 +155,15 @@ function showSplash() {
             resolve('enter');
           }
         }, 50);
-      } else if (key === 113 || key === 27) {
+      } else if (key === 113 || (key === 27 && data.length === 1)) { // q / Escape (not arrow seq)
         cleanup();
         process.stdout.write('\x1b[?25h');
         process.stdout.write('\x1b[?1049l');
         resolve('quit');
-      } else if (key === 9) {                     // Tab — cycle shader
+      } else if (seq === '\x1b[C' || key === 9) {        // Right / Tab — next shader
         shaderIndex = (shaderIndex + 1) % getShaderCount();
+      } else if (seq === '\x1b[D') {                      // Left — previous shader
+        shaderIndex = (shaderIndex - 1 + getShaderCount()) % getShaderCount();
       }
     }
 

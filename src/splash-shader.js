@@ -247,7 +247,7 @@ function rippleShader(cols, rows, time, colors) {
 }
 
 function rainShader(cols, rows, time, colors) {
-  const RAIN_CHARS = '01アイウエオカキクケコサシスセソ';
+  const RAIN_CHARS = '01.:;+=|~-#@$%&*!?^(){}[]<>/\\';
   const t = time * 0.004;
   const grid = [];
 
@@ -311,6 +311,10 @@ export function getShaderCount() {
   return SHADERS.length;
 }
 
+export function getShaderName(index) {
+  return SHADERS[index % SHADERS.length].name;
+}
+
 export function shaderFrame(cols, rows, time, hueAngle, shaderIndex = 0) {
   const colors = BASE_COLORS.map((c) => hueShift(c, hueAngle));
   const shader = SHADERS[shaderIndex % SHADERS.length];
@@ -337,7 +341,7 @@ function buildPromptBox(text) {
   };
 }
 
-export function compositeAndRender(grid, logoInfo, interiorMask, distField, cols, rows, logoType, elapsed, fps, transition) {
+export function compositeAndRender(grid, logoInfo, interiorMask, distField, cols, rows, logoType, elapsed, fps, transition, shaderName) {
   const { offsetY, logoLines, logoHeight } = logoInfo;
 
   // transition: null (normal), or { progress: 0→1 }
@@ -361,6 +365,7 @@ export function compositeAndRender(grid, logoInfo, interiorMask, distField, cols
   const copyrightX = max(0, floor((cols - copyright.length) / 2));
   const versionTag = `v${VERSION}`;
   const fpsTag = fps > 0 ? `${fps} fps` : '';
+  const shaderLabel = shaderName ? `◀ ${shaderName} ▶` : '';
   const footerY = rows - 1;
 
   const bgAnsi = `\x1b[48;2;${BG[0]};${BG[1]};${BG[2]}m`;
@@ -375,6 +380,17 @@ export function compositeAndRender(grid, logoInfo, interiorMask, distField, cols
       : null;
 
     for (let x = 0; x < cols; x++) {
+
+      // --- Shader name (upper-left, line 0) ---
+      if (y === 0 && !transition && shaderLabel.length > 0 && x >= 1 && x < 1 + shaderLabel.length) {
+        const si = x - 1;
+        if (si >= 0 && si < shaderLabel.length) {
+          const dimFg = `\x1b[38;2;${DIM_STROKE[0]};${DIM_STROKE[1]};${DIM_STROKE[2]}m`;
+          if (dimFg !== lastFg) { line += dimFg; lastFg = dimFg; }
+          line += shaderLabel[si];
+          continue;
+        }
+      }
 
       // --- Version badge (upper-right, line 0) ---
       if (y === 0 && !transition && x >= cols - versionTag.length - 1 && x < cols - 1) {
