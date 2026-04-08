@@ -6,6 +6,13 @@ import pkg from '../../package.json' with { type: 'json' };
 import { VALID_CAPTURE_INGRESSES } from '../capture-provenance.js';
 import { toToolResult } from './result.js';
 import {
+  formatBrowseWindow,
+  formatInspectEntry,
+  formatPromptMetrics,
+  formatRecentEntries,
+  formatStats,
+} from './format.js';
+import {
   browseThought,
   captureThought,
   getPromptMetricsForMcp,
@@ -99,10 +106,10 @@ export function createThinkMcpServer() {
       entries: z.array(recentEntrySchema),
       repoPresent: z.boolean(),
     },
-  }, async ({ count, query }) => toToolResult(await listRecentThoughts({
-    count: count ?? null,
-    query: query ?? null,
-  })));
+  }, async ({ count, query }) => {
+    const result = await listRecentThoughts({ count: count ?? null, query: query ?? null });
+    return toToolResult(result, formatRecentEntries(result.entries));
+  });
 
   server.registerTool('remember', {
     description: 'Recall relevant thoughts by current project context or by an explicit query.',
@@ -143,9 +150,10 @@ export function createThinkMcpServer() {
         text: z.string(),
       })),
     },
-  }, async ({ entryId }) => toToolResult(await browseThought({
-    entryId: entryId ?? null,
-  })));
+  }, async ({ entryId }) => {
+    const result = await browseThought({ entryId: entryId ?? null });
+    return toToolResult(result, formatBrowseWindow(result));
+  });
 
   server.registerTool('inspect', {
     description: 'Inspect one raw capture, including canonical thought identity and derived receipts.',
@@ -155,7 +163,10 @@ export function createThinkMcpServer() {
     outputSchema: {
       entry: z.any(),
     },
-  }, async ({ entryId }) => toToolResult(await inspectThought(entryId)));
+  }, async ({ entryId }) => {
+    const result = await inspectThought(entryId);
+    return toToolResult(result, formatInspectEntry(result));
+  });
 
   server.registerTool('stats', {
     description: 'Summarize total thought counts with optional time filters and bucketing.',
@@ -170,12 +181,10 @@ export function createThinkMcpServer() {
       repoPresent: z.boolean(),
       total: z.number().int().nonnegative(),
     },
-  }, async ({ bucket, from, since, to }) => toToolResult(await getThoughtStats({
-    bucket: bucket ?? null,
-    from: from ?? null,
-    since: since ?? null,
-    to: to ?? null,
-  })));
+  }, async ({ bucket, from, since, to }) => {
+    const result = await getThoughtStats({ bucket: bucket ?? null, from: from ?? null, since: since ?? null, to: to ?? null });
+    return toToolResult(result, formatStats(result));
+  });
 
   server.registerTool('prompt_metrics', {
     description: 'Read prompt UX telemetry counts and timing summaries.',
@@ -190,12 +199,10 @@ export function createThinkMcpServer() {
       summary: promptMetricSummarySchema,
       timings: z.array(promptMetricTimingSchema),
     },
-  }, async ({ bucket, from, since, to }) => toToolResult(await getPromptMetricsForMcp({
-    bucket: bucket ?? null,
-    from: from ?? null,
-    since: since ?? null,
-    to: to ?? null,
-  })));
+  }, async ({ bucket, from, since, to }) => {
+    const result = await getPromptMetricsForMcp({ bucket: bucket ?? null, from: from ?? null, since: since ?? null, to: to ?? null });
+    return toToolResult(result, formatPromptMetrics(result));
+  });
 
   server.registerTool('migrate_graph', {
     description: 'Upgrade the local Think graph model in place.',
