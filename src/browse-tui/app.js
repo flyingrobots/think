@@ -3,7 +3,7 @@ import { nodeRuntime, nodeIO, chalkStyle } from '@flyingrobots/bijou-node';
 import { createFramedApp, run } from '@flyingrobots/bijou-tui';
 import { thinkTheme } from './theme.js';
 import { selectLogo } from '../splash.js';
-import { shaderFrame, compositeAndRender, buildLogoMask, buildInteriorMask, buildDistanceFromOutline, BG } from '../splash-shader.js';
+import { shaderFrame, compositeAndRender, buildLogoMask, buildInteriorMask, buildDistanceFromOutline, getShaderCount, BG } from '../splash-shader.js';
 import { createBrowsePage } from './page.js';
 import { buildBrowseOverlays } from './overlays.js';
 import { resolveHelpLine } from './resolve.js';
@@ -96,6 +96,7 @@ function showSplash() {
   let frameCount = 0;
   let fpsAccum = 0;
   let transition = null;
+  let shaderIndex = Math.floor(Math.random() * getShaderCount());
 
   function renderFrame() {
     const now = Date.now();
@@ -116,7 +117,7 @@ function showSplash() {
     }
 
     const hueAngle = elapsed * 0.0001;
-    const grid = shaderFrame(cols, rows, elapsed, hueAngle);
+    const grid = shaderFrame(cols, rows, elapsed, hueAngle, shaderIndex);
     const frame = compositeAndRender(
       grid, layout.logoInfo, layout.interiorMask, layout.distField,
       cols, rows, layout.logoType, elapsed, fps, transition
@@ -157,6 +158,8 @@ function showSplash() {
         process.stdout.write('\x1b[?25h');
         process.stdout.write('\x1b[?1049l');
         resolve('quit');
+      } else if (key === 9) {                     // Tab — cycle shader
+        shaderIndex = (shaderIndex + 1) % getShaderCount();
       }
     }
 

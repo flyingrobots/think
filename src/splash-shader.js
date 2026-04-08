@@ -155,13 +155,12 @@ export function buildDistanceFromOutline(mask, cols, rows) {
   return dist;
 }
 
-// --- Shader ---
+// --- Shader gallery ---
 
-export function shaderFrame(cols, rows, time, hueAngle) {
+function warpShader(cols, rows, time, colors) {
   const t = time * 0.0002;
   const m = min(cols, rows);
   const aspect = cols / rows * 0.5;
-  const colors = BASE_COLORS.map((c) => hueShift(c, hueAngle));
   const grid = [];
 
   for (let y = 0; y < rows; y++) {
@@ -192,13 +191,130 @@ export function shaderFrame(cols, rows, time, hueAngle) {
 
       const charIndex = floor(c * (DENSITY.length - 1));
       const colorIndex = floor(c * (colors.length - 1));
-
       row.push({ char: DENSITY[charIndex], color: colors[colorIndex] });
     }
     grid.push(row);
   }
-
   return grid;
+}
+
+function plasmaShader(cols, rows, time, colors) {
+  const t = time * 0.001;
+  const grid = [];
+
+  for (let y = 0; y < rows; y++) {
+    const row = [];
+    for (let x = 0; x < cols; x++) {
+      const nx = x / cols;
+      const ny = y / rows;
+      let c = sin(nx * 10 + t);
+      c += sin(ny * 8 - t * 0.7);
+      c += sin((nx + ny) * 6 + t * 0.5);
+      c += sin(len(nx - 0.5, ny - 0.5) * 12 - t * 1.2);
+      c = mapRange(sin(c * 0.5), -1, 1, 0, 1);
+
+      const charIndex = floor(c * (DENSITY.length - 1));
+      const colorIndex = floor(c * (colors.length - 1));
+      row.push({ char: DENSITY[charIndex], color: colors[colorIndex] });
+    }
+    grid.push(row);
+  }
+  return grid;
+}
+
+function rippleShader(cols, rows, time, colors) {
+  const t = time * 0.003;
+  const m = min(cols, rows);
+  const aspect = cols / rows * 0.5;
+  const grid = [];
+
+  for (let y = 0; y < rows; y++) {
+    const row = [];
+    for (let x = 0; x < cols; x++) {
+      const nx = (x - cols / 2) / m * aspect;
+      const ny = (y - rows / 2) / m;
+      const d = len(nx, ny);
+      let c = sin(d * 20 - t) * 0.5 + 0.5;
+      c *= max(0, 1.0 - d * 1.5);
+
+      const charIndex = floor(c * (DENSITY.length - 1));
+      const colorIndex = floor(c * (colors.length - 1));
+      row.push({ char: DENSITY[charIndex], color: colors[colorIndex] });
+    }
+    grid.push(row);
+  }
+  return grid;
+}
+
+function rainShader(cols, rows, time, colors) {
+  const RAIN_CHARS = '01アイウエオカキクケコサシスセソ';
+  const t = time * 0.004;
+  const grid = [];
+
+  for (let y = 0; y < rows; y++) {
+    const row = [];
+    for (let x = 0; x < cols; x++) {
+      const seed = sin(x * 127.1) * 43758.5453;
+      const colSpeed = 0.5 + (seed - floor(seed)) * 1.5;
+      const colOffset = (seed * 7.3) - floor(seed * 7.3);
+      const yy = (y / rows + t * colSpeed + colOffset) % 1.0;
+      const brightness = max(0, 1.0 - yy * 3);
+
+      if (brightness < 0.05) {
+        row.push({ char: ' ', color: colors[0] });
+      } else {
+        const charSeed = floor(sin(x * 43.7 + y * 17.3 + t * 2) * 1000);
+        const ch = RAIN_CHARS[((charSeed % RAIN_CHARS.length) + RAIN_CHARS.length) % RAIN_CHARS.length];
+        const colorIndex = floor(brightness * (colors.length - 1));
+        row.push({ char: ch, color: colors[colorIndex] });
+      }
+    }
+    grid.push(row);
+  }
+  return grid;
+}
+
+function heartbeatShader(cols, rows, time, colors) {
+  const t = time * 0.001;
+  const m = min(cols, rows);
+  const aspect = cols / rows * 0.5;
+  const pulse = (sin(t * 3) * 0.5 + 0.5) * 0.4 + 0.6;
+  const grid = [];
+
+  for (let y = 0; y < rows; y++) {
+    const row = [];
+    for (let x = 0; x < cols; x++) {
+      const nx = (x - cols / 2) / m * aspect;
+      const ny = (y - rows / 2) / m;
+      const d = len(nx, ny) / pulse;
+      const ring = sin(d * 15 - t * 4) * 0.5 + 0.5;
+      const c = ring * max(0, 1.0 - d * 2);
+
+      const charIndex = floor(c * (DENSITY.length - 1));
+      const colorIndex = floor(c * (colors.length - 1));
+      row.push({ char: DENSITY[charIndex], color: colors[colorIndex] });
+    }
+    grid.push(row);
+  }
+  return grid;
+}
+
+const SHADERS = [
+  { name: 'warp', fn: warpShader },
+  { name: 'plasma', fn: plasmaShader },
+  { name: 'ripple', fn: rippleShader },
+  { name: 'rain', fn: rainShader },
+  { name: 'heartbeat', fn: heartbeatShader },
+];
+
+export function getShaderCount() {
+  return SHADERS.length;
+}
+
+export function shaderFrame(cols, rows, time, hueAngle, shaderIndex = 0) {
+  const colors = BASE_COLORS.map((c) => hueShift(c, hueAngle));
+  const shader = SHADERS[shaderIndex % SHADERS.length];
+  return shader.fn(cols, rows, time, colors);
 }
 
 // --- Compositing ---
