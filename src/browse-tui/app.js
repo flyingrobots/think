@@ -22,6 +22,13 @@ export async function runBrowseTui({
     return { type: 'quit' };
   }
 
+  const ctx = createBijou({
+    runtime: nodeRuntime(),
+    io: nodeIO(),
+    style: chalkStyle(),
+    theme: thinkTheme,
+  });
+
   const browsePage = createBrowsePage({
     bootstrap,
     loadBrowseWindow,
@@ -30,13 +37,7 @@ export async function runBrowseTui({
     previewReflectEntry,
     startReflectSession,
     saveReflectSessionResponse,
-  });
-
-  const ctx = createBijou({
-    runtime: nodeRuntime(),
-    io: nodeIO(),
-    style: chalkStyle(),
-    theme: thinkTheme,
+    ctx,
   });
 
   const app = createFramedApp({

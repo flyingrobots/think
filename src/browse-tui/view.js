@@ -181,12 +181,12 @@ export function renderBrowseView(model, ctx) {
   return compositeSurface(background, overlays, { dim: model.panelMode === 'reflect' });
 }
 
-export function browseLayout(model) {
+export function browseLayout(model, ctx) {
   return {
     kind: 'pane',
     paneId: 'thought',
     render: (width, height) => {
-      const content = buildThoughtContent(model, width);
+      const content = buildThoughtContent(model, width, ctx);
       const state = createScrollState(content, height);
       const scrollY = clamp(model.contentScrollY, 0, state.maxY);
       return viewportSurface({ width, height, content, scrollY });

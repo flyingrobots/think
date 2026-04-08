@@ -23,6 +23,7 @@ export function createBrowsePage({
   previewReflectEntry,
   startReflectSession,
   saveReflectSessionResponse,
+  ctx,
 }) {
   return {
     id: 'browse',
@@ -105,7 +106,7 @@ export function createBrowsePage({
     },
 
     layout(model) {
-      return browseLayout(model);
+      return browseLayout(model, ctx);
     },
 
     keyMap: browseKeymap,
