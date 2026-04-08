@@ -1,7 +1,7 @@
 import { initDefaultContext } from '@flyingrobots/bijou-node';
 import { quit, run } from '@flyingrobots/bijou-tui';
 import { selectLogo } from '../splash.js';
-import { shaderFrame, compositeAndRender, buildLogoMask, buildInteriorMask, BG } from '../splash-shader.js';
+import { shaderFrame, compositeAndRender, buildLogoMask, buildInteriorMask, buildDistanceFromOutline, BG } from '../splash-shader.js';
 import { createWindowedBrowseModel, resizeBrowseModel } from './model.js';
 import { handleJumpKey, handleReflectKey, clearNoticeOnKey } from './keys.js';
 import { applyBrowseAction } from './actions.js';
@@ -146,7 +146,8 @@ function showSplash() {
     const { art, type } = selectLogo(cols, rows);
     const logoInfo = buildLogoMask(art, cols, rows);
     const interiorMask = buildInteriorMask(logoInfo.mask, cols, rows);
-    return { logoInfo, interiorMask, logoType: type };
+    const distField = buildDistanceFromOutline(logoInfo.mask, cols, rows);
+    return { logoInfo, interiorMask, distField, logoType: type };
   }
 
   let layout = rebuildLayout();
@@ -160,6 +161,7 @@ function showSplash() {
   let fps = 0;
   let frameCount = 0;
   let fpsAccum = 0;
+  let transition = null; // { startTime, progress }
 
   function renderFrame() {
     const now = Date.now();
@@ -175,11 +177,15 @@ function showSplash() {
       fpsAccum -= 1000;
     }
 
+    if (transition) {
+      transition.progress = Math.min(1.0, (now - transition.startTime) / 1500);
+    }
+
     const hueAngle = elapsed * 0.0001;
     const grid = shaderFrame(cols, rows, elapsed, hueAngle);
     const frame = compositeAndRender(
-      grid, layout.logoInfo, layout.interiorMask,
-      cols, rows, layout.logoType, elapsed, fps
+      grid, layout.logoInfo, layout.interiorMask, layout.distField,
+      cols, rows, layout.logoType, elapsed, fps, transition
     );
     process.stdout.write('\x1b[H');
     process.stdout.write(frame);
@@ -203,9 +209,16 @@ function showSplash() {
 
     function onData(data) {
       const key = data[0];
-      if (key === 13) {                           // Enter
-        cleanup();
-        resolve('enter');
+      if (key === 13 && !transition) {            // Enter — start transition
+        transition = { startTime: Date.now(), progress: 0 };
+        // Wait for transition to complete, then resolve
+        const checkDone = setInterval(() => {
+          if (transition && transition.progress >= 1.0) {
+            clearInterval(checkDone);
+            cleanup();
+            resolve('enter');
+          }
+        }, 50);
       } else if (key === 113 || key === 27) {     // q / Escape
         cleanup();
         process.stdout.write('\x1b[?25h');

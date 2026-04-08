@@ -123,8 +123,7 @@ export function buildInteriorMask(mask, cols, rows) {
   return interior;
 }
 
-export function buildDistanceField(mask, cols, rows) {
-  const FADE_RADIUS = 20;
+export function buildDistanceFromOutline(mask, cols, rows) {
   const INF = cols + rows;
   const dist = [];
 
@@ -153,16 +152,7 @@ export function buildDistanceField(mask, cols, rows) {
     }
   }
 
-  const alpha = [];
-  for (let y = 0; y < rows; y++) {
-    const row = [];
-    for (let x = 0; x < cols; x++) {
-      row.push(1.0 - clamp(dist[y][x] / FADE_RADIUS, 0, 1));
-    }
-    alpha.push(row);
-  }
-
-  return alpha;
+  return dist;
 }
 
 // --- Shader ---
@@ -231,10 +221,18 @@ function buildPromptBox(text) {
   };
 }
 
-export function compositeAndRender(grid, logoInfo, interiorMask, cols, rows, logoType, elapsed, fps) {
+export function compositeAndRender(grid, logoInfo, interiorMask, distField, cols, rows, logoType, elapsed, fps, transition) {
   const { offsetY, logoLines, logoHeight } = logoInfo;
 
-  const fadeIn = clamp(elapsed / 1500, 0, 1);
+  // transition: null (normal), or { progress: 0→1 }
+  // 0→0.6: shader expands outward from head
+  // 0.6→1.0: everything fades to black
+  const expandProgress = transition ? clamp(transition.progress / 0.6, 0, 1) : 0;
+  const fadeToBlack = transition ? clamp((transition.progress - 0.6) / 0.4, 0, 1) : 0;
+  const maxDist = transition ? (cols + rows) * 0.5 : 0;
+  const expandRadius = expandProgress * maxDist;
+
+  const fadeIn = transition ? 1.0 : clamp(elapsed / 1500, 0, 1);
 
   // Shader mode: mind logos get masked, text logos get full background
   const shaderMode = logoType === 'mind' ? 'mask' : 'full';
@@ -263,7 +261,7 @@ export function compositeAndRender(grid, logoInfo, interiorMask, cols, rows, log
     for (let x = 0; x < cols; x++) {
 
       // --- Version badge (upper-right, line 0) ---
-      if (y === 0 && x >= cols - versionTag.length - 1 && x < cols - 1) {
+      if (y === 0 && !transition && x >= cols - versionTag.length - 1 && x < cols - 1) {
         const vi = x - (cols - versionTag.length - 1);
         if (vi >= 0 && vi < versionTag.length) {
           const dimFg = `\x1b[38;2;${DIM_STROKE[0]};${DIM_STROKE[1]};${DIM_STROKE[2]}m`;
@@ -274,7 +272,7 @@ export function compositeAndRender(grid, logoInfo, interiorMask, cols, rows, log
       }
 
       // --- FPS (upper-right, line 1) ---
-      if (y === 1 && fpsTag.length > 0 && x >= cols - fpsTag.length - 1 && x < cols - 1) {
+      if (y === 1 && !transition && fpsTag.length > 0 && x >= cols - fpsTag.length - 1 && x < cols - 1) {
         const fi = x - (cols - fpsTag.length - 1);
         if (fi >= 0 && fi < fpsTag.length) {
           const dimFg = `\x1b[38;2;${DIM_STROKE[0]};${DIM_STROKE[1]};${DIM_STROKE[2]}m`;
@@ -285,7 +283,7 @@ export function compositeAndRender(grid, logoInfo, interiorMask, cols, rows, log
       }
 
       // --- Footer gutter (centered copyright) ---
-      if (y === footerY) {
+      if (y === footerY && !transition) {
         const cx = x - copyrightX;
         if (cx >= 0 && cx < copyright.length) {
           const dimFg = `\x1b[38;2;${DIM_STROKE[0]};${DIM_STROKE[1]};${DIM_STROKE[2]}m`;
@@ -299,7 +297,7 @@ export function compositeAndRender(grid, logoInfo, interiorMask, cols, rows, log
       }
 
       // --- Logo foreground (braille outline) ---
-      if (logoLine) {
+      if (logoLine && !transition) {
         const lx = x - logoInfo.offsetX;
         if (lx >= 0 && lx < logoLine.length) {
           const cp = logoLine.codePointAt(lx);
@@ -317,7 +315,7 @@ export function compositeAndRender(grid, logoInfo, interiorMask, cols, rows, log
 
       // --- Prompt box (solid) ---
       const boxLineIndex = y - promptStartY;
-      if (boxLineIndex >= 0 && boxLineIndex < promptBox.height) {
+      if (!transition && boxLineIndex >= 0 && boxLineIndex < promptBox.height) {
         const bx = x - promptStartX;
         if (bx >= 0 && bx < promptBox.width) {
           const pr = lerp(BG[0], STROKE[0], fadeIn);
@@ -338,11 +336,14 @@ export function compositeAndRender(grid, logoInfo, interiorMask, cols, rows, log
       }
 
       let cellAlpha;
-      if (shaderMode === 'mask') {
-        // Only render shader in the interior of the head shape
+      if (transition) {
+        // During transition: shader expands outward from the head
+        const d = distField?.[y]?.[x] ?? 9999;
+        cellAlpha = d <= expandRadius ? 1.0 : 0;
+        cellAlpha *= (1.0 - fadeToBlack); // fade to black at the end
+      } else if (shaderMode === 'mask') {
         cellAlpha = interiorMask?.[y]?.[x] ? 1.0 : 0;
       } else {
-        // Full background shader
         cellAlpha = 1.0;
       }
 
