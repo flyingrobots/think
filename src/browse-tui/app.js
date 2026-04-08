@@ -140,14 +140,13 @@ export async function runBrowseTui({
 function showSplash() {
   let cols = process.stdout.columns || 80;
   let rows = process.stdout.rows || 24;
-  let mode = 2; // 1=normal, 2=distance fade, 3=mask only
   const startTime = Date.now();
 
   function rebuildLayout() {
-    const logo = selectLogo(cols, rows);
-    const logoInfo = buildLogoMask(logo, cols, rows);
+    const { art, type } = selectLogo(cols, rows);
+    const logoInfo = buildLogoMask(art, cols, rows);
     const alphaField = buildDistanceField(logoInfo.mask, cols, rows);
-    return { logoInfo, alphaField };
+    return { logoInfo, alphaField, logoType: type };
   }
 
   let layout = rebuildLayout();
@@ -157,15 +156,33 @@ function showSplash() {
   process.stdout.write(`\x1b[48;2;${BG[0]};${BG[1]};${BG[2]}m`);
   process.stdout.write('\x1b[2J');     // clear screen
 
-  let hueAngle = 0;
+  let lastFrameTime = Date.now();
+  let fps = 0;
+  let frameCount = 0;
+  let fpsAccum = 0;
 
   function renderFrame() {
-    const elapsed = Date.now() - startTime;
-    hueAngle = elapsed * 0.0001; // slow color drift
+    const now = Date.now();
+    const elapsed = now - startTime;
+    const dt = now - lastFrameTime;
+    lastFrameTime = now;
+
+    frameCount++;
+    fpsAccum += dt;
+    if (fpsAccum >= 1000) {
+      fps = frameCount;
+      frameCount = 0;
+      fpsAccum -= 1000;
+    }
+
+    const hueAngle = elapsed * 0.0001;
     const grid = shaderFrame(cols, rows, elapsed, hueAngle);
-    const result = compositeAndRender(grid, layout.logoInfo, layout.alphaField, cols, rows, mode, elapsed);
-    process.stdout.write('\x1b[H');    // move to top-left
-    process.stdout.write(result.frame);
+    const frame = compositeAndRender(
+      grid, layout.logoInfo, layout.alphaField,
+      cols, rows, layout.logoType, elapsed, fps
+    );
+    process.stdout.write('\x1b[H');
+    process.stdout.write(frame);
   }
 
   renderFrame();
@@ -175,7 +192,7 @@ function showSplash() {
     cols = process.stdout.columns || 80;
     rows = process.stdout.rows || 24;
     layout = rebuildLayout();
-    process.stdout.write('\x1b[2J');   // clear screen on resize
+    process.stdout.write('\x1b[2J');
   }
 
   process.stdout.on('resize', onResize);
@@ -194,12 +211,6 @@ function showSplash() {
         process.stdout.write('\x1b[?25h');
         process.stdout.write('\x1b[?1049l');
         resolve('quit');
-      } else if (key === 49) {                     // 1
-        mode = 1;
-      } else if (key === 50) {                     // 2
-        mode = 2;
-      } else if (key === 51) {                     // 3
-        mode = 3;
       }
     }
 

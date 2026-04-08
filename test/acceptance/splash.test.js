@@ -5,27 +5,30 @@ import { selectLogo, renderSplash } from '../../src/splash.js';
 import { createWindowedBrowseModel } from '../../src/browse-tui/model.js';
 
 test('selectLogo picks large mind logo when terminal is wide and tall enough', () => {
-  const logo = selectLogo(80, 40);
-  assert.ok(logo.includes('⣿'), 'Expected large logo to contain braille characters');
-  assert.ok(logo.split('\n').length > 20, 'Expected large logo to be tall');
+  const { art, type } = selectLogo(80, 40);
+  assert.ok(art.includes('⣿'), 'Expected large logo to contain braille characters');
+  assert.ok(art.split('\n').length > 20, 'Expected large logo to be tall');
+  assert.equal(type, 'mind');
 });
 
-test('selectLogo picks medium logo when terminal fits medium but not large', () => {
-  const logo = selectLogo(80, 24);
-  assert.ok(logo.includes('+++'), 'Expected medium logo to contain + characters');
-  assert.ok(logo.split('\n').length <= 20, 'Expected medium logo to be shorter than large');
+test('selectLogo picks medium mind logo when terminal fits medium but not large', () => {
+  const { art, type } = selectLogo(55, 24);
+  assert.ok(/[\u2801-\u28FF]/.test(art), 'Expected medium mind logo to contain braille characters');
+  assert.ok(art.split('\n').length <= 20, 'Expected medium logo to be shorter than large');
+  assert.equal(type, 'mind');
 });
 
-test('selectLogo picks small logo when terminal is narrow', () => {
-  const logo = selectLogo(60, 12);
-  const lines = logo.split('\n');
-  assert.ok(lines.length <= 10, 'Expected small logo to be compact');
+test('selectLogo picks text logo when terminal is too small for mind', () => {
+  const { art, type } = selectLogo(80, 18);
+  assert.ok(art.includes('+++'), 'Expected text logo to contain + characters');
+  assert.equal(type, 'text');
 });
 
 test('selectLogo always returns something even for tiny terminals', () => {
-  const logo = selectLogo(20, 5);
-  assert.ok(typeof logo === 'string', 'Expected a string');
-  assert.ok(logo.length > 0, 'Expected non-empty logo');
+  const { art, type } = selectLogo(20, 5);
+  assert.ok(typeof art === 'string', 'Expected a string');
+  assert.ok(art.length > 0, 'Expected non-empty logo');
+  assert.ok(typeof type === 'string', 'Expected a type');
 });
 
 test('renderSplash contains the logo', () => {
@@ -52,16 +55,13 @@ test('renderSplash centers the prompt horizontally', () => {
   const rows = 24;
   const frame = renderSplash(cols, rows);
   const lines = frame.split('\n');
-  // Find the line containing the prompt (strip ANSI for matching)
   const promptLine = lines.find((l) => l.includes('Press [ Enter ]'));
   assert.ok(promptLine, 'Expected to find prompt line');
-  // The prompt should have leading whitespace for centering
   // eslint-disable-next-line no-control-regex -- stripping ANSI escapes requires matching control chars
   const stripped = promptLine.replace(/\x1b\[[0-9;]*m/gu, '');
   const leadingSpaces = stripped.length - stripped.trimStart().length;
   const promptText = 'Press [ Enter ]';
   const expectedPad = Math.floor((cols - promptText.length) / 2);
-  // Allow +/- 1 for rounding
   assert.ok(
     Math.abs(leadingSpaces - expectedPad) <= 1,
     `Expected prompt to be roughly centered (leading=${leadingSpaces}, expected~${expectedPad})`

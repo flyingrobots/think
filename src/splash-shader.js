@@ -14,13 +14,13 @@ const BASE_COLORS = [
 ];
 export const BG = [45, 25, 34]; // #2d1922
 const STROKE = [255, 252, 201]; // #fffcc9
-const DIM_STROKE = [140, 138, 110]; // dimmed version of stroke
+const DIM_STROKE = [140, 138, 110];
 
 const VERSION = JSON.parse(
   readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'package.json'), 'utf8')
 ).version;
 
-// --- Math helpers ---
+// --- Math ---
 
 function mapRange(value, inMin, inMax, outMin, outMax) {
   return outMin + (outMax - outMin) * ((value - inMin) / (inMax - inMin));
@@ -126,9 +126,7 @@ export function shaderFrame(cols, rows, time, hueAngle) {
   const t = time * 0.0002;
   const m = min(cols, rows);
   const aspect = cols / rows * 0.5;
-
   const colors = BASE_COLORS.map((c) => hueShift(c, hueAngle));
-
   const grid = [];
 
   for (let y = 0; y < rows; y++) {
@@ -141,7 +139,6 @@ export function shaderFrame(cols, rows, time, hueAngle) {
         const o = i * 3;
         sx += sin(t * 3 + o);
         sy += cos(t * 2 + o);
-
         const ang = -t + len(sx - 0.5, sy - 0.5);
         const ca = cos(ang);
         const sa = sin(ang);
@@ -171,6 +168,9 @@ export function shaderFrame(cols, rows, time, hueAngle) {
 
 // --- Compositing ---
 
+// logoType 'mind': shader masked inside head shape, braille logo on top
+// logoType 'text': shader everywhere as background, text logo on top
+
 function buildPromptBox(text) {
   const pad = 2;
   const inner = `${' '.repeat(pad)}${text}${' '.repeat(pad)}`;
@@ -186,27 +186,22 @@ function buildPromptBox(text) {
   };
 }
 
-export function compositeAndRender(grid, logoInfo, alphaField, cols, rows, mode, elapsed) {
+export function compositeAndRender(grid, logoInfo, alphaField, cols, rows, logoType, elapsed, fps) {
   const { mask, offsetY, logoLines, logoHeight } = logoInfo;
 
-  // Fade-in: 0 → 1 over first 1.5s
   const fadeIn = clamp(elapsed / 1500, 0, 1);
 
-  // Prompt blink: visible for 700ms, hidden for 300ms
-  const blinkCycle = elapsed % 1000;
-  const promptVisible = blinkCycle < 700;
+  // Shader mode: mind logos get masked, text logos get full background
+  const shaderMode = logoType === 'mind' ? 'mask' : 'full';
 
-  // Color drift: slow hue rotation
-  const hueAngle = elapsed * 0.0001;
-
-  // Prompt box
   const promptBox = buildPromptBox('Press [ Enter ]');
   const promptStartY = offsetY + logoHeight + 1;
   const promptStartX = max(0, floor((cols - promptBox.width) / 2));
 
-  // Footer
   const copyright = `Copyright \u00A9 ${new Date().getFullYear()} \u2022 Flying Robots`;
+  const copyrightX = max(0, floor((cols - copyright.length) / 2));
   const versionTag = `v${VERSION}`;
+  const fpsTag = fps > 0 ? `${fps} fps` : '';
   const footerY = rows - 1;
 
   const bgAnsi = `\x1b[48;2;${BG[0]};${BG[1]};${BG[2]}m`;
@@ -222,7 +217,7 @@ export function compositeAndRender(grid, logoInfo, alphaField, cols, rows, mode,
 
     for (let x = 0; x < cols; x++) {
 
-      // --- Version badge (upper-right) ---
+      // --- Version badge (upper-right, line 0) ---
       if (y === 0 && x >= cols - versionTag.length - 1 && x < cols - 1) {
         const vi = x - (cols - versionTag.length - 1);
         if (vi >= 0 && vi < versionTag.length) {
@@ -233,13 +228,24 @@ export function compositeAndRender(grid, logoInfo, alphaField, cols, rows, mode,
         }
       }
 
-      // --- Footer gutter ---
-      if (y === footerY) {
-        // Copyright (left)
-        if (x >= 1 && x < 1 + copyright.length) {
+      // --- FPS (upper-right, line 1) ---
+      if (y === 1 && fpsTag.length > 0 && x >= cols - fpsTag.length - 1 && x < cols - 1) {
+        const fi = x - (cols - fpsTag.length - 1);
+        if (fi >= 0 && fi < fpsTag.length) {
           const dimFg = `\x1b[38;2;${DIM_STROKE[0]};${DIM_STROKE[1]};${DIM_STROKE[2]}m`;
           if (dimFg !== lastFg) { line += dimFg; lastFg = dimFg; }
-          line += copyright[x - 1];
+          line += fpsTag[fi];
+          continue;
+        }
+      }
+
+      // --- Footer gutter (centered copyright) ---
+      if (y === footerY) {
+        const cx = x - copyrightX;
+        if (cx >= 0 && cx < copyright.length) {
+          const dimFg = `\x1b[38;2;${DIM_STROKE[0]};${DIM_STROKE[1]};${DIM_STROKE[2]}m`;
+          if (dimFg !== lastFg) { line += dimFg; lastFg = dimFg; }
+          line += copyright[cx];
           continue;
         }
         line += ' ';
@@ -247,7 +253,7 @@ export function compositeAndRender(grid, logoInfo, alphaField, cols, rows, mode,
         continue;
       }
 
-      // --- Logo foreground ---
+      // --- Logo foreground (braille) ---
       if (logoLine) {
         const lx = x - logoInfo.offsetX;
         if (lx >= 0 && lx < logoLine.length) {
@@ -264,9 +270,9 @@ export function compositeAndRender(grid, logoInfo, alphaField, cols, rows, mode,
         }
       }
 
-      // --- Prompt box (with blink) ---
+      // --- Prompt box (solid) ---
       const boxLineIndex = y - promptStartY;
-      if (boxLineIndex >= 0 && boxLineIndex < promptBox.height && promptVisible) {
+      if (boxLineIndex >= 0 && boxLineIndex < promptBox.height) {
         const bx = x - promptStartX;
         if (bx >= 0 && bx < promptBox.width) {
           const pr = lerp(BG[0], STROKE[0], fadeIn);
@@ -286,14 +292,15 @@ export function compositeAndRender(grid, logoInfo, alphaField, cols, rows, mode,
         continue;
       }
 
-      let cellAlpha = 1.0;
-      if (mode === 2) {
-        cellAlpha = alphaField?.[y]?.[x] ?? 0;
-      } else if (mode === 3) {
+      let cellAlpha;
+      if (shaderMode === 'mask') {
+        // Only render shader inside the head shape
         cellAlpha = mask[y]?.[x] ? 1.0 : 0;
+      } else {
+        // Full background shader
+        cellAlpha = 1.0;
       }
 
-      // Apply fade-in to shader too
       cellAlpha *= fadeIn;
 
       if (cellAlpha <= 0.01) {
@@ -309,16 +316,10 @@ export function compositeAndRender(grid, logoInfo, alphaField, cols, rows, mode,
 
       const fg = `\x1b[38;2;${r};${g};${b}m`;
       if (fg !== lastFg) { line += fg; lastFg = fg; }
-
-      if (cellAlpha < 0.5) {
-        const fadedIndex = floor(cellAlpha * 2 * (DENSITY.length - 1));
-        line += DENSITY[max(fadedIndex, DENSITY.length - 2)];
-      } else {
-        line += cell.char;
-      }
+      line += cell.char;
     }
     output.push(line);
   }
 
-  return { frame: `${output.join('\n')}\x1b[0m`, hueAngle };
+  return `${output.join('\n')}\x1b[0m`;
 }

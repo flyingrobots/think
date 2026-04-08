@@ -10,9 +10,9 @@ function loadLogo(relativePath) {
 }
 
 const LOGOS = [
-  { name: 'large', art: loadLogo('large/mind.txt') },
-  { name: 'medium', art: loadLogo('medium/think.txt') },
-  { name: 'small', art: loadLogo('small/think-2.txt') },
+  { name: 'large', art: loadLogo('large/mind.txt'), type: 'mind' },
+  { name: 'medium', art: loadLogo('medium/mind.txt'), type: 'mind' },
+  { name: 'small', art: loadLogo('medium/think.txt'), type: 'text' },
 ];
 
 function measure(text) {
@@ -34,10 +34,11 @@ const PROMPT_ROWS = 2;
 export function selectLogo(columns, rows) {
   for (const logo of LOGOS) {
     if (logo.width + H_PADDING <= columns && logo.height + PROMPT_ROWS + V_PADDING <= rows) {
-      return logo.art;
+      return { art: logo.art, type: logo.type };
     }
   }
-  return LOGOS[LOGOS.length - 1].art;
+  const fallback = LOGOS[LOGOS.length - 1];
+  return { art: fallback.art, type: fallback.type };
 }
 
 const ANSI_DIM = '\x1b[2m';
@@ -54,8 +55,8 @@ export function renderSplashView(columns, rows, ctx) {
   return parseAnsiToSurface(ansi.replaceAll('⠀', ' '), columns, rows);
 }
 
-function centerLogoLines(logo, columns) {
-  const lines = logo.split('\n');
+function centerLogoLines(logoArt, columns) {
+  const lines = logoArt.split('\n');
   const maxWidth = Math.max(...lines.map((l) => l.length));
   const offset = Math.max(0, Math.floor((columns - maxWidth) / 2));
   // Pad with braille blank (U+2800) to keep the character space uniform
@@ -64,8 +65,8 @@ function centerLogoLines(logo, columns) {
 }
 
 function renderSplashString(columns, rows, prompt) {
-  const logo = selectLogo(columns, rows);
-  const centeredLogo = centerLogoLines(logo, columns);
+  const { art } = selectLogo(columns, rows);
+  const centeredLogo = centerLogoLines(art, columns);
   const logoLines = centeredLogo.split('\n');
 
   const promptText = `Press [ Enter ]`;
