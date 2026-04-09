@@ -6,6 +6,10 @@ Capture raw thoughts instantly. Revisit them later.
 
 `think` is a local-first tool for recording thoughts the moment they appear — before structure, before categories, before you forget. It stores everything in a private Git-backed repo on your machine and optionally backs up to a remote. Later, you can browse, remember, inspect, and pressure-test what you captured.
 
+<div align="center">
+<img alt="Think TUI demo — splash screen with animated shader, transition, and browse mode" src="docs/demo.gif" />
+</div>
+
 ## Install
 
 Requirements:
