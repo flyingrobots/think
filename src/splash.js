@@ -1,7 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseAnsiToSurface } from '@flyingrobots/bijou';
 
 const LOGOS_DIR = join(dirname(fileURLToPath(import.meta.url)), 'logos');
 
@@ -43,17 +42,6 @@ export function selectLogo(columns, rows) {
 
 const ANSI_DIM = '\x1b[2m';
 const ANSI_RESET = '\x1b[0m';
-
-export function renderSplashView(columns, rows, ctx) {
-  const prompt = ctx
-    ? ctx.style.styled(ctx.semantic('muted'), 'Press [ Enter ]')
-    : `${ANSI_DIM}Press [ Enter ]${ANSI_RESET}`;
-
-  const ansi = renderSplashString(columns, rows, prompt);
-  // Replace braille blank (U+2800) with regular space — visually identical
-  // but bijou's surface parser handles regular spaces correctly.
-  return parseAnsiToSurface(ansi.replaceAll('⠀', ' '), columns, rows);
-}
 
 function centerLogoLines(logoArt, columns) {
   const lines = logoArt.split('\n');
