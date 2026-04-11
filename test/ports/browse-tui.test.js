@@ -3,6 +3,15 @@ import test from 'node:test';
 
 import { createWindowedBrowseModel } from '../../src/browse-tui/model.js';
 import { renderBrowseModel } from '../../src/browse-tui/view.js';
+import * as styleExports from '../../src/browse-tui/style.js';
+
+test('BG_TOKEN is exported from style.js alongside the palette', () => {
+  assert.ok(styleExports.BG_TOKEN, 'Expected BG_TOKEN to be exported from style.js');
+  assert.ok(styleExports.BG_TOKEN.hex, 'Expected BG_TOKEN to have a hex field');
+  assert.ok(styleExports.BG_TOKEN.bg, 'Expected BG_TOKEN to have a bg field');
+  assert.ok(styleExports.BG_TOKEN.hex.startsWith('#'), 'Expected hex to be a CSS hex color');
+  assert.ok(styleExports.BG_TOKEN.bg.startsWith('#'), 'Expected bg to be a CSS hex color');
+});
 
 test('windowed browse initializes with no drawer open', () => {
   const model = createWindowedBrowseModel({
