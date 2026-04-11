@@ -170,6 +170,9 @@ export function showSplash({ minds = [] } = {}) {
           if (transition && transition.progress >= 1.0) {
             clearInterval(checkDone);
             cleanup();
+            // Exit alt screen so bijou can enter its own cleanly
+            process.stdout.write('\x1b[?25h');
+            process.stdout.write('\x1b[?1049l');
             resolve({ action: 'enter', mind: minds[mindIndex] ?? null });
           }
         }, 50);
