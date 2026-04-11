@@ -15,6 +15,7 @@ export async function runDiagnostics({
   upstreamUrl = '',
   getGraphModelStatus = null,
   getEntryCount = null,
+  checkUpstreamReachable = null,
 } = {}) {
   const checks = [];
   const repoOk = repoDir && existsSync(repoDir) && hasGitRepo(repoDir);
@@ -23,7 +24,7 @@ export async function runDiagnostics({
   checks.push(checkLocalRepo(repoDir));
   checks.push(await checkGraphModel(repoOk, getGraphModelStatus));
   checks.push(await checkEntryCount(repoOk, getEntryCount));
-  checks.push(checkUpstream(upstreamUrl));
+  checks.push(await checkUpstream(upstreamUrl, checkUpstreamReachable));
 
   return { checks };
 }
@@ -85,9 +86,22 @@ async function checkEntryCount(repoOk, getEntryCount) {
   }
 }
 
-function checkUpstream(upstreamUrl) {
+async function checkUpstream(upstreamUrl, checkUpstreamReachable) {
   if (!upstreamUrl) {
     return { name: 'upstream', status: 'skip', message: 'Upstream not configured' };
   }
-  return { name: 'upstream', status: 'ok', message: `Upstream configured (${upstreamUrl})` };
+
+  if (!checkUpstreamReachable) {
+    return { name: 'upstream', status: 'ok', message: `Upstream configured (${upstreamUrl})` };
+  }
+
+  try {
+    const reachable = await checkUpstreamReachable(upstreamUrl);
+    if (reachable) {
+      return { name: 'upstream', status: 'ok', message: `Upstream reachable (${upstreamUrl})` };
+    }
+    return { name: 'upstream', status: 'warn', message: `Upstream unreachable (${upstreamUrl})` };
+  } catch {
+    return { name: 'upstream', status: 'warn', message: `Upstream check failed (${upstreamUrl})` };
+  }
 }

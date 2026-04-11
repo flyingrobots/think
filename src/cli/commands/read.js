@@ -1,7 +1,7 @@
 import { parseJson } from '../../json.js';
 import { runBrowseTui } from '../../browse-tui/app.js';
 import { runBrowseTuiScript } from '../../browse-tui/script.js';
-import { hasGitRepo } from '../../git.js';
+import { hasGitRepo, lsRemote } from '../../git.js';
 import { discoverMinds } from '../../minds.js';
 import { getLocalRepoDir, getThinkDir } from '../../paths.js';
 import {
@@ -46,6 +46,7 @@ export async function runDoctor(output, reporter) {
     getEntryCount: hasGitRepo(repoDir)
       ? async () => (await getStats(repoDir, {})).total
       : null,
+    checkUpstreamReachable: upstreamUrl ? () => lsRemote(upstreamUrl) : null,
   });
 
   if (output.json) {

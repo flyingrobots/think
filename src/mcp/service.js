@@ -1,5 +1,5 @@
 import { runDiagnostics } from '../doctor.js';
-import { ensureGitRepo, hasGitRepo, pushWarpRefs } from '../git.js';
+import { ensureGitRepo, hasGitRepo, lsRemote, pushWarpRefs } from '../git.js';
 import { getLocalRepoDir, getThinkDir, getUpstreamUrl } from '../paths.js';
 import { capturePolicy } from '../policies.js';
 import { normalizeCaptureProvenance } from '../capture-provenance.js';
@@ -210,16 +210,18 @@ export async function getPromptMetricsForMcp({ from = null, to = null, since = n
 
 export function checkThinkHealth() {
   const repoDir = getLocalRepoDir();
+  const upstreamUrl = getUpstreamUrl();
   return runDiagnostics({
     thinkDir: getThinkDir(),
     repoDir,
-    upstreamUrl: getUpstreamUrl(),
+    upstreamUrl,
     getGraphModelStatus: hasGitRepo(repoDir)
       ? () => getGraphModelStatus(repoDir)
       : null,
     getEntryCount: hasGitRepo(repoDir)
       ? async () => (await getStats(repoDir, {})).total
       : null,
+    checkUpstreamReachable: upstreamUrl ? () => lsRemote(upstreamUrl) : null,
   });
 }
 

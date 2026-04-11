@@ -71,6 +71,20 @@ export function hasGitRepo(repoDir) {
   return existsSync(path.join(repoDir, '.git'));
 }
 
+const LS_REMOTE_TIMEOUT_MS = 5000;
+
+export function lsRemote(upstreamUrl) {
+  const result = spawnSync('git', ['ls-remote', '--exit-code', upstreamUrl], {
+    env: {
+      ...process.env,
+      ...NON_INTERACTIVE_PUSH_ENV,
+    },
+    timeout: LS_REMOTE_TIMEOUT_MS,
+    stdio: 'ignore',
+  });
+  return result.status === 0;
+}
+
 function runGitPush(repoDir, upstreamUrl, graphName, signal) {
   return new Promise((resolve, reject) => {
     const child = spawn(
