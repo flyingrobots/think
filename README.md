@@ -58,6 +58,7 @@ think --stats                         # capture counts
 think --stats --since=7d --bucket=day # activity over the last week by day
 think --prompt-metrics                # prompt UX counts and latency
 think --prompt-metrics --since=7d     # recent prompt telemetry window
+think --doctor                        # environment health check
 ```
 
 ## Browse
@@ -67,7 +68,9 @@ think --browse=<entryId>              # view one thought with neighbors
 think --browse                        # open the full-screen TUI
 ```
 
-The browse TUI is reader-first: one thought fills the screen. Navigate with `j`/`k`, jump sessions with `[`/`]`, summon drawers with `s` (session) and `l` (log), search with `/`, inspect with `i`, reflect with `r`, quit with `q`. Browse uses short visible ids for ordinary orientation, while `--inspect` keeps full exact ids.
+The browse TUI is reader-first: one thought fills the screen. Navigate with `j`/`k`, jump sessions with `[`/`]`, summon drawers with `s` (session) and `l` (log), search with `/`, inspect with `i`, reflect with `r`, switch minds with `m`, quit with `q`. Browse uses short visible ids for ordinary orientation, while `--inspect` keeps full exact ids.
+
+Think discovers multiple minds under `~/.think/` — each subdirectory with a git repo is a browsable mind. The splash screen shows the active mind name and cycles through minds with Tab, each with a distinct shader. The default mind is `~/.think/repo`.
 
 ## Inspect
 
@@ -113,6 +116,7 @@ think --json --browse=<entryId>
 think --json --inspect=<entryId>
 think --json --stats --bucket=day
 think --json --prompt-metrics --bucket=day
+think --json --doctor
 think --json --reflect=<entryId>
 ```
 
@@ -135,6 +139,7 @@ The first tool surface includes:
 - `inspect`
 - `stats`
 - `prompt_metrics`
+- `doctor`
 - `migrate_graph`
 
 ## Configuration

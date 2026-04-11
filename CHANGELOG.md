@@ -10,6 +10,21 @@ Release discipline:
 - `package.json` version is bumped on the release commit
 - a Git tag is created on the commit that lands on `main` for that release
 
+## [0.7.0] - Unreleased
+
+- added `think --doctor` health check command — reports think directory, local repo, graph model version, entry count, and upstream reachability (with `git ls-remote` connectivity test)
+- added `doctor` MCP tool exposing the same structured health checks to agents
+- added sparklines to bucketed `--stats` output — capture frequency rendered as Unicode block characters (▁▂▃▄▅▆▇█), oldest-to-newest
+- added sparkline field to `--json --stats` `stats.total` event for machine-readable access
+- added multiple minds discovery — any directory under `~/.think/` with a git repo is a browsable mind
+- added mind switcher to splash screen — Tab cycles through minds, each with a deterministic shader
+- added mind switcher to browse TUI — press `m` to open a command palette of available minds
+- added `discoverMinds()` and `shaderForMind()` to `src/minds.js`
+- added `lsRemote()` to `src/git.js` for read-only upstream connectivity checks
+- upgraded bijou packages to 4.4.0 — zero-alloc frame chrome, input validation hardening, data-viz toolkit
+- consolidated `BG_TOKEN` definition into `src/browse-tui/style.js` alongside the palette
+- removed dead `renderSplashView()` and `parseAnsiToSurface` import from `src/splash.js`
+
 ## [0.6.0] - 2026-04-08
 
 - added splash screen to browse TUI — shows the Think logo (large/medium/small based on terminal size) with "Press [ Enter ]" prompt before entering browse mode

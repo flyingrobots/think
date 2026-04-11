@@ -11,6 +11,7 @@ const HELP_TEXT = {
     '       think --reflect[=<entryId>] [--mode=challenge|constraint|sharpen]',
     '       think --reflect-session=<sessionId> <response>',
     '       think --migrate-graph',
+    '       think --doctor',
     '',
     'Global options:',
     '  --help, -h   Show help',
@@ -99,6 +100,13 @@ const HELP_TEXT = {
     'Usage: think --migrate-graph',
     '',
     'Backfill additive graph edges required by newer read surfaces.',
+  ].join('\n'),
+  doctor: [
+    'Usage: think --doctor',
+    '',
+    'Check the health of the local Think environment.',
+    'Reports think directory, local repo, graph model version,',
+    'entry count, and upstream reachability.',
   ].join('\n'),
 };
 
