@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import test from 'node:test';
 
@@ -10,6 +11,8 @@ import {
   assertSuccess,
   assertFailure,
   assertContains,
+  combinedOutput,
+  parseJsonLines,
 } from '../support/assertions.js';
 
 test('think --stats prints total thoughts', async () => {
@@ -125,6 +128,61 @@ test('think stats supports --bucket=day', async () => {
   assertSuccess(stats, 'Expected stats --bucket=day to succeed.');
   assertContains(stats, '2026-03-21: 1', 'Expected count for day 2.');
   assertContains(stats, '2026-03-20: 2', 'Expected count for day 1.');
+});
+
+test('think --stats --bucket=day includes a sparkline in text output', async () => {
+  const context = await createThinkContext();
+
+  const d1 = new Date('2026-03-20T12:00:00Z').getTime();
+  const d2 = new Date('2026-03-21T12:00:00Z').getTime();
+
+  assertSuccess(runThink(context, ['d1a'], { THINK_TEST_NOW: String(d1) }));
+  assertSuccess(runThink(context, ['d1b'], { THINK_TEST_NOW: String(d1 + 1000) }));
+  assertSuccess(runThink(context, ['d2a'], { THINK_TEST_NOW: String(d2) }));
+
+  const stats = runThink(context, ['--stats', '--bucket=day']);
+  assertSuccess(stats, 'Expected stats --bucket=day to succeed.');
+  assertContains(stats, 'Capture frequency:', 'Expected sparkline label in bucketed stats output.');
+});
+
+test('think --stats --bucket=day --json includes sparkline in stats.total event', async () => {
+  const context = await createThinkContext();
+
+  const d1 = new Date('2026-03-20T12:00:00Z').getTime();
+  const d2 = new Date('2026-03-21T12:00:00Z').getTime();
+
+  assertSuccess(runThink(context, ['d1a'], { THINK_TEST_NOW: String(d1) }));
+  assertSuccess(runThink(context, ['d1b'], { THINK_TEST_NOW: String(d1 + 1000) }));
+  assertSuccess(runThink(context, ['d2a'], { THINK_TEST_NOW: String(d2) }));
+
+  const stats = runThink(context, ['--stats', '--bucket=day', '--json']);
+  assertSuccess(stats, 'Expected stats --bucket=day --json to succeed.');
+
+  const events = parseJsonLines(stats.stdout);
+  const totalEvent = events.find((e) => e.event === 'stats.total');
+  assert.ok(totalEvent, 'Expected a stats.total event in JSON output.');
+  assert.ok(totalEvent.sparkline, 'Expected stats.total event to include a sparkline field.');
+  assert.match(
+    totalEvent.sparkline,
+    /[▁▂▃▄▅▆▇█]+/,
+    'Expected sparkline field to contain Unicode block characters.'
+  );
+});
+
+test('think --stats without --bucket omits sparkline', async () => {
+  const context = await createThinkContext();
+
+  assertSuccess(runThink(context, ['thought']));
+
+  const stats = runThink(context, ['--stats']);
+  assertSuccess(stats, 'Expected stats to succeed.');
+
+  const output = combinedOutput(stats);
+  assert.doesNotMatch(
+    output,
+    /Capture frequency:/,
+    'Expected no sparkline label when no bucket is specified.'
+  );
 });
 
 test('think --stats rejects an invalid bucket value', async () => {
