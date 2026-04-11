@@ -36,7 +36,17 @@ export async function runDoctor(output, reporter) {
 
   reporter.event('doctor.start');
 
-  const result = await runDiagnostics({ thinkDir, repoDir, upstreamUrl });
+  const result = await runDiagnostics({
+    thinkDir,
+    repoDir,
+    upstreamUrl,
+    getGraphModelStatus: hasGitRepo(repoDir)
+      ? () => getGraphModelStatus(repoDir)
+      : null,
+    getEntryCount: hasGitRepo(repoDir)
+      ? async () => (await getStats(repoDir, {})).total
+      : null,
+  });
 
   if (output.json) {
     output.data('doctor.result', { checks: result.checks });

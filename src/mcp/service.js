@@ -209,10 +209,17 @@ export async function getPromptMetricsForMcp({ from = null, to = null, since = n
 }
 
 export function checkThinkHealth() {
+  const repoDir = getLocalRepoDir();
   return runDiagnostics({
     thinkDir: getThinkDir(),
-    repoDir: getLocalRepoDir(),
+    repoDir,
     upstreamUrl: getUpstreamUrl(),
+    getGraphModelStatus: hasGitRepo(repoDir)
+      ? () => getGraphModelStatus(repoDir)
+      : null,
+    getEntryCount: hasGitRepo(repoDir)
+      ? async () => (await getStats(repoDir, {})).total
+      : null,
   });
 }
 
