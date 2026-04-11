@@ -1,5 +1,5 @@
 import { parseJson } from '../../json.js';
-import { runBrowseTui, showSplash } from '../../browse-tui/app.js';
+import { runBrowseTui } from '../../browse-tui/app.js';
 import { runBrowseTuiScript } from '../../browse-tui/script.js';
 import { hasGitRepo } from '../../git.js';
 import { discoverMinds } from '../../minds.js';
@@ -450,12 +450,8 @@ async function runInteractiveBrowseShell(output, reporter) {
     minds = [{ name: 'default', repoDir: getLocalRepoDir(), isDefault: true }];
   }
 
-  const splashResult = await showSplash({ minds });
-  if (splashResult.action === 'quit') {
-    return 0;
-  }
-
-  let activeMind = splashResult.mind ?? minds[0];
+  let activeMind = minds[0];
+  let skipSplash = false;
 
   while (true) {
     const { repoDir } = activeMind;
@@ -490,6 +486,7 @@ async function runInteractiveBrowseShell(output, reporter) {
       bootstrap,
       minds,
       activeMind,
+      skipSplash,
       loadBrowseWindow: (thoughtEntryId) => getBrowseWindowForRead(read, thoughtEntryId),
       loadChronologyEntries: () => loadBrowseChronologyEntriesForRead(read),
       loadInspectEntry: (thoughtEntryId) => inspectRawEntryForRead(read, thoughtEntryId),
@@ -533,6 +530,7 @@ async function runInteractiveBrowseShell(output, reporter) {
 
     if (tuiResult.type === 'switch_mind') {
       activeMind = tuiResult.mind;
+      skipSplash = true;
       continue;
     }
 

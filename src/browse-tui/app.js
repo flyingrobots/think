@@ -13,6 +13,7 @@ export async function runBrowseTui({
   bootstrap,
   minds = [],
   activeMind = null,
+  skipSplash = false,
   loadBrowseWindow = null,
   loadChronologyEntries = null,
   loadInspectEntry = null,
@@ -20,6 +21,19 @@ export async function runBrowseTui({
   startReflectSession = null,
   saveReflectSessionResponse = null,
 }) {
+  if (!skipSplash) {
+    const splashResult = await showSplash({ minds });
+    if (splashResult.action === 'quit') {
+      return { type: 'quit' };
+    }
+    // If splash selected a different mind, return immediately so the
+    // caller can re-bootstrap with the correct mind's data.
+    const selectedMind = splashResult.mind;
+    if (selectedMind && activeMind && selectedMind.repoDir !== activeMind.repoDir) {
+      return { type: 'switch_mind', mind: selectedMind };
+    }
+  }
+
   const ctx = createBijou({
     runtime: nodeRuntime(),
     io: nodeIO(),
@@ -170,9 +184,6 @@ export function showSplash({ minds = [] } = {}) {
           if (transition && transition.progress >= 1.0) {
             clearInterval(checkDone);
             cleanup();
-            // Exit alt screen so bijou can enter its own cleanly
-            process.stdout.write('\x1b[?25h');
-            process.stdout.write('\x1b[?1049l');
             resolve({ action: 'enter', mind: minds[mindIndex] ?? null });
           }
         }, 50);
