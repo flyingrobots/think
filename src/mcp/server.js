@@ -17,6 +17,7 @@ import {
   captureThought,
   getPromptMetricsForMcp,
   getThoughtStats,
+  checkThinkHealth,
   inspectThought,
   listRecentThoughts,
   migrateThoughtGraph,
@@ -203,6 +204,19 @@ export function createThinkMcpServer() {
     const result = await getPromptMetricsForMcp({ bucket: bucket ?? null, from: from ?? null, since: since ?? null, to: to ?? null });
     return toToolResult(result, formatPromptMetrics(result));
   });
+
+  const checkSchema = z.object({
+    name: z.string(),
+    status: z.enum(['ok', 'warn', 'fail', 'skip']),
+    message: z.string(),
+  });
+
+  server.registerTool('doctor', {
+    description: 'Check the health of the local Think environment.',
+    outputSchema: {
+      checks: z.array(checkSchema),
+    },
+  }, async () => toToolResult(await checkThinkHealth()));
 
   server.registerTool('migrate_graph', {
     description: 'Upgrade the local Think graph model in place.',

@@ -1,5 +1,6 @@
+import { runDiagnostics } from '../doctor.js';
 import { ensureGitRepo, hasGitRepo, pushWarpRefs } from '../git.js';
-import { getLocalRepoDir, getUpstreamUrl } from '../paths.js';
+import { getLocalRepoDir, getThinkDir, getUpstreamUrl } from '../paths.js';
 import { capturePolicy } from '../policies.js';
 import { normalizeCaptureProvenance } from '../capture-provenance.js';
 import {
@@ -205,6 +206,14 @@ export async function getPromptMetricsForMcp({ from = null, to = null, since = n
     summary: promptMetrics.summary,
     timings: promptMetrics.timings,
   };
+}
+
+export function checkThinkHealth() {
+  return runDiagnostics({
+    thinkDir: getThinkDir(),
+    repoDir: getLocalRepoDir(),
+    upstreamUrl: getUpstreamUrl(),
+  });
 }
 
 // eslint-disable-next-line require-await -- wraps store call that returns a promise (git-warp)
