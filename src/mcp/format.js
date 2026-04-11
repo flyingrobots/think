@@ -1,4 +1,4 @@
-import { createBijou, table, inspector, box, stripAnsi } from '@flyingrobots/bijou';
+import { createBijou, table, inspector, box, sparkline, stripAnsi } from '@flyingrobots/bijou';
 import { nodeRuntime, nodeIO, chalkStyle } from '@flyingrobots/bijou-node';
 
 let _mcpCtx = null;
@@ -116,9 +116,20 @@ export function formatStats(statsResult) {
       rows: statsResult.buckets.map((b) => [b.key, String(b.count)]),
       ctx,
     })));
+
+    const values = statsResult.buckets.map((b) => b.count).reverse();
+    lines.push('');
+    lines.push(`Capture frequency: ${sparkline(values)}`);
   }
 
   return lines.join('\n');
+}
+
+export function buildStatsSparkline(buckets) {
+  if (!buckets || buckets.length === 0) {
+    return null;
+  }
+  return sparkline(buckets.map((b) => b.count).reverse());
 }
 
 export function formatPromptMetrics(metricsResult) {

@@ -21,6 +21,7 @@ import {
   saveReflectResponse,
   startReflect,
 } from '../../store.js';
+import { buildStatsSparkline } from '../../mcp/format.js';
 import { shouldUseInteractiveBrowseShell } from '../environment.js';
 import { ensureGraphModelReady, ensureGraphModelReadyFromStatus } from '../graph-gate.js';
 
@@ -37,7 +38,12 @@ export async function runStats(output, reporter, options) {
   const stats = await getStats(repoDir, options);
   reporter.event('stats.done', { total: stats.total });
 
-  output.out(`Total thoughts: ${stats.total}`, 'stats.total', { total: stats.total });
+  const spark = buildStatsSparkline(stats.buckets);
+  const totalData = spark
+    ? { total: stats.total, sparkline: spark }
+    : { total: stats.total };
+
+  output.out(`Total thoughts: ${stats.total}`, 'stats.total', totalData);
 
   if (stats.buckets) {
     for (const [index, bucket] of stats.buckets.entries()) {
@@ -46,6 +52,10 @@ export async function runStats(output, reporter, options) {
         count: bucket.count,
         index,
       });
+    }
+
+    if (spark && !output.json) {
+      output.out(`Capture frequency: ${spark}`);
     }
   }
 
