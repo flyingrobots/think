@@ -41,6 +41,32 @@ test('runDiagnostics reports fail when local repo has no git init', async () => 
   assert.equal(repoCheck.status, 'fail', 'Expected local_repo to fail when no git repo.');
 });
 
+test('runDiagnostics reports ok for upstream when reachable', async () => {
+  const context = await createDoctorContext({ withRepo: true });
+  const result = await runDiagnostics({
+    thinkDir: context.thinkDir,
+    repoDir: context.repoDir,
+    upstreamUrl: 'git@github.com:example/backup.git',
+    checkUpstreamReachable: () => true,
+  });
+
+  const upstreamCheck = findCheck(result, 'upstream');
+  assert.equal(upstreamCheck.status, 'ok', 'Expected upstream to be ok when reachable.');
+});
+
+test('runDiagnostics reports warn for upstream when unreachable', async () => {
+  const context = await createDoctorContext({ withRepo: true });
+  const result = await runDiagnostics({
+    thinkDir: context.thinkDir,
+    repoDir: context.repoDir,
+    upstreamUrl: 'git@github.com:example/backup.git',
+    checkUpstreamReachable: () => false,
+  });
+
+  const upstreamCheck = findCheck(result, 'upstream');
+  assert.equal(upstreamCheck.status, 'warn', 'Expected upstream to warn when unreachable.');
+});
+
 test('runDiagnostics reports skip for upstream when not configured', async () => {
   const context = await createDoctorContext({ withRepo: true });
   const result = await runDiagnostics({
