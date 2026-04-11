@@ -1,5 +1,5 @@
 import { drawer, modal } from '@flyingrobots/bijou-tui';
-import { PALETTE } from './style.js';
+import { BG_TOKEN } from './style.js';
 import {
   resolveLayout,
   resolveDrawerTitle,
@@ -12,11 +12,6 @@ import {
   buildJumpContent,
 } from './panels.js';
 import { capitalize, wrapParagraphs } from './format.js';
-
-const BG_TOKEN = {
-  hex: `#${PALETTE.cream.map((c) => c.toString(16).padStart(2, '0')).join('')}`,
-  bg: `#${PALETTE.bg.map((c) => c.toString(16).padStart(2, '0')).join('')}`,
-};
 
 export { BG_TOKEN };
 

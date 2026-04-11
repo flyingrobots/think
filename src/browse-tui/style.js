@@ -53,4 +53,13 @@ export function stylePrimary(ctx, text) {
   return `${fg(PALETTE.cream)}${text}${RESET}`;
 }
 
+function toHex(rgb) {
+  return `#${rgb.map((c) => c.toString(16).padStart(2, '0')).join('')}`;
+}
+
+export const BG_TOKEN = {
+  hex: toHex(PALETTE.cream),
+  bg: toHex(PALETTE.bg),
+};
+
 export { PALETTE };
