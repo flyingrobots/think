@@ -25,6 +25,7 @@ export function parseArgs(args) {
     inspectFlag: false,
     inspect: null,
     migrateGraph: false,
+    doctor: false,
     from: null,
     to: null,
     since: null,
@@ -86,6 +87,8 @@ export function parseArgs(args) {
         options.inspect = arg.slice('--inspect='.length);
       } else if (arg === '--migrate-graph') {
         options.migrateGraph = true;
+      } else if (arg === '--doctor') {
+        options.doctor = true;
       } else if (arg === '--reflect') {
         options.reflectFlag = true;
         options.reflect = '';
@@ -152,6 +155,9 @@ export function resolveCommand(options) {
   }
   if (options.inspectFlag) {
     return 'inspect';
+  }
+  if (options.doctor) {
+    return 'doctor';
   }
   if (options.migrateGraph) {
     return 'migrate_graph';
@@ -261,6 +267,10 @@ export function validateOptions(options, command) {
     }
   }
 
+  if (command === 'doctor' && options.positionals.length > 0) {
+    return '--doctor does not take a thought';
+  }
+
   if (command === 'stats' && options.positionals.length > 0) {
     return '--stats does not take a thought';
   }
@@ -335,6 +345,7 @@ export function countExplicitCommands(options) {
     options.promptMetrics,
     options.browseFlag,
     options.inspectFlag,
+    options.doctor,
     options.migrateGraph,
     options.stats,
     options.reflectFlag,

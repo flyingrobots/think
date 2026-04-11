@@ -11,6 +11,7 @@ import { createOutput, resolveJsonStream } from './cli/output.js';
 import { runCapture, runIngest, runMigrateGraph } from './cli/commands/capture.js';
 import {
   runBrowse,
+  runDoctor,
   runInspect,
   runPromptMetrics,
   runRecent,
@@ -65,6 +66,8 @@ export async function main(argv, { stdout, stderr, stdin }) {
       exitCode = await runBrowse(options.browse, output, reporter);
     } else if (command === 'inspect') {
       exitCode = await runInspect(options.inspect, output, reporter);
+    } else if (command === 'doctor') {
+      exitCode = await runDoctor(output, reporter);
     } else if (command === 'migrate_graph') {
       exitCode = await runMigrateGraph(output, reporter);
     } else if (command === 'ingest') {

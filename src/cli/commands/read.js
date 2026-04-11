@@ -24,7 +24,33 @@ import {
 } from '../../store.js';
 import { buildStatsSparkline } from '../../mcp/format.js';
 import { shouldUseInteractiveBrowseShell } from '../environment.js';
+import { runDiagnostics } from '../../doctor.js';
 import { ensureGraphModelReady, ensureGraphModelReadyFromStatus } from '../graph-gate.js';
+
+const DOCTOR_SYMBOLS = { ok: '✓', warn: '!', fail: '✗', skip: '○' };
+
+export async function runDoctor(output, reporter) {
+  const thinkDir = getThinkDir();
+  const repoDir = getLocalRepoDir();
+  const upstreamUrl = (process.env.THINK_UPSTREAM_URL || '').trim();
+
+  reporter.event('doctor.start');
+
+  const result = await runDiagnostics({ thinkDir, repoDir, upstreamUrl });
+
+  if (output.json) {
+    output.data('doctor.result', { checks: result.checks });
+  } else {
+    output.out('think doctor');
+    for (const check of result.checks) {
+      const symbol = DOCTOR_SYMBOLS[check.status] ?? '?';
+      output.out(`  ${symbol} ${check.message}`);
+    }
+  }
+
+  reporter.event('doctor.done');
+  return 0;
+}
 
 export async function runStats(output, reporter, options) {
   const repoDir = getLocalRepoDir();
