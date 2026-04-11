@@ -25,6 +25,7 @@ test('think MCP server lists the core Think tools', async () => {
         'inspect',
         'stats',
         'prompt_metrics',
+        'doctor',
         'migrate_graph',
       ],
       'Expected the Think MCP server to expose the core capture and read tools.'
@@ -194,6 +195,25 @@ test('think MCP remember, stats, and prompt_metrics expose structured read resul
       THINK_PROMPT_METRICS_FILE: metricsFile,
     }
   );
+});
+
+test('think MCP doctor tool returns structured health checks', async () => {
+  const context = await createThinkContext();
+
+  runThink(context, ['seed thought for doctor test']);
+
+  await withThinkMcpClient(context, async ({ client }) => {
+    const result = await callTool(client, 'doctor', {});
+    assert.ok(Array.isArray(result.checks), 'Expected doctor to return a checks array.');
+
+    const names = result.checks.map((c) => c.name);
+    assert.ok(names.includes('think_dir'), 'Expected think_dir check.');
+    assert.ok(names.includes('local_repo'), 'Expected local_repo check.');
+    assert.ok(names.includes('upstream'), 'Expected upstream check.');
+
+    const repoCheck = result.checks.find((c) => c.name === 'local_repo');
+    assert.equal(repoCheck.status, 'ok', 'Expected local_repo to be ok after a capture.');
+  });
 });
 
 async function withThinkMcpClient(context, run, extraEnv = {}) {
