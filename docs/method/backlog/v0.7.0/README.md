@@ -26,10 +26,8 @@ improvements. No new capture-path features.
    `runDiagnostics` to check graph version and total entries. Debt
    from cycle 0005.
 
-## Stretch (pull if time permits)
-
-10. **Upstream provisioning** — from up-next
-    (`CORE_improve-upstream-provisioning`). Backup reliability.
+10. **Upstream provisioning** — backup reliability hardening.
+    Moved from up-next.
 
 ## Critical path
 
@@ -38,4 +36,5 @@ bijou 4.4.1 fix → upgrade → verify TUI theme → release
                                               ↑
 MCP doctor tool ─────────────────────────────┘
 Doctor extended checks ──────────────────────┘
+Upstream provisioning ───────────────────────┘
 ```
