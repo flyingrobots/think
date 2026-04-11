@@ -10,6 +10,7 @@ import {
   buildSessionContent,
   buildLogContent,
   buildJumpContent,
+  buildMindContent,
 } from './panels.js';
 import { capitalize, wrapParagraphs } from './format.js';
 
@@ -35,6 +36,9 @@ export function buildBrowseOverlays(model, screenRect, ctx) {
         break;
       case 'jump':
         content = buildJumpContent(model, innerWidth, ctx);
+        break;
+      case 'mind':
+        content = buildMindContent(model, innerWidth, ctx);
         break;
       default:
         content = '';

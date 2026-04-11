@@ -169,6 +169,19 @@ export function buildJumpContent(model, width, ctx) {
   });
 }
 
+export function buildMindContent(model, width, ctx) {
+  if (!model.mindPalette) {
+    return styleDim(ctx, 'No minds available.');
+  }
+
+  return commandPalette(model.mindPalette, {
+    width,
+    showCategory: false,
+    showShortcut: false,
+    ctx,
+  });
+}
+
 // --- String-path renderers (wrap content in viewport for the script path) ---
 
 export function renderBottomPanel(model, width, height, ctx) {
@@ -181,6 +194,8 @@ export function renderBottomPanel(model, width, height, ctx) {
       return viewport({ width, height, content: buildLogContent(model, width, ctx), scrollY: computeLogScroll(model, height) });
     case 'jump':
       return viewport({ width, height, content: buildJumpContent(model, width, ctx), scrollY: 0 });
+    case 'mind':
+      return viewport({ width, height, content: buildMindContent(model, width, ctx), scrollY: 0 });
     default:
       return viewport({ width, height, content: '', scrollY: 0 });
   }

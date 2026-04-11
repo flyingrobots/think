@@ -127,6 +127,10 @@ export function resolveHelpLine(model) {
     return 'Type to filter • ↑/↓ move • Enter open • Backspace erase • Esc close';
   }
 
+  if (model.panelMode === 'mind') {
+    return 'Type to filter • ↑/↓ move • Enter switch • Esc cancel';
+  }
+
   return helpShort(browseKeymap);
 }
 
@@ -148,6 +152,8 @@ export function resolveDrawerTitle(panelMode) {
       return 'THOUGHT LOG';
     case 'jump':
       return 'JUMP';
+    case 'mind':
+      return 'SWITCH MIND';
     default:
       return '';
   }
@@ -169,6 +175,17 @@ export function createJumpPalette(entries) {
       id: entry.id,
       label: normalizeWhitespace(entry.text),
       description: formatCompactWhen(entry.createdAt),
+    })),
+    DEFAULT_JUMP_HEIGHT
+  );
+}
+
+export function createMindPalette(minds) {
+  return createCommandPaletteState(
+    minds.map((mind) => ({
+      id: mind.name,
+      label: mind.isDefault ? `${mind.name} (default)` : mind.name,
+      description: mind.repoDir,
     })),
     DEFAULT_JUMP_HEIGHT
   );

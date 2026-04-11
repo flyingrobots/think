@@ -7,6 +7,7 @@ import {
   resolveJumpEntries,
   resolveLayout,
   createJumpPalette,
+  createMindPalette,
 } from './resolve.js';
 import { buildThoughtContent } from './view.js';
 import { openReflectModel } from './reflect.js';
@@ -256,6 +257,33 @@ export function applyBrowseAction(model, action) {
         model,
         effect: { type: 'quit' },
       };
+    case 'open_mind_switcher':
+      if (!model.minds || model.minds.length <= 1) {
+        return { model, effect: null };
+      }
+      return {
+        model: {
+          ...model,
+          panelMode: 'mind',
+          mindPalette: cpFilter(createMindPalette(model.minds), ''),
+          contentScrollY: 0,
+          notice: null,
+        },
+        effect: null,
+      };
+    case 'apply_mind_switch': {
+      if (!action.mindName) {
+        return { model: { ...model, panelMode: 'none' }, effect: null };
+      }
+      const targetMind = model.minds.find((m) => m.name === action.mindName);
+      if (!targetMind || targetMind.name === model.activeMind?.name) {
+        return { model: { ...model, panelMode: 'none' }, effect: null };
+      }
+      return {
+        model: { ...model, switchTarget: targetMind },
+        effect: { type: 'switch_mind', mind: targetMind },
+      };
+    }
     default:
       return {
         model,

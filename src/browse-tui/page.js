@@ -1,6 +1,6 @@
 import { quit } from '@flyingrobots/bijou-tui';
 import { createWindowedBrowseModel, resizeBrowseModel } from './model.js';
-import { handleJumpKey, handleReflectKey, clearNoticeOnKey } from './keys.js';
+import { handleJumpKey, handleMindKey, handleReflectKey, clearNoticeOnKey } from './keys.js';
 import { applyBrowseAction } from './actions.js';
 import {
   applyBrowseWindowLoaded,
@@ -17,6 +17,9 @@ import { browseLayout } from './view.js';
 
 export function createBrowsePage({
   bootstrap,
+  minds = [],
+  activeMind = null,
+  modelRef = null,
   loadBrowseWindow,
   loadChronologyEntries,
   loadInspectEntry,
@@ -25,9 +28,13 @@ export function createBrowsePage({
   saveReflectSessionResponse,
   ctx,
 }) {
+  const title = minds.length > 1 && activeMind
+    ? `THINK BROWSE [${activeMind.name}]`
+    : 'THINK BROWSE';
+
   return {
     id: 'browse',
-    title: 'THINK BROWSE',
+    title,
 
     init() {
       const model = createWindowedBrowseModel({
@@ -35,9 +42,12 @@ export function createBrowsePage({
         inspectCache: new Map(),
         loadBrowseWindow,
         loadChronologyEntries,
+        minds,
+        activeMind,
       });
-      // Remove splash phase — splash runs before bijou starts
-      return [{ ...model, phase: 'browse' }, []];
+      const initModel = { ...model, phase: 'browse' };
+      if (modelRef) { modelRef.current = initModel; }
+      return [initModel, []];
     },
 
     update(msg, model) {
@@ -88,6 +98,7 @@ export function createBrowsePage({
           previewReflectEntry,
           startReflectSession,
           saveReflectSessionResponse,
+          modelRef,
         });
       }
 
@@ -99,6 +110,7 @@ export function createBrowsePage({
           previewReflectEntry,
           startReflectSession,
           saveReflectSessionResponse,
+          modelRef,
         });
       }
 
@@ -117,6 +129,17 @@ export function createBrowsePage({
 function handleRawKey(keyMsg, model, deps) {
   const maybeCleared = clearNoticeOnKey(model);
   model = maybeCleared;
+
+  const mindResult = handleMindKey(model, keyMsg);
+  if (mindResult) {
+    if (mindResult.effect?.type === 'switch_mind') {
+      const switchModel = { ...mindResult.model, switchTarget: mindResult.effect.mind };
+      if (deps.modelRef) { deps.modelRef.current = switchModel; }
+      return [switchModel, [quit()]];
+    }
+    if (deps.modelRef) { deps.modelRef.current = mindResult.model; }
+    return [mindResult.model, []];
+  }
 
   const jumpResult = handleJumpKey(model, keyMsg);
   if (jumpResult) {
@@ -149,6 +172,11 @@ function handleKeymapAction(action, model, deps) {
   const result = applyBrowseAction(model, enriched);
   if (result.effect?.type === 'quit') {
     return [result.model, [quit()]];
+  }
+  if (result.effect?.type === 'switch_mind') {
+    const switchModel = { ...result.model, switchTarget: result.effect.mind };
+    if (deps.modelRef) { deps.modelRef.current = switchModel; }
+    return [switchModel, [quit()]];
   }
 
   const [nextModel, cmds] = maybeQueueInspectLoad(result.model, deps.loadInspectEntry);

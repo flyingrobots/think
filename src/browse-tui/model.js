@@ -8,6 +8,8 @@ export function createWindowedBrowseModel({
   inspectCache,
   loadBrowseWindow,
   loadChronologyEntries,
+  minds = [],
+  activeMind = null,
 }) {
   return {
     mode: 'windowed',
@@ -20,6 +22,9 @@ export function createWindowedBrowseModel({
     chronologyLoading: false,
     loadBrowseWindow,
     loadChronologyEntries,
+    minds,
+    activeMind,
+    switchTarget: null,
     columns: process.stdout.columns ?? DEFAULT_COLUMNS,
     rows: process.stdout.rows ?? DEFAULT_ROWS,
     contentScrollY: 0,

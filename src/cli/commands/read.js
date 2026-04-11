@@ -1,8 +1,9 @@
 import { parseJson } from '../../json.js';
-import { runBrowseTui } from '../../browse-tui/app.js';
+import { runBrowseTui, showSplash } from '../../browse-tui/app.js';
 import { runBrowseTuiScript } from '../../browse-tui/script.js';
 import { hasGitRepo } from '../../git.js';
-import { getLocalRepoDir } from '../../paths.js';
+import { discoverMinds } from '../../minds.js';
+import { getLocalRepoDir, getThinkDir } from '../../paths.js';
 import {
   getBrowseWindow,
   getBrowseWindowForRead,
@@ -357,23 +358,19 @@ export async function runBrowse(entryId, output, reporter) {
 }
 
 async function runInteractiveBrowseShell(output, reporter) {
-  const repoDir = getLocalRepoDir();
-
-  if (!hasGitRepo(repoDir)) {
-    output.error('No raw captures available to browse', 'browse.entry_not_found');
-    return 1;
-  }
-
-  const read = await openProductReadHandle(repoDir);
-  const graphStatus = await getGraphModelStatusForRead(read);
-
-  if (!await ensureGraphModelReadyFromStatus(repoDir, 'browse', graphStatus, output, reporter)) {
-    return 1;
-  }
-
   const scripted = getBrowseTestScript();
 
   if (scripted) {
+    const repoDir = getLocalRepoDir();
+    if (!hasGitRepo(repoDir)) {
+      output.error('No raw captures available to browse', 'browse.entry_not_found');
+      return 1;
+    }
+    const read = await openProductReadHandle(repoDir);
+    const graphStatus = await getGraphModelStatusForRead(read);
+    if (!await ensureGraphModelReadyFromStatus(repoDir, 'browse', graphStatus, output, reporter)) {
+      return 1;
+    }
     const entries = await loadBrowseChronologyEntriesForRead(read);
     if (entries.length === 0) {
       output.error('No raw captures available to browse', 'browse.entry_not_found');
@@ -438,58 +435,110 @@ async function runInteractiveBrowseShell(output, reporter) {
     return 0;
   }
 
-  const bootstrap = await prepareBrowseBootstrapForRead(read);
-  if (!bootstrap.ok) {
-    output.error('No raw captures available to browse', 'browse.entry_not_found');
-    return 1;
+  // --- Interactive mode: discover minds, splash, bootstrap loop ---
+
+  const envRepoDir = (process.env.THINK_REPO_DIR || '').trim();
+  let minds;
+  if (envRepoDir) {
+    minds = [{ name: 'default', repoDir: getLocalRepoDir(), isDefault: true }];
+  } else {
+    minds = discoverMinds(getThinkDir());
   }
 
-  const initialEntryId = bootstrap.current.id;
+  // Fall back to default repo if no minds discovered
+  if (minds.length === 0) {
+    minds = [{ name: 'default', repoDir: getLocalRepoDir(), isDefault: true }];
+  }
 
-  reporter.event('browse.shell_started', { seedEntryId: initialEntryId });
+  const splashResult = await showSplash({ minds });
+  if (splashResult.action === 'quit') {
+    return 0;
+  }
 
-  await runBrowseTui({
-    bootstrap,
-    loadBrowseWindow: (thoughtEntryId) => getBrowseWindowForRead(read, thoughtEntryId),
-    loadChronologyEntries: () => loadBrowseChronologyEntriesForRead(read),
-    loadInspectEntry: (thoughtEntryId) => inspectRawEntryForRead(read, thoughtEntryId),
-    previewReflectEntry: (thoughtEntryId, promptType) => previewReflect(repoDir, thoughtEntryId, { promptType }),
-    startReflectSession: async (thoughtEntryId, promptType) => {
-      const session = await startReflect(repoDir, thoughtEntryId, { promptType });
-      if (session.ok) {
-        reporter.event('reflect.session_started', {
-          sessionId: session.sessionId,
-          seedEntryId: session.seedEntryId,
-          contrastEntryId: session.contrastEntryId ?? null,
-          promptType: session.promptType,
-          maxSteps: session.maxSteps,
-          selectionReason: session.selectionReason,
-        });
-        reporter.event('reflect.prompt', {
-          sessionId: session.sessionId,
-          promptType: session.promptType,
-          question: session.question,
-        });
-      }
-      return session;
-    },
-    saveReflectSessionResponse: async (sessionId, response) => {
-      const saved = await saveReflectResponse(repoDir, sessionId, response);
-      if (saved) {
-        reporter.event('reflect.entry_saved', {
-          entryId: saved.id,
-          kind: saved.kind,
-          seedEntryId: saved.seedEntryId,
-          contrastEntryId: saved.contrastEntryId ?? null,
-          sessionId: saved.sessionId,
-          promptType: saved.promptType,
-        });
-      }
-      return saved;
-    },
-  });
+  let activeMind = splashResult.mind ?? minds[0];
 
-  reporter.event('browse.shell_finished', { entryId: initialEntryId });
+  while (true) {
+    const { repoDir } = activeMind;
+
+    if (!hasGitRepo(repoDir)) {
+      output.error(`Mind "${activeMind.name}" has no thought repo`, 'browse.entry_not_found');
+      return 1;
+    }
+
+    // eslint-disable-next-line no-await-in-loop -- sequential mind-switch loop
+    const read = await openProductReadHandle(repoDir);
+    // eslint-disable-next-line no-await-in-loop -- sequential mind-switch loop
+    const graphStatus = await getGraphModelStatusForRead(read);
+
+    // eslint-disable-next-line no-await-in-loop -- sequential mind-switch loop
+    if (!await ensureGraphModelReadyFromStatus(repoDir, 'browse', graphStatus, output, reporter)) {
+      return 1;
+    }
+
+    // eslint-disable-next-line no-await-in-loop -- sequential mind-switch loop
+    const bootstrap = await prepareBrowseBootstrapForRead(read);
+    if (!bootstrap.ok) {
+      output.error(`Mind "${activeMind.name}" has no raw captures to browse`, 'browse.entry_not_found');
+      return 1;
+    }
+
+    const initialEntryId = bootstrap.current.id;
+    reporter.event('browse.shell_started', { seedEntryId: initialEntryId, mind: activeMind.name });
+
+    // eslint-disable-next-line no-await-in-loop -- sequential mind-switch loop
+    const tuiResult = await runBrowseTui({
+      bootstrap,
+      minds,
+      activeMind,
+      loadBrowseWindow: (thoughtEntryId) => getBrowseWindowForRead(read, thoughtEntryId),
+      loadChronologyEntries: () => loadBrowseChronologyEntriesForRead(read),
+      loadInspectEntry: (thoughtEntryId) => inspectRawEntryForRead(read, thoughtEntryId),
+      previewReflectEntry: (thoughtEntryId, promptType) => previewReflect(repoDir, thoughtEntryId, { promptType }),
+      startReflectSession: async (thoughtEntryId, promptType) => {
+        const session = await startReflect(repoDir, thoughtEntryId, { promptType });
+        if (session.ok) {
+          reporter.event('reflect.session_started', {
+            sessionId: session.sessionId,
+            seedEntryId: session.seedEntryId,
+            contrastEntryId: session.contrastEntryId ?? null,
+            promptType: session.promptType,
+            maxSteps: session.maxSteps,
+            selectionReason: session.selectionReason,
+          });
+          reporter.event('reflect.prompt', {
+            sessionId: session.sessionId,
+            promptType: session.promptType,
+            question: session.question,
+          });
+        }
+        return session;
+      },
+      saveReflectSessionResponse: async (sessionId, response) => {
+        const saved = await saveReflectResponse(repoDir, sessionId, response);
+        if (saved) {
+          reporter.event('reflect.entry_saved', {
+            entryId: saved.id,
+            kind: saved.kind,
+            seedEntryId: saved.seedEntryId,
+            contrastEntryId: saved.contrastEntryId ?? null,
+            sessionId: saved.sessionId,
+            promptType: saved.promptType,
+          });
+        }
+        return saved;
+      },
+    });
+
+    reporter.event('browse.shell_finished', { entryId: initialEntryId });
+
+    if (tuiResult.type === 'switch_mind') {
+      activeMind = tuiResult.mind;
+      continue;
+    }
+
+    break;
+  }
+
   return 0;
 }
 

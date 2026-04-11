@@ -353,7 +353,7 @@ function buildPromptBox(text) {
   };
 }
 
-export function compositeAndRender(grid, logoInfo, interiorMask, distField, cols, rows, logoType, elapsed, fps, transition, shaderName) {
+export function compositeAndRender(grid, logoInfo, interiorMask, distField, cols, rows, logoType, elapsed, fps, transition, shaderName, mindLabel = null) {
   const { offsetY, logoLines, logoHeight } = logoInfo;
 
   // transition: null (normal), or { progress: 0→1 }
@@ -380,6 +380,16 @@ export function compositeAndRender(grid, logoInfo, interiorMask, distField, cols
   const shaderLabel = shaderName ? `◀ ${shaderName} ▶` : '';
   const footerY = rows - 1;
 
+  // HUD layout shifts down when a mind label is shown:
+  // With mind:    line 0 = mind label (left) + version (right)
+  //               line 1 = shader label (left) + FPS (right)
+  // Without mind: line 0 = shader label (left) + version (right)
+  //               line 1 = FPS (right)
+  const mindLine = mindLabel ? 0 : -1;
+  const shaderLine = mindLabel ? 1 : 0;
+  const fpsLine = mindLabel ? 2 : 1;
+  const versionLine = 0;
+
   const bgAnsi = `\x1b[48;2;${BG[0]};${BG[1]};${BG[2]}m`;
   const output = [];
   let lastFg = '';
@@ -393,8 +403,19 @@ export function compositeAndRender(grid, logoInfo, interiorMask, distField, cols
 
     for (let x = 0; x < cols; x++) {
 
-      // --- Shader name (upper-left, line 0) ---
-      if (y === 0 && !transition && shaderLabel.length > 0 && x >= 1 && x < 1 + shaderLabel.length) {
+      // --- Mind label (upper-left) ---
+      if (mindLabel && y === mindLine && !transition && x >= 1 && x < 1 + mindLabel.length) {
+        const mi = x - 1;
+        if (mi >= 0 && mi < mindLabel.length) {
+          const dimFg = `\x1b[38;2;${DIM_STROKE[0]};${DIM_STROKE[1]};${DIM_STROKE[2]}m`;
+          if (dimFg !== lastFg) { line += dimFg; lastFg = dimFg; }
+          line += mindLabel[mi];
+          continue;
+        }
+      }
+
+      // --- Shader name (upper-left) ---
+      if (y === shaderLine && !transition && shaderLabel.length > 0 && x >= 1 && x < 1 + shaderLabel.length) {
         const si = x - 1;
         if (si >= 0 && si < shaderLabel.length) {
           const dimFg = `\x1b[38;2;${DIM_STROKE[0]};${DIM_STROKE[1]};${DIM_STROKE[2]}m`;
@@ -404,8 +425,8 @@ export function compositeAndRender(grid, logoInfo, interiorMask, distField, cols
         }
       }
 
-      // --- Version badge (upper-right, line 0) ---
-      if (y === 0 && !transition && x >= cols - versionTag.length - 1 && x < cols - 1) {
+      // --- Version badge (upper-right, always line 0) ---
+      if (y === versionLine && !transition && x >= cols - versionTag.length - 1 && x < cols - 1) {
         const vi = x - (cols - versionTag.length - 1);
         if (vi >= 0 && vi < versionTag.length) {
           const dimFg = `\x1b[38;2;${DIM_STROKE[0]};${DIM_STROKE[1]};${DIM_STROKE[2]}m`;
@@ -415,8 +436,8 @@ export function compositeAndRender(grid, logoInfo, interiorMask, distField, cols
         }
       }
 
-      // --- FPS (upper-right, line 1) ---
-      if (y === 1 && !transition && fpsTag.length > 0 && x >= cols - fpsTag.length - 1 && x < cols - 1) {
+      // --- FPS (upper-right) ---
+      if (y === fpsLine && !transition && fpsTag.length > 0 && x >= cols - fpsTag.length - 1 && x < cols - 1) {
         const fi = x - (cols - fpsTag.length - 1);
         if (fi >= 0 && fi < fpsTag.length) {
           const dimFg = `\x1b[38;2;${DIM_STROKE[0]};${DIM_STROKE[1]};${DIM_STROKE[2]}m`;

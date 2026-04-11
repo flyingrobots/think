@@ -20,5 +20,6 @@ export const browseKeymap = createKeyMap()
     .bind('pagedown', 'Scroll down', { type: 'scroll', direction: 'down' }))
   .group('Actions', (group) => group
     .bind('r', 'Reflect', { type: 'reflect' })
+    .bind('m', 'Mind', { type: 'open_mind_switcher' })
     .bind('q', 'Quit', { type: 'quit' })
     .bind('escape', 'Close/Quit', { type: 'escape' }));

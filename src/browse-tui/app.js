@@ -4,12 +4,15 @@ import { createFramedApp, run } from '@flyingrobots/bijou-tui';
 import { thinkTheme } from './theme.js';
 import { selectLogo } from '../splash.js';
 import { shaderFrame, compositeAndRender, buildLogoMask, buildInteriorMask, buildDistanceFromOutline, getShaderCount, getShaderName, BG } from '../splash-shader.js';
+import { shaderForMind } from '../minds.js';
 import { createBrowsePage } from './page.js';
 import { buildBrowseOverlays } from './overlays.js';
 import { resolveHelpLine } from './resolve.js';
 
 export async function runBrowseTui({
   bootstrap,
+  minds = [],
+  activeMind = null,
   loadBrowseWindow = null,
   loadChronologyEntries = null,
   loadInspectEntry = null,
@@ -17,11 +20,6 @@ export async function runBrowseTui({
   startReflectSession = null,
   saveReflectSessionResponse = null,
 }) {
-  const splashResult = await showSplash();
-  if (splashResult === 'quit') {
-    return { type: 'quit' };
-  }
-
   const ctx = createBijou({
     runtime: nodeRuntime(),
     io: nodeIO(),
@@ -29,8 +27,13 @@ export async function runBrowseTui({
     theme: thinkTheme,
   });
 
+  const modelRef = { current: null };
+
   const browsePage = createBrowsePage({
     bootstrap,
+    minds,
+    activeMind,
+    modelRef,
     loadBrowseWindow,
     loadChronologyEntries,
     loadInspectEntry,
@@ -68,13 +71,18 @@ export async function runBrowseTui({
   process.stdout.write(`\x1b[48;2;${BG[0]};${BG[1]};${BG[2]}m`);
 
   await run(app, { ctx });
+
+  if (modelRef.current?.switchTarget) {
+    return { type: 'switch_mind', mind: modelRef.current.switchTarget };
+  }
   return { type: 'quit' };
 }
 
-function showSplash() {
+export function showSplash({ minds = [] } = {}) {
   let cols = process.stdout.columns || 80;
   let rows = process.stdout.rows || 24;
   const startTime = Date.now();
+  const multiMind = minds.length > 1;
 
   function rebuildLayout() {
     const { art, type } = selectLogo(cols, rows);
@@ -96,7 +104,10 @@ function showSplash() {
   let frameCount = 0;
   let fpsAccum = 0;
   let transition = null;
-  let shaderIndex = Math.floor(Math.random() * getShaderCount());
+  let mindIndex = 0;
+  let shaderIndex = minds.length > 0
+    ? shaderForMind(minds[0].name, getShaderCount())
+    : Math.floor(Math.random() * getShaderCount());
 
   function renderFrame() {
     const now = Date.now();
@@ -116,12 +127,13 @@ function showSplash() {
       transition.progress = Math.min(1.0, (now - transition.startTime) / 1500);
     }
 
+    const mindLabel = multiMind ? `◀ ${minds[mindIndex].name} ▶` : null;
     const hueAngle = elapsed * 0.0001;
     const grid = shaderFrame(cols, rows, elapsed, hueAngle, shaderIndex);
     const frame = compositeAndRender(
       grid, layout.logoInfo, layout.interiorMask, layout.distField,
       cols, rows, layout.logoType, elapsed, fps, transition,
-      getShaderName(shaderIndex)
+      getShaderName(shaderIndex), mindLabel
     );
     process.stdout.write('\x1b[H');
     process.stdout.write(frame);
@@ -143,6 +155,12 @@ function showSplash() {
     process.stdin.setRawMode(true);
     process.stdin.resume();
 
+    function cycleMind(delta) {
+      if (!multiMind) { return; }
+      mindIndex = (mindIndex + delta + minds.length) % minds.length;
+      shaderIndex = shaderForMind(minds[mindIndex].name, getShaderCount());
+    }
+
     function onData(data) {
       const seq = data.toString();
       const key = data[0];
@@ -152,17 +170,25 @@ function showSplash() {
           if (transition && transition.progress >= 1.0) {
             clearInterval(checkDone);
             cleanup();
-            resolve('enter');
+            resolve({ action: 'enter', mind: minds[mindIndex] ?? null });
           }
         }, 50);
       } else if (key === 113 || (key === 27 && data.length === 1)) { // q / Escape (not arrow seq)
         cleanup();
         process.stdout.write('\x1b[?25h');
         process.stdout.write('\x1b[?1049l');
-        resolve('quit');
-      } else if (seq === '\x1b[C' || key === 9) {        // Right / Tab — next shader
+        resolve({ action: 'quit' });
+      } else if (key === 9) {                              // Tab — next mind (or shader if single)
+        if (multiMind) {
+          cycleMind(1);
+        } else {
+          shaderIndex = (shaderIndex + 1) % getShaderCount();
+        }
+      } else if (seq === '\x1b[Z') {                       // Shift+Tab — previous mind
+        cycleMind(-1);
+      } else if (seq === '\x1b[C') {                       // Right — next shader
         shaderIndex = (shaderIndex + 1) % getShaderCount();
-      } else if (seq === '\x1b[D') {                      // Left — previous shader
+      } else if (seq === '\x1b[D') {                       // Left — previous shader
         shaderIndex = (shaderIndex - 1 + getShaderCount()) % getShaderCount();
       }
     }

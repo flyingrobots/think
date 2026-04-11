@@ -6,7 +6,7 @@ import {
   cpPageUp,
   cpSelectedItem,
 } from '@flyingrobots/bijou-tui';
-import { createJumpPalette, currentEntry, resolveJumpEntries } from './resolve.js';
+import { createJumpPalette, createMindPalette, currentEntry, resolveJumpEntries } from './resolve.js';
 import { closeReflectModel } from './reflect.js';
 import { createReflectSaveCommand } from './commands.js';
 import { applyBrowseAction } from './actions.js';
@@ -94,6 +94,68 @@ export function handleJumpKey(model, msg) {
       jumpPalette: cpFilter(
         createJumpPalette(resolveJumpEntries(model)),
         `${model.jumpPalette.query}${character}`
+      ),
+    },
+    effect: null,
+  };
+}
+
+export function handleMindKey(model, msg) {
+  if (model.panelMode !== 'mind') {
+    return null;
+  }
+
+  if (msg.key === 'escape') {
+    return applyBrowseAction(model, { type: 'close_panel' });
+  }
+
+  if (msg.key === 'enter') {
+    return applyBrowseAction(model, {
+      type: 'apply_mind_switch',
+      mindName: cpSelectedItem(model.mindPalette)?.id ?? null,
+    });
+  }
+
+  if (msg.key === 'backspace') {
+    return {
+      model: {
+        ...model,
+        mindPalette: cpFilter(
+          createMindPalette(model.minds),
+          model.mindPalette.query.slice(0, -1)
+        ),
+      },
+      effect: null,
+    };
+  }
+
+  if (msg.key === 'down' || (msg.ctrl && msg.key === 'n')) {
+    return { model: { ...model, mindPalette: cpFocusNext(model.mindPalette) }, effect: null };
+  }
+
+  if (msg.key === 'up' || (msg.ctrl && msg.key === 'p')) {
+    return { model: { ...model, mindPalette: cpFocusPrev(model.mindPalette) }, effect: null };
+  }
+
+  if (msg.key === 'pagedown' || (msg.ctrl && msg.key === 'd')) {
+    return { model: { ...model, mindPalette: cpPageDown(model.mindPalette) }, effect: null };
+  }
+
+  if (msg.key === 'pageup' || (msg.ctrl && msg.key === 'u')) {
+    return { model: { ...model, mindPalette: cpPageUp(model.mindPalette) }, effect: null };
+  }
+
+  const character = keyMsgToPrintableChar(msg);
+  if (!character) {
+    return { model, effect: null };
+  }
+
+  return {
+    model: {
+      ...model,
+      mindPalette: cpFilter(
+        createMindPalette(model.minds),
+        `${model.mindPalette.query}${character}`
       ),
     },
     effect: null,
