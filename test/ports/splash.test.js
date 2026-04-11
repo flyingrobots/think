@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { selectLogo, renderSplash } from '../../src/splash.js';
+import * as splashExports from '../../src/splash.js';
+
+const { selectLogo, renderSplash } = splashExports;
 import { createWindowedBrowseModel } from '../../src/browse-tui/model.js';
 
 test('selectLogo picks large mind logo when terminal is wide and tall enough', () => {
@@ -48,6 +50,14 @@ test('renderSplash output fits within the given dimensions', () => {
   const frame = renderSplash(cols, rows);
   const lines = frame.split('\n');
   assert.ok(lines.length <= rows, `Expected at most ${rows} lines, got ${lines.length}`);
+});
+
+test('splash.js does not export renderSplashView (dead code from RE-015 workaround)', () => {
+  assert.equal(
+    splashExports.renderSplashView,
+    undefined,
+    'Expected renderSplashView to be removed — it was dead code from the abandoned bijou surface path.'
+  );
 });
 
 test('renderSplash centers the prompt horizontally', () => {
