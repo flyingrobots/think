@@ -18,7 +18,7 @@ test('discoverMinds finds all valid repos under the think directory', async () =
   for (const name of ['alpha', 'beta', 'gamma']) {
     const mindDir = path.join(thinkDir, name);
     mkdirSync(mindDir, { recursive: true });
-    execSync('git init --bare', { cwd: mindDir, stdio: 'ignore' });
+    execSync('git init', { cwd: mindDir, stdio: 'ignore' });
   }
 
   const minds = discoverMinds(thinkDir);
@@ -36,7 +36,7 @@ test('discoverMinds ignores directories without git repos', async () => {
   // Valid mind
   const validDir = path.join(thinkDir, 'valid');
   mkdirSync(validDir, { recursive: true });
-  execSync('git init --bare', { cwd: validDir, stdio: 'ignore' });
+  execSync('git init', { cwd: validDir, stdio: 'ignore' });
 
   // Not a mind — just a plain directory (like metrics/)
   mkdirSync(path.join(thinkDir, 'metrics'), { recursive: true });
@@ -56,7 +56,7 @@ test('discoverMinds labels ~/.think/repo as "default"', async () => {
 
   const repoDir = path.join(thinkDir, 'repo');
   mkdirSync(repoDir, { recursive: true });
-  execSync('git init --bare', { cwd: repoDir, stdio: 'ignore' });
+  execSync('git init', { cwd: repoDir, stdio: 'ignore' });
 
   const minds = discoverMinds(thinkDir);
 
@@ -71,7 +71,7 @@ test('discoverMinds sorts with default first, then alphabetical', async () => {
   for (const name of ['work', 'repo', 'claude']) {
     const mindDir = path.join(thinkDir, name);
     mkdirSync(mindDir, { recursive: true });
-    execSync('git init --bare', { cwd: mindDir, stdio: 'ignore' });
+    execSync('git init', { cwd: mindDir, stdio: 'ignore' });
   }
 
   const minds = discoverMinds(thinkDir);
@@ -94,7 +94,7 @@ test('discoverMinds includes repoDir for each mind', async () => {
 
   const claudeDir = path.join(thinkDir, 'claude');
   mkdirSync(claudeDir, { recursive: true });
-  execSync('git init --bare', { cwd: claudeDir, stdio: 'ignore' });
+  execSync('git init', { cwd: claudeDir, stdio: 'ignore' });
 
   const minds = discoverMinds(thinkDir);
 
