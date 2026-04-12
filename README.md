@@ -1,6 +1,9 @@
-# Think
+<div align="center">
+<img src="./docs/assets/THINK-2.svg" />
+<h3>An instant thought-capture engine. Think records raw ideas the moment they appear.</h3>
+</div>
 
-An industrial-grade thought-capture engine for coding work. Think records raw ideas the moment they appear—before structure, before categories, before you forget.
+
 
 Think is designed for the operator who demands a stable foundation for their cognitive worldline. It scales from sub-second local capture to high-fidelity structural reflection across multi-mind archives.
 
