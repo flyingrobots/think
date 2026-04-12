@@ -1,17 +1,36 @@
-# Bearing
+# BEARING
 
-Updated: 2026-04-06
+Current direction and active tensions. Historical ship data is in `CHANGELOG.md`.
 
-## Where are we going?
+```mermaid
+timeline
+    Phase 1 : Capture Core : macOS Surface : UPSTREAM Backup
+    Phase 2 : Reflect Mode : Browse TUI : MCP Service
+    Phase 3 : Perf Profiling : SSJD Realization : Multi-Mind Maturation
+```
 
-Validation and hardening. `v0.5.0` is released. METHOD is adopted. Recent cycles have focused on capture-latency measurement, warm-path hardening, and adapter cleanup.
+## Active Gravity
 
-## What just shipped?
+### 1. Performance Hardening
+- Profiling CLI capture to identify Node startup and WARP graph bottlenecks.
+- Benchmark harness maturation for warm-path regression detection.
+- Sub-second capture latency as a non-negotiable target.
 
-Cycle 0008 — pruned stale `bad-code` backlog debt. The shipped shared-path-search and CONTRIBUTING refresh slices are no longer listed as open bad-code work, and release-discipline wording is now aligned across the current METHOD docs.
+### 2. Domain Integrity (SSJD)
+- Refactoring the MCP service layer to move from "shape soup" to runtime-backed domain types.
+- Standardizing function signatures and boundary validation across the store and CLI layers.
 
-## What feels wrong?
+### 3. Orientation & Re-entry
+- Learning where the browse and remember surfaces fail through re-entry friction tracking.
+- Tuning hotkey ergonomics and macOS URL scheme reliability.
 
-- **~2 seconds per capture is slow.** The benchmark reveals that CLI capture is dominated by Node startup and WARP graph overhead. A profiling cycle could find optimization targets.
-- **Shape soup in the MCP service layer.** Plain objects, no runtime-backed domain types. SSJD debt.
-- **The remaining up-next items are all observation/validation work.** That's correct for this phase.
+## Tensions
+
+- **Capture Latency**: Current Medians (~2s) exceed the "trapdoor" doctrine target.
+- **Service Layer Debt**: The MCP layer lacks explicit domain model enforcement (plain objects only).
+- **Multiple Minds UX**: Mind-switching in the TUI is powerful but needs smoother orchestration for agents.
+- **Upstream Friction**: Provisioning a day-one backup remote remains too manual.
+
+## Next Target
+
+The immediate focus is **Performance Profiling** to neutralize capture latency and ensure the "Sacred Capture" moment remains truly cheap.
