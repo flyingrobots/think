@@ -10,7 +10,7 @@ Release discipline:
 - `package.json` version is bumped on the release commit
 - a Git tag is created on the commit that lands on `main` for that release
 
-## [0.7.0] - Unreleased
+## [0.7.0] - 2026-04-11
 
 - added `think --doctor` health check command — reports think directory, local repo, graph model version, entry count, and upstream reachability (with `git ls-remote` connectivity test)
 - added `doctor` MCP tool exposing the same structured health checks to agents
