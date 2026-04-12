@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  CaptureProvenance,
   VALID_CAPTURE_INGRESSES,
   captureProvenanceFromEnvironment,
   normalizeCaptureProvenance,
@@ -16,35 +17,25 @@ test('capture provenance exports the canonical ingress set', () => {
 });
 
 test('capture provenance trims source strings while preserving valid ingress and URL', () => {
-  assert.deepEqual(
-    normalizeCaptureProvenance({
-      ingress: 'share',
-      sourceApp: '  Safari  ',
-      sourceURL: 'https://example.com/article',
-    }),
-    {
-      ingress: 'share',
-      sourceApp: 'Safari',
-      sourceURL: 'https://example.com/article',
-    },
-    'Expected provenance normalization to trim additive string fields.'
-  );
+  const result = normalizeCaptureProvenance({
+    ingress: 'share',
+    sourceApp: '  Safari  ',
+    sourceURL: 'https://example.com/article',
+  });
+  assert.equal(result.ingress, 'share');
+  assert.equal(result.sourceApp, 'Safari');
+  assert.equal(result.sourceURL, 'https://example.com/article');
 });
 
 test('capture provenance trims ingress strings before validation', () => {
-  assert.deepEqual(
-    normalizeCaptureProvenance({
-      ingress: '  url  ',
-      sourceApp: '  Safari  ',
-      sourceURL: 'https://example.com/article',
-    }),
-    {
-      ingress: 'url',
-      sourceApp: 'Safari',
-      sourceURL: 'https://example.com/article',
-    },
-    'Expected ingress normalization to accept valid values with surrounding whitespace.'
-  );
+  const result = normalizeCaptureProvenance({
+    ingress: '  url  ',
+    sourceApp: '  Safari  ',
+    sourceURL: 'https://example.com/article',
+  });
+  assert.equal(result.ingress, 'url');
+  assert.equal(result.sourceApp, 'Safari');
+  assert.equal(result.sourceURL, 'https://example.com/article');
 });
 
 test('capture provenance rejects dangerous URL schemes', () => {
@@ -76,18 +67,25 @@ test('capture provenance accepts safe URL schemes', () => {
   }
 });
 
+test('normalizeCaptureProvenance returns a frozen CaptureProvenance instance', () => {
+  const result = normalizeCaptureProvenance({
+    ingress: 'url',
+    sourceApp: 'Safari',
+    sourceURL: 'https://example.com',
+  });
+
+  assert.ok(result instanceof CaptureProvenance, 'Expected CaptureProvenance instance.');
+  assert.ok(Object.isFrozen(result), 'Expected frozen.');
+});
+
 test('capture provenance reads and normalizes environment input', () => {
-  assert.deepEqual(
-    captureProvenanceFromEnvironment({
-      THINK_CAPTURE_INGRESS: 'selected_text',
-      THINK_CAPTURE_SOURCE_APP: '  Mail  ',
-      THINK_CAPTURE_SOURCE_URL: 'https://example.com/share',
-    }),
-    {
-      ingress: 'selected_text',
-      sourceApp: 'Mail',
-      sourceURL: 'https://example.com/share',
-    },
-    'Expected environment-derived provenance to be normalized like other capture surfaces.'
-  );
+  const result = captureProvenanceFromEnvironment({
+    THINK_CAPTURE_INGRESS: 'selected_text',
+    THINK_CAPTURE_SOURCE_APP: '  Mail  ',
+    THINK_CAPTURE_SOURCE_URL: 'https://example.com/share',
+  });
+  assert.ok(result instanceof CaptureProvenance, 'Expected CaptureProvenance from environment.');
+  assert.equal(result.ingress, 'selected_text');
+  assert.equal(result.sourceApp, 'Mail');
+  assert.equal(result.sourceURL, 'https://example.com/share');
 });
