@@ -6,7 +6,7 @@ Status: accepted addendum; implemented in the CLI
 
 Define a minimal read-only stats surface that helps validate capture habit without turning `think` into a dashboard.
 
-This command exists to support the success metrics in [`0004-modes-and-success-metrics.md`](./0004-modes-and-success-metrics.md), especially:
+This command exists to support the success metrics in [`0004-modes-and-success-metrics.md`](../0004-modes-and-success-metrics.md), especially:
 
 - rolling average entries per day
 - rough daily capture volume

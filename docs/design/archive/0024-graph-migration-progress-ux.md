@@ -34,7 +34,7 @@ If an interactive human flow upgrades an outdated thought graph, the user sees a
 
 This note does not:
 
-- change the migration gating policy from [`0021-graph-migration-gating.md`](./0021-graph-migration-gating.md)
+- change the migration gating policy from [`0021-graph-migration-gating.md`](../0021-graph-migration-gating.md)
 - block raw capture on migration
 - redesign browse, inspect, or reflect
 - require exact patch-by-patch migration percentages if the substrate cannot provide them honestly
@@ -221,7 +221,7 @@ That follow-through is out of scope for this note.
 
 ## Relationship To 0021
 
-This note does not replace [`0021-graph-migration-gating.md`](./0021-graph-migration-gating.md).
+This note does not replace [`0021-graph-migration-gating.md`](../0021-graph-migration-gating.md).
 
 `0021` answers:
 

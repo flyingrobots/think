@@ -18,7 +18,7 @@ That is useful, but it is not yet the honest machinery view that `inspect` is su
 The next slice should not be “more graph.”
 It should be the smallest derivation substrate that gives `inspect` and later `browse` real receipts.
 
-For the consolidated per-thought catalog of what is derived, when, and with what payload, see [`0015-per-thought-derivation-catalog.md`](./0015-per-thought-derivation-catalog.md).
+For the consolidated per-thought catalog of what is derived, when, and with what payload, see [`0015-per-thought-derivation-catalog.md`](../0015-per-thought-derivation-catalog.md).
 
 ## Sponsor User
 
@@ -188,8 +188,8 @@ Those belong later.
 
 This note inherits the standing rules from:
 
-- [`0009-graph-derivation-model.md`](./0009-graph-derivation-model.md)
-- [`0010-ingress-and-derivation-pipeline.md`](./0010-ingress-and-derivation-pipeline.md)
+- [`0009-graph-derivation-model.md`](../0009-graph-derivation-model.md)
+- [`0010-ingress-and-derivation-pipeline.md`](../0010-ingress-and-derivation-pipeline.md)
 
 The important consequences here are:
 

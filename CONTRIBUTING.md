@@ -21,10 +21,10 @@ If a change makes capture slower, smarter, noisier, or more demanding, it is pro
 If you are new to the repo, start here:
 
 1. [README.md](./README.md)
-2. [docs/GUIDE.md](./docs/GUIDE.md)
+2. [GUIDE.md](./GUIDE.md)
 3. [docs/BEARING.md](./docs/BEARING.md)
 4. [docs/VISION.md](./docs/VISION.md)
-5. [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
+5. [ARCHITECTURE.md](./ARCHITECTURE.md)
 6. [docs/method/process.md](./docs/method/process.md)
 7. [docs/SYSTEMS_STYLE_JAVASCRIPT.md](./docs/SYSTEMS_STYLE_JAVASCRIPT.md)
 
@@ -92,7 +92,7 @@ npm run benchmark:browse
 
 New JavaScript should follow [System-Style JavaScript](./docs/SYSTEMS_STYLE_JAVASCRIPT.md): runtime-backed domain concepts, boundary validation, explicit ownership of behavior, and narrow seams instead of object-shape soup.
 
-Read [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) before making structural changes. Do not let storage concerns leak into normal UX, and do not let surface-specific concerns infect the capture core.
+Read [`ARCHITECTURE.md`](./ARCHITECTURE.md) before making structural changes. Do not let storage concerns leak into normal UX, and do not let surface-specific concerns infect the capture core.
 
 ## Release discipline
 
