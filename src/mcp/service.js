@@ -3,6 +3,7 @@ import { ensureGitRepo, hasGitRepo, lsRemote, pushWarpRefs } from '../git.js';
 import { getLocalRepoDir, getThinkDir, getUpstreamUrl } from '../paths.js';
 import { capturePolicy } from '../policies.js';
 import { normalizeCaptureProvenance } from '../capture-provenance.js';
+import { getCaptureAmbientContext, getAmbientProjectContext } from '../project-context.js';
 import {
   finalizeCapturedThought,
   getBrowseWindow,
@@ -45,6 +46,7 @@ export async function captureThought(text, { provenance = null } = {}) {
   const { entry, migration, warnings } = await capturePolicy.execute(async () => {
     const saved = await saveRawCapture(repoDir, thought, {
       provenance: captureProvenance,
+      ambientContext: getCaptureAmbientContext(process.cwd()),
     });
     let mig = null;
     const warns = [];
@@ -52,6 +54,7 @@ export async function captureThought(text, { provenance = null } = {}) {
     try {
       const followthrough = await finalizeCapturedThought(repoDir, saved.id, {
         migrateIfNeeded: graphStatus.migrationRequired,
+        ambientContext: getAmbientProjectContext(process.cwd()),
       });
       mig = followthrough.migration ?? null;
     } catch (error) {

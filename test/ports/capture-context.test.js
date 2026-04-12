@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { ensureGitRepo } from '../../src/git.js';
+import { getCaptureAmbientContext, getAmbientProjectContext } from '../../src/project-context.js';
 import {
   finalizeCapturedThought,
   openProductReadHandle,
@@ -38,7 +39,7 @@ test('saveRawCapture writes cwd receipts first and defers git enrichment to foll
   );
 
   const entry = await saveRawCapture(localRepoDir, 'capture should stay cheap', {
-    cwd: projectRepoDir,
+    ambientContext: getCaptureAmbientContext(projectRepoDir),
   });
   const readBeforeFollowthrough = await openProductReadHandle(localRepoDir);
   const savedBeforeFollowthrough = await readBeforeFollowthrough.view.getNodeProps(entry.id);
@@ -50,7 +51,7 @@ test('saveRawCapture writes cwd receipts first and defers git enrichment to foll
   assert.equal(savedBeforeFollowthrough.ambientGitBranch ?? null, null, 'Expected git branch enrichment to be deferred until followthrough.');
 
   const followthrough = await finalizeCapturedThought(localRepoDir, entry.id, {
-    cwd: projectRepoDir,
+    ambientContext: getAmbientProjectContext(projectRepoDir),
   });
   const readAfterFollowthrough = await openProductReadHandle(localRepoDir);
   const savedAfterFollowthrough = await readAfterFollowthrough.view.getNodeProps(entry.id);

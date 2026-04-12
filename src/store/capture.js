@@ -1,7 +1,3 @@
-import {
-  getAmbientProjectContext,
-  getCaptureAmbientContext,
-} from '../project-context.js';
 import { normalizeCaptureProvenance } from '../capture-provenance.js';
 import { TEXT_MIME } from './constants.js';
 import { createEntry } from './model.js';
@@ -17,12 +13,11 @@ import { migrateGraphModel } from './migrations.js';
 
 export async function saveRawCapture(repoDir, thought, {
   provenance = null,
-  cwd = process.cwd(),
   ambientContext = null,
 } = {}) {
   const app = await openWarpApp(repoDir);
   const entry = createEntry(thought, app.writerId, { kind: 'capture', source: 'capture' });
-  const captureAmbientContext = ambientContext ?? getCaptureAmbientContext(cwd);
+  const captureAmbientContext = ambientContext;
   // Keep the store boundary defensive because direct callers can bypass the
   // CLI and MCP normalization helpers before reaching persistence.
   const captureProvenance = normalizeCaptureProvenance(provenance);
@@ -56,7 +51,6 @@ export async function saveRawCapture(repoDir, thought, {
 
 export async function finalizeCapturedThought(repoDir, entryId, {
   migrateIfNeeded = false,
-  cwd = process.cwd(),
   ambientContext = null,
 } = {}) {
   const app = await openWarpApp(repoDir);
@@ -70,8 +64,9 @@ export async function finalizeCapturedThought(repoDir, entryId, {
     };
   }
 
-  const resolvedAmbientContext = ambientContext ?? getAmbientProjectContext(cwd);
-  await patchAmbientContext(app, entryId, resolvedAmbientContext);
+  if (ambientContext) {
+    await patchAmbientContext(app, entryId, ambientContext);
+  }
   read = await createProductReadHandle(app);
   entry = await getStoredEntry(read, entryId);
 

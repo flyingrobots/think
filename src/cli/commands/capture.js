@@ -1,5 +1,6 @@
 import { ensureGitRepo, hasGitRepo, pushWarpRefs } from '../../git.js';
 import { captureProvenanceFromEnvironment } from '../../capture-provenance.js';
+import { getCaptureAmbientContext, getAmbientProjectContext } from '../../project-context.js';
 import { getLocalRepoDir, getUpstreamUrl } from '../../paths.js';
 import {
   finalizeCapturedThought,
@@ -34,9 +35,10 @@ export async function runCapture(thought, output, reporter) {
         migrationRequired: false,
       };
   const provenance = captureProvenanceFromEnvironment(process.env);
+  const ambientContext = getCaptureAmbientContext(process.cwd());
 
   reporter.event('capture.local_save.start');
-  const entry = await saveRawCapture(repoDir, thought, { provenance });
+  const entry = await saveRawCapture(repoDir, thought, { provenance, ambientContext });
   reporter.event('capture.local_save.done', { entryId: entry.id });
 
   output.out('Saved locally', 'capture.status', {
@@ -57,6 +59,7 @@ export async function runCapture(thought, output, reporter) {
 
     const followthrough = await finalizeCapturedThought(repoDir, entry.id, {
       migrateIfNeeded: graphStatus.migrationRequired,
+      ambientContext: getAmbientProjectContext(process.cwd()),
     });
 
     if (graphStatus.migrationRequired) {
