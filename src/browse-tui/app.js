@@ -8,7 +8,6 @@ import { shaderForMind } from '../minds.js';
 import { createBrowsePage } from './page.js';
 import { buildBrowseOverlays } from './overlays.js';
 import { resolveHelpLine } from './resolve.js';
-import { BG_TOKEN } from './style.js';
 
 export async function runBrowseTui({
   bootstrap,
@@ -59,11 +58,11 @@ export async function runBrowseTui({
   });
 
   const app = createFramedApp({
+    ctx,
     pages: [browsePage],
     keyPriority: 'page-first',
     bodyTopRows: 1,
     bodyBottomRows: 1,
-    bgToken: BG_TOKEN,
     helpLineSource: ({ model }) => {
       const pageModel = model.pageModels?.[browsePage.id];
       if (!pageModel) {
