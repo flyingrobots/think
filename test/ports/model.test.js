@@ -47,7 +47,7 @@ test('createReflectSession returns a ReflectSession instance', () => {
   assert.ok(session instanceof ReflectSession, 'Expected session to be a ReflectSession instance.');
   assert.equal(session.seedEntryId, 'entry:123');
   assert.equal(session.promptType, 'challenge');
-  assert.ok(session.id.startsWith('reflect-session:'), 'Expected id to have session prefix.');
+  assert.ok(session.id.startsWith('reflect:'), 'Expected id to have session prefix.');
 });
 
 test('ReflectSession is frozen', () => {

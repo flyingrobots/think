@@ -103,51 +103,81 @@ export function createWriterId() {
   return `local.${safeHostname}.cli`;
 }
 
-export function createEntry(text, writerId, { kind, source }) {
-  const timestamp = getCurrentTime();
-  const unique = randomUUID();
-  const createdAt = timestamp.toISOString();
-  const sortKey = `${String(timestamp.getTime()).padStart(13, '0')}-${unique}`;
-
-  return {
-    id: `${ENTRY_PREFIX}${sortKey}`,
+export class Entry {
+  constructor(text, writerId, {
     kind,
     source,
-    channel: 'cli',
-    writerId,
-    createdAt,
-    sortKey,
-    text,
-  };
+    seedEntryId = null,
+    contrastEntryId = null,
+    sessionId = null,
+    promptType = null,
+  }) {
+    if (!text || typeof text !== 'string') {
+      throw new Error('Entry: text is required and must be a non-empty string');
+    }
+    if (!writerId || typeof writerId !== 'string') {
+      throw new Error('Entry: writerId is required and must be a non-empty string');
+    }
+
+    const timestamp = getCurrentTime();
+    const unique = randomUUID();
+    const createdAt = timestamp.toISOString();
+    const sortKey = `${String(timestamp.getTime()).padStart(13, '0')}-${unique}`;
+
+    this.id = `${ENTRY_PREFIX}${sortKey}`;
+    this.kind = kind;
+    this.source = source;
+    this.channel = 'cli';
+    this.writerId = writerId;
+    this.createdAt = createdAt;
+    this.sortKey = sortKey;
+    this.text = text;
+    this.seedEntryId = seedEntryId;
+    this.contrastEntryId = contrastEntryId;
+    this.sessionId = sessionId;
+    this.promptType = promptType;
+
+    Object.freeze(this);
+  }
 }
 
-export function createReflectSession(writerId, {
-  seedEntryId,
-  contrastEntryId,
-  promptType,
-  question,
-  selectionReason,
-}) {
-  const timestamp = getCurrentTime();
-  const createdAt = timestamp.toISOString();
-  const unique = randomUUID();
-  const sortKey = `${String(timestamp.getTime()).padStart(13, '0')}-${unique}`;
+export function createEntry(text, writerId, options) {
+  return new Entry(text, writerId, options);
+}
 
-  return {
-    id: `${REFLECT_SESSION_PREFIX}${unique}`,
-    kind: 'reflect_session',
-    source: 'reflect',
-    channel: 'cli',
-    writerId,
-    createdAt,
-    sortKey,
+export class ReflectSession {
+  constructor(writerId, {
     seedEntryId,
     contrastEntryId,
     promptType,
     question,
     selectionReason,
-    maxSteps: MAX_REFLECT_STEPS,
-  };
+  }) {
+    const timestamp = getCurrentTime();
+    const createdAt = timestamp.toISOString();
+    const unique = randomUUID();
+    const sortKey = `${String(timestamp.getTime()).padStart(13, '0')}-${unique}`;
+
+    this.id = `${REFLECT_SESSION_PREFIX}${unique}`;
+    this.kind = 'reflect_session';
+    this.source = 'reflect';
+    this.channel = 'cli';
+    this.writerId = writerId;
+    this.createdAt = createdAt;
+    this.sortKey = sortKey;
+    this.seedEntryId = seedEntryId;
+    this.contrastEntryId = contrastEntryId;
+    this.promptType = promptType;
+    this.question = question;
+    this.selectionReason = selectionReason;
+    this.maxSteps = MAX_REFLECT_STEPS;
+
+    Object.freeze(this);
+  }
+}
+
+export function createReflectSession(writerId, options) {
+  return new ReflectSession(writerId, options);
 }
 
 export function compareEntriesNewestFirst(left, right) {

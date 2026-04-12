@@ -110,12 +110,11 @@ export async function saveReflectResponse(repoDir, sessionId, response) {
   const entry = createEntry(response, app.writerId, {
     kind: 'reflect',
     source: 'reflect',
+    seedEntryId: session.seedEntryId,
+    contrastEntryId: session.contrastEntryId,
+    sessionId: session.id,
+    promptType: session.promptType,
   });
-
-  entry.seedEntryId = session.seedEntryId;
-  entry.contrastEntryId = session.contrastEntryId;
-  entry.sessionId = session.id;
-  entry.promptType = session.promptType;
 
   await app.patch(async patch => {
     patch
