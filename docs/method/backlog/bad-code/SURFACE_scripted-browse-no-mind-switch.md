@@ -1,3 +1,10 @@
+---
+id: SURFACE_scripted-browse-no-mind-switch
+blocks: []
+blocked_by:
+  - DX-018-explicit-mind-management
+---
+
 # Scripted browse path does not support switch_mind action
 
 The scripted browse test runner (`src/browse-tui/script.js`) does not

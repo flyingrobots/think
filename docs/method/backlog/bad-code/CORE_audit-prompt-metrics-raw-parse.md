@@ -1,3 +1,10 @@
+---
+id: CORE_audit-prompt-metrics-raw-parse
+blocks:
+  - CORE_ssjr-src-store-prompt-metrics
+blocked_by: []
+---
+
 # Prompt metrics parsing is still a raw JSONL pipeline
 
 `src/store/prompt-metrics.js` reads the whole file, parses line-by-line into anonymous objects, and lets downstream aggregation assume shape.

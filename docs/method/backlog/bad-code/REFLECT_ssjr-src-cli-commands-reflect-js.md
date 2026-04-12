@@ -1,3 +1,11 @@
+---
+id: REFLECT_ssjr-src-cli-commands-reflect
+blocks: []
+blocked_by:
+  - CORE_ssjr-src-store-queries
+  - SURFACE_ssjr-src-cli-options
+---
+
 # Raise SSJR grades for `src/cli/commands/reflect.js`
 
 Current SSJR sanity check: `Hex C`, `P1 C`, `P2 B`, `P3 C`, `P4 B`, `P5 B`, `P6 C`, `P7 C`.

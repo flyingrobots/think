@@ -1,3 +1,11 @@
+---
+id: HT-007-remediation-payloads-in-json-errors
+blocks:
+  - SURFACE_ssjr-src-cli-output
+blocked_by:
+  - CORE_audit-no-error-taxonomy
+---
+
 # HT-007 — Remediation Payloads in JSON Errors
 
 Legend: [CORE — Core Bedrock](../../legends/CORE.md)

@@ -1,3 +1,9 @@
+---
+id: SURFACE_ssjr-bin-think-mcp
+blocks: []
+blocked_by: []
+---
+
 # Raise SSJR grades for `bin/think-mcp.js`
 
 Current SSJR sanity check: `Hex B`, `P1 B`, `P2 B`, `P3 B`, `P4 B`, `P6 B`.

@@ -1,3 +1,10 @@
+---
+id: SURFACE_mind-switch-loop-in-command
+blocks: []
+blocked_by:
+  - DX-018-explicit-mind-management
+---
+
 # Mind-switch loop embedded in command layer
 
 The mind-switching orchestration (re-bootstrap, re-open graph store,

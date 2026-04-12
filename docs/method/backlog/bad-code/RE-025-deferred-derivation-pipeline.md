@@ -1,3 +1,12 @@
+---
+id: RE-025-deferred-derivation-pipeline
+blocks:
+  - REFLECT_ssjr-src-store-derivation
+blocked_by:
+  - CORE_audit-capture-path-sync-git
+  - CORE_ssjr-src-store-capture
+---
+
 # RE-025 — Deferred Derivation Pipeline
 
 Legend: [RE — Runtime Engine](../../legends/RE-runtime-engine.md)

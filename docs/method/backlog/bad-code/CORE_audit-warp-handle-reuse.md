@@ -1,3 +1,10 @@
+---
+id: CORE_audit-warp-handle-reuse
+blocks:
+  - CORE_ssjr-src-store-runtime
+blocked_by: []
+---
+
 # openWarpApp handle reuse
 
 `openWarpApp` is called multiple times across `saveRawCapture` and

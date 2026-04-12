@@ -1,3 +1,9 @@
+---
+id: SURFACE_audit-missing-code-of-conduct
+blocks: []
+blocked_by: []
+---
+
 # Repo is missing a `CODE_OF_CONDUCT.md`
 
 Think already has `CONTRIBUTING.md`, `CHANGELOG.md`, and `SECURITY.md`, but it still lacks the normal conduct policy file contributors expect in a public repository.

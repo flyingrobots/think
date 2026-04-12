@@ -1,3 +1,10 @@
+---
+id: SURFACE_audit-cli-dispatch-chain
+blocks:
+  - SURFACE_ssjr-src-cli
+blocked_by: []
+---
+
 # CLI dispatch is still a stringly `if/else` ladder
 
 The top-level CLI command path in `src/cli.js` is still an `if/else` dispatch chain keyed by strings.

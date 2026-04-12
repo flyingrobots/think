@@ -1,3 +1,12 @@
+---
+id: SURFACE_ssjr-src-cli-commands-read
+blocks: []
+blocked_by:
+  - CORE_ssjr-src-store-queries
+  - SURFACE_ssjr-src-cli-options
+  - SURFACE_ssjr-src-verbose
+---
+
 # Raise SSJR grades for `src/cli/commands/read.js`
 
 Current SSJR sanity check: `Hex C`, `P1 C`, `P2 B`, `P3 D`, `P4 B`, `P5 B`, `P6 C`, `P7 D`.

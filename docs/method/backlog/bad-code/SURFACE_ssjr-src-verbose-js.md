@@ -1,3 +1,11 @@
+---
+id: SURFACE_ssjr-src-verbose
+blocks:
+  - SURFACE_ssjr-src-cli-commands-capture
+  - SURFACE_ssjr-src-cli-commands-read
+blocked_by: []
+---
+
 # Raise SSJR grades for `src/verbose.js`
 
 Current SSJR sanity check: `Hex A`, `P1 B`, `P2 B`, `P3 B`, `P4 B`, `P6 B`.

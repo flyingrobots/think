@@ -1,3 +1,11 @@
+---
+id: CORE_audit-capture-path-sync-git
+blocks:
+  - CORE_ssjr-src-capture-provenance
+  - RE-025-deferred-derivation-pipeline
+blocked_by: []
+---
+
 # Capture path still shells out to `git` synchronously
 
 `saveRawCapture()` calls `getAmbientProjectContext(process.cwd())`, and that helper runs three `spawnSync('git', ...)` probes.

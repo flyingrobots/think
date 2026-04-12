@@ -1,3 +1,11 @@
+---
+id: SURFACE_ssjr-src-mcp-result
+blocks:
+  - SURFACE_ssjr-src-mcp-server
+blocked_by:
+  - SURFACE_ssjr-src-mcp-service
+---
+
 # Raise SSJR grades for `src/mcp/result.js`
 
 Current SSJR sanity check: `Hex A`, `P1 B`, `P2 B`, `P4 B`.

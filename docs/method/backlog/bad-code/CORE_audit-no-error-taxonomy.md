@@ -1,3 +1,11 @@
+---
+id: CORE_audit-no-error-taxonomy
+blocks:
+  - HT-007-remediation-payloads-in-json-errors
+  - SURFACE_audit-cli-generic-errors
+blocked_by: []
+---
+
 # Cross-surface failures still lack a typed error taxonomy
 
 CLI, MCP, and store paths still throw or translate many failures as raw `Error` objects or generic strings.

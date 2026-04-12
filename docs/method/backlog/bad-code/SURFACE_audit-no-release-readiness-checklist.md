@@ -1,3 +1,9 @@
+---
+id: SURFACE_audit-no-release-readiness-checklist
+blocks: []
+blocked_by: []
+---
+
 # Repo lacks a release-readiness smoke bundle
 
 Think has CI, tests, and design discipline, but there is no small, explicit release-readiness checklist or smoke command that proves the CLI, MCP surface, and macOS surface are all still coherent before a handoff.

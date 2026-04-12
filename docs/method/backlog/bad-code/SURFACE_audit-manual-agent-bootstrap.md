@@ -1,3 +1,9 @@
+---
+id: SURFACE_audit-manual-agent-bootstrap
+blocks: []
+blocked_by: []
+---
+
 # Manual agent bootstrap is still hand-rolled
 
 The current onboarding story still asks users to assemble agent wrappers and MCP config manually. See the `agent-think` heredoc in `docs/GUIDE.md` and the separate MCP setup prose in `README.md`.

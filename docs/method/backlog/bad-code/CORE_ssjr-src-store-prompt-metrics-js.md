@@ -1,3 +1,11 @@
+---
+id: CORE_ssjr-src-store-prompt-metrics
+blocks: []
+blocked_by:
+  - CORE_audit-prompt-metrics-raw-parse
+  - CORE_audit-prompt-metrics-io-port
+---
+
 # Raise SSJR grades for `src/store/prompt-metrics.js`
 
 Current SSJR sanity check: `Hex B`, `P1 C`, `P2 C`, `P3 B`, `P4 C`, `P6 B`, `P7 B`.

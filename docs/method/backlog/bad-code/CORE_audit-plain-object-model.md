@@ -1,3 +1,10 @@
+---
+id: CORE_audit-plain-object-model
+blocks:
+  - CORE_ssjr-src-store-model
+blocked_by: []
+---
+
 # Core entry and session concepts are still plain objects
 
 `src/store/model.js` returns raw objects for entries and reflect sessions even though these are identity-bearing, meaning-heavy domain concepts.

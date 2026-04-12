@@ -1,3 +1,10 @@
+---
+id: CORE_ssjr-src-store-migrations
+blocks:
+  - SURFACE_ssjr-src-cli-graph-gate
+blocked_by: []
+---
+
 # Raise SSJR grades for `src/store/migrations.js`
 
 Current SSJR sanity check: `Hex B`, `P1 D`, `P2 C`, `P3 C`, `P4 C`, `P6 B`, `P7 D`.

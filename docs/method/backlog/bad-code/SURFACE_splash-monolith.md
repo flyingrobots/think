@@ -1,3 +1,9 @@
+---
+id: SURFACE_splash-monolith
+blocks: []
+blocked_by: []
+---
+
 # showSplash is a 126-line monolith mixing animation and I/O
 
 `showSplash()` directly manages process.stdout, raw mode, frame

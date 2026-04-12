@@ -1,3 +1,9 @@
+---
+id: SURFACE_browse-fade-in-single-color
+blocks: []
+blocked_by: []
+---
+
 # Browse fade-in uses single color for all text
 
 The splash-to-browse fade-in lerps all text from BG toward cream.

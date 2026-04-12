@@ -1,3 +1,11 @@
+---
+id: CORE_ssjr-src-git
+blocks:
+  - CORE_ssjr-src-project-context
+blocked_by:
+  - CORE_audit-git-binary-path-trust
+---
+
 # Raise SSJR grades for `src/git.js`
 
 Current SSJR sanity check: `Hex A`, `P1 B`, `P2 B`, `P3 B`, `P4 B`, `P6 B`, `P7 B`.

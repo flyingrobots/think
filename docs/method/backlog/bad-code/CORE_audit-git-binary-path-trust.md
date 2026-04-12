@@ -1,3 +1,10 @@
+---
+id: CORE_audit-git-binary-path-trust
+blocks:
+  - CORE_ssjr-src-git
+blocked_by: []
+---
+
 # Git execution still trusts ambient PATH lookup
 
 Think invokes `git` by bare command name from `src/project-context.js` and `src/git.js`.

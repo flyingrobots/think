@@ -1,3 +1,9 @@
+---
+id: SURFACE_audit-readme-missing-git-requirement
+blocks: []
+blocked_by: []
+---
+
 # README install requirements omit Git
 
 `README.md` lists Node.js and the optional macOS toolchain as requirements, but Think shells out to `git` for storage, ambient context, and backup.

@@ -1,3 +1,10 @@
+---
+id: CORE_audit-prompt-metrics-io-port
+blocks:
+  - CORE_ssjr-src-store-prompt-metrics
+blocked_by: []
+---
+
 # Prompt metrics testability: IOPort abstraction
 
 Testing macOS panel telemetry requires reading from a physical

@@ -1,3 +1,10 @@
+---
+id: SURFACE_ssjr-src-cli-graph-gate
+blocks: []
+blocked_by:
+  - CORE_ssjr-src-store-migrations
+---
+
 # Raise SSJR grades for `src/cli/graph-gate.js`
 
 Current SSJR sanity check: `Hex B`, `P1 B`, `P2 B`, `P3 B`, `P4 B`, `P6 B`, `P7 B`.

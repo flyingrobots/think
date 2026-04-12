@@ -1,3 +1,10 @@
+---
+id: SURFACE_audit-cli-options-bag
+blocks:
+  - SURFACE_ssjr-src-cli-options
+blocked_by: []
+---
+
 # CLI parsing still depends on one large options bag
 
 `src/cli/options.js` builds a large procedural options object and validates it later through command-specific conditionals.

@@ -1,3 +1,11 @@
+---
+id: REFLECT_ssjr-src-store-reflect
+blocks: []
+blocked_by:
+  - CORE_ssjr-src-store-model
+  - CORE_ssjr-src-store-runtime
+---
+
 # Raise SSJR grades for `src/store/reflect.js`
 
 Current SSJR sanity check: `Hex B`, `P1 D`, `P2 C`, `P3 C`, `P4 C`, `P5 B`, `P6 B`, `P7 D`.

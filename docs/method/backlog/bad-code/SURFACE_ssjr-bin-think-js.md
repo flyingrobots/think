@@ -1,3 +1,10 @@
+---
+id: SURFACE_ssjr-bin-think
+blocks: []
+blocked_by:
+  - SURFACE_ssjr-src-cli
+---
+
 # Raise SSJR grades for `bin/think.js`
 
 Current SSJR sanity check: `Hex A`, `P1 B`, `P2 B`, `P3 B`, `P4 B`, `P6 B`.

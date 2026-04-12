@@ -1,3 +1,9 @@
+---
+id: CORE_ssjr-src-store
+blocks: []
+blocked_by: []
+---
+
 # Raise SSJR grades for `src/store.js`
 
 Current SSJR sanity check: `Hex B`, `P1 B`, `P2 B`, `P3 B`, `P4 B`.

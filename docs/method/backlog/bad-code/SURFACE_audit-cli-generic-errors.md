@@ -1,3 +1,10 @@
+---
+id: SURFACE_audit-cli-generic-errors
+blocks: []
+blocked_by:
+  - CORE_audit-no-error-taxonomy
+---
+
 # CLI still hides too much behind a generic top-level error
 
 `src/cli.js` catches unexpected failures and tells the default human path only `Something went wrong`.

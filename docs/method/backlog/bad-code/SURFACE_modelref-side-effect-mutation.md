@@ -1,3 +1,9 @@
+---
+id: SURFACE_modelref-side-effect-mutation
+blocks: []
+blocked_by: []
+---
+
 # modelRef side-effect mutation in browse page
 
 The browse page updates model state in two places: the immutable

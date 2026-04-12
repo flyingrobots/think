@@ -1,3 +1,9 @@
+---
+id: SURFACE_ssjr-src-browse-benchmark
+blocks: []
+blocked_by: []
+---
+
 # Raise SSJR grades for `src/browse-benchmark.js`
 
 Current SSJR sanity check: `Hex B`, `P1 C`, `P2 C`, `P3 C`, `P4 C`, `P5 B`, `P6 C`, `P7 D`.

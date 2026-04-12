@@ -1,3 +1,10 @@
+---
+id: SURFACE_audit-mcp-service-shape-soup
+blocks:
+  - SURFACE_ssjr-src-mcp-service
+blocked_by: []
+---
+
 # MCP service layer still shuffles raw objects
 
 `src/mcp/service.js` is already called out in `docs/BEARING.md` as shape-soup debt, and the audit agrees. It mostly normalizes inputs, calls store functions, and returns anonymous result bags.

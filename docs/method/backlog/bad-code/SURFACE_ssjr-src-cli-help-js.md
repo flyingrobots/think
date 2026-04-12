@@ -1,3 +1,9 @@
+---
+id: SURFACE_ssjr-src-cli-help
+blocks: []
+blocked_by: []
+---
+
 # Raise SSJR grades for `src/cli/help.js`
 
 Current SSJR sanity check: `Hex B`, `P1 B`, `P2 C`, `P3 B`, `P4 C`, `P6 B`.
