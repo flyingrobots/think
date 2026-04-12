@@ -47,6 +47,35 @@ test('capture provenance trims ingress strings before validation', () => {
   );
 });
 
+test('capture provenance rejects dangerous URL schemes', () => {
+  for (const dangerous of ['data:text/html,<h1>x</h1>', 'file:///etc/passwd', 'ftp://evil.example.com/payload']) {
+    const result = normalizeCaptureProvenance({
+      ingress: 'url',
+      sourceApp: 'Test',
+      sourceURL: dangerous,
+    });
+    assert.equal(
+      result.sourceURL,
+      null,
+      `Expected "${dangerous}" to be rejected as a provenance URL.`
+    );
+  }
+});
+
+test('capture provenance accepts safe URL schemes', () => {
+  for (const safe of ['https://example.com', 'http://localhost:3000']) {
+    const result = normalizeCaptureProvenance({
+      ingress: 'url',
+      sourceApp: 'Test',
+      sourceURL: safe,
+    });
+    assert.ok(
+      result.sourceURL !== null,
+      `Expected "${safe}" to be accepted as a provenance URL.`
+    );
+  }
+});
+
 test('capture provenance reads and normalizes environment input', () => {
   assert.deepEqual(
     captureProvenanceFromEnvironment({

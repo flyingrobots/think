@@ -49,13 +49,19 @@ function normalizeString(value) {
   return trimmed === '' ? null : trimmed;
 }
 
+const SAFE_URL_SCHEMES = new Set(['http:', 'https:']);
+
 function normalizeUrl(value) {
   if (typeof value !== 'string' || value.trim() === '') {
     return null;
   }
 
   try {
-    return new URL(value).toString();
+    const parsed = new URL(value);
+    if (!SAFE_URL_SCHEMES.has(parsed.protocol)) {
+      return null;
+    }
+    return parsed.toString();
   } catch {
     return null;
   }
