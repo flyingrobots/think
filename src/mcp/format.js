@@ -117,9 +117,11 @@ export function formatStats(statsResult) {
       ctx,
     })));
 
-    const values = statsResult.buckets.map((b) => b.count).reverse();
-    lines.push('');
-    lines.push(`Capture frequency: ${sparkline(values)}`);
+    const spark = buildStatsSparkline(statsResult.buckets);
+    if (spark) {
+      lines.push('');
+      lines.push(`Capture frequency: ${spark}`);
+    }
   }
 
   return lines.join('\n');
