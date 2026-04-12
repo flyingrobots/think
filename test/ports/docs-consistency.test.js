@@ -47,6 +47,19 @@ test('METHOD docs use one consistent cycle-only release and README closeout poli
   );
 });
 
+test('MIND_ORCHESTRATION.md exists and is linked from GUIDE.md', () => {
+  const mindDoc = readRepoFile('docs/MIND_ORCHESTRATION.md');
+  assert.ok(mindDoc.length > 0, 'Expected docs/MIND_ORCHESTRATION.md to exist and have content.');
+  assert.match(mindDoc, /mind/i, 'Expected the doc to mention minds.');
+
+  const guide = readRepoFile('GUIDE.md');
+  assert.match(
+    guide,
+    /MIND_ORCHESTRATION/,
+    'Expected GUIDE.md to link to MIND_ORCHESTRATION.md.'
+  );
+});
+
 test('cycle 0006 retrospective restarts ordered numbering for the human playback section', () => {
   const retro = readRepoFile('docs/method/retro/0006/refresh-contributing.md');
   const humanPerspective = retro.match(
