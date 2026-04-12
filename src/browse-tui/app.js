@@ -81,7 +81,14 @@ export async function runBrowseTui({
     },
   });
 
-  await run(app, { ctx });
+  // When splash ran, we're already in alt screen with hidden cursor.
+  // Skip enterScreen to avoid clearing the plum-filled screen.
+  const splashRan = !skipSplash;
+  await run(app, {
+    ctx,
+    altScreen: !splashRan,
+    hideCursor: !splashRan,
+  });
 
   if (modelRef.current?.switchTarget) {
     return { type: 'switch_mind', mind: modelRef.current.switchTarget };
