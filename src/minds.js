@@ -50,6 +50,9 @@ export function discoverMinds(thinkDir = getThinkDir()) {
  * Uses djb2 hash to map name → shader index.
  */
 export function shaderForMind(name, shaderCount) {
+  if (shaderCount <= 0) {
+    throw new Error(`shaderForMind: shaderCount must be > 0 (got ${shaderCount})`);
+  }
   let hash = 5381;
   for (const ch of name) {
     hash = ((hash << 5) + hash + ch.charCodeAt(0)) | 0;
