@@ -7,8 +7,6 @@
 
 Think is designed for the operator who demands a stable foundation for their cognitive worldline. It scales from sub-second local capture to high-fidelity structural reflection across multi-mind archives.
 
-[![License](https://img.shields.io/github/license/think)](./LICENSE)
-
 ![Think demo](./docs/demo.gif)
 
 ## Why Think?
