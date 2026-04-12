@@ -8,6 +8,9 @@ import { shaderForMind } from '../minds.js';
 import { createBrowsePage } from './page.js';
 import { buildBrowseOverlays } from './overlays.js';
 import { resolveHelpLine } from './resolve.js';
+import { renderBrowseModel } from './view.js';
+import { createWindowedBrowseModel } from './model.js';
+import { PALETTE } from './style.js';
 
 export async function runBrowseTui({
   bootstrap,
@@ -81,19 +84,78 @@ export async function runBrowseTui({
     },
   });
 
-  // When splash ran, we're already in alt screen with hidden cursor.
-  // Skip enterScreen to avoid clearing the plum-filled screen.
+  // When splash ran, fade the browse content in from plum before
+  // handing off to bijou. This avoids both the screen-clear flash
+  // and the content pop.
   const splashRan = !skipSplash;
-  await run(app, {
-    ctx,
-    altScreen: !splashRan,
-    hideCursor: !splashRan,
-  });
+  if (splashRan) {
+    await fadeInBrowse(bootstrap, minds, activeMind);
+  }
+
+  await run(app, { ctx });
 
   if (modelRef.current?.switchTarget) {
     return { type: 'switch_mind', mind: modelRef.current.switchTarget };
   }
   return { type: 'quit' };
+}
+
+const FADE_IN_DURATION_MS = 800;
+const FADE_IN_FRAME_MS = 50;
+
+function fadeInBrowse(bootstrap, minds, activeMind) {
+  const cols = process.stdout.columns || 80;
+  const rows = process.stdout.rows || 24;
+
+  // Build the browse content as plain ANSI text (string path, no ctx)
+  const model = createWindowedBrowseModel({
+    bootstrap,
+    inspectCache: new Map(),
+    loadBrowseWindow: null,
+    loadChronologyEntries: null,
+    minds,
+    activeMind,
+  });
+  const frame = renderBrowseModel({ ...model, columns: cols, rows });
+  const lines = frame.split('\n').slice(0, rows);
+
+  // Strip ANSI codes from each line to get plain text
+  // eslint-disable-next-line no-control-regex -- stripping ANSI escapes
+  const stripped = lines.map((line) => line.replace(/\x1b\[[0-9;]*m/gu, ''));
+
+  const bgAnsi = `\x1b[48;2;${BG[0]};${BG[1]};${BG[2]}m`;
+
+  return new Promise((resolve) => {
+    const startTime = Date.now();
+    let fadeInterval = null;
+
+    function renderFadeFrame() {
+      const elapsed = Date.now() - startTime;
+      const t = Math.min(1.0, elapsed / FADE_IN_DURATION_MS);
+
+      // Lerp cream text from BG toward final color
+      const fr = Math.round(BG[0] + (PALETTE.cream[0] - BG[0]) * t);
+      const fgG = Math.round(BG[1] + (PALETTE.cream[1] - BG[1]) * t);
+      const fb = Math.round(BG[2] + (PALETTE.cream[2] - BG[2]) * t);
+      const fgAnsi = `\x1b[38;2;${fr};${fgG};${fb}m`;
+
+      const output = [];
+      for (let y = 0; y < rows; y++) {
+        const text = stripped[y] ?? '';
+        output.push(`${bgAnsi}${fgAnsi}${text.padEnd(cols).slice(0, cols)}`);
+      }
+
+      process.stdout.write(`\x1b[H${output.join('')}`);
+
+      if (t >= 1.0) {
+        clearInterval(fadeInterval);
+        resolve();
+      }
+    }
+
+    renderFadeFrame();
+    fadeInterval = setInterval(renderFadeFrame, FADE_IN_FRAME_MS);
+  });
 }
 
 export function showSplash({ minds = [] } = {}) {
