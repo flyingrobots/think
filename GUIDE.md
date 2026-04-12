@@ -26,7 +26,7 @@ Return to your archive through high-fidelity browse or context-aware recall.
 
 ### 4. Pressure-Testing (Reflect)
 Move beyond simple capture by challenging your ideas through structured prompt families.
-- **Run**: `think --reflect`
+- **Run**: `think --reflect` (CLI-only; MCP reflect is not yet available)
 - **Modes**: `challenge`, `constraint`, `sharpen`
 
 ## Big Picture: System Orchestration
@@ -40,7 +40,7 @@ Think is a tiered engine designed to keep capture cheap while enabling rich re-e
 ## Orientation Checklist
 
 - [ ] **I am setting up a new machine**: Start with `README.md` Quick Start.
-- [ ] **I want to separate my agent's thoughts**: Use `THINK_REPO_DIR` in an agent wrapper script.
+- [ ] **I want to separate my agent's thoughts**: Create a mind directory (`mkdir ~/.think/<name> && cd ~/.think/<name> && git init`), or use `THINK_REPO_DIR` in a wrapper script.
 - [ ] **I need to backup my archive**: Configure `THINK_UPSTREAM_URL`.
 - [ ] **I am debugging the TUI**: Start with `ADVANCED_GUIDE.md`.
 - [ ] **I am contributing to Think**: Read `docs/method/process.md` and `docs/BEARING.md`.
