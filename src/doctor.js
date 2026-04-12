@@ -92,7 +92,7 @@ async function checkUpstream(upstreamUrl, checkUpstreamReachable) {
   }
 
   if (!checkUpstreamReachable) {
-    return { name: 'upstream', status: 'ok', message: `Upstream configured (${upstreamUrl})` };
+    return { name: 'upstream', status: 'skip', message: `Upstream configured but not verified (${upstreamUrl})` };
   }
 
   try {

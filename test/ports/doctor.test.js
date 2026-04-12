@@ -67,6 +67,19 @@ test('runDiagnostics reports warn for upstream when unreachable', async () => {
   assert.equal(upstreamCheck.status, 'warn', 'Expected upstream to warn when unreachable.');
 });
 
+test('runDiagnostics reports skip for upstream when URL is set but no checker provided', async () => {
+  const context = await createDoctorContext({ withRepo: true });
+  const result = await runDiagnostics({
+    thinkDir: context.thinkDir,
+    repoDir: context.repoDir,
+    upstreamUrl: 'git@github.com:example/backup.git',
+    // no checkUpstreamReachable provided
+  });
+
+  const upstreamCheck = findCheck(result, 'upstream');
+  assert.equal(upstreamCheck.status, 'skip', 'Expected upstream to skip when checker is not provided, even if URL is set.');
+});
+
 test('runDiagnostics reports skip for upstream when not configured', async () => {
   const context = await createDoctorContext({ withRepo: true });
   const result = await runDiagnostics({
@@ -79,7 +92,7 @@ test('runDiagnostics reports skip for upstream when not configured', async () =>
   assert.equal(upstreamCheck.status, 'skip', 'Expected upstream check to be skipped when not configured.');
 });
 
-test('runDiagnostics reports ok for upstream when configured', async () => {
+test('runDiagnostics reports skip for upstream when configured without checker', async () => {
   const context = await createDoctorContext({ withRepo: true });
   const result = await runDiagnostics({
     thinkDir: context.thinkDir,
@@ -88,7 +101,7 @@ test('runDiagnostics reports ok for upstream when configured', async () => {
   });
 
   const upstreamCheck = findCheck(result, 'upstream');
-  assert.equal(upstreamCheck.status, 'ok', 'Expected upstream check to report ok when URL is set.');
+  assert.equal(upstreamCheck.status, 'skip', 'Expected upstream to skip when configured but no checker provided.');
 });
 
 test('runDiagnostics includes all expected check names', async () => {
