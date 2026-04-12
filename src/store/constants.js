@@ -1,3 +1,6 @@
+export const ENTRY_KINDS = Object.freeze(['capture', 'reflect', 'thought']);
+export const BUCKET_PERIODS = Object.freeze(['hour', 'day', 'week']);
+
 export const GRAPH_NAME = 'think';
 export const REFLECT_PROMPT_TYPES = ['challenge', 'constraint', 'sharpen'];
 export const ENTRY_PREFIX = 'entry:';

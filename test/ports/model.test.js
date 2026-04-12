@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { Entry, ReflectSession, createEntry, createReflectSession } from '../../src/store/model.js';
+import { Entry, ReflectSession, createEntry, createReflectSession, storesTextContent } from '../../src/store/model.js';
+import { ENTRY_KINDS, BUCKET_PERIODS } from '../../src/store/constants.js';
 
 test('createEntry returns an Entry instance', () => {
   const entry = createEntry('test thought', 'local.test.cli', { kind: 'capture', source: 'capture' });
@@ -60,4 +61,25 @@ test('ReflectSession is frozen', () => {
   });
 
   assert.ok(Object.isFrozen(session), 'Expected session to be frozen.');
+});
+
+test('ENTRY_KINDS is a frozen array of valid kind strings', () => {
+  assert.ok(Object.isFrozen(ENTRY_KINDS), 'Expected ENTRY_KINDS to be frozen.');
+  assert.ok(ENTRY_KINDS.includes('capture'), 'Expected capture in ENTRY_KINDS.');
+  assert.ok(ENTRY_KINDS.includes('reflect'), 'Expected reflect in ENTRY_KINDS.');
+  assert.ok(ENTRY_KINDS.includes('thought'), 'Expected thought in ENTRY_KINDS.');
+});
+
+test('BUCKET_PERIODS is a frozen array of valid bucket strings', () => {
+  assert.ok(Object.isFrozen(BUCKET_PERIODS), 'Expected BUCKET_PERIODS to be frozen.');
+  assert.ok(BUCKET_PERIODS.includes('hour'), 'Expected hour in BUCKET_PERIODS.');
+  assert.ok(BUCKET_PERIODS.includes('day'), 'Expected day in BUCKET_PERIODS.');
+  assert.ok(BUCKET_PERIODS.includes('week'), 'Expected week in BUCKET_PERIODS.');
+});
+
+test('storesTextContent validates against ENTRY_KINDS', () => {
+  for (const kind of ENTRY_KINDS) {
+    assert.equal(typeof storesTextContent(kind), 'boolean', `Expected boolean for kind "${kind}".`);
+  }
+  assert.equal(storesTextContent('invalid_kind'), false, 'Expected false for invalid kind.');
 });

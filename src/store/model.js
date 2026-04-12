@@ -4,7 +4,9 @@ import os from 'node:os';
 import { parseJson } from '../json.js';
 import {
   ARTIFACT_PREFIX,
+  BUCKET_PERIODS,
   DERIVER_VERSION,
+  ENTRY_KINDS,
   ENTRY_PREFIX,
   MAX_REFLECT_STEPS,
   REFLECT_SESSION_PREFIX,
@@ -13,7 +15,7 @@ import {
 } from './constants.js';
 
 export function storesTextContent(kind) {
-  return kind === 'capture' || kind === 'reflect' || kind === 'thought';
+  return ENTRY_KINDS.includes(kind);
 }
 
 export function getCurrentTime() {
@@ -44,9 +46,12 @@ export function parseSince(since, now) {
 }
 
 export function formatBucketKey(date, bucket) {
+  if (!BUCKET_PERIODS.includes(bucket)) {
+    throw new Error(`formatBucketKey: invalid bucket "${bucket}" (expected ${BUCKET_PERIODS.join(', ')})`);
+  }
+
   const iso = date.toISOString();
-  if (bucket === 'hour') {return `${iso.substring(0, 13)  }:00`;}
-  if (bucket === 'day') {return iso.substring(0, 10);}
+  if (bucket === 'hour') { return `${iso.substring(0, 13)}:00`; }
   if (bucket === 'week') {
     const day = new Date(date);
     day.setUTCHours(0, 0, 0, 0);
