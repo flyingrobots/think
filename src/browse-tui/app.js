@@ -8,6 +8,7 @@ import { shaderForMind } from '../minds.js';
 import { createBrowsePage } from './page.js';
 import { buildBrowseOverlays } from './overlays.js';
 import { resolveHelpLine } from './resolve.js';
+import { BG_TOKEN } from './style.js';
 
 export async function runBrowseTui({
   bootstrap,
@@ -62,6 +63,7 @@ export async function runBrowseTui({
     keyPriority: 'page-first',
     bodyTopRows: 1,
     bodyBottomRows: 1,
+    bgToken: BG_TOKEN,
     helpLineSource: ({ model }) => {
       const pageModel = model.pageModels?.[browsePage.id];
       if (!pageModel) {
@@ -79,10 +81,6 @@ export async function runBrowseTui({
       return { type: 'raw_key', key: msg };
     },
   });
-
-  // Workaround for RE-017: frame doesn't fill surface.primary.bg.
-  // Set terminal background before bijou enters alt screen.
-  process.stdout.write(`\x1b[48;2;${BG[0]};${BG[1]};${BG[2]}m`);
 
   await run(app, { ctx });
 

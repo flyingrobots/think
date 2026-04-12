@@ -35,9 +35,9 @@
     "node": ">=22.0.0"
   },
   "dependencies": {
-    "@flyingrobots/bijou": "^4.4.0",
-    "@flyingrobots/bijou-node": "^4.4.0",
-    "@flyingrobots/bijou-tui": "^4.4.0",
+    "@flyingrobots/bijou": "^4.4.1",
+    "@flyingrobots/bijou-node": "^4.4.1",
+    "@flyingrobots/bijou-tui": "^4.4.1",
     "@git-stunts/alfred": "0.4.0",
     "@git-stunts/git-warp": "15.0.0",
     "@git-stunts/plumbing": "2.8.0",
