@@ -177,11 +177,18 @@ export function renderBrowseView(model, ctx) {
   return compositeSurface(background, overlays, { dim: model.panelMode === 'reflect' });
 }
 
+const FADE_IN_MS = 600;
+
 export function browseLayout(model, ctx) {
   return {
     kind: 'pane',
     paneId: 'thought',
     render: (width, height) => {
+      const elapsed = Date.now() - (model.browseStartMs ?? 0);
+      if (elapsed < FADE_IN_MS) {
+        // During fade-in, show empty pane — frame fills bg color only
+        return viewportSurface({ width, height, content: '', scrollY: 0 });
+      }
       const content = buildThoughtContent(model, width, ctx);
       const state = createScrollState(content, height);
       const scrollY = clamp(model.contentScrollY, 0, state.maxY);

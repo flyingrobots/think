@@ -25,6 +25,7 @@ export function createWindowedBrowseModel({
     minds,
     activeMind,
     switchTarget: null,
+    browseStartMs: Date.now(),
     columns: process.stdout.columns ?? DEFAULT_COLUMNS,
     rows: process.stdout.rows ?? DEFAULT_ROWS,
     contentScrollY: 0,
