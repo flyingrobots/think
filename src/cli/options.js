@@ -1,4 +1,19 @@
 import { REFLECT_PROMPT_TYPES } from '../store.js';
+
+export const COMMANDS = Object.freeze({
+  CAPTURE: 'capture',
+  RECENT: 'recent',
+  REMEMBER: 'remember',
+  STATS: 'stats',
+  PROMPT_METRICS: 'prompt_metrics',
+  BROWSE: 'browse',
+  INSPECT: 'inspect',
+  DOCTOR: 'doctor',
+  MIGRATE_GRAPH: 'migrate_graph',
+  INGEST: 'ingest',
+  REFLECT_START: 'reflect_start',
+  REFLECT_REPLY: 'reflect_reply',
+});
 import {
   canInteractivelyOpenBrowseShell,
   canInteractivelyPickReflectSeed,
@@ -144,40 +159,18 @@ export function parseArgs(args) {
 }
 
 export function resolveCommand(options) {
-  if (options.reflectSessionFlag) {
-    return 'reflect_reply';
-  }
-  if (options.reflectFlag) {
-    return 'reflect_start';
-  }
-  if (options.browseFlag) {
-    return 'browse';
-  }
-  if (options.inspectFlag) {
-    return 'inspect';
-  }
-  if (options.doctor) {
-    return 'doctor';
-  }
-  if (options.migrateGraph) {
-    return 'migrate_graph';
-  }
-  if (options.ingest) {
-    return 'ingest';
-  }
-  if (options.remember) {
-    return 'remember';
-  }
-  if (options.stats) {
-    return 'stats';
-  }
-  if (options.promptMetrics) {
-    return 'prompt_metrics';
-  }
-  if (options.recent) {
-    return 'recent';
-  }
-  return 'capture';
+  if (options.reflectSessionFlag) { return COMMANDS.REFLECT_REPLY; }
+  if (options.reflectFlag) { return COMMANDS.REFLECT_START; }
+  if (options.browseFlag) { return COMMANDS.BROWSE; }
+  if (options.inspectFlag) { return COMMANDS.INSPECT; }
+  if (options.doctor) { return COMMANDS.DOCTOR; }
+  if (options.migrateGraph) { return COMMANDS.MIGRATE_GRAPH; }
+  if (options.ingest) { return COMMANDS.INGEST; }
+  if (options.remember) { return COMMANDS.REMEMBER; }
+  if (options.stats) { return COMMANDS.STATS; }
+  if (options.promptMetrics) { return COMMANDS.PROMPT_METRICS; }
+  if (options.recent) { return COMMANDS.RECENT; }
+  return COMMANDS.CAPTURE;
 }
 
 export function validateOptions(options, command) {
