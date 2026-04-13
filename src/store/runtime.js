@@ -72,49 +72,57 @@ export async function getGraphModelStatusForRead(read) {
   };
 }
 
+export class StoredEntry {
+  constructor(nodeId, resolvedProps, text) {
+    this.id = nodeId;
+    this.kind = resolvedProps.kind;
+    this.source = resolvedProps.source;
+    this.channel = resolvedProps.channel;
+    this.writerId = resolvedProps.writerId;
+    this.createdAt = resolvedProps.createdAt;
+    this.sortKey = String(resolvedProps.sortKey || '');
+    this.thoughtId = resolvedProps.thoughtId ?? null;
+    this.seedEntryId = resolvedProps.seedEntryId ?? null;
+    this.contrastEntryId = resolvedProps.contrastEntryId ?? null;
+    this.sessionId = resolvedProps.sessionId ?? null;
+    this.promptType = resolvedProps.promptType ?? null;
+    this.question = resolvedProps.question ?? null;
+    this.ambientCwd = resolvedProps.ambientCwd ?? null;
+    this.ambientGitRoot = resolvedProps.ambientGitRoot ?? null;
+    this.ambientGitRemote = resolvedProps.ambientGitRemote ?? null;
+    this.ambientGitBranch = resolvedProps.ambientGitBranch ?? null;
+    this.captureProvenance = resolvedProps.captureIngress || resolvedProps.captureSourceApp || resolvedProps.captureSourceURL
+      ? Object.freeze({
+          ingress: resolvedProps.captureIngress ?? null,
+          sourceApp: resolvedProps.captureSourceApp ?? null,
+          sourceURL: resolvedProps.captureSourceURL ?? null,
+        })
+      : null;
+    this.selectionReason = resolvedProps.selectionReasonKind
+      ? Object.freeze({
+          kind: resolvedProps.selectionReasonKind,
+          text: resolvedProps.selectionReasonText ?? '',
+        })
+      : null;
+    this.stepCount = Number(resolvedProps.stepCount ?? 0);
+    this.maxSteps = Number(resolvedProps.maxSteps ?? 0);
+    this.text = text;
+
+    Object.freeze(this);
+  }
+}
+
 export async function getStoredEntry(read, nodeId, props = null) {
   const resolvedProps = props ?? await read.view.getNodeProps(nodeId);
   if (!resolvedProps) {
     return null;
   }
 
-  const {kind} = resolvedProps;
+  const text = storesTextContent(resolvedProps.kind)
+    ? await readNodeText(read, nodeId)
+    : '';
 
-  return {
-    id: nodeId,
-    kind,
-    source: resolvedProps.source,
-    channel: resolvedProps.channel,
-    writerId: resolvedProps.writerId,
-    createdAt: resolvedProps.createdAt,
-    sortKey: String(resolvedProps.sortKey || ''),
-    thoughtId: resolvedProps.thoughtId ?? null,
-    seedEntryId: resolvedProps.seedEntryId ?? null,
-    contrastEntryId: resolvedProps.contrastEntryId ?? null,
-    sessionId: resolvedProps.sessionId ?? null,
-    promptType: resolvedProps.promptType ?? null,
-    question: resolvedProps.question ?? null,
-    ambientCwd: resolvedProps.ambientCwd ?? null,
-    ambientGitRoot: resolvedProps.ambientGitRoot ?? null,
-    ambientGitRemote: resolvedProps.ambientGitRemote ?? null,
-    ambientGitBranch: resolvedProps.ambientGitBranch ?? null,
-    captureProvenance: resolvedProps.captureIngress || resolvedProps.captureSourceApp || resolvedProps.captureSourceURL
-      ? {
-          ingress: resolvedProps.captureIngress ?? null,
-          sourceApp: resolvedProps.captureSourceApp ?? null,
-          sourceURL: resolvedProps.captureSourceURL ?? null,
-        }
-      : null,
-    selectionReason: resolvedProps.selectionReasonKind
-      ? {
-          kind: resolvedProps.selectionReasonKind,
-          text: resolvedProps.selectionReasonText ?? '',
-        }
-      : null,
-    stepCount: Number(resolvedProps.stepCount ?? 0),
-    maxSteps: Number(resolvedProps.maxSteps ?? 0),
-    text: storesTextContent(kind) ? await readNodeText(read, nodeId) : '',
-  };
+  return new StoredEntry(nodeId, resolvedProps, text);
 }
 
 export function toBrowseEntry(entry) {
