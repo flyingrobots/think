@@ -9,8 +9,8 @@ export function toToolResult(structuredContent, richText = null) {
 
   content.push({ type: 'text', text: stringifyJson(structuredContent) });
 
-  return {
-    content,
+  return Object.freeze({
+    content: Object.freeze(content),
     structuredContent,
-  };
+  });
 }
