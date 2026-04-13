@@ -6,7 +6,6 @@ blocks:
 blocked_by:
   - CORE_ssjr-src-store-model
   - CORE_ssjr-src-capture-provenance
-  - CORE_ssjr-src-project-context
 ---
 
 # Raise SSJR grades for `src/store/capture.js`
