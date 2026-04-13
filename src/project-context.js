@@ -1,6 +1,8 @@
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
+import { GIT_BINARY } from './git.js';
+
 export function getAmbientProjectContext(cwd = process.cwd()) {
   const baseContext = getCaptureAmbientContext(cwd);
   const gitRoot = runGitString(['-C', baseContext.cwd, 'rev-parse', '--show-toplevel']);
@@ -112,7 +114,7 @@ function unique(values) {
 }
 
 function runGitString(args) {
-  const result = spawnSync('git', args, {
+  const result = spawnSync(GIT_BINARY, args, {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
   });
