@@ -275,7 +275,7 @@ export async function inspectRawEntryForRead(read, entryId) {
   const sessionAttribution = await getSessionAttributionReceipt(read, entry);
   const derivedReceipts = await listDirectDerivedReceipts(read, entryId);
 
-  return {
+  return Object.freeze({
     entryId: entry.id,
     thoughtId: canonicalThought?.thoughtId ?? createThoughtId(entry.text),
     kind: 'raw_capture',
@@ -287,7 +287,7 @@ export async function inspectRawEntryForRead(read, entryId) {
     seedQuality,
     sessionAttribution,
     derivedReceipts,
-  };
+  });
 }
 
 async function buildBrowseWindow(read, entryId) {
@@ -305,7 +305,7 @@ async function buildBrowseWindow(read, entryId) {
   const sessionAttribution = await getSessionAttributionReceiptIfPresent(read, currentEntry);
   const sessionTraversal = await resolveGraphSessionTraversal(read, current);
 
-  return {
+  return Object.freeze({
     current,
     newer,
     older,
@@ -340,5 +340,5 @@ async function buildBrowseWindow(read, entryId) {
             : []),
         ]
       : [],
-  };
+  });
 }
