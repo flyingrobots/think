@@ -82,6 +82,9 @@ export async function main(argv, { stdout, stderr, stdin }) {
         const thought = options.positionals.length <= 1
           ? (options.positionals[0] ?? '')
           : options.positionals.join(' ');
+        if (!thought && stdin && !stdin.isTTY) {
+          stderr.write('Hint: piped input detected. Use --ingest to capture stdin.\n');
+        }
         return runCapture(thought, output, reporter);
       },
     };
