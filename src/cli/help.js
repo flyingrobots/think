@@ -1,4 +1,4 @@
-const HELP_TEXT = {
+const HELP_TEXT = Object.freeze({
   general: [
     'Usage: think "raw thought"',
     '       think --ingest',
@@ -108,12 +108,12 @@ const HELP_TEXT = {
     'Reports think directory, local repo, graph model version,',
     'entry count, and upstream reachability.',
   ].join('\n'),
-};
+});
 
 export function renderHelp(topic) {
   const resolvedTopic = HELP_TEXT[topic] ? topic : 'general';
-  return {
+  return Object.freeze({
     topic: resolvedTopic,
     message: HELP_TEXT[resolvedTopic],
-  };
+  });
 }
