@@ -17,9 +17,6 @@ export async function saveRawCapture(repoDir, thought, {
 } = {}) {
   const app = await openWarpApp(repoDir);
   const entry = createEntry(thought, app.writerId, { kind: 'capture', source: 'capture' });
-  const captureAmbientContext = ambientContext;
-  // Keep the store boundary defensive because direct callers can bypass the
-  // CLI and MCP normalization helpers before reaching persistence.
   const captureProvenance = normalizeCaptureProvenance(provenance);
 
   await app.patch(async patch => {
@@ -32,7 +29,7 @@ export async function saveRawCapture(repoDir, thought, {
       .setProperty(entry.id, 'createdAt', entry.createdAt)
       .setProperty(entry.id, 'sortKey', entry.sortKey);
 
-    applyAmbientContextPatch(patch, entry.id, captureAmbientContext);
+    applyAmbientContextPatch(patch, entry.id, ambientContext);
     if (captureProvenance?.ingress) {
       patch.setProperty(entry.id, 'captureIngress', captureProvenance.ingress);
     }
