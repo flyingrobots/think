@@ -97,13 +97,13 @@ export async function migrateGraphModel(repoDir) {
   const needsGraphVersionUpdate = graphMeta?.graphModelVersion !== GRAPH_MODEL_VERSION;
 
   if (missingEdges.length === 0 && removableEdges.length === 0 && !needsMetadataNode && !needsGraphVersionUpdate) {
-    return {
+    return Object.freeze({
       changed: false,
       graphModelVersion: GRAPH_MODEL_VERSION,
       edgesAdded: 0,
       edgesRemoved: 0,
       metadataUpdated: false,
-    };
+    });
   }
 
   const timestamp = getCurrentTime().toISOString();
@@ -127,13 +127,13 @@ export async function migrateGraphModel(repoDir) {
     }
   });
 
-  return {
+  return Object.freeze({
     changed: true,
     graphModelVersion: GRAPH_MODEL_VERSION,
     edgesAdded: missingEdges.length,
     edgesRemoved: removableEdges.length,
     metadataUpdated: needsMetadataNode || needsGraphVersionUpdate,
-  };
+  });
 }
 
 function pushMissingEdge(target, existingEdgeKeys, from, to, label) {
