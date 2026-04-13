@@ -10,6 +10,7 @@ import {
 } from '../../store.js';
 import { ensureGraphModelReady } from '../graph-gate.js';
 import {
+  capitalize,
   formatIneligibleSeedMessage,
   normalizeForPicker,
   pickReflectMode,
@@ -240,11 +241,3 @@ async function suggestAlternativeReflectSeeds(repoDir, excludedSeedEntryId) {
     }));
 }
 
-function capitalize(value) {
-  const text = String(value || '');
-  if (text.length === 0) {
-    return text;
-  }
-
-  return text.charAt(0).toUpperCase() + text.slice(1);
-}

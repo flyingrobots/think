@@ -153,7 +153,7 @@ function renderProgressBar(progress) {
   return `[${'#'.repeat(filled)}${'-'.repeat(width - filled)}]`;
 }
 
-function capitalize(value) {
+export function capitalize(value) {
   const text = String(value || '');
   if (text.length === 0) {
     return text;
