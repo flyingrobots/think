@@ -2,9 +2,10 @@ import { readFile } from 'node:fs/promises';
 
 import { parseJson } from '../json.js';
 
-export async function readPromptMetricsRecords(filePath) {
+export async function readPromptMetricsRecords(filePath, { reader = null } = {}) {
   try {
-    const contents = await readFile(filePath, 'utf8');
+    const read = reader ?? ((p) => readFile(p, 'utf8'));
+    const contents = await read(filePath);
     return String(contents)
       .split('\n')
       .map((line) => line.trim())
