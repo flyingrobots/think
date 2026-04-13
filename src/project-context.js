@@ -14,19 +14,19 @@ export function getAmbientProjectContext(cwd = process.cwd()) {
     gitRemote,
   });
 
-  return {
+  return Object.freeze({
     cwd: baseContext.cwd,
     gitRoot,
     gitRemote,
     gitBranch,
     projectName,
-    projectTokens: buildProjectTokens({
+    projectTokens: Object.freeze(buildProjectTokens({
       cwd: baseContext.cwd,
       gitRoot,
       gitRemote,
       projectName,
-    }),
-  };
+    })),
+  });
 }
 
 export function getCaptureAmbientContext(cwd = process.cwd()) {
@@ -37,19 +37,19 @@ export function getCaptureAmbientContext(cwd = process.cwd()) {
     gitRemote: null,
   });
 
-  return {
+  return Object.freeze({
     cwd: resolvedCwd,
     gitRoot: null,
     gitRemote: null,
     gitBranch: null,
     projectName,
-    projectTokens: buildProjectTokens({
+    projectTokens: Object.freeze(buildProjectTokens({
       cwd: resolvedCwd,
       gitRoot: null,
       gitRemote: null,
       projectName,
-    }),
-  };
+    })),
+  });
 }
 
 export function buildQueryTerms(query) {
