@@ -93,7 +93,7 @@ export async function listRecentThoughts({ count = null, query = null } = {}) {
 
   const entries = await listRecent(repoDir, { count, query });
   return {
-    entries: entries.map(toRecentEntry),
+    entries: entries.map(toMcpEntry),
     repoPresent: true,
   };
 }
@@ -152,11 +152,11 @@ export async function browseThought({ entryId = null } = {}) {
   }
 
   return {
-    current: toBrowseEntry(window.current),
-    newer: toBrowseEntry(window.newer),
-    older: toBrowseEntry(window.older),
+    current: toMcpEntry(window.current),
+    newer: toMcpEntry(window.newer),
+    older: toMcpEntry(window.older),
     sessionContext: window.sessionContext,
-    sessionEntries: window.sessionEntries.map(toBrowseEntry),
+    sessionEntries: window.sessionEntries.map(toMcpEntry),
     sessionSteps: window.sessionSteps.map((step) => ({
       createdAt: step.createdAt,
       direction: step.direction,
@@ -265,26 +265,16 @@ function buildRememberScope({ cwd, query, limit, brief }) {
   };
 }
 
-function toBrowseEntry(entry) {
+function toMcpEntry(entry) {
   if (!entry) {
     return null;
   }
 
-  return {
+  return Object.freeze({
     createdAt: entry.createdAt,
     entryId: entry.id,
     sessionId: entry.sessionId ?? null,
     sortKey: entry.sortKey,
     text: entry.text,
-  };
-}
-
-function toRecentEntry(entry) {
-  return {
-    createdAt: entry.createdAt,
-    entryId: entry.id,
-    sessionId: entry.sessionId ?? null,
-    sortKey: entry.sortKey,
-    text: entry.text,
-  };
+  });
 }
