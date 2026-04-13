@@ -21,17 +21,26 @@ import {
   storesTextContent,
 } from './model.js';
 
-// eslint-disable-next-line require-await -- wraps git-warp WarpApp.open which returns a promise
+const warpAppCache = new Map();
+
 export async function openWarpApp(repoDir) {
+  const cached = warpAppCache.get(repoDir);
+  if (cached) {
+    return cached;
+  }
+
   const plumbing = Plumbing.createDefault({ cwd: repoDir });
   const persistence = new GitGraphAdapter({ plumbing });
 
-  return WarpApp.open({
+  const app = await WarpApp.open({
     persistence,
     graphName: GRAPH_NAME,
     writerId: createWriterId(),
     checkpointPolicy: CHECKPOINT_POLICY,
   });
+
+  warpAppCache.set(repoDir, app);
+  return app;
 }
 
 export async function createProductReadHandle(app) {
