@@ -246,9 +246,10 @@ async function assertGraphReady(command) {
     return;
   }
 
-  const error = new Error('Graph migration required. Run think --migrate-graph.');
+  const error = new GraphError('Graph migration required. Run think --migrate-graph.');
   error.code = 'graph_migration_required';
   error.command = command;
+  error.remediation = 'think --migrate-graph';
   error.status = status;
   throw error;
 }

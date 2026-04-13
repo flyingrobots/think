@@ -1,12 +1,54 @@
 ---
-id: HT-007-remediation-payloads-in-json-errors
-blocks:
-  - SURFACE_ssjr-src-cli-output
-blocked_by:
-  - CORE_audit-no-error-taxonomy
+title: "HT-007 — Remediation Payloads in JSON Errors"
+legend: "none"
+cycle: "0032-HT-007-remediation-payloads-in-json-errors"
+source_backlog: "docs/method/backlog/bad-code/HT-007-remediation-payloads-in-json-errors.md"
 ---
 
 # HT-007 — Remediation Payloads in JSON Errors
+
+Source backlog item: `docs/method/backlog/bad-code/HT-007-remediation-payloads-in-json-errors.md`
+Legend: none
+
+## Sponsors
+
+- Human: Backlog operator
+- Agent: Implementation agent
+
+## Hill
+
+TBD
+
+## Playback Questions
+
+### Human
+
+- [ ] TBD
+
+### Agent
+
+- [ ] TBD
+
+## Accessibility and Assistive Reading
+
+- Linear truth / reduced-complexity posture: TBD
+- Non-visual or alternate-reading expectations: TBD
+
+## Localization and Directionality
+
+- Locale / wording / formatting assumptions: TBD
+- Logical direction / layout assumptions: TBD
+
+## Agent Inspectability and Explainability
+
+- What must be explicit and deterministic for agents: TBD
+- What must be attributable, evidenced, or governed: TBD
+
+## Non-goals
+
+- [ ] TBD
+
+## Backlog Context
 
 Legend: [CORE — Core Bedrock](../../legends/CORE.md)
 
