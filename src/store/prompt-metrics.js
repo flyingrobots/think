@@ -46,24 +46,24 @@ function normalizeMetricRecord(raw) {
 }
 
 export function summarizePromptMetrics(records) {
-  return records.reduce((summary, record) => {
-    summary.sessions += 1;
+  const summary = records.reduce((acc, record) => {
+    acc.sessions += 1;
 
     if (record.dismissalOutcome === 'submitted') {
-      summary.submitted += 1;
+      acc.submitted += 1;
     } else if (record.dismissalOutcome === 'abandoned_empty') {
-      summary.abandonedEmpty += 1;
+      acc.abandonedEmpty += 1;
     } else if (record.dismissalOutcome === 'abandoned_started') {
-      summary.abandonedStarted += 1;
+      acc.abandonedStarted += 1;
     }
 
     if (record.trigger === 'hotkey') {
-      summary.hotkey += 1;
+      acc.hotkey += 1;
     } else if (record.trigger === 'menu') {
-      summary.menu += 1;
+      acc.menu += 1;
     }
 
-    return summary;
+    return acc;
   }, {
     sessions: 0,
     submitted: 0,
@@ -72,6 +72,8 @@ export function summarizePromptMetrics(records) {
     hotkey: 0,
     menu: 0,
   });
+
+  return Object.freeze(summary);
 }
 
 export function summarizePromptMetricTimings(records) {
@@ -88,14 +90,14 @@ export function summarizePromptMetricTimings(records) {
       .filter((value) => Number.isFinite(value))
       .sort((left, right) => left - right);
 
-    return {
+    return Object.freeze({
       metric,
       sampleCount: samples.length,
       medianMs: samples.length > 0 ? median(samples) : null,
       meanMs: samples.length > 0 ? mean(samples) : null,
       minMs: samples.length > 0 ? samples[0] : null,
       maxMs: samples.length > 0 ? samples[samples.length - 1] : null,
-    };
+    });
   });
 }
 
@@ -129,7 +131,9 @@ export function summarizePromptMetricBuckets(records, bucket, formatBucketKey) {
     }
   }
 
-  return Object.values(buckets).sort((left, right) => right.key.localeCompare(left.key));
+  return Object.values(buckets)
+    .map((b) => Object.freeze(b))
+    .sort((left, right) => right.key.localeCompare(left.key));
 }
 
 function median(values) {
