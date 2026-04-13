@@ -1,6 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto';
 import os from 'node:os';
 
+import { ValidationError } from '../errors.js';
+
 import { parseJson } from '../json.js';
 import {
   ARTIFACT_PREFIX,
@@ -118,10 +120,10 @@ export class Entry {
     promptType = null,
   }) {
     if (!text || typeof text !== 'string') {
-      throw new Error('Entry: text is required and must be a non-empty string');
+      throw new ValidationError('Entry: text is required and must be a non-empty string');
     }
     if (!writerId || typeof writerId !== 'string') {
-      throw new Error('Entry: writerId is required and must be a non-empty string');
+      throw new ValidationError('Entry: writerId is required and must be a non-empty string');
     }
 
     const timestamp = getCurrentTime();

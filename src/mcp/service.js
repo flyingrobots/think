@@ -1,4 +1,5 @@
 import { runDiagnostics } from '../doctor.js';
+import { ValidationError, NotFoundError, GraphError } from '../errors.js';
 import { ensureGitRepo, hasGitRepo, lsRemote, pushWarpRefs } from '../git.js';
 import { getLocalRepoDir, getThinkDir, getUpstreamUrl } from '../paths.js';
 import { capturePolicy } from '../policies.js';
@@ -26,7 +27,7 @@ import {
 export async function captureThought(text, { provenance = null } = {}) {
   const thought = String(text ?? '');
   if (thought.trim() === '') {
-    throw new Error('Thought cannot be empty');
+    throw new ValidationError('Thought cannot be empty');
   }
   const captureProvenance = normalizeCaptureProvenance(provenance);
 
@@ -131,7 +132,7 @@ export async function rememberThoughtsForMcp({
 export async function browseThought({ entryId = null } = {}) {
   const repoDir = getLocalRepoDir();
   if (!hasGitRepo(repoDir)) {
-    throw new Error('No raw captures available to browse');
+    throw new NotFoundError('No raw captures available to browse');
   }
 
   await assertGraphReady('browse');
@@ -140,12 +141,12 @@ export async function browseThought({ entryId = null } = {}) {
   if (entryId) {
     window = await getBrowseWindow(repoDir, entryId);
     if (!window) {
-      throw new Error('Browse entry not found');
+      throw new NotFoundError('Browse entry not found');
     }
   } else {
     const bootstrap = await prepareBrowseBootstrap(repoDir);
     if (!bootstrap.ok) {
-      throw new Error('No raw captures available to browse');
+      throw new NotFoundError('No raw captures available to browse');
     }
     window = bootstrap;
   }
@@ -171,14 +172,14 @@ export async function browseThought({ entryId = null } = {}) {
 export async function inspectThought(entryId) {
   const repoDir = getLocalRepoDir();
   if (!hasGitRepo(repoDir)) {
-    throw new Error('Inspect entry not found');
+    throw new NotFoundError('Inspect entry not found');
   }
 
   await assertGraphReady('inspect');
 
   const entry = await inspectRawEntry(repoDir, entryId);
   if (!entry) {
-    throw new Error('Inspect entry not found');
+    throw new NotFoundError('Inspect entry not found');
   }
 
   return { entry };
@@ -232,7 +233,7 @@ export function checkThinkHealth() {
 export async function migrateThoughtGraph() {
   const repoDir = getLocalRepoDir();
   if (!hasGitRepo(repoDir)) {
-    throw new Error('No local thought repo found to migrate');
+    throw new GraphError('No local thought repo found to migrate');
   }
 
   return migrateGraphModel(repoDir);
