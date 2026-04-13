@@ -1,3 +1,4 @@
+import { ThinkError } from './errors.js';
 import { createVerboseReporter } from './verbose.js';
 import { stringifyJson } from './json.js';
 import { renderHelp } from './cli/help.js';
@@ -91,12 +92,16 @@ export async function main(argv, { stdout, stderr, stdin }) {
     reporter.event(exitCode === 0 ? 'cli.success' : 'cli.failure', { command, exitCode });
     return exitCode;
   } catch (error) {
-    reporter.event('cli.error', {
-      command,
-      message: error instanceof Error ? error.message : String(error),
-    });
-    if (!options.json) {
-      output.error('Something went wrong');
+    const message = error instanceof Error ? error.message : String(error);
+    const code = error instanceof ThinkError ? error.code : 'UNEXPECTED_ERROR';
+    reporter.event('cli.error', { command, message, code });
+
+    if (error instanceof ThinkError) {
+      output.error(message, `cli.${code.toLowerCase()}`, { command });
+    } else if (options.json) {
+      output.error(message, 'cli.unexpected_error', { command });
+    } else {
+      output.error(`Something went wrong: ${message}`);
     }
     return 1;
   }
