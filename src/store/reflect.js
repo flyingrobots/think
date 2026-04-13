@@ -62,7 +62,7 @@ export async function startReflect(repoDir, seedEntryId, { promptType = null } =
     }
   });
 
-  return {
+  return Object.freeze({
     ok: true,
     sessionId: session.id,
     seedEntryId: session.seedEntryId,
@@ -73,7 +73,7 @@ export async function startReflect(repoDir, seedEntryId, { promptType = null } =
     selectionReason: session.selectionReason,
     seedEntry: planned.seedEntry,
     contrastEntry: null,
-  };
+  });
 }
 
 export async function previewReflect(repoDir, seedEntryId, { promptType = null } = {}) {
@@ -85,7 +85,7 @@ export async function previewReflect(repoDir, seedEntryId, { promptType = null }
     return planned;
   }
 
-  return {
+  return Object.freeze({
     ok: true,
     seedEntryId,
     contrastEntryId: null,
@@ -95,7 +95,7 @@ export async function previewReflect(repoDir, seedEntryId, { promptType = null }
     selectionReason: planned.promptPlan.selectionReason,
     seedEntry: planned.seedEntry,
     contrastEntry: null,
-  };
+  });
 }
 
 export async function saveReflectResponse(repoDir, sessionId, response) {
@@ -151,87 +151,87 @@ function selectReflectPrompt(seedEntry, requestedPromptType = null) {
   const normalized = normalizeSeed(seedEntry.text);
 
   if (requestedPromptType === 'challenge') {
-    return {
+    return Object.freeze({
       promptType: 'challenge',
-      selectionReason: {
+      selectionReason: Object.freeze({
         kind: 'requested_challenge',
         text: 'Used the requested challenge prompt family for this reflect session.',
-      },
+      }),
       question: pickDeterministicPrompt(CHALLENGE_PROMPTS, normalized),
-    };
+    });
   }
 
   if (requestedPromptType === 'constraint') {
-    return {
+    return Object.freeze({
       promptType: 'constraint',
-      selectionReason: {
+      selectionReason: Object.freeze({
         kind: 'requested_constraint',
         text: 'Used the requested constraint prompt family for this reflect session.',
-      },
+      }),
       question: pickDeterministicPrompt(CONSTRAINT_PROMPTS, normalized),
-    };
+    });
   }
 
   if (requestedPromptType === 'sharpen') {
-    return {
+    return Object.freeze({
       promptType: 'sharpen',
-      selectionReason: {
+      selectionReason: Object.freeze({
         kind: 'requested_sharpen',
         text: 'Used the requested sharpen prompt family for this reflect session.',
-      },
+      }),
       question: pickDeterministicPrompt(SHARPEN_PROMPTS, normalized),
-    };
+    });
   }
 
   const familyIndex = stableHash(normalized) % 2;
 
   if (familyIndex === 0) {
-    return {
+    return Object.freeze({
       promptType: 'challenge',
-      selectionReason: {
+      selectionReason: Object.freeze({
         kind: 'seed_only_challenge',
         text: 'Used a deterministic challenge prompt from the seed thought alone.',
-      },
+      }),
       question: pickDeterministicPrompt(CHALLENGE_PROMPTS, normalized),
-    };
+    });
   }
 
-  return {
+  return Object.freeze({
     promptType: 'constraint',
-    selectionReason: {
+    selectionReason: Object.freeze({
       kind: 'seed_only_constraint',
       text: 'Used a deterministic constraint prompt from the seed thought alone.',
-    },
+    }),
     question: pickDeterministicPrompt(CONSTRAINT_PROMPTS, normalized),
-  };
+  });
 }
 
 async function planReflect(read, seedEntryId, { promptType = null } = {}) {
   const seedEntry = await getStoredEntry(read, seedEntryId);
 
   if (!seedEntry || seedEntry.kind !== 'capture') {
-    return {
+    return Object.freeze({
       ok: false,
       code: 'seed_not_found',
-    };
+    });
   }
 
   const eligibility = assessReflectability(seedEntry.text);
   if (!eligibility.eligible) {
-    return {
+    return Object.freeze({
       ok: false,
       code: 'seed_ineligible',
       seedEntryId,
       seedEntry,
       eligibility,
-    };
+    });
   }
 
-  return {
+  return Object.freeze({
     ok: true,
     seedEntry,
     promptPlan: selectReflectPrompt(seedEntry, promptType),
-  };
+  });
 }
 
 function pickDeterministicPrompt(prompts, normalizedSeed) {
