@@ -5,6 +5,7 @@ import { execSync, spawn, spawnSync } from 'node:child_process';
 
 import { TimeoutError } from '@git-stunts/alfred';
 
+import { ThinkError } from './errors.js';
 import { createPushPolicy } from './policies.js';
 
 function resolveGitBinary() {
@@ -217,7 +218,7 @@ function runGit(args, options = {}) {
   });
 
   if (result.status !== 0) {
-    const error = new Error(`git command failed: git ${args.join(' ')}`);
+    const error = new ThinkError(`git command failed: git ${args.join(' ')}`, 'GIT_COMMAND_FAILED');
     error.result = result;
     throw error;
   }
