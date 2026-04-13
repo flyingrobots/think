@@ -70,14 +70,10 @@ export async function rememberThoughts(
       .map((entry) => buildExplicitRememberMatch(entry, explicitScope))
       .filter(Boolean)
       .sort(compareRememberMatches);
-    return {
-      scope: {
-        ...explicitScope,
-        brief,
-        limit,
-      },
+    return Object.freeze({
+      scope: Object.freeze({ ...explicitScope, brief, limit }),
       matches: finalizeRememberMatches(explicitMatches, { brief, limit }),
-    };
+    });
   }
 
   const scope = buildAmbientRememberScope(cwd);
@@ -85,14 +81,10 @@ export async function rememberThoughts(
     .map((entry) => buildAmbientRememberMatch(entry, scope))
     .filter(Boolean)
     .sort(compareRememberMatches);
-  return {
-    scope: {
-      ...scope,
-      brief,
-      limit,
-    },
+  return Object.freeze({
+    scope: Object.freeze({ ...scope, brief, limit }),
     matches: finalizeRememberMatches(matches, { brief, limit }),
-  };
+  });
 }
 
 export async function getStats(repoDir, { from, to, since, bucket } = {}) {
@@ -119,7 +111,7 @@ export async function getStats(repoDir, { from, to, since, bucket } = {}) {
   }
 
   if (!bucket) {
-    return { total: entries.length };
+    return Object.freeze({ total: entries.length });
   }
 
   const buckets = {};
@@ -128,12 +120,14 @@ export async function getStats(repoDir, { from, to, since, bucket } = {}) {
     buckets[key] = (buckets[key] || 0) + 1;
   }
 
-  return {
+  return Object.freeze({
     total: entries.length,
-    buckets: Object.entries(buckets)
-      .sort((a, b) => b[0].localeCompare(a[0]))
-      .map(([key, count]) => ({ key, count })),
-  };
+    buckets: Object.freeze(
+      Object.entries(buckets)
+        .sort((a, b) => b[0].localeCompare(a[0]))
+        .map(([key, count]) => Object.freeze({ key, count }))
+    ),
+  });
 }
 
 export async function getPromptMetrics({ from, to, since, bucket } = {}) {
