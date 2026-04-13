@@ -11,6 +11,7 @@ import {
   LEGACY_BRAINSTORM_SESSION_PREFIX,
   PRODUCT_READ_LENS,
   REFLECT_SESSION_PREFIX,
+  SESSION_KINDS,
   SESSION_PREFIX,
   THOUGHT_PREFIX,
 } from './constants.js';
@@ -150,7 +151,7 @@ export function toBrowseEntry(entry) {
 
 export async function getReflectSession(read, sessionId) {
   const session = await getStoredEntry(read, sessionId);
-  if (!session || (session.kind !== 'reflect_session' && session.kind !== 'brainstorm_session')) {
+  if (!session || !SESSION_KINDS.includes(session.kind)) {
     return null;
   }
 

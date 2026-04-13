@@ -1,4 +1,5 @@
 export const ENTRY_KINDS = Object.freeze(['capture', 'reflect', 'thought']);
+export const SESSION_KINDS = Object.freeze(['reflect_session', 'brainstorm_session']);
 export const BUCKET_PERIODS = Object.freeze(['hour', 'day', 'week']);
 
 export const GRAPH_NAME = 'think';
