@@ -30,19 +30,19 @@ export function assessReflectability(text) {
   const seedQuality = deriveSeedQuality(createThoughtId(text), text);
 
   if (seedQuality.verdict === 'likely_reflectable') {
-    return {
+    return Object.freeze({
       eligible: true,
       kind: 'pressure_testable',
       text: 'This entry looks like a candidate idea, question, or decision that can be pressure-tested.',
-    };
+    });
   }
 
-  return {
+  return Object.freeze({
     eligible: false,
     kind: 'not_pressure_testable',
     text: 'This entry looks more like a note than a pressure-testable idea.',
     suggestion: 'Pick a different seed or capture a sharper claim first.',
-  };
+  });
 }
 
 export async function ensureFirstDerivedArtifacts(app, read, entry) {
@@ -226,7 +226,7 @@ export function deriveSeedQuality(thoughtId, text) {
   const normalized = normalizeSeed(text);
   const eligible = REFLECT_MARKERS.some((pattern) => pattern.test(normalized));
 
-  return {
+  return Object.freeze({
     artifactId: createArtifactId('seed_quality', thoughtId),
     kind: 'seed_quality',
     primaryInputKind: 'thought',
@@ -236,12 +236,12 @@ export function deriveSeedQuality(thoughtId, text) {
     reasonText: eligible
       ? 'Contains explicit proposal, uncertainty, or decision language that can be pressure-tested.'
       : 'Reads more like a status, narrative, or observational note than a pressure-testable idea.',
-    promptFamilies: eligible ? [...REFLECT_PROMPT_TYPES] : [],
+    promptFamilies: Object.freeze(eligible ? [...REFLECT_PROMPT_TYPES] : []),
     deriver: DERIVER_NAME,
     deriverVersion: DERIVER_VERSION,
     schemaVersion: SCHEMA_VERSION,
     createdAt: getCurrentTime().toISOString(),
-  };
+  });
 }
 
 export async function deriveSessionAttribution(read, entry) {
@@ -267,7 +267,7 @@ export async function deriveSessionAttribution(read, entry) {
         && (Date.parse(capture.createdAt) - Date.parse(previous.createdAt)) <= SESSION_IDLE_GAP_MS;
       const sessionId = `${SESSION_PREFIX}${sessionStart.sortKey}`;
 
-      return {
+      return Object.freeze({
         artifactId: createArtifactId('session_attribution', entry.id, sessionId),
         kind: 'session_attribution',
         primaryInputKind: 'capture',
@@ -283,14 +283,14 @@ export async function deriveSessionAttribution(read, entry) {
         deriverVersion: DERIVER_VERSION,
         schemaVersion: SCHEMA_VERSION,
         createdAt: getCurrentTime().toISOString(),
-      };
+      });
     }
 
     previous = capture;
   }
 
   const fallbackSessionId = `${SESSION_PREFIX}${entry.sortKey}`;
-  return {
+  return Object.freeze({
     artifactId: createArtifactId('session_attribution', entry.id, fallbackSessionId),
     kind: 'session_attribution',
     primaryInputKind: 'capture',
@@ -304,19 +304,19 @@ export async function deriveSessionAttribution(read, entry) {
     deriverVersion: DERIVER_VERSION,
     schemaVersion: SCHEMA_VERSION,
     createdAt: getCurrentTime().toISOString(),
-  };
+  });
 }
 
 export async function getCanonicalThought(read, entry) {
   const thoughtId = entry.thoughtId ?? createThoughtId(entry.text);
   const thoughtProps = await read.view.getNodeProps(thoughtId);
 
-  return {
+  return Object.freeze({
     entryId: entry.id,
     thoughtId,
     relation: 'expresses',
     stored: Boolean(thoughtProps),
-  };
+  });
 }
 
 export async function getSeedQualityReceipt(read, entry) {
@@ -327,7 +327,7 @@ export async function getSeedQualityReceipt(read, entry) {
     return null;
   }
 
-  return {
+  return Object.freeze({
     artifactId,
     kind: 'seed_quality',
     primaryInputKind: props.primaryInputKind,
@@ -335,12 +335,12 @@ export async function getSeedQualityReceipt(read, entry) {
     verdict: props.verdict,
     reasonKind: props.reasonKind,
     reasonText: props.reasonText,
-    promptFamilies: parseJsonArray(props.promptFamiliesJson),
+    promptFamilies: Object.freeze(parseJsonArray(props.promptFamiliesJson)),
     deriver: props.deriver,
     deriverVersion: props.deriverVersion,
     schemaVersion: props.schemaVersion,
     createdAt: props.createdAt,
-  };
+  });
 }
 
 export async function getSessionAttributionReceipt(read, entry) {
@@ -353,7 +353,7 @@ export async function getSessionAttributionReceipt(read, entry) {
     return null;
   }
 
-  return {
+  return Object.freeze({
     artifactId,
     kind: 'session_attribution',
     primaryInputKind: props.primaryInputKind,
@@ -365,7 +365,7 @@ export async function getSessionAttributionReceipt(read, entry) {
     deriverVersion: props.deriverVersion,
     schemaVersion: props.schemaVersion,
     createdAt: props.createdAt,
-  };
+  });
 }
 
 export async function getSessionAttributionReceiptIfPresent(read, entry) {
@@ -379,7 +379,7 @@ export async function getSessionAttributionReceiptIfPresent(read, entry) {
     return null;
   }
 
-  return {
+  return Object.freeze({
     artifactId,
     kind: 'session_attribution',
     primaryInputKind: props.primaryInputKind,
@@ -391,7 +391,7 @@ export async function getSessionAttributionReceiptIfPresent(read, entry) {
     deriverVersion: props.deriverVersion,
     schemaVersion: props.schemaVersion,
     createdAt: props.createdAt,
-  };
+  });
 }
 
 function addArtifactNode(patch, artifact) {
