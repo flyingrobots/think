@@ -137,10 +137,10 @@ export function parseArgs(args) {
     positionals.push(arg);
   }
 
-  return {
+  return Object.freeze({
     ...options,
-    positionals,
-  };
+    positionals: Object.freeze(positionals),
+  });
 }
 
 export function resolveCommand(options) {
