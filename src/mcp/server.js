@@ -24,7 +24,7 @@ import {
   rememberThoughtsForMcp,
 } from './service.js';
 
-const recentEntrySchema = z.object({
+const mcpEntrySchema = z.object({
   createdAt: z.string(),
   entryId: z.string(),
   sessionId: z.string().nullable(),
@@ -32,13 +32,46 @@ const recentEntrySchema = z.object({
   text: z.string(),
 });
 
-const browseEntrySchema = z.object({
-  createdAt: z.string(),
+const migrationSchema = z.object({
+  changed: z.boolean(),
+  edgesAdded: z.number().int().nonnegative(),
+  edgesRemoved: z.number().int().nonnegative(),
+  graphModelVersion: z.number().int().positive(),
+  metadataUpdated: z.boolean(),
+}).nullable();
+
+const matchSchema = z.object({
   entryId: z.string(),
-  sessionId: z.string().nullable(),
-  sortKey: z.string(),
   text: z.string(),
+  createdAt: z.string(),
+  sortKey: z.string(),
+  score: z.number(),
+  tier: z.number(),
+  matchKinds: z.array(z.string()),
+  reasonText: z.string(),
 });
+
+const scopeSchema = z.object({
+  scopeKind: z.string(),
+}).passthrough();
+
+const sessionContextSchema = z.object({
+  entryId: z.string(),
+  sessionId: z.string(),
+  reasonKind: z.string(),
+  reasonText: z.string(),
+  sessionPosition: z.number().int(),
+  sessionCount: z.number().int(),
+}).nullable();
+
+const inspectEntrySchema = z.object({
+  entryId: z.string(),
+  thoughtId: z.string(),
+  kind: z.string(),
+  text: z.string(),
+  sortKey: z.string(),
+  createdAt: z.string(),
+}).passthrough();
 
 const bucketSchema = z.object({
   count: z.number().int().nonnegative(),
@@ -88,7 +121,7 @@ export function createThinkMcpServer() {
     outputSchema: {
       backupStatus: z.enum(['backed_up', 'pending', 'skipped']),
       entryId: z.string(),
-      migration: z.any().nullable(),
+      migration: migrationSchema,
       repoBootstrapped: z.boolean(),
       status: z.literal('saved_locally'),
       warnings: z.array(z.string()),
@@ -104,7 +137,7 @@ export function createThinkMcpServer() {
       query: z.string().optional().describe('Optional case-insensitive text filter.'),
     },
     outputSchema: {
-      entries: z.array(recentEntrySchema),
+      entries: z.array(mcpEntrySchema),
       repoPresent: z.boolean(),
     },
   }, async ({ count, query }) => {
@@ -120,9 +153,9 @@ export function createThinkMcpServer() {
       query: z.string().optional().describe('Optional explicit recall query. When omitted, uses ambient project context.'),
     },
     outputSchema: {
-      matches: z.array(z.any()),
+      matches: z.array(matchSchema),
       repoPresent: z.boolean(),
-      scope: z.any(),
+      scope: scopeSchema,
     },
   }, async ({ brief, limit, query }) => toToolResult(await rememberThoughtsForMcp({
     brief: brief ?? false,
@@ -136,11 +169,11 @@ export function createThinkMcpServer() {
       entryId: z.string().optional().describe('Optional capture entry id. When omitted, uses the latest capture.'),
     },
     outputSchema: {
-      current: browseEntrySchema,
-      newer: browseEntrySchema.nullable(),
-      older: browseEntrySchema.nullable(),
-      sessionContext: z.any().nullable(),
-      sessionEntries: z.array(browseEntrySchema),
+      current: mcpEntrySchema,
+      newer: mcpEntrySchema.nullable(),
+      older: mcpEntrySchema.nullable(),
+      sessionContext: sessionContextSchema,
+      sessionEntries: z.array(mcpEntrySchema),
       sessionSteps: z.array(z.object({
         createdAt: z.string(),
         direction: z.enum(['next', 'previous']),
@@ -162,7 +195,7 @@ export function createThinkMcpServer() {
       entryId: z.string().describe('The raw capture entry id to inspect.'),
     },
     outputSchema: {
-      entry: z.any(),
+      entry: inspectEntrySchema,
     },
   }, async ({ entryId }) => {
     const result = await inspectThought(entryId);
