@@ -11,7 +11,7 @@ export async function readPromptMetricsRecords(filePath) {
       .filter(Boolean)
       .map((line) => {
         try {
-          return parseJson(line);
+          return normalizeMetricRecord(parseJson(line));
         } catch {
           return null;
         }
@@ -23,6 +23,25 @@ export async function readPromptMetricsRecords(filePath) {
     }
     throw error;
   }
+}
+
+function normalizeMetricRecord(raw) {
+  if (!raw || typeof raw !== 'object' || !raw.sessionId) {
+    return null;
+  }
+
+  return Object.freeze({
+    sessionId: String(raw.sessionId),
+    ts: raw.ts ?? null,
+    dismissalOutcome: raw.dismissalOutcome ?? null,
+    trigger: raw.trigger ?? null,
+    triggerToVisibleMs: typeof raw.triggerToVisibleMs === 'number' ? raw.triggerToVisibleMs : null,
+    typingDurationMs: typeof raw.typingDurationMs === 'number' ? raw.typingDurationMs : null,
+    submitToHideMs: typeof raw.submitToHideMs === 'number' ? raw.submitToHideMs : null,
+    submitToLocalCaptureMs: typeof raw.submitToLocalCaptureMs === 'number' ? raw.submitToLocalCaptureMs : null,
+    captureOutcome: raw.captureOutcome ?? null,
+    backupState: raw.backupState ?? null,
+  });
 }
 
 export function summarizePromptMetrics(records) {
