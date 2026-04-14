@@ -31,3 +31,5 @@ Whenever later modes expose a cluster or link, show why it exists: shared unusua
 - Raw adjacent-entry Levenshtein drift as the main evolution metric.
 - Lexical-only clustering presented as "understanding."
 - Silent classification leaking into capture or recent.
+
+**Related:** `docs/design/enrichment-pipeline.md` — auto_tags, semantic_parse, and auto_link stages implement several of these ideas.
