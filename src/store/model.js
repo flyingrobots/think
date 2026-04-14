@@ -8,16 +8,16 @@ import {
   ARTIFACT_PREFIX,
   BUCKET_PERIODS,
   DERIVER_VERSION,
-  ENTRY_KINDS,
   ENTRY_PREFIX,
   MAX_REFLECT_STEPS,
   REFLECT_SESSION_PREFIX,
   SCHEMA_VERSION,
+  TEXT_CONTENT_KINDS,
   THOUGHT_PREFIX,
 } from './constants.js';
 
 export function storesTextContent(kind) {
-  return ENTRY_KINDS.includes(kind);
+  return TEXT_CONTENT_KINDS.includes(kind);
 }
 
 export function getCurrentTime() {

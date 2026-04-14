@@ -1,6 +1,7 @@
 import { REFLECT_PROMPT_TYPES } from '../store.js';
 
 export const COMMANDS = Object.freeze({
+  ANNOTATE: 'annotate',
   CAPTURE: 'capture',
   RECENT: 'recent',
   REMEMBER: 'remember',
@@ -30,6 +31,8 @@ export function parseArgs(args) {
     recent: false,
     remember: false,
     ingest: false,
+    annotateFlag: false,
+    annotate: null,
     reflectFlag: false,
     reflect: null,
     reflectMode: null,
@@ -100,6 +103,9 @@ export function parseArgs(args) {
       } else if (arg.startsWith('--inspect=')) {
         options.inspectFlag = true;
         options.inspect = arg.slice('--inspect='.length);
+      } else if (arg.startsWith('--annotate=')) {
+        options.annotateFlag = true;
+        options.annotate = arg.slice('--annotate='.length);
       } else if (arg === '--migrate-graph') {
         options.migrateGraph = true;
       } else if (arg === '--doctor') {
@@ -163,6 +169,7 @@ export function resolveCommand(options) {
   if (options.reflectFlag) { return COMMANDS.REFLECT_START; }
   if (options.browseFlag) { return COMMANDS.BROWSE; }
   if (options.inspectFlag) { return COMMANDS.INSPECT; }
+  if (options.annotateFlag) { return COMMANDS.ANNOTATE; }
   if (options.doctor) { return COMMANDS.DOCTOR; }
   if (options.migrateGraph) { return COMMANDS.MIGRATE_GRAPH; }
   if (options.ingest) { return COMMANDS.INGEST; }
@@ -272,6 +279,15 @@ export function validateOptions(options, command) {
     return '--prompt-metrics does not take a thought';
   }
 
+  if (command === 'annotate') {
+    if (!options.annotate) {
+      return '--annotate requires an entry id';
+    }
+    if (options.positionals.length === 0) {
+      return '--annotate requires annotation text';
+    }
+  }
+
   if (command === 'reflect_start') {
     if (options.reflectMode && !REFLECT_PROMPT_TYPES.includes(options.reflectMode)) {
       return 'Invalid --mode value';
@@ -343,6 +359,7 @@ export function countExplicitCommands(options) {
     options.stats,
     options.reflectFlag,
     options.reflectSessionFlag,
+    options.annotateFlag,
   ].filter(Boolean).length;
 }
 

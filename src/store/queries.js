@@ -269,6 +269,8 @@ export async function inspectRawEntryForRead(read, entryId) {
   const sessionAttribution = await getSessionAttributionReceipt(read, entry);
   const derivedReceipts = await listDirectDerivedReceipts(read, entryId);
 
+  const annotations = await listAnnotationsForEntry(read, entryId);
+
   return Object.freeze({
     entryId: entry.id,
     thoughtId: canonicalThought?.thoughtId ?? createThoughtId(entry.text),
@@ -281,7 +283,30 @@ export async function inspectRawEntryForRead(read, entryId) {
     seedQuality,
     sessionAttribution,
     derivedReceipts,
+    annotations,
   });
+}
+
+async function listAnnotationsForEntry(read, entryId) {
+  const edges = await read.view.getEdges();
+  const annotationIds = edges
+    .filter((e) => e.to === entryId && e.label === 'annotates')
+    .map((e) => e.from);
+
+  const annotations = [];
+  for (const id of annotationIds) {
+    // eslint-disable-next-line no-await-in-loop -- sequential annotation reads
+    const entry = await getStoredEntry(read, id);
+    if (entry) {
+      annotations.push(Object.freeze({
+        annotationId: entry.id,
+        text: entry.text,
+        createdAt: entry.createdAt,
+      }));
+    }
+  }
+
+  return annotations.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
 async function buildBrowseWindow(read, entryId) {

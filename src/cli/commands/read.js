@@ -21,6 +21,7 @@ import {
   rememberThoughts,
   saveReflectResponse,
   startReflect,
+  saveAnnotation,
 } from '../../store.js';
 import { buildStatsSparkline } from '../../mcp/format.js';
 import { shouldUseInteractiveBrowseShell } from '../environment.js';
@@ -60,6 +61,27 @@ export async function runDoctor(output, reporter) {
   }
 
   reporter.event('doctor.done');
+  return 0;
+}
+
+export async function runAnnotate(entryId, text, output, reporter) {
+  const repoDir = getLocalRepoDir();
+
+  if (!hasGitRepo(repoDir)) {
+    output.error('No local thought repo found', 'annotate.repo_not_found');
+    return 1;
+  }
+
+  reporter.event('annotate.start', { targetEntryId: entryId });
+
+  const result = await saveAnnotation(repoDir, entryId, text);
+
+  output.out('Annotated', 'annotate.done', {
+    annotationId: result.annotationId,
+    targetEntryId: result.targetEntryId,
+  });
+
+  reporter.event('annotate.done', result);
   return 0;
 }
 
@@ -619,6 +641,11 @@ export async function runInspect(entryId, output, reporter) {
     if (entry.sessionAttribution) {
       output.data('inspect.receipt', entry.sessionAttribution);
     }
+    if (entry.annotations && entry.annotations.length > 0) {
+      for (const annotation of entry.annotations) {
+        output.data('inspect.annotation', annotation);
+      }
+    }
     return 0;
   }
 
@@ -673,6 +700,13 @@ export async function runInspect(entryId, output, reporter) {
   } else {
     lines.push('Session: pending');
     lines.push('Why: Session attribution has not been materialized yet.');
+  }
+
+  if (entry.annotations && entry.annotations.length > 0) {
+    lines.push('Annotations');
+    for (const annotation of entry.annotations) {
+      lines.push(`${annotation.createdAt}: ${annotation.text}`);
+    }
   }
 
   output.out(lines.join('\n'));

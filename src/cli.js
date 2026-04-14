@@ -12,6 +12,7 @@ import {
 import { createOutput, resolveJsonStream } from './cli/output.js';
 import { runCapture, runIngest, runMigrateGraph } from './cli/commands/capture.js';
 import {
+  runAnnotate,
   runBrowse,
   runDoctor,
   runInspect,
@@ -60,6 +61,7 @@ export async function main(argv, { stdout, stderr, stdin }) {
     }
 
     const dispatch = {
+      [COMMANDS.ANNOTATE]: () => runAnnotate(options.annotate, options.positionals.join(' '), output, reporter),
       [COMMANDS.RECENT]: () => runRecent(output, reporter, options),
       [COMMANDS.REMEMBER]: () => runRemember(output, reporter, options),
       [COMMANDS.BROWSE]: () => runBrowse(options.browse, output, reporter),

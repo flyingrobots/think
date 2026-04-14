@@ -1,4 +1,5 @@
 export const ENTRY_KINDS = Object.freeze(['capture', 'reflect', 'thought']);
+export const TEXT_CONTENT_KINDS = Object.freeze(['capture', 'reflect', 'thought', 'annotation', 'evolution']);
 export const SESSION_KINDS = Object.freeze(['reflect_session', 'brainstorm_session']);
 export const BUCKET_PERIODS = Object.freeze(['hour', 'day', 'week']);
 
