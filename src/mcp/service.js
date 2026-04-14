@@ -91,10 +91,11 @@ export async function listRecentThoughts({ count = null, query = null } = {}) {
     };
   }
 
-  const entries = await listRecent(repoDir, { count, query });
+  const result = await listRecent(repoDir, { count, query });
   return {
-    entries: entries.map(toMcpEntry),
+    entries: result.entries.map(toMcpEntry),
     repoPresent: true,
+    total: result.total,
   };
 }
 

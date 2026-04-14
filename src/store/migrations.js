@@ -10,95 +10,129 @@ import { openWarpApp } from './runtime.js';
 
 export async function migrateGraphModel(repoDir) {
   const app = await openWarpApp(repoDir);
-  const graph = app.core();
-  const nodes = await graph.getNodes();
-  const edges = await graph.getEdges();
-  const edgeKeys = new Set(edges.map(edge => `${edge.from}\0${edge.to}\0${edge.label}`));
-  const propsById = new Map();
+  const worldline = app.worldline();
 
-  for (const nodeId of nodes) {
-    // eslint-disable-next-line no-await-in-loop -- sequential graph node reads during migration
-    const props = await graph.getNodeProps(nodeId);
-    if (props) {
-      propsById.set(nodeId, props);
-    }
-  }
+  // Check current graph model version
+  const graphMeta = await worldline.getNodeProps(GRAPH_META_ID);
+  const needsMetadataNode = !graphMeta;
+  const needsGraphVersionUpdate = !graphMeta || graphMeta.graphModelVersion !== GRAPH_MODEL_VERSION;
+
+  // Query each node kind separately — no full materialization
+  const captureResult = await worldline.query().match('entry:*').where({ kind: 'capture' }).run();
+  const reflectEntryResult = await worldline.query().match('entry:*').where({ kind: 'reflect' }).run();
+  const brainstormEntryResult = await worldline.query().match('entry:*').where({ kind: 'brainstorm' }).run();
+  const reflectNodes = [
+    ...(reflectEntryResult.nodes ?? []),
+    ...(brainstormEntryResult.nodes ?? []),
+  ];
+  const reflectSessionResult = await worldline.query().match('reflect:*').run();
+  const brainstormSessionResult = await worldline.query().match('brainstorm:*').run();
+  const sessionNodes = [
+    ...(reflectSessionResult.nodes ?? []),
+    ...(brainstormSessionResult.nodes ?? []),
+  ];
+  const artifactResult = await worldline.query().match(`${ARTIFACT_PREFIX}*`).run();
 
   const missingEdges = [];
   const removableEdges = [];
-  for (const [nodeId, props] of propsById) {
-    if (props.kind === 'capture') {
-      if (typeof props.thoughtId === 'string' && props.thoughtId !== '' && propsById.has(props.thoughtId)) {
-        pushMissingEdge(missingEdges, edgeKeys, nodeId, props.thoughtId, 'expresses');
-      }
-      if (typeof props.sessionId === 'string' && props.sessionId !== '' && propsById.has(props.sessionId)) {
-        pushMissingEdge(missingEdges, edgeKeys, nodeId, props.sessionId, 'captured_in');
-      }
+
+  // Check capture edges — sequential per-node edge traversal
+  for (const node of captureResult.nodes ?? []) {
+    const { id, props } = node;
+    /* eslint-disable no-await-in-loop -- sequential migration edge checks */
+    if (props.thoughtId) {
+      await pushMissingEdgeIfAbsent(worldline, missingEdges, id, props.thoughtId, 'expresses');
     }
-
-    if (props.kind === 'reflect_session' || props.kind === 'brainstorm_session') {
-      if (typeof props.seedEntryId === 'string' && props.seedEntryId !== '' && propsById.has(props.seedEntryId)) {
-        pushMissingEdge(missingEdges, edgeKeys, nodeId, props.seedEntryId, 'seeded_by');
-      }
+    if (props.sessionId) {
+      await pushMissingEdgeIfAbsent(worldline, missingEdges, id, props.sessionId, 'captured_in');
     }
+    /* eslint-enable no-await-in-loop */
+  }
 
-    if (props.kind === 'reflect') {
-      if (typeof props.sessionId === 'string' && props.sessionId !== '' && propsById.has(props.sessionId)) {
-        pushMissingEdge(missingEdges, edgeKeys, nodeId, props.sessionId, 'produced_in');
-      }
-      if (typeof props.seedEntryId === 'string' && props.seedEntryId !== '' && propsById.has(props.seedEntryId)) {
-        pushMissingEdge(missingEdges, edgeKeys, nodeId, props.seedEntryId, 'responds_to');
-      }
-    }
-
-    if (String(nodeId).startsWith(ARTIFACT_PREFIX)) {
-      if (
-        props.primaryInputKind === 'thought'
-        && typeof props.primaryInputId === 'string'
-        && propsById.has(props.primaryInputId)
-      ) {
-        pushMissingEdge(missingEdges, edgeKeys, nodeId, props.primaryInputId, 'derived_from');
-      }
-
-      if (
-        props.primaryInputKind === 'capture'
-        && typeof props.primaryInputId === 'string'
-        && propsById.has(props.primaryInputId)
-      ) {
-        pushMissingEdge(missingEdges, edgeKeys, nodeId, props.primaryInputId, 'contextualizes');
-      }
+  // Check reflect session edges
+  for (const node of sessionNodes) {
+    const { id, props } = node;
+    if (props.seedEntryId) {
+      // eslint-disable-next-line no-await-in-loop -- sequential migration
+      await pushMissingEdgeIfAbsent(worldline, missingEdges, id, props.seedEntryId, 'seeded_by');
     }
   }
 
-  const captures = [...propsById.entries()]
-    .filter(([, props]) => props.kind === 'capture')
-    .map(([nodeId, props]) => ({
-      id: nodeId,
-      sortKey: String(props.sortKey || ''),
-    }))
+  // Check reflect entry edges
+  for (const node of reflectNodes) {
+    const { id, props } = node;
+    /* eslint-disable no-await-in-loop -- sequential migration edge checks */
+    if (props.sessionId) {
+      await pushMissingEdgeIfAbsent(worldline, missingEdges, id, props.sessionId, 'produced_in');
+    }
+    if (props.seedEntryId) {
+      await pushMissingEdgeIfAbsent(worldline, missingEdges, id, props.seedEntryId, 'responds_to');
+    }
+    /* eslint-enable no-await-in-loop */
+  }
+
+  // Check artifact edges
+  for (const node of artifactResult.nodes ?? []) {
+    const { id, props } = node;
+    /* eslint-disable no-await-in-loop -- sequential migration edge checks */
+    if (props.primaryInputKind === 'thought' && props.primaryInputId) {
+      await pushMissingEdgeIfAbsent(worldline, missingEdges, id, props.primaryInputId, 'derived_from');
+    }
+    if (props.primaryInputKind === 'capture' && props.primaryInputId) {
+      await pushMissingEdgeIfAbsent(worldline, missingEdges, id, props.primaryInputId, 'contextualizes');
+    }
+    /* eslint-enable no-await-in-loop */
+  }
+
+  // Build chronology chain
+  const captures = (captureResult.nodes ?? [])
+    .map((node) => ({ id: node.id, sortKey: String(node.props.sortKey || '') }))
     .sort(compareEntriesNewestFirst);
 
-  const latestCaptureEdges = edges.filter((edge) => edge.from === GRAPH_META_ID && edge.label === 'latest_capture');
+  // Check latest_capture edge
   const latestCaptureId = captures[0]?.id ?? null;
-  for (const edge of latestCaptureEdges) {
-    if (edge.to !== latestCaptureId) {
-      removableEdges.push(edge);
-      edgeKeys.delete(`${edge.from}\0${edge.to}\0${edge.label}`);
+  const latestCaptureTraversal = await worldline.query()
+    .match(GRAPH_META_ID)
+    .outgoing('latest_capture')
+    .run();
+  const currentLatestEdges = latestCaptureTraversal.nodes ?? [];
+
+  for (const node of currentLatestEdges) {
+    if (node.id !== latestCaptureId) {
+      removableEdges.push({ from: GRAPH_META_ID, to: node.id, label: 'latest_capture' });
     }
   }
   if (latestCaptureId) {
-    pushMissingEdge(missingEdges, edgeKeys, GRAPH_META_ID, latestCaptureId, 'latest_capture');
+    const hasLatest = currentLatestEdges.some((n) => n.id === latestCaptureId);
+    if (!hasLatest) {
+      missingEdges.push({ from: GRAPH_META_ID, to: latestCaptureId, label: 'latest_capture' });
+    }
   }
 
+  // Check older chain
   for (let index = 0; index + 1 < captures.length; index += 1) {
-    pushMissingEdge(missingEdges, edgeKeys, captures[index].id, captures[index + 1].id, 'older');
+    // eslint-disable-next-line no-await-in-loop -- sequential chain check
+    await pushMissingEdgeIfAbsent(worldline, missingEdges, captures[index].id, captures[index + 1].id, 'older');
   }
 
-  const graphMeta = propsById.get(GRAPH_META_ID) ?? null;
-  const needsMetadataNode = !graphMeta;
-  const needsGraphVersionUpdate = graphMeta?.graphModelVersion !== GRAPH_MODEL_VERSION;
+  // Check classification nodes
+  const classificationNodesToCreate = [];
+  for (const name of CLASSIFICATIONS) {
+    const nodeId = `${CLASSIFICATION_PREFIX}${name}`;
+    // eslint-disable-next-line no-await-in-loop -- checking 7 standing nodes
+    const existing = await worldline.getNodeProps(nodeId);
+    if (!existing) {
+      classificationNodesToCreate.push({ nodeId, name });
+    }
+  }
 
-  if (missingEdges.length === 0 && removableEdges.length === 0 && !needsMetadataNode && !needsGraphVersionUpdate) {
+  if (
+    missingEdges.length === 0
+    && removableEdges.length === 0
+    && classificationNodesToCreate.length === 0
+    && !needsMetadataNode
+    && !needsGraphVersionUpdate
+  ) {
     return Object.freeze({
       changed: false,
       graphModelVersion: GRAPH_MODEL_VERSION,
@@ -109,7 +143,7 @@ export async function migrateGraphModel(repoDir) {
   }
 
   const timestamp = getCurrentTime().toISOString();
-  await graph.patch((patch) => {
+  await app.patch((patch) => {
     if (needsMetadataNode) {
       patch
         .addNode(GRAPH_META_ID)
@@ -128,16 +162,12 @@ export async function migrateGraphModel(repoDir) {
       patch.addEdge(edge.from, edge.to, edge.label);
     }
 
-    // v4: create standing classification nodes
-    for (const name of CLASSIFICATIONS) {
-      const nodeId = `${CLASSIFICATION_PREFIX}${name}`;
-      if (!propsById.has(nodeId)) {
-        patch
-          .addNode(nodeId)
-          .setProperty(nodeId, 'kind', 'classification')
-          .setProperty(nodeId, 'name', name)
-          .setProperty(nodeId, 'createdAt', timestamp);
-      }
+    for (const { nodeId, name } of classificationNodesToCreate) {
+      patch
+        .addNode(nodeId)
+        .setProperty(nodeId, 'kind', 'classification')
+        .setProperty(nodeId, 'name', name)
+        .setProperty(nodeId, 'createdAt', timestamp);
     }
   });
 
@@ -150,12 +180,14 @@ export async function migrateGraphModel(repoDir) {
   });
 }
 
-function pushMissingEdge(target, existingEdgeKeys, from, to, label) {
-  const key = `${from}\0${to}\0${label}`;
-  if (existingEdgeKeys.has(key)) {
-    return;
-  }
+async function pushMissingEdgeIfAbsent(worldline, target, from, to, label) {
+  // Verify target node exists before checking edge
+  const targetProps = await worldline.getNodeProps(to);
+  if (!targetProps) { return; }
 
-  existingEdgeKeys.add(key);
-  target.push({ from, to, label });
+  const traversal = await worldline.query().match(from).outgoing(label).run();
+  const hasEdge = (traversal.nodes ?? []).some((n) => n.id === to);
+  if (!hasEdge) {
+    target.push({ from, to, label });
+  }
 }

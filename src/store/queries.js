@@ -290,15 +290,12 @@ export async function inspectRawEntryForRead(read, entryId) {
 }
 
 async function listAnnotationsForEntry(read, entryId) {
-  const edges = await read.view.getEdges();
-  const annotationIds = edges
-    .filter((e) => e.to === entryId && e.label === 'annotates')
-    .map((e) => e.from);
-
+  const traversal = await read.view.query().match(entryId).incoming('annotates').run();
   const annotations = [];
-  for (const id of annotationIds) {
+
+  for (const node of traversal.nodes ?? []) {
     // eslint-disable-next-line no-await-in-loop -- sequential annotation reads
-    const entry = await getStoredEntry(read, id);
+    const entry = await getStoredEntry(read, node.id);
     if (entry) {
       annotations.push(Object.freeze({
         annotationId: entry.id,

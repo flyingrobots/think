@@ -12,43 +12,62 @@ const TOPIC_PROMOTION_THRESHOLD = 2;
 
 /**
  * Run the enrichment pipeline on all un-enriched captures in a repo.
+ * Uses worldline query API — no full graph materialization.
  */
 export async function runEnrichmentPipeline(repoDir) {
   const app = await openWarpApp(repoDir);
   const read = await createProductReadHandle(app);
+  const worldline = read.view;
   const captures = await listEntriesByKind(read, 'capture');
-  const edges = await read.view.getEdges();
 
-  // Find thoughts that already have auto_tags receipts
+  // Find existing auto_tags receipts via query
   const existingReceipts = new Set();
-  const allNodes = await read.view.getNodes();
-  for (const node of allNodes) {
-    if (node.startsWith('artifact:')) {
-      // eslint-disable-next-line no-await-in-loop -- sequential graph reads during enrichment scan
-      const props = await read.view.getNodeProps(node);
-      if (props?.kind === 'auto_tags') {
-        existingReceipts.add(props.primaryInputId);
-      }
+  const tagReceiptResult = await worldline.query().match('artifact:*').where({ kind: 'auto_tags' }).run();
+  for (const node of tagReceiptResult.nodes ?? []) {
+    if (node.props.primaryInputId) {
+      existingReceipts.add(node.props.primaryInputId);
     }
   }
 
-  // Track candidate topic counts across all captures
+  // Find existing semantic_parse receipts via query
+  const existingParseReceipts = new Set();
+  const parseReceiptResult = await worldline.query().match('artifact:*').where({ kind: 'semantic_parse' }).run();
+  for (const node of parseReceiptResult.nodes ?? []) {
+    if (node.props.primaryInputId) {
+      existingParseReceipts.add(node.props.primaryInputId);
+    }
+  }
+
+  // Find existing topic nodes via query
+  const existingTopicNodes = new Set();
+  const topicResult = await worldline.query().match(`${TOPIC_PREFIX}*`).run();
+  for (const node of topicResult.nodes ?? []) {
+    existingTopicNodes.add(node.id);
+  }
+
+  // Track candidate topic counts and classifications across all captures
   const topicCounts = new Map();
   const thoughtTopics = new Map();
+  const thoughtClassifications = new Map();
 
   for (const capture of captures) {
     const { thoughtId } = capture;
     if (!thoughtId) { continue; }
 
-    const topics = extractTopics(capture.text);
-    thoughtTopics.set(thoughtId, topics);
+    if (!thoughtTopics.has(thoughtId)) {
+      const topics = extractTopics(capture.text);
+      thoughtTopics.set(thoughtId, topics);
+      for (const topic of topics) {
+        topicCounts.set(topic, (topicCounts.get(topic) || 0) + 1);
+      }
+    }
 
-    for (const topic of topics) {
-      topicCounts.set(topic, (topicCounts.get(topic) || 0) + 1);
+    if (!thoughtClassifications.has(thoughtId)) {
+      thoughtClassifications.set(thoughtId, classifyThought(capture.text));
     }
   }
 
-  // Determine which topics are promoted
+  // Determine promoted topics
   const promotedTopics = new Set();
   for (const [topic, count] of topicCounts) {
     if (count >= TOPIC_PROMOTION_THRESHOLD) {
@@ -56,46 +75,24 @@ export async function runEnrichmentPipeline(repoDir) {
     }
   }
 
-  // Check which topic nodes and about edges already exist
-  const existingTopicNodes = new Set();
+  // Check existing about edges per thought via traversal
   const existingAboutEdges = new Set();
-  for (const node of await read.view.getNodes()) {
-    if (node.startsWith(TOPIC_PREFIX)) {
-      existingTopicNodes.add(node);
-    }
-  }
-  for (const edge of edges) {
-    if (edge.label === 'about') {
-      existingAboutEdges.add(`${edge.from}\0${edge.to}`);
+  for (const [thoughtId] of thoughtTopics) {
+    // eslint-disable-next-line no-await-in-loop -- per-thought traversal
+    const traversal = await worldline.query().match(thoughtId).outgoing('about').run();
+    for (const node of traversal.nodes ?? []) {
+      existingAboutEdges.add(`${thoughtId}\0${node.id}`);
     }
   }
 
-  // Check existing classified_as edges
+  // Check existing classified_as edges per thought via traversal
   const existingClassifiedEdges = new Set();
-  for (const edge of edges) {
-    if (edge.label === 'classified_as') {
-      existingClassifiedEdges.add(`${edge.from}\0${edge.to}`);
+  for (const [thoughtId] of thoughtClassifications) {
+    // eslint-disable-next-line no-await-in-loop -- per-thought traversal
+    const traversal = await worldline.query().match(thoughtId).outgoing('classified_as').run();
+    for (const node of traversal.nodes ?? []) {
+      existingClassifiedEdges.add(`${thoughtId}\0${node.id}`);
     }
-  }
-
-  // Check existing semantic_parse receipts
-  const existingParseReceipts = new Set();
-  for (const node of allNodes) {
-    if (node.startsWith('artifact:')) {
-      // eslint-disable-next-line no-await-in-loop -- sequential graph reads during enrichment scan
-      const props = await read.view.getNodeProps(node);
-      if (props?.kind === 'semantic_parse') {
-        existingParseReceipts.add(props.primaryInputId);
-      }
-    }
-  }
-
-  // Run classification on all captures
-  const thoughtClassifications = new Map();
-  for (const capture of captures) {
-    const { thoughtId } = capture;
-    if (!thoughtId || thoughtClassifications.has(thoughtId)) { continue; }
-    thoughtClassifications.set(thoughtId, classifyThought(capture.text));
   }
 
   const timestamp = getCurrentTime().toISOString();
@@ -133,7 +130,7 @@ export async function runEnrichmentPipeline(repoDir) {
       }
     }
 
-    // Create receipt artifacts for un-enriched thoughts
+    // Create auto_tags receipt artifacts
     for (const capture of captures) {
       const { thoughtId } = capture;
       if (!thoughtId || existingReceipts.has(thoughtId)) { continue; }
@@ -207,29 +204,24 @@ export async function runEnrichmentPipeline(repoDir) {
 
 /**
  * List all promoted topics in the graph with thought counts.
+ * Uses worldline query API — no full graph materialization.
  */
 export async function listTopics(repoDir) {
   const app = await openWarpApp(repoDir);
-  const read = await createProductReadHandle(app);
-  const edges = await read.view.getEdges();
-  const nodes = await read.view.getNodes();
+  const worldline = app.worldline();
 
+  const topicResult = await worldline.query().match(`${TOPIC_PREFIX}*`).where({ kind: 'topic' }).run();
   const topics = [];
-  for (const nodeId of nodes) {
-    if (!nodeId.startsWith(TOPIC_PREFIX)) { continue; }
 
-    // eslint-disable-next-line no-await-in-loop -- sequential topic node reads
-    const props = await read.view.getNodeProps(nodeId);
-    if (!props || props.kind !== 'topic') { continue; }
-
-    const thoughtCount = edges.filter(
-      (e) => e.to === nodeId && e.label === 'about'
-    ).length;
+  for (const node of topicResult.nodes ?? []) {
+    // eslint-disable-next-line no-await-in-loop -- per-topic traversal for count
+    const incoming = await worldline.query().match(node.id).incoming('about').run();
+    const thoughtCount = (incoming.nodes ?? []).length;
 
     topics.push(Object.freeze({
-      name: props.name,
+      name: node.props.name,
       thoughtCount,
-      createdAt: props.createdAt,
+      createdAt: node.props.createdAt,
     }));
   }
 

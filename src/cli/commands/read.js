@@ -257,11 +257,12 @@ export async function runRecent(output, reporter, options) {
     return 0;
   }
 
-  const entries = await listRecent(repoDir, {
+  const result = await listRecent(repoDir, {
     count: options.recentCount === null || options.recentCount === undefined ? null : Number(options.recentCount),
     query: options.recentQuery,
   });
-  reporter.event('recent.done', { count: entries.length });
+  const { entries, total } = result;
+  reporter.event('recent.done', { count: entries.length, total });
   if (entries.length > 0) {
     if (output.json) {
       for (const [index, entry] of entries.entries()) {
@@ -274,6 +275,9 @@ export async function runRecent(output, reporter, options) {
       }
     } else {
       output.out(entries.map(entry => entry.text).join('\n'));
+      if (entries.length < total) {
+        output.out(`(showing ${entries.length} of ${total} captures)`);
+      }
     }
   }
 
