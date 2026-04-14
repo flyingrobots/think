@@ -12,3 +12,5 @@ Builds the graph from a flat chronology into a navigable web.
 
 Could also support typed links: "contradicts", "extends", "replaces",
 "inspired_by".
+
+**Superseded by:** `docs/design/enrichment-pipeline.md`

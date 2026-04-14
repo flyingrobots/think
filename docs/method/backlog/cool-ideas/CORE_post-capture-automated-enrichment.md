@@ -56,3 +56,5 @@ Lightweight enrichment (topics, semantic parse) should work without
 an LLM — pattern matching and corpus statistics. LLM enrichment
 (annotation, linking rationale) is opt-in and clearly marked in
 provenance as LLM-derived.
+
+**Superseded by:** `docs/design/enrichment-pipeline.md`

@@ -13,3 +13,5 @@ capture → time passes → re-encounter → enrich.
 
 Selection heuristics: prefer thoughts with no annotations, high
 seed quality, or from topics you haven't revisited recently.
+
+**Superseded by:** `docs/design/enrichment-pipeline.md`

@@ -46,3 +46,5 @@ Two modes:
 
 Could run on a schedule ("generate daily digest at midnight") or
 on demand.
+
+**Superseded by:** `docs/design/enrichment-pipeline.md`

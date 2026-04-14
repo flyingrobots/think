@@ -12,3 +12,5 @@ Press `a` in browse to annotate inline.
 
 Same graph primitives as reflect — new node, new edge, original
 stays immutable.
+
+**Superseded by:** `docs/design/enrichment-pipeline.md`

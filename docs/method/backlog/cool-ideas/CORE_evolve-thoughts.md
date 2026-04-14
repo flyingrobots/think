@@ -12,3 +12,5 @@ idea through multiple passes — each pass is a new immutable entry.
 
 Different from reflect (which pressure-tests) and annotate (which
 comments). Evolve says "this thought grew into this new thought."
+
+**Superseded by:** `docs/design/enrichment-pipeline.md`

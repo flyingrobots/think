@@ -17,3 +17,5 @@ Approach:
 
 The tag vocabulary grows organically from the corpus. No predefined
 taxonomy — Think discovers your topics, it doesn't impose them.
+
+**Superseded by:** `docs/design/enrichment-pipeline.md`
