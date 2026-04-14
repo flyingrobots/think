@@ -1,4 +1,4 @@
-import { TOPIC_PREFIX } from '../constants.js';
+import { CLASSIFICATION_PREFIX, TOPIC_PREFIX } from '../constants.js';
 import { createArtifactId, getCurrentTime } from '../model.js';
 import {
   createProductReadHandle,
@@ -6,6 +6,7 @@ import {
   openWarpApp,
 } from '../runtime.js';
 import { extractTopics } from './auto-tags.js';
+import { classifyThought } from './semantic-parse.js';
 
 const TOPIC_PROMOTION_THRESHOLD = 2;
 
@@ -69,9 +70,38 @@ export async function runEnrichmentPipeline(repoDir) {
     }
   }
 
+  // Check existing classified_as edges
+  const existingClassifiedEdges = new Set();
+  for (const edge of edges) {
+    if (edge.label === 'classified_as') {
+      existingClassifiedEdges.add(`${edge.from}\0${edge.to}`);
+    }
+  }
+
+  // Check existing semantic_parse receipts
+  const existingParseReceipts = new Set();
+  for (const node of allNodes) {
+    if (node.startsWith('artifact:')) {
+      // eslint-disable-next-line no-await-in-loop -- sequential graph reads during enrichment scan
+      const props = await read.view.getNodeProps(node);
+      if (props?.kind === 'semantic_parse') {
+        existingParseReceipts.add(props.primaryInputId);
+      }
+    }
+  }
+
+  // Run classification on all captures
+  const thoughtClassifications = new Map();
+  for (const capture of captures) {
+    const { thoughtId } = capture;
+    if (!thoughtId || thoughtClassifications.has(thoughtId)) { continue; }
+    thoughtClassifications.set(thoughtId, classifyThought(capture.text));
+  }
+
   const timestamp = getCurrentTime().toISOString();
   let topicNodesCreated = 0;
   let aboutEdgesAdded = 0;
+  let classifiedEdgesAdded = 0;
   let receiptsCreated = 0;
 
   await app.patch((patch) => {
@@ -127,12 +157,49 @@ export async function runEnrichmentPipeline(repoDir) {
 
       receiptsCreated++;
     }
+
+    // Add classified_as edges
+    for (const [thoughtId, result] of thoughtClassifications) {
+      for (const classification of result.classifications) {
+        const classNodeId = `${CLASSIFICATION_PREFIX}${classification}`;
+        const edgeKey = `${thoughtId}\0${classNodeId}`;
+        if (!existingClassifiedEdges.has(edgeKey)) {
+          patch.addEdge(thoughtId, classNodeId, 'classified_as');
+          classifiedEdgesAdded++;
+        }
+      }
+    }
+
+    // Create semantic_parse receipt artifacts
+    for (const capture of captures) {
+      const { thoughtId } = capture;
+      if (!thoughtId || existingParseReceipts.has(thoughtId)) { continue; }
+
+      const result = thoughtClassifications.get(thoughtId);
+      if (!result) { continue; }
+
+      const artifactId = createArtifactId('semantic_parse', thoughtId);
+
+      patch
+        .addNode(artifactId)
+        .setProperty(artifactId, 'kind', 'semantic_parse')
+        .setProperty(artifactId, 'primaryInputKind', 'thought')
+        .setProperty(artifactId, 'primaryInputId', thoughtId)
+        .setProperty(artifactId, 'classifications', JSON.stringify(result.classifications))
+        .setProperty(artifactId, 'markers', JSON.stringify(result.markers))
+        .setProperty(artifactId, 'deriver', 'think')
+        .setProperty(artifactId, 'deriverVersion', '1')
+        .setProperty(artifactId, 'schemaVersion', '1')
+        .setProperty(artifactId, 'createdAt', timestamp)
+        .addEdge(artifactId, thoughtId, 'derived_from');
+    }
   });
 
   return Object.freeze({
     capturesProcessed: captures.length,
     topicNodesCreated,
     aboutEdgesAdded,
+    classifiedEdgesAdded,
     receiptsCreated,
     promotedTopics: [...promotedTopics].sort(),
   });
