@@ -23,6 +23,7 @@ import {
   startReflect,
   saveAnnotation,
 } from '../../store.js';
+import { runEnrichmentPipeline, listTopics } from '../../store/enrichment/runner.js';
 import { buildStatsSparkline } from '../../mcp/format.js';
 import { shouldUseInteractiveBrowseShell } from '../environment.js';
 import { runDiagnostics } from '../../doctor.js';
@@ -82,6 +83,60 @@ export async function runAnnotate(entryId, text, output, reporter) {
   });
 
   reporter.event('annotate.done', result);
+  return 0;
+}
+
+export async function runEnrich(output, reporter) {
+  const repoDir = getLocalRepoDir();
+
+  if (!hasGitRepo(repoDir)) {
+    output.error('No local thought repo found', 'enrich.repo_not_found');
+    return 1;
+  }
+
+  reporter.event('enrich.start');
+  const result = await runEnrichmentPipeline(repoDir);
+
+  if (output.json) {
+    output.data('enrich.result', result);
+  } else {
+    const lines = [
+      `Enriched ${result.capturesProcessed} captures`,
+      `Topics promoted: ${result.promotedTopics.length}`,
+      `Topic nodes created: ${result.topicNodesCreated}`,
+      `About edges added: ${result.aboutEdgesAdded}`,
+    ];
+    output.out(lines.join('\n'));
+  }
+
+  reporter.event('enrich.done', result);
+  return 0;
+}
+
+export async function runTopics(output, reporter) {
+  const repoDir = getLocalRepoDir();
+
+  if (!hasGitRepo(repoDir)) {
+    output.error('No local thought repo found', 'topics.repo_not_found');
+    return 1;
+  }
+
+  reporter.event('topics.start');
+  const topics = await listTopics(repoDir);
+  reporter.event('topics.done', { count: topics.length });
+
+  if (output.json) {
+    for (const topic of topics) {
+      output.data('topics.topic', topic);
+    }
+  } else if (topics.length === 0) {
+    output.out('No promoted topics yet. Capture more thoughts and run --enrich.');
+  } else {
+    for (const topic of topics) {
+      output.out(`${topic.name} (${topic.thoughtCount} thoughts)`);
+    }
+  }
+
   return 0;
 }
 

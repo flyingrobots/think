@@ -3,9 +3,11 @@ import { REFLECT_PROMPT_TYPES } from '../store.js';
 export const COMMANDS = Object.freeze({
   ANNOTATE: 'annotate',
   CAPTURE: 'capture',
+  ENRICH: 'enrich',
   RECENT: 'recent',
   REMEMBER: 'remember',
   STATS: 'stats',
+  TOPICS: 'topics',
   PROMPT_METRICS: 'prompt_metrics',
   BROWSE: 'browse',
   INSPECT: 'inspect',
@@ -33,6 +35,8 @@ export function parseArgs(args) {
     ingest: false,
     annotateFlag: false,
     annotate: null,
+    enrich: false,
+    topics: false,
     reflectFlag: false,
     reflect: null,
     reflectMode: null,
@@ -106,6 +110,10 @@ export function parseArgs(args) {
       } else if (arg.startsWith('--annotate=')) {
         options.annotateFlag = true;
         options.annotate = arg.slice('--annotate='.length);
+      } else if (arg === '--enrich') {
+        options.enrich = true;
+      } else if (arg === '--topics') {
+        options.topics = true;
       } else if (arg === '--migrate-graph') {
         options.migrateGraph = true;
       } else if (arg === '--doctor') {
@@ -170,6 +178,8 @@ export function resolveCommand(options) {
   if (options.browseFlag) { return COMMANDS.BROWSE; }
   if (options.inspectFlag) { return COMMANDS.INSPECT; }
   if (options.annotateFlag) { return COMMANDS.ANNOTATE; }
+  if (options.enrich) { return COMMANDS.ENRICH; }
+  if (options.topics) { return COMMANDS.TOPICS; }
   if (options.doctor) { return COMMANDS.DOCTOR; }
   if (options.migrateGraph) { return COMMANDS.MIGRATE_GRAPH; }
   if (options.ingest) { return COMMANDS.INGEST; }
@@ -360,6 +370,8 @@ export function countExplicitCommands(options) {
     options.reflectFlag,
     options.reflectSessionFlag,
     options.annotateFlag,
+    options.enrich,
+    options.topics,
   ].filter(Boolean).length;
 }
 

@@ -15,11 +15,13 @@ import {
   runAnnotate,
   runBrowse,
   runDoctor,
+  runEnrich,
   runInspect,
   runPromptMetrics,
   runRecent,
   runRemember,
   runStats,
+  runTopics,
 } from './cli/commands/read.js';
 import { runReflectReply, runReflectStart } from './cli/commands/reflect.js';
 
@@ -62,6 +64,8 @@ export async function main(argv, { stdout, stderr, stdin }) {
 
     const dispatch = {
       [COMMANDS.ANNOTATE]: () => runAnnotate(options.annotate, options.positionals.join(' '), output, reporter),
+      [COMMANDS.ENRICH]: () => runEnrich(output, reporter),
+      [COMMANDS.TOPICS]: () => runTopics(output, reporter),
       [COMMANDS.RECENT]: () => runRecent(output, reporter, options),
       [COMMANDS.REMEMBER]: () => runRemember(output, reporter, options),
       [COMMANDS.BROWSE]: () => runBrowse(options.browse, output, reporter),
