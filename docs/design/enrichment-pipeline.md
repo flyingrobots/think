@@ -30,11 +30,34 @@ Semantic objects are first-class graph nodes. This means "find all
 thoughts about performance" is `traverse incoming edges of
 topic:performance` — not a scan of every artifact's JSON properties.
 
+### Thought-level vs entry-level enrichment
+
+Think has two identity layers:
+
+- **Entry** (`entry:<id>`) — the capture *event*. Unique per capture.
+  Two identical texts produce two entries.
+- **Thought** (`thought:<fingerprint>`) — the canonical *content*.
+  Two identical texts produce one thought.
+
+Semantic enrichment operates on **thoughts** (content-level):
+`thought --about--> topic`, `thought --classified_as--> classification`.
+This means deduplication is automatic — identical captures don't
+produce duplicate topic edges.
+
+User-authored enrichment operates on **entries** (event-level):
+`annotation --annotates--> entry`, `evolution --evolves--> entry`.
+This means you can annotate one specific capture without affecting
+other captures of the same text.
+
+The bridge is the existing `expresses` edge:
+`entry --expresses--> thought --about--> topic`.
+
 ### `topic:<normalized-name>`
 
-A topic that thoughts can be about. Created by the `auto_tags` stage
-when a topic is first encountered. The node persists across pipeline
-runs — it's a standing concept in the graph.
+A topic that thoughts can be about. Topics have a **promotion
+threshold** — a topic candidate only becomes a graph node after it
+appears across N thoughts (default: 2). Below the threshold, topic
+candidates live as properties on the `auto_tags` receipt artifact.
 
 ```
 Properties:
@@ -43,15 +66,23 @@ Properties:
   normalizedName = 'performance'  (lowercase, deduplication key)
   createdAt = ISO timestamp
   source = 'auto_tags' | 'user'  (who created it)
+  mentionCount = number         (how many thoughts reference this)
 
 Edge:
   thought --about--> topic:performance
 ```
 
 Identity: `topic:<normalizedName>`. Deterministic — same topic name
-always resolves to the same node. The `auto_tags` stage creates the
-topic node if it doesn't exist, then adds an `about` edge from the
-thought.
+always resolves to the same node.
+
+**Promotion**: the `auto_tags` stage tracks candidate counts. When a
+candidate crosses the threshold, the stage creates the topic node
+and backfills `about` edges for all prior thoughts that mentioned it.
+
+**Merging / aliases**: topics can be merged. A `topic --alias_of-->
+topic` edge redirects queries. `think --merge-topics perf performance`
+moves all `about` edges from `topic:perf` to `topic:performance` and
+adds the alias edge.
 
 Finding all thoughts about a topic:
 
@@ -65,7 +96,8 @@ graph.query()
 ### `classification:<name>`
 
 A semantic type that thoughts can be classified as. Finite set,
-created at pipeline initialization.
+created at graph model v4 migration. A thought can have **multiple**
+`classified_as` edges (e.g., both a question and an action item).
 
 ```
 Nodes:
@@ -75,6 +107,7 @@ Nodes:
   classification:action_item
   classification:idea
   classification:reference
+  classification:unclassified
 
 Properties:
   kind = 'classification'
@@ -82,7 +115,12 @@ Properties:
 
 Edge:
   thought --classified_as--> classification:question
+  thought --classified_as--> classification:action_item  (multi-class)
 ```
+
+All thoughts get at least one `classified_as` edge. Thoughts that
+don't match any pattern get `classification:unclassified` so they're
+still reachable in the graph.
 
 Finding all questions:
 
@@ -96,7 +134,13 @@ graph.query()
 ### `entity:<type>:<normalized-name>`
 
 Named entities extracted from thought text — people, projects,
-tools, concepts. Optional stage, heavier than topics.
+tools, concepts.
+
+**This is a separate opt-in stage**, not bundled with
+`semantic_parse`. Entity extraction on short informal text is
+unreliable without an LLM. Classifying "is this a question?" is
+cheap pattern matching; extracting "this mentions git-warp" is NER
+and requires more confidence.
 
 ```
 Examples:
@@ -228,7 +272,9 @@ Edges:
 
 ### `pipeline_run:<uuid>`
 
-A record of an enrichment pipeline execution.
+A single node per enrichment execution. Stage results are properties
+on the run node, not separate nodes — this avoids 2N metadata nodes
+for N thoughts.
 
 ```
 Properties:
@@ -239,36 +285,18 @@ Properties:
   completedAt = ISO timestamp | null
   status = 'running' | 'completed' | 'failed'
   trigger = 'capture_followthrough' | 'scheduled' | 'manual'
-  stagesRequested = JSON array of stage names
-  stagesCompleted = JSON array of stage names
-  targetEntryIds = JSON array of entry IDs processed
+  stagesJson = JSON { stageName: { status, durationMs, artifactCount, error } }
+  targetEntryCount = number
   errorMessage = null | string
 
 Edges:
   pipeline_run --enriches--> entry:<id>  (one per target entry)
 ```
 
-### `pipeline_stage:<uuid>`
-
-A single stage's result within a pipeline run.
-
-```
-Properties:
-  kind = 'pipeline_stage'
-  source = 'enrichment'
-  pipelineRunId = pipeline_run:<id>
-  stageName = 'auto_tags' | 'semantic_parse' | 'auto_link' | 'auto_annotation' | 'revisit_score' | 'summary'
-  status = 'completed' | 'failed' | 'skipped'
-  targetEntryId = entry:<id>
-  createdAt = ISO timestamp
-  durationMs = number
-  artifactIds = JSON array of artifact IDs produced
-  errorMessage = null | string
-
-Edges:
-  pipeline_stage --produced_by--> pipeline_run:<id>
-  pipeline_stage --targets--> entry:<id>
-```
+Stage-level detail lives in `stagesJson` instead of as separate
+nodes. This keeps the graph focused on content relationships.
+Pipeline runs are audit records — queryable but not the primary
+navigation surface.
 
 ---
 
@@ -294,13 +322,12 @@ Edges:
 | `summarizes` | artifact (summary) | entry | This summary covers this entry |
 | `covers` | artifact (summary) | topic | This summary covers this topic |
 
-### Pipeline edges
+### Pipeline and topic management edges
 
 | Edge | From | To | Meaning |
 |------|------|----|---------|
 | `enriches` | pipeline_run | entry | This pipeline run processed this entry |
-| `produced_by` | pipeline_stage | pipeline_run | This stage belongs to this run |
-| `targets` | pipeline_stage | entry | This stage processed this entry |
+| `alias_of` | topic | topic | This topic is a synonym of that topic |
 
 Existing edges (`derived_from`, `contextualizes`, `expresses`) are
 reused where applicable.
@@ -354,16 +381,23 @@ entry:newest --evolves--> entry:older --evolves--> entry:oldest
 
 ```
 capture
-  ↓ (follow-through)
-  ├── auto_tags
-  ├── semantic_parse
-  ↓ (background)
-  ├── auto_annotation  (needs: auto_tags)
-  ├── auto_link        (needs: auto_tags, corpus index)
-  ├── revisit_score    (needs: auto_tags, semantic_parse, age)
+  ↓ (follow-through, no LLM)
+  ├── auto_tags         → creates topic nodes + about edges
+  ├── semantic_parse    → creates classified_as edges
+  ↓ (background, no LLM)
+  ├── auto_annotation   (needs: auto_tags)
+  ├── auto_link         (needs: auto_tags, corpus)
+  ├── revisit_score     (needs: auto_tags, semantic_parse, age)
+  ↓ (opt-in, needs LLM)
+  ├── entity_extraction → creates entity nodes + mentions edges
   ↓ (scheduled)
-  └── summary          (needs: multiple entries, auto_tags)
+  └── summary           (needs: multiple entries, auto_tags)
 ```
+
+Entity extraction is a separate opt-in stage, not bundled with
+semantic_parse. Classifying "is this a question?" is cheap pattern
+matching. Extracting "this mentions git-warp" is NER on informal
+text and needs higher confidence (LLM or curated dictionary).
 
 ### Stage Contracts
 
@@ -426,30 +460,61 @@ if corpus is too small.
 ### 2. `semantic_parse` (follow-through, no LLM)
 
 Classify the structural type and link to classification nodes.
+A thought can receive **multiple** `classified_as` edges.
 
 **Graph mutations:**
-1. Add `classified_as` edge from `thought:<id>` to
-   `classification:<type>`
-2. Optionally extract entities and link via `mentions` edges
+1. Add `classified_as` edge(s) from `thought:<id>` to matching
+   `classification:<type>` node(s)
+2. If no pattern matches, add `classified_as` edge to
+   `classification:unclassified`
 3. Create `semantic_parse` artifact as a receipt
 
 ```
 Receipt artifact kind: 'semantic_parse'
 Properties:
-  classification = 'question' | 'decision' | 'observation' | 'action_item' | 'idea' | 'reference'
-  confidence = number (0-1)
+  classifications = JSON array of matched types
+  confidence = JSON object { type: score }
   markers = JSON array of matched patterns
-  entitiesExtracted = JSON array of entity IDs
 
 Edges:
-  thought --classified_as--> classification:<type>
-  thought --mentions--> entity:<type>:<name>  (if entities extracted)
+  thought --classified_as--> classification:<type>  (one or more)
   artifact --derived_from--> thought:<id>
 ```
 
 Algorithm: Pattern matching on linguistic markers. "How do I..." →
 question. "I decided to..." → decision. "Need to..." → action
-item. Similar to existing `REFLECT_MARKERS` but broader.
+item. Similar to existing `REFLECT_MARKERS` but broader. Multiple
+patterns can match the same thought.
+
+### 2b. `entity_extraction` (opt-in, needs LLM or dictionary)
+
+Extract named entities and create entity graph nodes. **Separate
+stage** from `semantic_parse` — requires higher confidence.
+
+**Graph mutations:**
+1. For each extracted entity, ensure `entity:<type>:<name>` node
+   exists
+2. Add `mentions` edge from `thought:<id>` to each entity
+
+```
+Receipt artifact kind: 'entity_extraction'
+Properties:
+  entitiesExtracted = JSON array of { type, name, entityId }
+  method = 'llm' | 'dictionary' | 'pattern'
+  llmModel = null | string
+
+Edges:
+  thought --mentions--> entity:<type>:<name>
+  artifact --derived_from--> thought:<id>
+```
+
+Approaches (in order of reliability):
+- **Dictionary**: curated list of known projects, tools, people.
+  High precision, no coverage for new entities.
+- **Pattern**: regex for common formats (GitHub URLs → project,
+  `@mentions` → person). Medium precision.
+- **LLM**: full NER with explicit model provenance. Best coverage,
+  requires opt-in.
 
 ### 3. `auto_annotation` (background, optional LLM)
 
@@ -543,6 +608,16 @@ think --enrich                     # enrich all un-enriched captures
 think --enrich=<entryId>           # enrich a specific capture
 think --enrich --stage=auto_tags   # run only one stage
 
+# Semantic queries (graph traversal)
+think --topics                     # list all topics with thought counts
+think --topic=performance          # list thoughts about performance
+think --questions                  # list all thoughts classified as questions
+think --about=architecture         # alias for --topic
+think --mentions=git-warp          # list thoughts mentioning an entity
+
+# Topic management
+think --merge-topics perf performance  # merge perf into performance
+
 # Annotations
 think --annotate=<entryId> "my note"
 
@@ -629,9 +704,9 @@ graph model version bump. Migration from v3 → v4:
    - `link:*`
    - `evolution:*`
    - `pipeline_run:*`
-   - `pipeline_stage:*`
-2. Create the 6 standing `classification:*` nodes (question,
-   decision, observation, action_item, idea, reference)
+2. Create the 7 standing `classification:*` nodes (question,
+   decision, observation, action_item, idea, reference,
+   unclassified)
 3. No existing data changes — enrichment is purely additive
 4. Set `graphModelVersion = 4` on `meta:graph`
 
@@ -645,17 +720,23 @@ catch-up, not a migration.
 
 ## Implementation Sequence
 
-1. **Graph extension**: new constants, edge labels, node kinds,
-   match lens update
+1. **Graph v4 migration**: new constants, edge labels, node kinds,
+   match lens, standing classification nodes
 2. **Annotate**: simplest enrichment — proves the derived-node
    pattern for user-authored content
-3. **auto_tags + semantic_parse**: first automated stages, inline
-   in follow-through
-4. **Pipeline runner**: `pipeline_run` and `pipeline_stage` nodes,
-   stage orchestration
-5. **auto_link + auto_annotation**: background stages
-6. **revisit_score + --revisit**: scheduling and re-encounter
-7. **summary**: aggregation stage
-8. **Link + Evolve**: explicit relationship types
-9. **Browse enrichment panel**: TUI integration
-10. **LLM opt-in**: annotation and summary with model provenance
+3. **auto_tags**: topic node creation with promotion threshold,
+   `about` edges, corpus-relative extraction
+4. **semantic_parse**: classification edges, multi-class support,
+   pattern-based
+5. **Pipeline runner**: `pipeline_run` nodes, stage orchestration,
+   idempotent re-runs
+6. **auto_link + auto_annotation**: background stages
+7. **revisit_score + --revisit**: scheduling and re-encounter
+8. **summary**: aggregation stage with `covers` edges to topics
+9. **Link + Evolve**: explicit user-authored relationship types
+10. **Topic management**: merge, alias, prune dormant topics
+11. **entity_extraction**: opt-in NER with dictionary/LLM backends
+12. **Browse enrichment panel**: TUI integration (tags, class,
+    links, annotations, evolution chain)
+13. **LLM opt-in**: entity extraction, richer annotations and
+    summaries with model provenance
