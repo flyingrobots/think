@@ -11,16 +11,139 @@ itself, its inputs, and its outputs as WARP graph nodes and edges.
 2. **The pipeline is in the graph.** Pipeline runs, stage results,
    and scheduling decisions are themselves WARP nodes — inspectable,
    versionable, and auditable.
-3. **Provenance is explicit.** Every enrichment artifact records what
+3. **Semantic objects are graph nodes.** Topics, classifications,
+   and entity types are first-class nodes, not properties buried
+   in JSON. Finding "thoughts about X" is a graph traversal, not
+   a table scan.
+4. **Provenance is explicit.** Every enrichment artifact records what
    produced it, what version of the enrichment logic ran, and what
    inputs it consumed.
-4. **No LLM is required.** Lightweight enrichment (topics, semantic
+5. **No LLM is required.** Lightweight enrichment (topics, semantic
    parse, linking) works without an LLM. LLM-assisted enrichment is
    opt-in, clearly marked, and separable.
 
 ---
 
-## Graph Extension: New Node Types
+## Graph Extension: Semantic Object Nodes
+
+Semantic objects are first-class graph nodes. This means "find all
+thoughts about performance" is `traverse incoming edges of
+topic:performance` — not a scan of every artifact's JSON properties.
+
+### `topic:<normalized-name>`
+
+A topic that thoughts can be about. Created by the `auto_tags` stage
+when a topic is first encountered. The node persists across pipeline
+runs — it's a standing concept in the graph.
+
+```
+Properties:
+  kind = 'topic'
+  name = 'performance'        (display name)
+  normalizedName = 'performance'  (lowercase, deduplication key)
+  createdAt = ISO timestamp
+  source = 'auto_tags' | 'user'  (who created it)
+
+Edge:
+  thought --about--> topic:performance
+```
+
+Identity: `topic:<normalizedName>`. Deterministic — same topic name
+always resolves to the same node. The `auto_tags` stage creates the
+topic node if it doesn't exist, then adds an `about` edge from the
+thought.
+
+Finding all thoughts about a topic:
+
+```
+graph.query()
+  .match('topic:performance')
+  .traverse({ direction: 'incoming', label: 'about' })
+  .run()
+```
+
+### `classification:<name>`
+
+A semantic type that thoughts can be classified as. Finite set,
+created at pipeline initialization.
+
+```
+Nodes:
+  classification:question
+  classification:decision
+  classification:observation
+  classification:action_item
+  classification:idea
+  classification:reference
+
+Properties:
+  kind = 'classification'
+  name = 'question'
+
+Edge:
+  thought --classified_as--> classification:question
+```
+
+Finding all questions:
+
+```
+graph.query()
+  .match('classification:question')
+  .traverse({ direction: 'incoming', label: 'classified_as' })
+  .run()
+```
+
+### `entity:<type>:<normalized-name>`
+
+Named entities extracted from thought text — people, projects,
+tools, concepts. Optional stage, heavier than topics.
+
+```
+Examples:
+  entity:project:git-warp
+  entity:tool:bijou
+  entity:person:james
+  entity:concept:capture-latency
+
+Properties:
+  kind = 'entity'
+  entityType = 'project' | 'tool' | 'person' | 'concept'
+  name = 'git-warp'
+  normalizedName = 'git-warp'
+  createdAt = ISO timestamp
+
+Edge:
+  thought --mentions--> entity:project:git-warp
+```
+
+Finding all thoughts that mention git-warp:
+
+```
+graph.query()
+  .match('entity:project:git-warp')
+  .traverse({ direction: 'incoming', label: 'mentions' })
+  .run()
+```
+
+### Cross-semantic traversal
+
+Because topics, classifications, and entities are all nodes with
+edges, you can compose queries:
+
+- "All questions about performance":
+  `topic:performance <--about-- thought --classified_as--> classification:question`
+
+- "All thoughts mentioning git-warp in the last week":
+  `entity:project:git-warp <--mentions-- thought` filtered by
+  `createdAt`
+
+- "Topics I haven't thought about in 30 days":
+  `topic:* <--about-- thought` where latest thought's `createdAt`
+  is older than 30 days
+
+---
+
+## Graph Extension: Enrichment Artifact Nodes
 
 ### `artifact:<id>` (new kinds)
 
@@ -33,12 +156,17 @@ artifactId = artifact:<sha256(kind + primaryInputId + discriminator + deriverVer
 
 | Kind | Purpose | Primary Input | Discriminator |
 |------|---------|---------------|---------------|
-| `auto_tags` | Topic keywords extracted from text | `thought:<id>` | — |
-| `semantic_parse` | Structural classification of content | `thought:<id>` | — |
+| `auto_tags` | Tag extraction run receipt | `thought:<id>` | — |
+| `semantic_parse` | Classification run receipt | `thought:<id>` | — |
 | `auto_annotation` | One-line gist/summary of a thought | `thought:<id>` | — |
 | `auto_link` | Detected similarity to another thought | `thought:<id>` | `relatedThoughtId` |
 | `revisit_score` | Priority score for revisit scheduling | `entry:<id>` | — |
 | `summary` | Aggregated digest of multiple entries | `pipeline_run:<id>` | — |
+
+Note: `auto_tags` and `semantic_parse` artifacts are *receipts* of
+the enrichment run. The actual semantic data lives on the topic and
+classification nodes and their edges. The artifact records what was
+extracted, when, and by what version — so re-runs can detect drift.
 
 ### `annotation:<sortKey-uuid>`
 
@@ -146,20 +274,64 @@ Edges:
 
 ## Graph Extension: New Edge Labels
 
+### Semantic edges (traversable for queries)
+
+| Edge | From | To | Meaning |
+|------|------|----|---------|
+| `about` | thought | topic | This thought is about this topic |
+| `classified_as` | thought | classification | This thought is this type |
+| `mentions` | thought | entity | This thought mentions this entity |
+
+### Enrichment edges
+
 | Edge | From | To | Meaning |
 |------|------|----|---------|
 | `annotates` | annotation | entry | This annotation comments on this capture |
 | `links_from` | link | entry | Source end of an explicit link |
 | `links_to` | link | entry | Target end of an explicit link |
 | `evolves` | evolution | entry | This thought evolved from that one |
+| `similar_to` | artifact (auto_link) | thought | Detected similarity |
+| `summarizes` | artifact (summary) | entry | This summary covers this entry |
+| `covers` | artifact (summary) | topic | This summary covers this topic |
+
+### Pipeline edges
+
+| Edge | From | To | Meaning |
+|------|------|----|---------|
 | `enriches` | pipeline_run | entry | This pipeline run processed this entry |
 | `produced_by` | pipeline_stage | pipeline_run | This stage belongs to this run |
 | `targets` | pipeline_stage | entry | This stage processed this entry |
-| `similar_to` | artifact (auto_link) | thought | Detected similarity |
-| `summarizes` | artifact (summary) | entry | This summary covers this entry |
 
 Existing edges (`derived_from`, `contextualizes`, `expresses`) are
 reused where applicable.
+
+### Query patterns enabled by semantic nodes
+
+```
+# All thoughts about a topic
+topic:performance <--about-- thought:*
+
+# All questions
+classification:question <--classified_as-- thought:*
+
+# All thoughts mentioning a project
+entity:project:git-warp <--mentions-- thought:*
+
+# Questions about performance
+topic:performance <--about-- thought --classified_as--> classification:question
+
+# Topics covered by a summary
+summary --covers--> topic:*
+
+# Dormant topics (no recent thoughts)
+topic:* <--about-- thought  (where latest createdAt > 30d ago)
+
+# Related thoughts via shared topics
+thought:A --about--> topic:X <--about-- thought:B
+
+# Evolution chain
+entry:newest --evolves--> entry:older --evolves--> entry:oldest
+```
 
 ---
 
@@ -228,17 +400,23 @@ and both old and new coexist. Consumers read the latest version.
 
 ### 1. `auto_tags` (follow-through, no LLM)
 
-Extract topic keywords from thought text using corpus-relative
-frequency.
+Extract topic keywords and create/link topic graph nodes.
+
+**Graph mutations:**
+1. For each extracted topic, ensure `topic:<name>` node exists
+2. Add `about` edge from `thought:<id>` to each `topic:<name>`
+3. Create `auto_tags` artifact as a receipt of the extraction
 
 ```
-Artifact kind: 'auto_tags'
+Receipt artifact kind: 'auto_tags'
 Properties:
-  tags = JSON array of strings
+  topicsExtracted = JSON array of topic names
   method = 'tf-idf' | 'noun-phrase' | 'keyword-extraction'
+  topicNodesCreated = number (new topics added to graph)
 
-Edge:
-  artifact --derived_from--> thought:<id>
+Edges:
+  thought --about--> topic:<name>          (one per extracted topic)
+  artifact --derived_from--> thought:<id>  (receipt provenance)
 ```
 
 Algorithm: TF-IDF against the existing corpus. Top N keywords
@@ -247,16 +425,25 @@ if corpus is too small.
 
 ### 2. `semantic_parse` (follow-through, no LLM)
 
-Classify the structural type of a thought.
+Classify the structural type and link to classification nodes.
+
+**Graph mutations:**
+1. Add `classified_as` edge from `thought:<id>` to
+   `classification:<type>`
+2. Optionally extract entities and link via `mentions` edges
+3. Create `semantic_parse` artifact as a receipt
 
 ```
-Artifact kind: 'semantic_parse'
+Receipt artifact kind: 'semantic_parse'
 Properties:
-  classification = 'question' | 'decision' | 'observation' | 'action_item' | 'idea' | 'reference' | 'unclassified'
+  classification = 'question' | 'decision' | 'observation' | 'action_item' | 'idea' | 'reference'
   confidence = number (0-1)
   markers = JSON array of matched patterns
+  entitiesExtracted = JSON array of entity IDs
 
-Edge:
+Edges:
+  thought --classified_as--> classification:<type>
+  thought --mentions--> entity:<type>:<name>  (if entities extracted)
   artifact --derived_from--> thought:<id>
 ```
 
@@ -431,13 +618,22 @@ The enrichment panel shows:
 
 ### Graph Model Version 4
 
-New edge labels and node kinds require a graph model version bump.
-Migration from v3 → v4:
+New edge labels, node kinds, and semantic object nodes require a
+graph model version bump. Migration from v3 → v4:
 
-1. Add `pipeline_run`, `pipeline_stage`, `annotation`, `link`,
-   `evolution` to the match lens
-2. No existing data changes — enrichment is purely additive
-3. Set `graphModelVersion = 4` on `meta:graph`
+1. Add new prefixes to the match lens:
+   - `topic:*`
+   - `classification:*`
+   - `entity:*`
+   - `annotation:*`
+   - `link:*`
+   - `evolution:*`
+   - `pipeline_run:*`
+   - `pipeline_stage:*`
+2. Create the 6 standing `classification:*` nodes (question,
+   decision, observation, action_item, idea, reference)
+3. No existing data changes — enrichment is purely additive
+4. Set `graphModelVersion = 4` on `meta:graph`
 
 ### Backfill
 
