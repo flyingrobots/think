@@ -159,6 +159,8 @@ export async function getPromptMetrics({ from, to, since, bucket } = {}) {
   };
 }
 
+const DEFAULT_RECENT_LIMIT = 50;
+
 export async function listRecent(repoDir, { count = null, query = null } = {}) {
   const read = await openProductReadHandle(repoDir);
   const captures = await listEntriesByKind(read, 'capture');
@@ -177,16 +179,16 @@ export async function listRecent(repoDir, { count = null, query = null } = {}) {
     ? recent.filter((entry) => matchesRecentQuery(entry.text, query))
     : recent;
 
-  if (count === null) {
-    return filtered;
-  }
+  const total = filtered.length;
+  const limit = count ?? DEFAULT_RECENT_LIMIT;
+  const entries = filtered.slice(0, limit);
 
-  return filtered.slice(0, count);
+  return Object.freeze({ entries, total });
 }
 
 export async function listReflectableRecent(repoDir) {
-  const recent = await listRecent(repoDir);
-  return recent.filter((entry) => assessReflectability(entry.text).eligible);
+  const { entries } = await listRecent(repoDir);
+  return entries.filter((entry) => assessReflectability(entry.text).eligible);
 }
 
 export async function loadBrowseChronologyEntries(repoDir) {
