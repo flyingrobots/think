@@ -82,7 +82,7 @@ test('think --migrate-graph upgrades a version-1 property-linked repo additively
   const migrate = runThink(context, ['--migrate-graph']);
   assertSuccess(migrate, `Expected graph migration to succeed.\n${formatResult(migrate)}`);
   assertContains(migrate, 'Graph migration complete', 'Expected migration to report explicit success.');
-  assertContains(migrate, 'graph model version 3', 'Expected migration to report the upgraded graph model generation.');
+  assertContains(migrate, 'graph model version 4', 'Expected migration to report the upgraded graph model generation.');
 
   const migratedGraph = await openThinkGraph(context.localRepoDir);
   const afterEdges = await migratedGraph.getEdges();
@@ -107,7 +107,7 @@ test('think --migrate-graph upgrades a version-1 property-linked repo additively
 
   const metadata = await migratedGraph.getNodeProps('meta:graph');
   assert.ok(metadata, 'Expected migration to materialize graph metadata.');
-  assert.equal(metadata.graphModelVersion, 3, 'Expected migration to upgrade the repo graph model generation to 3.');
+  assert.equal(metadata.graphModelVersion, 4, 'Expected migration to upgrade the repo graph model generation to 3.');
 });
 
 test('think --migrate-graph is idempotent and safe to rerun', async () => {
@@ -188,7 +188,7 @@ test('capture on a version-1 repo still succeeds and only migrates after the raw
   graph = await openThinkGraph(context.localRepoDir);
   const metadata = await graph.getNodeProps('meta:graph');
   assert.ok(metadata, 'Expected post-capture migration to leave graph metadata materialized.');
-  assert.equal(metadata.graphModelVersion, 3, 'Expected post-capture migration to upgrade the repo back to graph model version 3.');
+  assert.equal(metadata.graphModelVersion, 4, 'Expected post-capture migration to upgrade the repo back to graph model version 4.');
 
   const edges = await graph.getEdges();
   assertEdge(
@@ -336,7 +336,7 @@ test('think --json emits explicit graph migration required errors for outdated g
 
   assert.equal(migrationRequired.command, 'inspect', 'Expected migration-required payload to name the blocked command.');
   assert.equal(migrationRequired.currentGraphModelVersion, 1, 'Expected migration-required payload to report the current graph model generation.');
-  assert.equal(migrationRequired.requiredGraphModelVersion, 3, 'Expected migration-required payload to report the required graph model generation.');
+  assert.equal(migrationRequired.requiredGraphModelVersion, 4, 'Expected migration-required payload to report the required graph model generation.');
   assert.equal(
     migrationRequired.message,
     'Graph migration required. Run think --migrate-graph.',
@@ -351,7 +351,7 @@ test('think --json emits explicit graph migration required errors for outdated g
   assert.equal(failure.command, 'inspect', 'Expected CLI failure payload to preserve the blocked command identity.');
 });
 
-test('think --migrate-graph upgrades a version-2 repo to graph model version 3 with browse and reflect read edges', async () => {
+test('think --migrate-graph upgrades a version-2 repo to graph model version 4 with browse, reflect, and enrichment nodes', async () => {
   const context = await createThinkContext();
   const { entryId: olderEntryId } = captureWithEntryId(
     context,
@@ -375,12 +375,12 @@ test('think --migrate-graph upgrades a version-2 repo to graph model version 3 w
 
   const migrate = runThink(context, ['--migrate-graph']);
   assertSuccess(migrate, `Expected graph migration to succeed for a version-2 repo.\n${formatResult(migrate)}`);
-  assertContains(migrate, 'Graph migration complete', 'Expected migration to report explicit success when upgrading to graph model version 3.');
-  assertContains(migrate, 'graph model version 3', 'Expected migration to report the new graph model generation.');
+  assertContains(migrate, 'Graph migration complete', 'Expected migration to report explicit success when upgrading to graph model version 4.');
+  assertContains(migrate, 'graph model version 4', 'Expected migration to report the new graph model generation.');
 
   const migratedGraph = await openThinkGraph(context.localRepoDir);
   const afterMetadata = await migratedGraph.getNodeProps('meta:graph');
-  assert.equal(afterMetadata?.graphModelVersion, 3, 'Expected migration to upgrade the repo graph model generation to 3.');
+  assert.equal(afterMetadata?.graphModelVersion, 4, 'Expected migration to upgrade the repo graph model generation to 3.');
 
   const edges = await migratedGraph.getEdges();
   assertEdge(
@@ -388,35 +388,35 @@ test('think --migrate-graph upgrades a version-2 repo to graph model version 3 w
     'meta:graph',
     newerEntryId,
     'latest_capture',
-    'Expected graph model version 3 migration to add a latest_capture anchor for browse bootstrap.'
+    'Expected graph model version 4 migration to add a latest_capture anchor for browse bootstrap.'
   );
   assertEdge(
     edges,
     newerEntryId,
     olderEntryId,
     'older',
-    'Expected graph model version 3 migration to add explicit chronology edges between captures.'
+    'Expected graph model version 4 migration to add explicit chronology edges between captures.'
   );
   assertEdge(
     edges,
     reflect.sessionId,
     olderEntryId,
     'seeded_by',
-    'Expected graph model version 3 migration to add an explicit seeded_by edge from reflect session to seed capture.'
+    'Expected graph model version 4 migration to add an explicit seeded_by edge from reflect session to seed capture.'
   );
   assertEdge(
     edges,
     reflect.reflectEntryId,
     reflect.sessionId,
     'produced_in',
-    'Expected graph model version 3 migration to add an explicit produced_in edge from reflect entry to its session.'
+    'Expected graph model version 4 migration to add an explicit produced_in edge from reflect entry to its session.'
   );
   assertEdge(
     edges,
     reflect.reflectEntryId,
     olderEntryId,
     'responds_to',
-    'Expected graph model version 3 migration to add an explicit responds_to edge from reflect entry to its seed capture.'
+    'Expected graph model version 4 migration to add an explicit responds_to edge from reflect entry to its seed capture.'
   );
 });
 

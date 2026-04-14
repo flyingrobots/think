@@ -1,5 +1,7 @@
 import {
   ARTIFACT_PREFIX,
+  CLASSIFICATION_PREFIX,
+  CLASSIFICATIONS,
   GRAPH_META_ID,
   GRAPH_MODEL_VERSION,
 } from './constants.js';
@@ -124,6 +126,18 @@ export async function migrateGraphModel(repoDir) {
     }
     for (const edge of missingEdges) {
       patch.addEdge(edge.from, edge.to, edge.label);
+    }
+
+    // v4: create standing classification nodes
+    for (const name of CLASSIFICATIONS) {
+      const nodeId = `${CLASSIFICATION_PREFIX}${name}`;
+      if (!propsById.has(nodeId)) {
+        patch
+          .addNode(nodeId)
+          .setProperty(nodeId, 'kind', 'classification')
+          .setProperty(nodeId, 'name', name)
+          .setProperty(nodeId, 'createdAt', timestamp);
+      }
     }
   });
 
