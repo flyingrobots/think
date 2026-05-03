@@ -44,6 +44,10 @@ export async function openWarpApp(repoDir) {
   return app;
 }
 
+export function clearWarpAppCache(repoDir) {
+  warpAppCache.delete(repoDir);
+}
+
 export async function createProductReadHandle(app) {
   const worldline = app.worldline();
   const view = await worldline.observer('think-product', PRODUCT_READ_LENS);

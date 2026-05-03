@@ -16,6 +16,7 @@ import {
   SESSION_PREFIX,
   TEXT_MIME,
 } from './store/constants.js';
+import { encodeTextContent } from './store/content.js';
 
 const DEFAULT_START_TIME_MS = Date.parse('2026-03-20T16:00:00.000Z');
 const WITHIN_SESSION_GAP_MS = 30 * 1000;
@@ -141,7 +142,7 @@ export async function createSyntheticBrowseFixture({
       patch.addEdge(item.id, item.sessionId, 'captured_in');
 
       // eslint-disable-next-line no-await-in-loop -- sequential graph writes within a patch transaction
-      await patch.attachContent(item.id, item.text, { mime: TEXT_MIME });
+      await patch.attachContent(item.id, encodeTextContent(item.text), { mime: TEXT_MIME });
     }
 
     const captures = entries

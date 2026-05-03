@@ -460,7 +460,7 @@ test('think --json --inspect exposes direct reflect receipts that exist only thr
 
     await patch.attachContent(
       reflectEntryId,
-      'Inspect should still find this reflect receipt through explicit graph edges.',
+      Buffer.from('Inspect should still find this reflect receipt through explicit graph edges.', 'utf8'),
       { mime: 'text/plain; charset=utf-8' }
     );
   });

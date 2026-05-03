@@ -10,6 +10,7 @@ import {
   SESSION_IDLE_GAP_MS,
   SESSION_PREFIX,
 } from './constants.js';
+import { encodeTextContent } from './content.js';
 import {
   compareEntriesNewestFirst,
   compareEntriesOldestFirst,
@@ -101,7 +102,7 @@ export async function ensureFirstDerivedArtifacts(app, read, entry) {
         .setProperty(thoughtId, 'createdAt', entry.createdAt)
         .setProperty(thoughtId, 'schemaVersion', SCHEMA_VERSION);
 
-      await patch.attachContent(thoughtId, entry.text, { mime: 'text/plain; charset=utf-8' });
+      await patch.attachContent(thoughtId, encodeTextContent(entry.text), { mime: 'text/plain; charset=utf-8' });
     }
 
     if (needsCaptureThoughtLink) {

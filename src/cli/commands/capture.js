@@ -10,6 +10,9 @@ import {
   saveRawCapture,
 } from '../../store.js';
 
+const CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS = 3_000;
+const CAPTURE_FOLLOWTHROUGH_DEFERRED = Object.freeze({ status: 'deferred' });
+
 export async function runCapture(thought, output, reporter) {
   if (thought.trim() === '') {
     if (output.json) {
@@ -57,10 +60,23 @@ export async function runCapture(thought, output, reporter) {
       });
     }
 
-    const followthrough = await finalizeCapturedThought(repoDir, entry.id, {
+    const followthroughPromise = finalizeCapturedThought(repoDir, entry.id, {
       migrateIfNeeded: graphStatus.migrationRequired,
       ambientContext: getAmbientProjectContext(process.cwd()),
     });
+    const followthrough = graphStatus.migrationRequired
+      ? await followthroughPromise
+      : await waitForCaptureFollowthrough(followthroughPromise);
+
+    if (followthrough === CAPTURE_FOLLOWTHROUGH_DEFERRED) {
+      reporter.event('capture.followthrough.deferred', {
+        command: 'capture',
+        trigger: 'post_capture',
+        entryId: entry.id,
+        timeoutMs: CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS,
+      });
+      return await runBackup(repoDir, output, reporter);
+    }
 
     if (graphStatus.migrationRequired) {
       reporter.event('graph.migration.done', {
@@ -86,6 +102,10 @@ export async function runCapture(thought, output, reporter) {
     });
   }
 
+  return await runBackup(repoDir, output, reporter);
+}
+
+async function runBackup(repoDir, output, reporter) {
   const upstreamUrl = getUpstreamUrl();
   if (!upstreamUrl) {
     reporter.event('backup.skipped');
@@ -99,6 +119,20 @@ export async function runCapture(thought, output, reporter) {
   });
   reporter.event(backedUp ? 'backup.success' : 'backup.pending');
   return 0;
+}
+
+async function waitForCaptureFollowthrough(followthroughPromise) {
+  let timeoutId = null;
+  const timeout = new Promise((resolve) => {
+    timeoutId = setTimeout(() => resolve(CAPTURE_FOLLOWTHROUGH_DEFERRED), CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS);
+    timeoutId.unref?.();
+  });
+
+  try {
+    return await Promise.race([followthroughPromise, timeout]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 export async function runIngest(stdin, output, reporter) {

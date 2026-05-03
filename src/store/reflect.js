@@ -5,6 +5,7 @@ import {
   SHARPEN_PROMPTS,
   TEXT_MIME,
 } from './constants.js';
+import { encodeTextContent } from './content.js';
 import {
   createEntry,
   createReflectSession,
@@ -141,7 +142,7 @@ export async function saveReflectResponse(repoDir, sessionId, response) {
       .setProperty(session.id, 'stepCount', session.stepCount + 1)
       .setProperty(session.id, 'updatedAt', entry.createdAt);
 
-    await patch.attachContent(entry.id, response, { mime: TEXT_MIME });
+    await patch.attachContent(entry.id, encodeTextContent(response), { mime: TEXT_MIME });
   });
 
   return entry;

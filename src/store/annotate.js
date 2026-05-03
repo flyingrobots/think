@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { ValidationError, NotFoundError } from '../errors.js';
 import { ANNOTATION_PREFIX, TEXT_MIME } from './constants.js';
+import { encodeTextContent } from './content.js';
 import { getCurrentTime } from './model.js';
 import {
   createProductReadHandle,
@@ -41,7 +42,7 @@ export async function saveAnnotation(repoDir, targetEntryId, text, { writerId = 
       .setProperty(annotationId, 'targetEntryId', targetEntryId)
       .addEdge(annotationId, targetEntryId, 'annotates');
 
-    await patch.attachContent(annotationId, text.trim(), { mime: TEXT_MIME });
+    await patch.attachContent(annotationId, encodeTextContent(text.trim()), { mime: TEXT_MIME });
   });
 
   return Object.freeze({

@@ -1,13 +1,17 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import Plumbing from '@git-stunts/plumbing';
+import WarpApp, { GitGraphAdapter } from '@git-stunts/git-warp';
 
 import { ensureGitRepo } from '../../src/git.js';
 import { getCaptureAmbientContext, getAmbientProjectContext } from '../../src/project-context.js';
 import {
   finalizeCapturedThought,
+  GRAPH_NAME,
   openProductReadHandle,
   saveRawCapture,
 } from '../../src/store.js';
+import { createWriterId } from '../../src/store/model.js';
 import { createGitRepo, runGit } from '../fixtures/git.js';
 import { createTempDir } from '../fixtures/tmp.js';
 import { formatResult } from '../fixtures/runtime.js';
@@ -71,3 +75,33 @@ test('saveRawCapture writes cwd receipts first and defers git enrichment to foll
     'Expected followthrough to backfill the current git branch receipt.'
   );
 });
+
+test('saveRawCapture retries after the cached writer ref is advanced externally', async () => {
+  const localRepoDir = await createTempDir('think-capture-retry-');
+  await ensureGitRepo(localRepoDir);
+
+  await saveRawCapture(localRepoDir, 'seed capture before external writer advance');
+  const externalApp = await openExternalWarpApp(localRepoDir);
+  await externalApp.patch((patch) => {
+    patch
+      .addNode('external:writer-advance')
+      .setProperty('external:writer-advance', 'kind', 'external_fixture');
+  });
+
+  const entry = await saveRawCapture(localRepoDir, 'capture should retry after writer ref conflict');
+  const read = await openProductReadHandle(localRepoDir);
+  const saved = await read.view.getNodeProps(entry.id);
+
+  assert.ok(saved, 'Expected retrying raw capture to be committed after the writer ref advanced.');
+  assert.equal(saved.kind, 'capture', 'Expected retried write to preserve capture semantics.');
+});
+
+async function openExternalWarpApp(repoDir) {
+  return await WarpApp.open({
+    persistence: new GitGraphAdapter({
+      plumbing: Plumbing.createDefault({ cwd: repoDir }),
+    }),
+    graphName: GRAPH_NAME,
+    writerId: createWriterId(),
+  });
+}

@@ -1,7 +1,9 @@
 import { normalizeCaptureProvenance } from '../capture-provenance.js';
 import { TEXT_MIME } from './constants.js';
+import { encodeTextContent } from './content.js';
 import { createEntry } from './model.js';
 import {
+  clearWarpAppCache,
   createProductReadHandle,
   getGraphModelStatusForRead,
   getStoredEntry,
@@ -10,11 +12,49 @@ import {
 } from './runtime.js';
 import { ensureCaptureReadEdges, ensureFirstDerivedArtifacts } from './derivation.js';
 import { migrateGraphModel } from './migrations.js';
+import { getCheckpointGraphModelStatus } from './checkpoint-read.js';
+
+const SAVE_RAW_CAPTURE_MAX_ATTEMPTS = 3;
+const WRITER_CAS_CONFLICT_TEXT = 'writer ref was updated by another process';
 
 export async function saveRawCapture(repoDir, thought, {
   provenance = null,
   ambientContext = null,
 } = {}) {
+  return await saveRawCaptureAttempt(repoDir, thought, {
+    provenance,
+    ambientContext,
+    attempt: 1,
+  });
+}
+
+async function saveRawCaptureAttempt(repoDir, thought, {
+  provenance,
+  ambientContext,
+  attempt,
+}) {
+  try {
+    return await writeRawCapture(repoDir, thought, {
+      provenance,
+      ambientContext,
+    });
+  } catch (error) {
+    if (!isWriterCasConflict(error) || attempt >= SAVE_RAW_CAPTURE_MAX_ATTEMPTS) {
+      throw error;
+    }
+    clearWarpAppCache(repoDir);
+    return await saveRawCaptureAttempt(repoDir, thought, {
+      provenance,
+      ambientContext,
+      attempt: attempt + 1,
+    });
+  }
+}
+
+async function writeRawCapture(repoDir, thought, {
+  provenance,
+  ambientContext,
+}) {
   const app = await openWarpApp(repoDir);
   const entry = createEntry(thought, app.writerId, { kind: 'capture', source: 'capture' });
   const captureProvenance = normalizeCaptureProvenance(provenance);
@@ -40,10 +80,14 @@ export async function saveRawCapture(repoDir, thought, {
       patch.setProperty(entry.id, 'captureSourceURL', captureProvenance.sourceURL);
     }
 
-    await patch.attachContent(entry.id, thought, { mime: TEXT_MIME });
+    await patch.attachContent(entry.id, encodeTextContent(thought), { mime: TEXT_MIME });
   });
 
   return entry;
+}
+
+function isWriterCasConflict(error) {
+  return error instanceof Error && error.message.includes(WRITER_CAS_CONFLICT_TEXT);
 }
 
 export async function finalizeCapturedThought(repoDir, entryId, {
@@ -78,6 +122,10 @@ export async function finalizeCapturedThought(repoDir, entryId, {
 }
 
 export async function getGraphModelStatus(repoDir) {
+  const checkpointStatus = await getCheckpointGraphModelStatus(repoDir);
+  if (checkpointStatus !== null) {
+    return checkpointStatus;
+  }
   const read = await openProductReadHandle(repoDir);
   return getGraphModelStatusForRead(read);
 }

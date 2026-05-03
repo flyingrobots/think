@@ -31,6 +31,7 @@ import {
   resolveGraphSessionTraversal,
   toBrowseEntry,
 } from './runtime.js';
+import { listCheckpointEntriesByKind } from './checkpoint-read.js';
 import {
   assessReflectability,
   ensureFirstDerivedArtifacts,
@@ -50,8 +51,19 @@ export async function rememberThoughts(
     brief = false,
   } = {}
 ) {
+  const checkpointCaptures = await listCheckpointEntriesByKind(repoDir, 'capture');
+  if (checkpointCaptures !== null) {
+    return rememberFromCaptures(checkpointCaptures, { cwd, query, limit, brief });
+  }
+
   const read = await openProductReadHandle(repoDir);
-  const captures = (await listEntriesByKind(read, 'capture'))
+  const captures = await listEntriesByKind(read, 'capture');
+
+  return rememberFromCaptures(captures, { cwd, query, limit, brief });
+}
+
+function rememberFromCaptures(captures, { cwd, query, limit, brief }) {
+  const sortedCaptures = captures
     .map((entry) => ({
       id: entry.id,
       text: entry.text,
@@ -66,7 +78,7 @@ export async function rememberThoughts(
 
   if (query && String(query).trim() !== '') {
     const explicitScope = buildExplicitRememberScope(query);
-    const explicitMatches = captures
+    const explicitMatches = sortedCaptures
       .map((entry) => buildExplicitRememberMatch(entry, explicitScope))
       .filter(Boolean)
       .sort(compareRememberMatches);
@@ -77,7 +89,7 @@ export async function rememberThoughts(
   }
 
   const scope = buildAmbientRememberScope(cwd);
-  const matches = captures
+  const matches = sortedCaptures
     .map((entry) => buildAmbientRememberMatch(entry, scope))
     .filter(Boolean)
     .sort(compareRememberMatches);
@@ -88,9 +100,18 @@ export async function rememberThoughts(
 }
 
 export async function getStats(repoDir, { from, to, since, bucket } = {}) {
-  const read = await openProductReadHandle(repoDir);
-  const entries = [];
+  const checkpointCaptures = await listCheckpointEntriesByKind(repoDir, 'capture');
+  if (checkpointCaptures !== null) {
+    return statsFromCaptures(checkpointCaptures, { from, to, since, bucket });
+  }
 
+  const read = await openProductReadHandle(repoDir);
+  const captures = await listEntriesByKind(read, 'capture');
+  return statsFromCaptures(captures, { from, to, since, bucket });
+}
+
+function statsFromCaptures(captures, { from, to, since, bucket } = {}) {
+  const entries = [];
   const now = getCurrentTime();
   const sinceDate = since ? parseSince(since, now) : null;
   const fromDate = from ? new Date(from) : null;
@@ -100,7 +121,7 @@ export async function getStats(repoDir, { from, to, since, bucket } = {}) {
     toDate.setUTCHours(23, 59, 59, 999);
   }
 
-  for (const entry of await listEntriesByKind(read, 'capture')) {
+  for (const entry of captures) {
     const createdAt = new Date(entry.createdAt);
 
     if (sinceDate && createdAt < sinceDate) {continue;}
@@ -162,8 +183,8 @@ export async function getPromptMetrics({ from, to, since, bucket } = {}) {
 const DEFAULT_RECENT_LIMIT = 50;
 
 export async function listRecent(repoDir, { count = null, query = null } = {}) {
-  const read = await openProductReadHandle(repoDir);
-  const captures = await listEntriesByKind(read, 'capture');
+  const checkpointCaptures = await listCheckpointEntriesByKind(repoDir, 'capture');
+  const captures = checkpointCaptures ?? await listEntriesFromProductRead(repoDir, 'capture');
 
   const recent = captures
     .map(entry => ({
@@ -184,6 +205,11 @@ export async function listRecent(repoDir, { count = null, query = null } = {}) {
   const entries = filtered.slice(0, limit);
 
   return Object.freeze({ entries, total });
+}
+
+async function listEntriesFromProductRead(repoDir, kind) {
+  const read = await openProductReadHandle(repoDir);
+  return await listEntriesByKind(read, kind);
 }
 
 export async function listReflectableRecent(repoDir) {
