@@ -90,7 +90,7 @@ npm run benchmark:browse
 
 ## Coding standard
 
-New JavaScript should follow [System-Style JavaScript](./docs/SYSTEMS_STYLE_JAVASCRIPT.md): runtime-backed domain concepts, boundary validation, explicit ownership of behavior, and narrow seams instead of object-shape soup.
+New JavaScript should follow **[Infrastructure Doctrine](./docs/INFRASTRUCTURE_DOCTRINE.md)** and [System-Style JavaScript](./docs/SYSTEMS_STYLE_JAVASCRIPT.md): runtime-backed domain concepts, boundary validation, explicit ownership of behavior, and narrow seams instead of object-shape soup.
 
 Read [`ARCHITECTURE.md`](./ARCHITECTURE.md) before making structural changes. Do not let storage concerns leak into normal UX, and do not let surface-specific concerns infect the capture core.
 
