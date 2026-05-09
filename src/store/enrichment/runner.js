@@ -1,7 +1,8 @@
-import { CLASSIFICATION_PREFIX, TOPIC_PREFIX } from '../constants.js';
+import { CLASSIFICATION_PREFIX, TOPIC_PREFIX, GRAPH_META_ID } from '../constants.js';
 import { createArtifactId, getCurrentTime } from '../model.js';
 import {
   createProductReadHandle,
+  getStoredEntry,
   listEntriesByKind,
   openWarpApp,
 } from '../runtime.js';
@@ -11,14 +12,49 @@ import { classifyThought } from './semantic-parse.js';
 const TOPIC_PROMOTION_THRESHOLD = 2;
 
 /**
- * Run the enrichment pipeline on all un-enriched captures in a repo.
+ * Run the enrichment pipeline on un-enriched captures in a repo.
  * Uses worldline query API — no full graph materialization.
  */
 export async function runEnrichmentPipeline(repoDir) {
   const app = await openWarpApp(repoDir);
   const read = await createProductReadHandle(app);
   const worldline = read.view;
-  const captures = await listEntriesByKind(read, 'capture');
+
+  // 1. Determine the starting point (high-water mark cursor)
+  const metaProps = await worldline.getNodeProps(GRAPH_META_ID);
+  const cursorId = metaProps?.lastEnrichedCaptureId;
+
+  let captures = [];
+  if (cursorId && await worldline.hasNode(cursorId)) {
+    // Incremental path: Traverse 'newer' edges from the cursor
+    const forwardIds = await worldline.traverse.bfs(cursorId, {
+      dir: 'out',
+      labelFilter: 'newer',
+    });
+
+    for (const id of forwardIds) {
+      if (id === cursorId) { continue; }
+      // eslint-disable-next-line no-await-in-loop -- sequential retrieval of new captures
+      const entry = await getStoredEntry(read, id);
+      if (entry && entry.kind === 'capture') {
+        captures.push(entry);
+      }
+    }
+  } else {
+    // Bootstrap path: O(N) scan (only happens once or if cursor is lost)
+    captures = await listEntriesByKind(read, 'capture');
+  }
+
+  if (captures.length === 0) {
+    return Object.freeze({
+      capturesProcessed: 0,
+      topicNodesCreated: 0,
+      aboutEdgesAdded: 0,
+      classifiedEdgesAdded: 0,
+      receiptsCreated: 0,
+      promotedTopics: [],
+    });
+  }
 
   // Find existing auto_tags receipts via query
   const existingReceipts = new Set();
@@ -189,6 +225,12 @@ export async function runEnrichmentPipeline(repoDir) {
         .setProperty(artifactId, 'schemaVersion', '1')
         .setProperty(artifactId, 'createdAt', timestamp)
         .addEdge(artifactId, thoughtId, 'derived_from');
+    }
+
+    // Update the high-water mark cursor to the latest capture processed
+    const latestProcessed = captures.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+    if (latestProcessed) {
+      patch.setProperty(GRAPH_META_ID, 'lastEnrichedCaptureId', latestProcessed.id);
     }
   });
 

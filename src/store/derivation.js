@@ -168,6 +168,7 @@ export async function ensureCaptureReadEdges(app, read, entryId) {
     patch.addEdge(GRAPH_META_ID, entry.id, 'latest_capture');
     if (latestEntry) {
       patch.addEdge(entry.id, latestEntry.id, 'older');
+      patch.addEdge(latestEntry.id, entry.id, 'newer');
     }
   });
 }

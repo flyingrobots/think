@@ -183,9 +183,21 @@ export async function getPromptMetrics({ from, to, since, bucket } = {}) {
 const DEFAULT_RECENT_LIMIT = 50;
 
 export async function listRecent(repoDir, { count = null, query = null } = {}) {
-  const checkpointCaptures = await listCheckpointEntriesByKind(repoDir, 'capture');
-  const captures = checkpointCaptures ?? await listEntriesFromProductRead(repoDir, 'capture');
+  const limit = count ?? DEFAULT_RECENT_LIMIT;
+  const read = await openProductReadHandle(repoDir);
 
+  // If there's no query, we can use the fast chronology traversal
+  if (!query) {
+    const chronologyEntries = await listChronologyEntries(read);
+    return Object.freeze({
+      entries: chronologyEntries.slice(0, limit),
+      total: chronologyEntries.length,
+    });
+  }
+
+  // If there is a query, we still need to filter.
+  // Future optimization: windowed search traversal.
+  const captures = await listEntriesByKind(read, 'capture');
   const recent = captures
     .map(entry => ({
       id: entry.id,
@@ -196,20 +208,11 @@ export async function listRecent(repoDir, { count = null, query = null } = {}) {
     }))
     .sort(compareEntriesNewestFirst);
 
-  const filtered = query
-    ? recent.filter((entry) => matchesRecentQuery(entry.text, query))
-    : recent;
-
+  const filtered = recent.filter((entry) => matchesRecentQuery(entry.text, query));
   const total = filtered.length;
-  const limit = count ?? DEFAULT_RECENT_LIMIT;
   const entries = filtered.slice(0, limit);
 
   return Object.freeze({ entries, total });
-}
-
-async function listEntriesFromProductRead(repoDir, kind) {
-  const read = await openProductReadHandle(repoDir);
-  return await listEntriesByKind(read, kind);
 }
 
 export async function listReflectableRecent(repoDir) {
