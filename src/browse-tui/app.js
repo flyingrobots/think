@@ -1,7 +1,7 @@
 import { createBijou } from '@flyingrobots/bijou';
 import { nodeRuntime, nodeIO, chalkStyle } from '@flyingrobots/bijou-node';
 import { createFramedApp, run } from '@flyingrobots/bijou-tui';
-import { thinkTheme } from './theme.js';
+import { thinkThemes, thinkTheme } from './theme.js';
 import { selectLogo } from '../splash.js';
 import { shaderFrame, compositeAndRender, buildLogoMask, buildInteriorMask, buildDistanceFromOutline, getShaderCount, getShaderName, BG } from '../splash-shader.js';
 import { shaderForMind } from '../minds.js';
@@ -63,6 +63,7 @@ export async function runBrowseTui({
   const app = createFramedApp({
     ctx,
     pages: [browsePage],
+    shellThemes: thinkThemes,
     keyPriority: 'page-first',
     bodyTopRows: 1,
     bodyBottomRows: 1,

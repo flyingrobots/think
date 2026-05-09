@@ -1,5 +1,5 @@
 import { drawer, modal, toast } from '@flyingrobots/bijou-tui';
-import { perfOverlaySurface } from '@flyingrobots/bijou';
+import { perfOverlaySurface, surfaceToString } from '@flyingrobots/bijou';
 import { BG_TOKEN } from './style.js';
 import {
   resolveLayout,
@@ -80,10 +80,11 @@ export function buildBrowseOverlays(model, screenRect, ctx) {
   // Transient notice overlay (session boundary, theme change, perf toggle, etc.)
   if (model.notice) {
     overlays.push(toast({
-      title: 'THINK',
       message: model.notice,
-      tone: 'INFO',
+      variant: 'info',
       anchor: 'bottom-right',
+      screenWidth: screenRect.width,
+      screenHeight: screenRect.height,
       ctx,
     }));
   }
@@ -97,11 +98,16 @@ export function buildBrowseOverlays(model, screenRect, ctx) {
       width: screenRect.width,
       height: screenRect.height,
     };
-    overlays.push(perfOverlaySurface(stats, {
+    const surface = perfOverlaySurface(stats, {
       ctx,
-      anchor: 'top-right',
       title: 'Perf Stream',
-    }));
+    });
+    overlays.push({
+      surface,
+      content: surfaceToString(surface, ctx.style),
+      row: 0,
+      col: screenRect.width - surface.width,
+    });
   }
 
   return overlays;

@@ -10,52 +10,33 @@ import { tv } from '@flyingrobots/bijou';
 
 export const thinkTheme = {
   name: 'think',
+  label: 'Think Warm',
 
   status: {
     success: tv('#41b797'),
-    error: tv('#ed555d'),
     warning: tv('#eda126'),
-    info: tv('#fffcc9'),
-    pending: tv('#7b5770', ['dim']),
-    active: tv('#41b797'),
-    muted: tv('#7b5770', ['dim']),
+    error: tv('#ed555d'),
+    info: tv('#7b5770'),
   },
 
   semantic: {
-    success: tv('#41b797'),
-    error: tv('#ed555d'),
-    warning: tv('#eda126'),
-    info: tv('#fffcc9'),
     accent: tv('#41b797'),
-    muted: tv('#7b5770'),
-    primary: tv('#fffcc9', ['bold']),
-  },
-
-  border: {
-    primary: tv('#7b5770'),
-    secondary: tv('#41b797'),
-    success: tv('#41b797'),
-    warning: tv('#eda126'),
-    error: tv('#ed555d'),
-    muted: tv('#5a3d4f'),
-  },
-
-  surface: {
-    primary: { hex: '#fffcc9', bg: '#2d1922' },
-    secondary: { hex: '#fffcc9', bg: '#3a2230' },
-    elevated: { hex: '#fffcc9', bg: '#46293a' },
-    overlay: { hex: '#fffcc9', bg: '#2d1922' },
-    muted: { hex: '#7b5770', bg: '#1e1018' },
+    header: tv('#eda126'),
+    dim: tv('#7b5770'),
+    highlight: tv('#ed555d'),
+    text: tv('#fffcc9'),
+    bg: tv('#2d1922'),
   },
 
   ui: {
-    cursor: tv('#41b797'),
-    scrollThumb: tv('#7b5770'),
-    scrollTrack: tv('#3a2230'),
-    sectionHeader: tv('#eda126', ['bold']),
-    logo: tv('#41b797'),
-    tableHeader: tv('#fffcc9'),
-    trackEmpty: tv('#3a2230'),
+    border: tv('#7b5770'),
+    selection: tv('#41b797'),
+    focus: tv('#eda126'),
+  },
+
+  surface: {
+    panel: tv('#3a212b'),
+    well: tv('#24141c'),
   },
 
   gradient: {
@@ -70,3 +51,55 @@ export const thinkTheme = {
     ],
   },
 };
+
+export const matrixTheme = {
+  name: 'matrix',
+  label: 'Matrix',
+
+  semantic: {
+    accent: tv('#00ff41'),
+    header: tv('#008f11'),
+    dim: tv('#003b00'),
+    highlight: tv('#d1ffbd'),
+    text: tv('#00ff41'),
+    bg: tv('#000000'),
+  },
+
+  ui: {
+    border: tv('#008f11'),
+    selection: tv('#00ff41'),
+    focus: tv('#d1ffbd'),
+  },
+
+  surface: {
+    panel: tv('#001100'),
+    well: tv('#000500'),
+  },
+};
+
+export const cyberTheme = {
+  name: 'cyber',
+  label: 'Cyberpunk',
+
+  semantic: {
+    accent: tv('#fcee0a'),
+    header: tv('#00ff9f'),
+    dim: tv('#3d1a5d'),
+    highlight: tv('#ff003c'),
+    text: tv('#00ff9f'),
+    bg: tv('#050a0e'),
+  },
+
+  ui: {
+    border: tv('#3d1a5d'),
+    selection: tv('#fcee0a'),
+    focus: tv('#ff003c'),
+  },
+
+  surface: {
+    panel: tv('#1a1a2e'),
+    well: tv('#0f0f1b'),
+  },
+};
+
+export const thinkThemes = [thinkTheme, matrixTheme, cyberTheme];
