@@ -44,9 +44,43 @@ import {
   getSessionAttributionReceiptIfPresent,
   listDirectDerivedReceipts,
 } from './derivation.js';
-import { extractTopics } from './enrichment/auto-tags.js';
+import { KeywordTrie } from './trie.js';
 
 const DEFAULT_RECENT_LIMIT = 50;
+let searchIndexCache = null;
+let searchIndexLoadingPromise = null;
+
+/**
+ * Bootstrap the in-memory search index (Trie) from keyword nodes in the graph.
+ * Uses a loading promise to prevent race conditions during concurrent requests.
+ */
+export function loadSearchIndex(repoDir) {
+  if (searchIndexCache) {
+    return Promise.resolve(searchIndexCache);
+  }
+
+  if (searchIndexLoadingPromise) {
+    return searchIndexLoadingPromise;
+  }
+
+  searchIndexLoadingPromise = (async () => {
+    const read = await openProductReadHandle(repoDir);
+    const trie = new KeywordTrie();
+
+    const keywordResult = await read.view.query().match(`${KEYWORD_PREFIX}*`).where({ kind: 'keyword' }).run();
+    for (const node of keywordResult.nodes ?? []) {
+      if (node.props.name) {
+        trie.insert(node.props.name);
+      }
+    }
+
+    searchIndexCache = trie;
+    searchIndexLoadingPromise = null;
+    return trie;
+  })();
+
+  return searchIndexLoadingPromise;
+}
 
 export async function rememberThoughts(
   repoDir,
@@ -63,10 +97,18 @@ export async function rememberThoughts(
   // 1. If there's an explicit query, try the graph-native inverted index first (O(1))
   if (query && String(query).trim() !== '') {
     const explicitScope = buildExplicitRememberScope(query);
-    const keywords = extractTopics(query);
+    const queryTerms = query.toLowerCase().split(/\s+/).filter(Boolean);
     const indexMatches = new Map();
 
-    for (const keyword of keywords) {
+    // Use Trie for prefix matching on query terms
+    const trie = await loadSearchIndex(repoDir);
+    const expandedKeywords = new Set();
+    for (const term of queryTerms) {
+      const prefixMatches = trie.search(term);
+      for (const m of prefixMatches) { expandedKeywords.add(m); }
+    }
+
+    for (const keyword of expandedKeywords) {
       const keywordNodeId = `${KEYWORD_PREFIX}${keyword}`;
       // eslint-disable-next-line no-await-in-loop -- sequential keyword index lookup
       const traversal = await read.view.query().match(keywordNodeId).incoming('mentions').run();
@@ -114,7 +156,7 @@ export async function rememberThoughts(
   // 2. Ambient remember (cwd-based)
   const ambientScope = buildAmbientRememberScope(cwd);
   const fullChronology = await listChronologyEntries(read);
-  const matches = fullChronology
+  const ambientMatches = fullChronology
     .slice(0, 2000) // Search window
     .map((entry) => buildAmbientRememberMatch(entry, ambientScope))
     .filter(Boolean)
@@ -122,7 +164,7 @@ export async function rememberThoughts(
 
   return Object.freeze({
     scope: Object.freeze({ ...ambientScope, brief, limit: limitValue }),
-    matches: finalizeRememberMatches(matches, { brief, limit: limitValue }),
+    matches: finalizeRememberMatches(ambientMatches, { brief, limit: limitValue }),
   });
 }
 
