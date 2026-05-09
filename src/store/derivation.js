@@ -13,7 +13,6 @@ import {
 import { encodeTextContent } from './content.js';
 import {
   compareEntriesNewestFirst,
-  compareEntriesOldestFirst,
   createArtifactId,
   createThoughtId,
   getCurrentTime,
@@ -246,61 +245,45 @@ export function deriveSeedQuality(thoughtId, text) {
 }
 
 export async function deriveSessionAttribution(read, entry) {
-  const captures = await listEntriesByKind(read, 'capture');
-  const ordered = captures
-    .filter((candidate) => candidate.id !== entry.id)
-    .concat([{ ...entry }])
-    .sort(compareEntriesOldestFirst);
+  const latestCaptureId = await getLatestCaptureId(read);
+  const latestEntry = latestCaptureId ? await getStoredEntry(read, latestCaptureId) : null;
 
-  let sessionStart = ordered[0];
-  let previous = null;
-
-  for (const capture of ordered) {
-    if (previous) {
-      const gapMs = Date.parse(capture.createdAt) - Date.parse(previous.createdAt);
-      if (gapMs > SESSION_IDLE_GAP_MS) {
-        sessionStart = capture;
-      }
-    }
-
-    if (capture.id === entry.id) {
-      const withinBucket = previous
-        && (Date.parse(capture.createdAt) - Date.parse(previous.createdAt)) <= SESSION_IDLE_GAP_MS;
-      const sessionId = `${SESSION_PREFIX}${sessionStart.sortKey}`;
+  if (latestEntry && latestEntry.id !== entry.id) {
+    const gapMs = Date.parse(entry.createdAt) - Date.parse(latestEntry.createdAt);
+    if (gapMs <= SESSION_IDLE_GAP_MS) {
+      const activeSessionId = latestEntry.sessionId || `${SESSION_PREFIX}${latestEntry.sortKey}`;
+      const sessionCreatedAt = latestEntry.sessionCreatedAt || latestEntry.createdAt;
+      const sessionStartSortKey = latestEntry.sessionStartSortKey || latestEntry.sortKey;
 
       return Object.freeze({
-        artifactId: createArtifactId('session_attribution', entry.id, sessionId),
+        artifactId: createArtifactId('session_attribution', entry.id, activeSessionId),
         kind: 'session_attribution',
         primaryInputKind: 'capture',
         primaryInputId: entry.id,
-        sessionId,
-        sessionCreatedAt: sessionStart.createdAt,
-        sessionStartSortKey: sessionStart.sortKey,
-        reasonKind: withinBucket ? 'temporal_proximity' : 'new_session_bucket',
-        reasonText: withinBucket
-          ? 'Captured within 5 minutes of neighboring entries in the same session bucket.'
-          : 'Started a new session bucket because no neighboring capture fell within the 5 minute idle-gap threshold.',
+        sessionId: activeSessionId,
+        sessionCreatedAt,
+        sessionStartSortKey,
+        reasonKind: 'temporal_proximity',
+        reasonText: 'Captured within 5 minutes of the most recent entry.',
         deriver: DERIVER_NAME,
         deriverVersion: DERIVER_VERSION,
         schemaVersion: SCHEMA_VERSION,
         createdAt: getCurrentTime().toISOString(),
       });
     }
-
-    previous = capture;
   }
 
-  const fallbackSessionId = `${SESSION_PREFIX}${entry.sortKey}`;
+  const sessionId = `${SESSION_PREFIX}${entry.sortKey}`;
   return Object.freeze({
-    artifactId: createArtifactId('session_attribution', entry.id, fallbackSessionId),
+    artifactId: createArtifactId('session_attribution', entry.id, sessionId),
     kind: 'session_attribution',
     primaryInputKind: 'capture',
     primaryInputId: entry.id,
-    sessionId: fallbackSessionId,
+    sessionId,
     sessionCreatedAt: entry.createdAt,
     sessionStartSortKey: entry.sortKey,
     reasonKind: 'new_session_bucket',
-    reasonText: 'Started a new session bucket because no neighboring capture fell within the 5 minute idle-gap threshold.',
+    reasonText: 'Started a new session bucket because no recent capture fell within the 5 minute idle-gap threshold.',
     deriver: DERIVER_NAME,
     deriverVersion: DERIVER_VERSION,
     schemaVersion: SCHEMA_VERSION,
