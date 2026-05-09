@@ -22,6 +22,90 @@ import {
   storesTextContent,
 } from './model.js';
 
+export class GenericEntry {
+  constructor(nodeId, resolvedProps, text) {
+    this.id = nodeId;
+    this.kind = resolvedProps.kind;
+    this.writerId = resolvedProps.writerId;
+    this.createdAt = resolvedProps.createdAt;
+    this.sortKey = String(resolvedProps.sortKey || '');
+    this.text = text;
+    Object.freeze(this);
+  }
+}
+
+export class CaptureEntry {
+  constructor(nodeId, resolvedProps, text) {
+    this.id = nodeId;
+    this.kind = resolvedProps.kind;
+    this.writerId = resolvedProps.writerId;
+    this.createdAt = resolvedProps.createdAt;
+    this.sortKey = String(resolvedProps.sortKey || '');
+    this.text = text;
+    this.source = resolvedProps.source;
+    this.channel = resolvedProps.channel;
+    this.thoughtId = resolvedProps.thoughtId ?? null;
+    this.sessionId = resolvedProps.sessionId ?? null;
+    this.ambientCwd = resolvedProps.ambientCwd ?? null;
+    this.ambientGitRoot = resolvedProps.ambientGitRoot ?? null;
+    this.ambientGitRemote = resolvedProps.ambientGitRemote ?? null;
+    this.ambientGitBranch = resolvedProps.ambientGitBranch ?? null;
+    this.captureProvenance = resolvedProps.captureIngress || resolvedProps.captureSourceApp || resolvedProps.captureSourceURL
+      ? Object.freeze({
+          ingress: resolvedProps.captureIngress ?? null,
+          sourceApp: resolvedProps.captureSourceApp ?? null,
+          sourceURL: resolvedProps.captureSourceURL ?? null,
+        })
+      : null;
+    Object.freeze(this);
+  }
+}
+
+export class ReflectEntry {
+  constructor(nodeId, resolvedProps, text) {
+    this.id = nodeId;
+    this.kind = resolvedProps.kind;
+    this.writerId = resolvedProps.writerId;
+    this.createdAt = resolvedProps.createdAt;
+    this.sortKey = String(resolvedProps.sortKey || '');
+    this.text = text;
+    this.seedEntryId = resolvedProps.seedEntryId ?? null;
+    this.contrastEntryId = resolvedProps.contrastEntryId ?? null;
+    this.promptType = resolvedProps.promptType ?? null;
+    this.question = resolvedProps.question ?? null;
+    this.selectionReason = resolvedProps.selectionReasonKind
+      ? Object.freeze({
+          kind: resolvedProps.selectionReasonKind,
+          text: resolvedProps.selectionReasonText ?? '',
+        })
+      : null;
+    this.stepCount = Number(resolvedProps.stepCount ?? 0);
+    this.maxSteps = Number(resolvedProps.maxSteps ?? 0);
+    Object.freeze(this);
+  }
+}
+
+export class AnnotationEntry {
+  constructor(nodeId, resolvedProps, text) {
+    this.id = nodeId;
+    this.kind = resolvedProps.kind;
+    this.writerId = resolvedProps.writerId;
+    this.createdAt = resolvedProps.createdAt;
+    this.sortKey = String(resolvedProps.sortKey || '');
+    this.text = text;
+    Object.freeze(this);
+  }
+}
+
+export class BaseEntry {
+  static from(nodeId, resolvedProps, text) {
+    if (resolvedProps.kind === 'capture') { return new CaptureEntry(nodeId, resolvedProps, text); }
+    if (resolvedProps.kind === 'reflect') { return new ReflectEntry(nodeId, resolvedProps, text); }
+    if (resolvedProps.kind === 'annotation') { return new AnnotationEntry(nodeId, resolvedProps, text); }
+    return new GenericEntry(nodeId, resolvedProps, text);
+  }
+}
+
 const warpAppCache = new Map();
 
 export async function openWarpApp(repoDir) {
@@ -86,46 +170,6 @@ export async function getGraphModelStatusForRead(read) {
   };
 }
 
-export class StoredEntry {
-  constructor(nodeId, resolvedProps, text) {
-    this.id = nodeId;
-    this.kind = resolvedProps.kind;
-    this.source = resolvedProps.source;
-    this.channel = resolvedProps.channel;
-    this.writerId = resolvedProps.writerId;
-    this.createdAt = resolvedProps.createdAt;
-    this.sortKey = String(resolvedProps.sortKey || '');
-    this.thoughtId = resolvedProps.thoughtId ?? null;
-    this.seedEntryId = resolvedProps.seedEntryId ?? null;
-    this.contrastEntryId = resolvedProps.contrastEntryId ?? null;
-    this.sessionId = resolvedProps.sessionId ?? null;
-    this.promptType = resolvedProps.promptType ?? null;
-    this.question = resolvedProps.question ?? null;
-    this.ambientCwd = resolvedProps.ambientCwd ?? null;
-    this.ambientGitRoot = resolvedProps.ambientGitRoot ?? null;
-    this.ambientGitRemote = resolvedProps.ambientGitRemote ?? null;
-    this.ambientGitBranch = resolvedProps.ambientGitBranch ?? null;
-    this.captureProvenance = resolvedProps.captureIngress || resolvedProps.captureSourceApp || resolvedProps.captureSourceURL
-      ? Object.freeze({
-          ingress: resolvedProps.captureIngress ?? null,
-          sourceApp: resolvedProps.captureSourceApp ?? null,
-          sourceURL: resolvedProps.captureSourceURL ?? null,
-        })
-      : null;
-    this.selectionReason = resolvedProps.selectionReasonKind
-      ? Object.freeze({
-          kind: resolvedProps.selectionReasonKind,
-          text: resolvedProps.selectionReasonText ?? '',
-        })
-      : null;
-    this.stepCount = Number(resolvedProps.stepCount ?? 0);
-    this.maxSteps = Number(resolvedProps.maxSteps ?? 0);
-    this.text = text;
-
-    Object.freeze(this);
-  }
-}
-
 export async function getStoredEntry(read, nodeId, props = null) {
   const resolvedProps = props ?? await read.view.getNodeProps(nodeId);
   if (!resolvedProps) {
@@ -136,7 +180,7 @@ export async function getStoredEntry(read, nodeId, props = null) {
     ? await readNodeText(read, nodeId)
     : '';
 
-  return new StoredEntry(nodeId, resolvedProps, text);
+  return BaseEntry.from(nodeId, resolvedProps, text);
 }
 
 export function toBrowseEntry(entry) {

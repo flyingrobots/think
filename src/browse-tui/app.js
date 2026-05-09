@@ -74,6 +74,11 @@ export async function runBrowseTui({
       return resolveHelpLine(pageModel);
     },
     overlayFactory: (overlayCtx) => buildBrowseOverlays(overlayCtx.pageModel, overlayCtx.screenRect, ctx),
+    onShellThemeChange: ({ shellTheme }) => {
+      if (modelRef.current) {
+        modelRef.current.notice = `Theme set to ${shellTheme.label}`;
+      }
+    },
     observeKey: (msg, route) => {
       // Let the frame handle its own bindings (help, quit confirm, etc.)
       if (route === 'frame' || route === 'help' || route === 'palette') {

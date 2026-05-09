@@ -284,6 +284,26 @@ export function applyBrowseAction(model, action) {
         effect: { type: 'switch_mind', mind: targetMind },
       };
     }
+    case 'toggle_perf_stream': {
+      const enabled = !model.perfStreamEnabled;
+      return {
+        model: {
+          ...model,
+          perfStreamEnabled: enabled,
+          notice: enabled ? 'Perf stream started' : 'Perf stream ended',
+        },
+        effect: null,
+      };
+    }
+    case 'theme_changed': {
+      return {
+        model: {
+          ...model,
+          notice: `Theme set to ${action.name}`,
+        },
+        effect: null,
+      };
+    }
     default:
       return {
         model,

@@ -1,4 +1,5 @@
-import { drawer, modal } from '@flyingrobots/bijou-tui';
+import { drawer, modal, toast } from '@flyingrobots/bijou-tui';
+import { perfOverlaySurface } from '@flyingrobots/bijou';
 import { BG_TOKEN } from './style.js';
 import {
   resolveLayout,
@@ -76,17 +77,31 @@ export function buildBrowseOverlays(model, screenRect, ctx) {
     }));
   }
 
-  // Transient notice overlay (session boundary, etc.)
+  // Transient notice overlay (session boundary, theme change, perf toggle, etc.)
   if (model.notice) {
-    const pad = 2;
-    const text = ` ${model.notice} `;
-    const noticeWidth = text.length + pad * 2;
-    const col = Math.max(0, Math.floor((screenRect.width - noticeWidth) / 2));
-    overlays.push({
-      content: `╭${'─'.repeat(text.length)}╮\n│${text}│\n╰${'─'.repeat(text.length)}╯`,
-      row: 1,
-      col,
-    });
+    overlays.push(toast({
+      title: 'THINK',
+      message: model.notice,
+      tone: 'INFO',
+      anchor: 'bottom-right',
+      ctx,
+    }));
+  }
+
+  // Performance stream overlay
+  if (model.perfStreamEnabled) {
+    const stats = ctx?.perf?.getStats?.() ?? {
+      fps: 60,
+      frameTimeMs: 16.6,
+      frameTimeHistory: [],
+      width: screenRect.width,
+      height: screenRect.height,
+    };
+    overlays.push(perfOverlaySurface(stats, {
+      ctx,
+      anchor: 'top-right',
+      title: 'Perf Stream',
+    }));
   }
 
   return overlays;

@@ -13,7 +13,7 @@ import {
   GRAPH_NAME,
 } from './constants.js';
 import { storesTextContent } from './model.js';
-import { StoredEntry } from './runtime.js';
+import { BaseEntry } from './runtime.js';
 
 const CHECKPOINT_REF = `refs/warp/${GRAPH_NAME}/checkpoints/head`;
 const WRITER_REF_PREFIX = `refs/warp/${GRAPH_NAME}/writers/`;
@@ -98,7 +98,7 @@ class CheckpointReadModel {
     const text = storesTextContent(props.kind)
       ? await this._readNodeText(nodeId)
       : '';
-    return new StoredEntry(nodeId, props, text);
+    return BaseEntry.from(nodeId, props, text);
   }
 
   async _readNodeText(nodeId) {

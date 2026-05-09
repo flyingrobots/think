@@ -59,7 +59,7 @@ async function writeRawCapture(repoDir, thought, {
   const entry = createEntry(thought, app.writerId, { kind: 'capture', source: 'capture' });
   const captureProvenance = normalizeCaptureProvenance(provenance);
 
-  await app.patch(async patch => {
+  const patcher = async (patch) => {
     patch
       .addNode(entry.id)
       .setProperty(entry.id, 'kind', entry.kind)
@@ -81,7 +81,21 @@ async function writeRawCapture(repoDir, thought, {
     }
 
     await patch.attachContent(entry.id, encodeTextContent(thought), { mime: TEXT_MIME });
-  });
+  };
+
+  try {
+    await app.patch(patcher);
+  } catch (error) {
+    if (error.code === 'E_NO_STATE') {
+      // First patch in a repo requires genesis mode in git-warp 17
+      await app.patch(patcher, { genesis: true });
+    } else {
+      throw error;
+    }
+  }
+
+  // Sync with core after patch to advance the reading basis
+  await app.syncWith(app.core());
 
   return entry;
 }
@@ -95,7 +109,12 @@ export async function finalizeCapturedThought(repoDir, entryId, {
   ambientContext = null,
 } = {}) {
   const app = await openWarpApp(repoDir);
-  let read = await createProductReadHandle(app);
+
+  if (ambientContext) {
+    await patchAmbientContext(repoDir, app, entryId, ambientContext);
+  }
+
+  const read = await createProductReadHandle(app);
   let entry = await getStoredEntry(read, entryId);
 
   if (!entry || entry.kind !== 'capture') {
@@ -104,12 +123,6 @@ export async function finalizeCapturedThought(repoDir, entryId, {
       migration: null,
     };
   }
-
-  if (ambientContext) {
-    await patchAmbientContext(app, entryId, ambientContext);
-  }
-  read = await createProductReadHandle(app);
-  entry = await getStoredEntry(read, entryId);
 
   await ensureFirstDerivedArtifacts(app, read, entry);
   await ensureCaptureReadEdges(app, read, entryId);
@@ -149,8 +162,21 @@ function applyAmbientContextPatch(patch, entryId, ambientContext) {
   }
 }
 
-async function patchAmbientContext(app, entryId, ambientContext) {
-  await app.patch(patch => {
+async function patchAmbientContext(repoDir, app, entryId, ambientContext) {
+  const patcher = (patch) => {
     applyAmbientContextPatch(patch, entryId, ambientContext);
-  });
+  };
+
+  try {
+    await app.patch(patcher);
+  } catch (error) {
+    if (error.code === 'E_NO_STATE') {
+      await app.patch(patcher, { genesis: true });
+    } else {
+      throw error;
+    }
+  }
+
+  // Sync with core after patch to advance the reading basis
+  await app.syncWith(app.core());
 }
