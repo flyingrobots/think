@@ -102,13 +102,26 @@ export async function rememberThoughts(
 
     // Use Trie for prefix matching on query terms
     const trie = await loadSearchIndex(repoDir);
-    const expandedKeywords = new Set();
+    const expandedKeywords = new Map(); // keyword -> distance
+
     for (const term of queryTerms) {
       const prefixMatches = trie.search(term);
-      for (const m of prefixMatches) { expandedKeywords.add(m); }
+      for (const m of prefixMatches) {
+        expandedKeywords.set(m, 0); // Exact or prefix match has distance 0
+      }
+
+      // If we don't have many matches, try fuzzy (edit distance)
+      if (prefixMatches.length < 10) {
+        const fuzzyMatches = trie.searchFuzzy(term, term.length > 4 ? 2 : 1);
+        for (const { keyword, distance } of fuzzyMatches) {
+          if (!expandedKeywords.has(keyword) || distance < expandedKeywords.get(keyword)) {
+            expandedKeywords.set(keyword, distance);
+          }
+        }
+      }
     }
 
-    for (const keyword of expandedKeywords) {
+    for (const [keyword, distance] of expandedKeywords) {
       const keywordNodeId = `${KEYWORD_PREFIX}${keyword}`;
       // eslint-disable-next-line no-await-in-loop -- sequential keyword index lookup
       const traversal = await read.view.query().match(keywordNodeId).incoming('mentions').run();
@@ -125,7 +138,15 @@ export async function rememberThoughts(
               ambientGitRemote: entry.ambientGitRemote ?? null,
               ambientGitBranch: entry.ambientGitBranch ?? null,
             }, explicitScope);
-            if (match) { indexMatches.set(node.id, match); }
+
+            if (match) {
+              // Adjust score based on fuzzy distance
+              const fuzzyAdjustedMatch = {
+                ...match,
+                score: match.score - (distance * 0.1), // Typos rank slightly lower
+              };
+              indexMatches.set(node.id, fuzzyAdjustedMatch);
+            }
           }
         }
       }
