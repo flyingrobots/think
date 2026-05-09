@@ -30,6 +30,7 @@ import {
   getStoredEntry,
   listChronologyEntries,
   listEntriesByKind,
+  listRecentStoredEntries,
   openProductReadHandle,
   resolveGraphSessionTraversal,
   toBrowseEntry,
@@ -161,10 +162,15 @@ export async function rememberThoughts(
     }
 
     // Fallback: If index is empty (e.g. not enriched yet or partial word), use windowed scan
-    const chronologyList = await listChronologyEntries(read);
+    const chronologyList = await listRecentStoredEntries(read, { limit: 2000 });
     const fallbackMatches = chronologyList
-      .slice(0, 2000) // Search window
-      .map((entry) => buildExplicitRememberMatch(entry, explicitScope))
+      .map((entry) => buildExplicitRememberMatch({
+        ...entry,
+        ambientCwd: entry.ambientCwd ?? null,
+        ambientGitRoot: entry.ambientGitRoot ?? null,
+        ambientGitRemote: entry.ambientGitRemote ?? null,
+        ambientGitBranch: entry.ambientGitBranch ?? null,
+      }, explicitScope))
       .filter(Boolean)
       .sort(compareRememberMatches);
 
@@ -176,10 +182,15 @@ export async function rememberThoughts(
 
   // 2. Ambient remember (cwd-based)
   const ambientScope = buildAmbientRememberScope(cwd);
-  const fullChronology = await listChronologyEntries(read);
+  const fullChronology = await listRecentStoredEntries(read, { limit: 2000 });
   const ambientMatches = fullChronology
-    .slice(0, 2000) // Search window
-    .map((entry) => buildAmbientRememberMatch(entry, ambientScope))
+    .map((entry) => buildAmbientRememberMatch({
+      ...entry,
+      ambientCwd: entry.ambientCwd ?? null,
+      ambientGitRoot: entry.ambientGitRoot ?? null,
+      ambientGitRemote: entry.ambientGitRemote ?? null,
+      ambientGitBranch: entry.ambientGitBranch ?? null,
+    }, ambientScope))
     .filter(Boolean)
     .sort(compareRememberMatches);
 
@@ -276,10 +287,10 @@ export async function listRecent(repoDir, { count = null, query = null } = {}) {
 
   // If there's no query, we can use the fast chronology traversal
   if (!query) {
-    const chronologyEntries = await listChronologyEntries(read);
+    const chronologyEntries = await listRecentStoredEntries(read, { limit });
     return Object.freeze({
-      entries: chronologyEntries.slice(0, limit),
-      total: chronologyEntries.length,
+      entries: chronologyEntries.map(toBrowseEntry),
+      total: chronologyEntries.length, // Note: total is windowed in this case
     });
   }
 

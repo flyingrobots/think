@@ -243,6 +243,45 @@ export async function getSingleNeighborId(read, nodeId, direction, label) {
   return result.nodes?.[0]?.id ?? null;
 }
 
+export async function getLatestStoredEntry(read, kind = 'capture') {
+  const latestId = await getLatestIdByKind(read, kind);
+  return latestId ? await getStoredEntry(read, latestId) : null;
+}
+
+export async function listRecentStoredEntries(read, { kind = 'capture', limit = 50 } = {}) {
+  const latestId = await getLatestIdByKind(read, kind);
+  if (!latestId) {
+    return [];
+  }
+
+  const ids = await read.view.traverse.bfs(latestId, {
+    dir: 'out',
+    labelFilter: 'older',
+  });
+
+  const entries = [];
+  for (const id of ids) {
+    if (entries.length >= limit) { break; }
+    // eslint-disable-next-line no-await-in-loop -- sequential retrieval of windowed entries
+    const entry = await getStoredEntry(read, id);
+    if (entry && entry.kind === kind) {
+      entries.push(entry);
+    }
+  }
+
+  return entries;
+}
+
+async function getLatestIdByKind(read, kind) {
+  if (kind !== 'capture') {
+    // For now, only capture has a latest pointer.
+    // Future: generic latest_by_kind metadata.
+    return null;
+  }
+
+  return await getLatestCaptureId(read);
+}
+
 export async function readNodeText(read, nodeId) {
   const content = await read.contentCore.getContent(nodeId);
   return content ? new TextDecoder().decode(content) : '';

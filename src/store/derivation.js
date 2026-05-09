@@ -19,7 +19,7 @@ import {
   normalizeSeed,
 } from './model.js';
 import {
-  getLatestCaptureId,
+  getLatestStoredEntry,
   getProducedInSessionId,
   getStoredEntry,
   hasNode,
@@ -145,12 +145,11 @@ export async function ensureCaptureReadEdges(app, read, entryId) {
     return;
   }
 
-  const latestCaptureId = await getLatestCaptureId(read);
-  if (latestCaptureId === entry.id) {
+  const latestEntry = await getLatestStoredEntry(read);
+  if (latestEntry && latestEntry.id === entry.id) {
     return;
   }
 
-  const latestEntry = latestCaptureId ? await getStoredEntry(read, latestCaptureId) : null;
   if (latestEntry && compareEntriesNewestFirst(entry, latestEntry) >= 0) {
     return;
   }
@@ -246,8 +245,7 @@ export function deriveSeedQuality(thoughtId, text) {
 }
 
 export async function deriveSessionAttribution(read, entry) {
-  const latestCaptureId = await getLatestCaptureId(read);
-  const latestEntry = latestCaptureId ? await getStoredEntry(read, latestCaptureId) : null;
+  const latestEntry = await getLatestStoredEntry(read);
 
   if (latestEntry && latestEntry.id !== entry.id) {
     const gapMs = Date.parse(entry.createdAt) - Date.parse(latestEntry.createdAt);

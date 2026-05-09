@@ -12,22 +12,22 @@ import { classifyThought } from './semantic-parse.js';
 const TOPIC_PROMOTION_THRESHOLD = 2;
 
 /**
- * Run the enrichment pipeline on un-enriched captures in a repo.
+ * Run the enrichment pipeline on all un-enriched captures in a repo.
  * Uses worldline query API — no full graph materialization.
  */
 export async function runEnrichmentPipeline(repoDir) {
   const app = await openWarpApp(repoDir);
   const read = await createProductReadHandle(app);
-  const worldline = read.view;
+  const { view } = read;
 
   // 1. Determine the starting point (high-water mark cursor)
-  const metaProps = await worldline.getNodeProps(GRAPH_META_ID);
+  const metaProps = await view.getNodeProps(GRAPH_META_ID);
   const cursorId = metaProps?.lastEnrichedCaptureId;
 
   let captures = [];
-  if (cursorId && await worldline.hasNode(cursorId)) {
+  if (cursorId && await view.hasNode(cursorId)) {
     // Incremental path: Traverse 'newer' edges from the cursor
-    const forwardIds = await worldline.traverse.bfs(cursorId, {
+    const forwardIds = await view.traverse.bfs(cursorId, {
       dir: 'out',
       labelFilter: 'newer',
     });
@@ -60,7 +60,7 @@ export async function runEnrichmentPipeline(repoDir) {
 
   // Find existing auto_tags receipts via query
   const existingReceipts = new Set();
-  const tagReceiptResult = await worldline.query().match('artifact:*').where({ kind: 'auto_tags' }).run();
+  const tagReceiptResult = await view.query().match('artifact:*').where({ kind: 'auto_tags' }).run();
   for (const node of tagReceiptResult.nodes ?? []) {
     if (node.props.primaryInputId) {
       existingReceipts.add(node.props.primaryInputId);
@@ -69,7 +69,7 @@ export async function runEnrichmentPipeline(repoDir) {
 
   // Find existing semantic_parse receipts via query
   const existingParseReceipts = new Set();
-  const parseReceiptResult = await worldline.query().match('artifact:*').where({ kind: 'semantic_parse' }).run();
+  const parseReceiptResult = await view.query().match('artifact:*').where({ kind: 'semantic_parse' }).run();
   for (const node of parseReceiptResult.nodes ?? []) {
     if (node.props.primaryInputId) {
       existingParseReceipts.add(node.props.primaryInputId);
@@ -78,14 +78,14 @@ export async function runEnrichmentPipeline(repoDir) {
 
   // Find existing topic nodes via query
   const existingTopicNodes = new Set();
-  const topicResult = await worldline.query().match(`${TOPIC_PREFIX}*`).run();
+  const topicResult = await view.query().match(`${TOPIC_PREFIX}*`).run();
   for (const node of topicResult.nodes ?? []) {
     existingTopicNodes.add(node.id);
   }
 
   // Find existing keyword nodes via query
   const existingKeywordNodes = new Set();
-  const keywordResult = await worldline.query().match(`${KEYWORD_PREFIX}*`).run();
+  const keywordResult = await view.query().match(`${KEYWORD_PREFIX}*`).run();
   for (const node of keywordResult.nodes ?? []) {
     existingKeywordNodes.add(node.id);
   }
@@ -124,7 +124,7 @@ export async function runEnrichmentPipeline(repoDir) {
   const existingAboutEdges = new Set();
   for (const [thoughtId] of thoughtTopics) {
     // eslint-disable-next-line no-await-in-loop -- per-thought traversal
-    const traversal = await worldline.query().match(thoughtId).outgoing('about').run();
+    const traversal = await view.query().match(thoughtId).outgoing('about').run();
     for (const node of traversal.nodes ?? []) {
       existingAboutEdges.add(`${thoughtId}\0${node.id}`);
     }
@@ -134,7 +134,7 @@ export async function runEnrichmentPipeline(repoDir) {
   const existingMentionsEdges = new Set();
   for (const [thoughtId] of thoughtTopics) {
     // eslint-disable-next-line no-await-in-loop -- per-thought traversal
-    const traversal = await worldline.query().match(thoughtId).outgoing('mentions').run();
+    const traversal = await view.query().match(thoughtId).outgoing('mentions').run();
     for (const node of traversal.nodes ?? []) {
       existingMentionsEdges.add(`${thoughtId}\0${node.id}`);
     }
@@ -144,7 +144,7 @@ export async function runEnrichmentPipeline(repoDir) {
   const existingClassifiedEdges = new Set();
   for (const [thoughtId] of thoughtClassifications) {
     // eslint-disable-next-line no-await-in-loop -- per-thought traversal
-    const traversal = await worldline.query().match(thoughtId).outgoing('classified_as').run();
+    const traversal = await view.query().match(thoughtId).outgoing('classified_as').run();
     for (const node of traversal.nodes ?? []) {
       existingClassifiedEdges.add(`${thoughtId}\0${node.id}`);
     }
@@ -295,14 +295,14 @@ export async function runEnrichmentPipeline(repoDir) {
  */
 export async function listTopics(repoDir) {
   const app = await openWarpApp(repoDir);
-  const worldline = app.worldline();
+  const read = await createProductReadHandle(app);
 
-  const topicResult = await worldline.query().match(`${TOPIC_PREFIX}*`).where({ kind: 'topic' }).run();
+  const topicResult = await read.view.query().match(`${TOPIC_PREFIX}*`).where({ kind: 'topic' }).run();
   const topics = [];
 
   for (const node of topicResult.nodes ?? []) {
     // eslint-disable-next-line no-await-in-loop -- per-topic traversal for count
-    const incoming = await worldline.query().match(node.id).incoming('about').run();
+    const incoming = await read.view.query().match(node.id).incoming('about').run();
     const thoughtCount = (incoming.nodes ?? []).length;
 
     topics.push(Object.freeze({
