@@ -1,4 +1,4 @@
-import { CLASSIFICATION_PREFIX, TOPIC_PREFIX, GRAPH_META_ID } from '../constants.js';
+import { CLASSIFICATION_PREFIX, TOPIC_PREFIX, KEYWORD_PREFIX, GRAPH_META_ID } from '../constants.js';
 import { createArtifactId, getCurrentTime } from '../model.js';
 import {
   createProductReadHandle,
@@ -49,7 +49,9 @@ export async function runEnrichmentPipeline(repoDir) {
     return Object.freeze({
       capturesProcessed: 0,
       topicNodesCreated: 0,
+      keywordNodesCreated: 0,
       aboutEdgesAdded: 0,
+      mentionsEdgesAdded: 0,
       classifiedEdgesAdded: 0,
       receiptsCreated: 0,
       promotedTopics: [],
@@ -79,6 +81,13 @@ export async function runEnrichmentPipeline(repoDir) {
   const topicResult = await worldline.query().match(`${TOPIC_PREFIX}*`).run();
   for (const node of topicResult.nodes ?? []) {
     existingTopicNodes.add(node.id);
+  }
+
+  // Find existing keyword nodes via query
+  const existingKeywordNodes = new Set();
+  const keywordResult = await worldline.query().match(`${KEYWORD_PREFIX}*`).run();
+  for (const node of keywordResult.nodes ?? []) {
+    existingKeywordNodes.add(node.id);
   }
 
   // Track candidate topic counts and classifications across all captures
@@ -121,6 +130,16 @@ export async function runEnrichmentPipeline(repoDir) {
     }
   }
 
+  // Check existing mentions edges per thought via traversal (inverted index)
+  const existingMentionsEdges = new Set();
+  for (const [thoughtId] of thoughtTopics) {
+    // eslint-disable-next-line no-await-in-loop -- per-thought traversal
+    const traversal = await worldline.query().match(thoughtId).outgoing('mentions').run();
+    for (const node of traversal.nodes ?? []) {
+      existingMentionsEdges.add(`${thoughtId}\0${node.id}`);
+    }
+  }
+
   // Check existing classified_as edges per thought via traversal
   const existingClassifiedEdges = new Set();
   for (const [thoughtId] of thoughtClassifications) {
@@ -133,11 +152,35 @@ export async function runEnrichmentPipeline(repoDir) {
 
   const timestamp = getCurrentTime().toISOString();
   let topicNodesCreated = 0;
+  let keywordNodesCreated = 0;
   let aboutEdgesAdded = 0;
+  let mentionsEdgesAdded = 0;
   let classifiedEdgesAdded = 0;
   let receiptsCreated = 0;
 
   await app.patch((patch) => {
+    // Create keyword nodes and mentions edges (The Inverted Index)
+    for (const [thoughtId, topics] of thoughtTopics) {
+      for (const keyword of topics) {
+        const keywordNodeId = `${KEYWORD_PREFIX}${keyword}`;
+        if (!existingKeywordNodes.has(keywordNodeId)) {
+          patch
+            .addNode(keywordNodeId)
+            .setProperty(keywordNodeId, 'kind', 'keyword')
+            .setProperty(keywordNodeId, 'name', keyword)
+            .setProperty(keywordNodeId, 'createdAt', timestamp);
+          existingKeywordNodes.add(keywordNodeId); // Local cache to prevent double-add in same patch
+          keywordNodesCreated++;
+        }
+
+        const edgeKey = `${thoughtId}\0${keywordNodeId}`;
+        if (!existingMentionsEdges.has(edgeKey)) {
+          patch.addEdge(thoughtId, keywordNodeId, 'mentions');
+          mentionsEdgesAdded++;
+        }
+      }
+    }
+
     // Create promoted topic nodes
     for (const topic of promotedTopics) {
       const nodeId = `${TOPIC_PREFIX}${topic}`;
@@ -237,7 +280,9 @@ export async function runEnrichmentPipeline(repoDir) {
   return Object.freeze({
     capturesProcessed: captures.length,
     topicNodesCreated,
+    keywordNodesCreated,
     aboutEdgesAdded,
+    mentionsEdgesAdded,
     classifiedEdgesAdded,
     receiptsCreated,
     promotedTopics: [...promotedTopics].sort(),

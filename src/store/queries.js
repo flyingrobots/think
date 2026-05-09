@@ -1,5 +1,8 @@
 import { getPromptMetricsFile } from '../paths.js';
 import {
+  KEYWORD_PREFIX,
+} from './constants.js';
+import {
   compareEntriesNewestFirst,
   formatBucketKey,
   parseSince,
@@ -41,6 +44,9 @@ import {
   getSessionAttributionReceiptIfPresent,
   listDirectDerivedReceipts,
 } from './derivation.js';
+import { extractTopics } from './enrichment/auto-tags.js';
+
+const DEFAULT_RECENT_LIMIT = 50;
 
 export async function rememberThoughts(
   repoDir,
@@ -51,51 +57,72 @@ export async function rememberThoughts(
     brief = false,
   } = {}
 ) {
-  const checkpointCaptures = await listCheckpointEntriesByKind(repoDir, 'capture');
-  if (checkpointCaptures !== null) {
-    return rememberFromCaptures(checkpointCaptures, { cwd, query, limit, brief });
-  }
-
   const read = await openProductReadHandle(repoDir);
-  const captures = await listEntriesByKind(read, 'capture');
+  const limitValue = limit ?? DEFAULT_RECENT_LIMIT;
 
-  return rememberFromCaptures(captures, { cwd, query, limit, brief });
-}
-
-function rememberFromCaptures(captures, { cwd, query, limit, brief }) {
-  const sortedCaptures = captures
-    .map((entry) => ({
-      id: entry.id,
-      text: entry.text,
-      sortKey: entry.sortKey,
-      createdAt: entry.createdAt,
-      ambientCwd: entry.ambientCwd ?? null,
-      ambientGitRoot: entry.ambientGitRoot ?? null,
-      ambientGitRemote: entry.ambientGitRemote ?? null,
-      ambientGitBranch: entry.ambientGitBranch ?? null,
-    }))
-    .sort(compareEntriesNewestFirst);
-
+  // 1. If there's an explicit query, try the graph-native inverted index first (O(1))
   if (query && String(query).trim() !== '') {
     const explicitScope = buildExplicitRememberScope(query);
-    const explicitMatches = sortedCaptures
+    const keywords = extractTopics(query);
+    const indexMatches = new Map();
+
+    for (const keyword of keywords) {
+      const keywordNodeId = `${KEYWORD_PREFIX}${keyword}`;
+      // eslint-disable-next-line no-await-in-loop -- sequential keyword index lookup
+      const traversal = await read.view.query().match(keywordNodeId).incoming('mentions').run();
+
+      for (const node of traversal.nodes ?? []) {
+        if (!indexMatches.has(node.id)) {
+          // eslint-disable-next-line no-await-in-loop -- sequential retrieval of indexed thoughts
+          const entry = await getStoredEntry(read, node.id);
+          if (entry) {
+            const match = buildExplicitRememberMatch({
+              ...entry,
+              ambientCwd: entry.ambientCwd ?? null,
+              ambientGitRoot: entry.ambientGitRoot ?? null,
+              ambientGitRemote: entry.ambientGitRemote ?? null,
+              ambientGitBranch: entry.ambientGitBranch ?? null,
+            }, explicitScope);
+            if (match) { indexMatches.set(node.id, match); }
+          }
+        }
+      }
+    }
+
+    if (indexMatches.size > 0) {
+      const sortedMatches = Array.from(indexMatches.values()).sort(compareRememberMatches);
+      return Object.freeze({
+        scope: Object.freeze({ ...explicitScope, brief, limit: limitValue }),
+        matches: finalizeRememberMatches(sortedMatches, { brief, limit: limitValue }),
+      });
+    }
+
+    // Fallback: If index is empty (e.g. not enriched yet or partial word), use windowed scan
+    const chronologyList = await listChronologyEntries(read);
+    const fallbackMatches = chronologyList
+      .slice(0, 2000) // Search window
       .map((entry) => buildExplicitRememberMatch(entry, explicitScope))
       .filter(Boolean)
       .sort(compareRememberMatches);
+
     return Object.freeze({
-      scope: Object.freeze({ ...explicitScope, brief, limit }),
-      matches: finalizeRememberMatches(explicitMatches, { brief, limit }),
+      scope: Object.freeze({ ...explicitScope, brief, limit: limitValue }),
+      matches: finalizeRememberMatches(fallbackMatches, { brief, limit: limitValue }),
     });
   }
 
-  const scope = buildAmbientRememberScope(cwd);
-  const matches = sortedCaptures
-    .map((entry) => buildAmbientRememberMatch(entry, scope))
+  // 2. Ambient remember (cwd-based)
+  const ambientScope = buildAmbientRememberScope(cwd);
+  const fullChronology = await listChronologyEntries(read);
+  const matches = fullChronology
+    .slice(0, 2000) // Search window
+    .map((entry) => buildAmbientRememberMatch(entry, ambientScope))
     .filter(Boolean)
     .sort(compareRememberMatches);
+
   return Object.freeze({
-    scope: Object.freeze({ ...scope, brief, limit }),
-    matches: finalizeRememberMatches(matches, { brief, limit }),
+    scope: Object.freeze({ ...ambientScope, brief, limit: limitValue }),
+    matches: finalizeRememberMatches(matches, { brief, limit: limitValue }),
   });
 }
 
@@ -179,8 +206,6 @@ export async function getPromptMetrics({ from, to, since, bucket } = {}) {
     buckets: bucket ? summarizePromptMetricBuckets(filtered, bucket, formatBucketKey) : null,
   };
 }
-
-const DEFAULT_RECENT_LIMIT = 50;
 
 export async function listRecent(repoDir, { count = null, query = null } = {}) {
   const limit = count ?? DEFAULT_RECENT_LIMIT;

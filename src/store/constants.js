@@ -14,6 +14,7 @@ export const ARTIFACT_PREFIX = 'artifact:';
 export const REFLECT_SESSION_PREFIX = 'reflect:';
 export const LEGACY_BRAINSTORM_SESSION_PREFIX = 'brainstorm:';
 export const TOPIC_PREFIX = 'topic:';
+export const KEYWORD_PREFIX = 'keyword:';
 export const CLASSIFICATION_PREFIX = 'classification:';
 export const ENTITY_PREFIX = 'entity:';
 export const ANNOTATION_PREFIX = 'annotation:';
@@ -51,6 +52,7 @@ export const PRODUCT_READ_LENS = {
     `${REFLECT_SESSION_PREFIX}*`,
     `${LEGACY_BRAINSTORM_SESSION_PREFIX}*`,
     `${TOPIC_PREFIX}*`,
+    `${KEYWORD_PREFIX}*`,
     `${CLASSIFICATION_PREFIX}*`,
     `${ENTITY_PREFIX}*`,
     `${ANNOTATION_PREFIX}*`,
