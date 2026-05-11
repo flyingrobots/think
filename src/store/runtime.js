@@ -136,15 +136,14 @@ export function clearWarpAppCache(repoDir) {
 
 export async function createProductReadHandle(app, repoDir = null) {
   const worldline = app.worldline();
-  const checkpointRead = repoDir ? await tryOpenCheckpointProductRead(repoDir) : null;
-  const view = checkpointRead?.view ?? await worldline.observer('think-product', PRODUCT_READ_LENS);
+  const view = await worldline.observer('think-product', PRODUCT_READ_LENS);
 
   return {
     app,
     worldline,
     view,
     contentCore: app.core(),
-    blobStorage: checkpointRead?.blobStorage ?? (repoDir ? await getRuntimeBlobStorage(repoDir) : null),
+    blobStorage: repoDir ? await getRuntimeBlobStorage(repoDir) : null,
     writerId: app.writerId,
   };
 }
