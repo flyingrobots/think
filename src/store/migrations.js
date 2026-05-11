@@ -6,7 +6,7 @@ import {
   GRAPH_MODEL_VERSION,
 } from './constants.js';
 import { compareEntriesNewestFirst, getCurrentTime } from './model.js';
-import { openWarpApp } from './runtime.js';
+import { openWarpApp, patchWarpApp } from './runtime.js';
 
 export async function migrateGraphModel(repoDir) {
   const app = await openWarpApp(repoDir);
@@ -143,7 +143,7 @@ export async function migrateGraphModel(repoDir) {
   }
 
   const timestamp = getCurrentTime().toISOString();
-  await app.patch((patch) => {
+  await patchWarpApp(repoDir, (patch) => {
     if (needsMetadataNode) {
       patch
         .addNode(GRAPH_META_ID)

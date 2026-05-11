@@ -48,23 +48,30 @@ import {
 import { KeywordTrie } from './trie.js';
 
 const DEFAULT_RECENT_LIMIT = 50;
-let searchIndexCache = null;
-let searchIndexLoadingPromise = null;
+const searchIndexCache = new Map();
+const searchIndexLoadingPromises = new Map();
+
+export function invalidateSearchIndex(repoDir) {
+  searchIndexCache.delete(repoDir);
+  searchIndexLoadingPromises.delete(repoDir);
+}
 
 /**
  * Bootstrap the in-memory search index (Trie) from keyword nodes in the graph.
  * Uses a loading promise to prevent race conditions during concurrent requests.
  */
 export function loadSearchIndex(repoDir) {
-  if (searchIndexCache) {
-    return Promise.resolve(searchIndexCache);
+  const cached = searchIndexCache.get(repoDir);
+  if (cached) {
+    return Promise.resolve(cached);
   }
 
-  if (searchIndexLoadingPromise) {
-    return searchIndexLoadingPromise;
+  const loading = searchIndexLoadingPromises.get(repoDir);
+  if (loading) {
+    return loading;
   }
 
-  searchIndexLoadingPromise = (async () => {
+  const loadingPromise = (async () => {
     const read = await openProductReadHandle(repoDir);
     const trie = new KeywordTrie();
 
@@ -75,12 +82,14 @@ export function loadSearchIndex(repoDir) {
       }
     }
 
-    searchIndexCache = trie;
-    searchIndexLoadingPromise = null;
+    searchIndexCache.set(repoDir, trie);
     return trie;
-  })();
+  })().finally(() => {
+    searchIndexLoadingPromises.delete(repoDir);
+  });
 
-  return searchIndexLoadingPromise;
+  searchIndexLoadingPromises.set(repoDir, loadingPromise);
+  return loadingPromise;
 }
 
 export async function rememberThoughts(
@@ -394,7 +403,7 @@ export async function inspectRawEntryForRead(read, entryId) {
     return null;
   }
 
-  await ensureFirstDerivedArtifacts(read.app, read, entry);
+  await ensureFirstDerivedArtifacts(read.repoDir, read, entry);
   entry = await getStoredEntry(read, entryId);
 
   const canonicalThought = await getCanonicalThought(read, entry);

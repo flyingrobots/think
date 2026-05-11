@@ -8,6 +8,7 @@ import {
   createProductReadHandle,
   getStoredEntry,
   openWarpApp,
+  patchWarpApp,
 } from './runtime.js';
 
 export async function saveAnnotation(repoDir, targetEntryId, text, { writerId = null } = {}) {
@@ -30,7 +31,7 @@ export async function saveAnnotation(repoDir, targetEntryId, text, { writerId = 
   const annotationId = `${ANNOTATION_PREFIX}${sortKey}`;
   const resolvedWriterId = writerId ?? app.writerId;
 
-  await app.patch(async (patch) => {
+  await patchWarpApp(repoDir, async (patch) => {
     patch
       .addNode(annotationId)
       .setProperty(annotationId, 'kind', 'annotation')

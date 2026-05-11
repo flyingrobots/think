@@ -23,6 +23,9 @@ test('think --help prints top-level usage without bootstrapping local state', as
   assertSuccess(result, 'Expected --help to exit successfully.');
   assertContains(result, 'Usage: think', 'Expected top-level help to include a usage line.');
   assertContains(result, '--recent', 'Expected top-level help to enumerate explicit command surfaces.');
+  assertContains(result, '--annotate=<entryId>', 'Expected top-level help to enumerate annotation help.');
+  assertContains(result, '--enrich', 'Expected top-level help to enumerate enrichment help.');
+  assertContains(result, '--topics', 'Expected top-level help to enumerate topic help.');
   assert.ok(
     !existsSync(context.localRepoDir),
     `Expected --help to stay read-only and avoid creating ${context.localRepoDir}.`
@@ -36,6 +39,59 @@ test('think -h is accepted as a short alias for top-level help', async () => {
 
   assertSuccess(result, 'Expected -h to exit successfully.');
   assertContains(result, 'Usage: think', 'Expected -h to print the same top-level usage banner.');
+});
+
+test('think --enrich --help prints enrich help instead of running the command', async () => {
+  const context = await createThinkContext();
+
+  const result = runThink(context, ['--enrich', '--help']);
+
+  assertSuccess(result, 'Expected enrich help to exit successfully.');
+  assertContains(result, 'Usage: think --enrich', 'Expected enrich help to render an enrich-specific usage line.');
+  assert.ok(
+    !existsSync(context.localRepoDir),
+    `Expected enrich help to remain read-only and avoid creating ${context.localRepoDir}.`
+  );
+});
+
+test('think --topics -h prints topics help instead of running the command', async () => {
+  const context = await createThinkContext();
+
+  const result = runThink(context, ['--topics', '-h']);
+
+  assertSuccess(result, 'Expected topics help to exit successfully.');
+  assertContains(result, 'Usage: think --topics', 'Expected topics help to render a topics-specific usage line.');
+  assert.ok(
+    !existsSync(context.localRepoDir),
+    `Expected topics help to remain read-only and avoid creating ${context.localRepoDir}.`
+  );
+});
+
+test('think --annotate --help bypasses required entry and text validation', async () => {
+  const context = await createThinkContext();
+
+  const result = runThink(context, ['--annotate', '--help']);
+
+  assertSuccess(result, 'Expected annotate help to succeed without an entry id or annotation text.');
+  assertContains(result, 'Usage: think --annotate=<entryId>', 'Expected annotate help to document the entry id usage.');
+  assertNotContains(
+    result,
+    '--annotate requires an entry id',
+    'Expected help to bypass the normal annotate validation path.'
+  );
+});
+
+test('think --enrich and --topics reject stray positional text', async () => {
+  const context = await createThinkContext();
+
+  const enrich = runThink(context, ['--enrich', 'stray text']);
+  const topics = runThink(context, ['--topics', 'stray text']);
+
+  assertFailure(enrich, 'Expected enrich with stray positional text to fail.');
+  assertContains(enrich, '--enrich does not take a thought', 'Expected enrich validation to reject positionals.');
+
+  assertFailure(topics, 'Expected topics with stray positional text to fail.');
+  assertContains(topics, '--topics does not take a thought', 'Expected topics validation to reject positionals.');
 });
 
 test('think --recent --help prints recent help instead of running the command', async () => {

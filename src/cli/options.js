@@ -104,6 +104,9 @@ export function parseArgs(args) {
       } else if (arg === '--inspect') {
         options.inspectFlag = true;
         options.inspect = '';
+      } else if (arg === '--annotate') {
+        options.annotateFlag = true;
+        options.annotate = '';
       } else if (arg.startsWith('--inspect=')) {
         options.inspectFlag = true;
         options.inspect = arg.slice('--inspect='.length);
@@ -296,6 +299,14 @@ export function validateOptions(options, command) {
     if (options.positionals.length === 0) {
       return '--annotate requires annotation text';
     }
+  }
+
+  if (command === 'enrich' && options.positionals.length > 0) {
+    return '--enrich does not take a thought';
+  }
+
+  if (command === 'topics' && options.positionals.length > 0) {
+    return '--topics does not take a thought';
   }
 
   if (command === 'reflect_start') {

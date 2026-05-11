@@ -17,6 +17,7 @@ import {
   getReflectSession,
   getStoredEntry,
   openWarpApp,
+  patchWarpApp,
 } from './runtime.js';
 import { assessReflectability } from './derivation.js';
 
@@ -39,7 +40,7 @@ export async function startReflect(repoDir, seedEntryId, { promptType = null } =
   });
 
   // eslint-disable-next-line require-await -- git-warp patch callback must be async for the library API
-  await app.patch(async patch => {
+  await patchWarpApp(repoDir, async patch => {
     patch
       .addNode(session.id)
       .setProperty(session.id, 'kind', session.kind)
@@ -117,7 +118,7 @@ export async function saveReflectResponse(repoDir, sessionId, response) {
     promptType: session.promptType,
   });
 
-  await app.patch(async patch => {
+  await patchWarpApp(repoDir, async patch => {
     patch
       .addNode(entry.id)
       .setProperty(entry.id, 'kind', entry.kind)

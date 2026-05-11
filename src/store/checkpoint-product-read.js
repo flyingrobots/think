@@ -1,4 +1,3 @@
-import { matchGlob } from '../../node_modules/@git-stunts/git-warp/src/domain/utils/matchGlob.ts';
 import { openCheckpointStateRead } from './checkpoint-state.js';
 
 const DEFAULT_PATTERN = '*';
@@ -211,8 +210,8 @@ class CheckpointProductView {
   }
 }
 
-export async function openCheckpointProductRead(repoDir) {
-  const checkpoint = await openCheckpointStateRead(repoDir);
+export async function openCheckpointProductRead(repoDir, app = null) {
+  const checkpoint = await openCheckpointStateRead(repoDir, app);
   if (checkpoint === null) {
     return null;
   }
@@ -235,6 +234,18 @@ function matchesPattern(pattern, nodeId) {
     return matchGlob(pattern, nodeId);
   }
   return pattern.some((entry) => matchGlob(entry, nodeId));
+}
+
+function matchGlob(pattern, value) {
+  return globToRegExp(pattern).test(value);
+}
+
+function globToRegExp(pattern) {
+  return new RegExp(`^${String(pattern).split('*').map(escapeRegExp).join('.*')}$`);
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[\\^$+?.()|[\]{}]/g, '\\$&');
 }
 
 function isPlainWhereObject(value) {

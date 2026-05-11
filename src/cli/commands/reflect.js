@@ -240,4 +240,3 @@ async function suggestAlternativeReflectSeeds(repoDir, excludedSeedEntryId) {
       text: normalizeForPicker(entry.text),
     }));
 }
-

@@ -10,6 +10,15 @@ Release discipline:
 - `package.json` version is bumped on the release commit
 - a Git tag is created on the commit that lands on `main` for that release
 
+## Unreleased
+
+- fixed MCP tool result envelopes so structured content matches each registered output schema again
+- fixed checkpoint-backed reads to use public `@git-stunts/git-warp` package exports instead of private `node_modules` internals
+- fixed cached writer retries across raw capture follow-through, annotations, reflect writes, migrations, and enrichment patches
+- fixed enrichment search-index invalidation and per-repo cache scoping, and counted semantic-parse receipts in enrichment results
+- documented `--annotate`, `--enrich`, and `--topics` in CLI help and validated stray positional text for enrichment/topic commands
+- cleaned whitespace in the infrastructure doctrine and reflect command source so diff checks pass
+
 ## [0.7.0] - 2026-04-11
 
 - added `think --doctor` health check command — reports think directory, local repo, graph model version, entry count, and upstream reachability (with `git ls-remote` connectivity test)

@@ -24,6 +24,7 @@ import {
   getStoredEntry,
   hasNode,
   listEntriesByKind,
+  patchWarpApp,
 } from './runtime.js';
 
 export function assessReflectability(text) {
@@ -45,7 +46,7 @@ export function assessReflectability(text) {
   });
 }
 
-export async function ensureFirstDerivedArtifacts(app, read, entry) {
+export async function ensureFirstDerivedArtifacts(repoDir, read, entry) {
   if (!entry || entry.kind !== 'capture') {
     return null;
   }
@@ -90,7 +91,7 @@ export async function ensureFirstDerivedArtifacts(app, read, entry) {
     };
   }
 
-  await app.patch(async (patch) => {
+  await patchWarpApp(repoDir, async (patch) => {
     ensureGraphMetadataNode(patch, graphMetaProps);
 
     if (!thoughtNodeExists) {
@@ -139,7 +140,7 @@ export async function ensureFirstDerivedArtifacts(app, read, entry) {
   };
 }
 
-export async function ensureCaptureReadEdges(app, read, entryId) {
+export async function ensureCaptureReadEdges(repoDir, read, entryId) {
   const entry = await getStoredEntry(read, entryId);
   if (!entry || entry.kind !== 'capture') {
     return;
@@ -159,7 +160,7 @@ export async function ensureCaptureReadEdges(app, read, entryId) {
     .outgoing('latest_capture')
     .run();
 
-  await app.patch((patch) => {
+  await patchWarpApp(repoDir, (patch) => {
     for (const node of latestCaptureNodes.nodes ?? []) {
       patch.removeEdge(GRAPH_META_ID, node.id, 'latest_capture');
     }

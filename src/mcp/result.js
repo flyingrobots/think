@@ -52,7 +52,7 @@ export class RecentThoughtsOutcome extends McpOutcome {
 
 export class RememberOutcome extends McpOutcome {
   constructor(data) {
-    const richText = `Found ${data.matches.length} matching thoughts for query: "${data.scope.query || 'ambient context'}".`;
+    const richText = `Found ${data.matches.length} matching thoughts for query: "${data.scope.queryText || 'ambient context'}".`;
     super(data, richText);
   }
 }

@@ -101,12 +101,16 @@ export class AnnotationEntry {
 export class BaseEntry {
   static from(nodeId, resolvedProps, text) {
     if (resolvedProps.kind === 'capture') { return new CaptureEntry(nodeId, resolvedProps, text); }
-    if (resolvedProps.kind === 'reflect') { return new ReflectEntry(nodeId, resolvedProps, text); }
+    if (resolvedProps.kind === 'reflect' || SESSION_KINDS.includes(resolvedProps.kind)) {
+      return new ReflectEntry(nodeId, resolvedProps, text);
+    }
     if (resolvedProps.kind === 'annotation') { return new AnnotationEntry(nodeId, resolvedProps, text); }
     return new GenericEntry(nodeId, resolvedProps, text);
   }
 }
 
+const WRITER_CAS_CONFLICT_TEXT = 'writer ref was updated by another process';
+const DEFAULT_PATCH_MAX_ATTEMPTS = 3;
 const warpAppCache = new Map();
 const runtimeBlobStorageCache = new Map();
 
@@ -134,12 +138,55 @@ export function clearWarpAppCache(repoDir) {
   warpAppCache.delete(repoDir);
 }
 
+export async function patchWarpApp(repoDir, patcher, {
+  genesisOnNoState = false,
+  maxAttempts = DEFAULT_PATCH_MAX_ATTEMPTS,
+  syncAfterPatch = true,
+} = {}) {
+  let attempt = 1;
+
+  /* eslint-disable no-await-in-loop -- retry attempts must run sequentially against a refreshed cached app */
+  while (true) {
+    const app = await openWarpApp(repoDir);
+
+    try {
+      try {
+        await app.patch(patcher);
+      } catch (error) {
+        if (!genesisOnNoState || error?.code !== 'E_NO_STATE') {
+          throw error;
+        }
+        await app.patch(patcher, { genesis: true });
+      }
+
+      if (syncAfterPatch) {
+        await app.syncWith(app.core());
+      }
+
+      return app;
+    } catch (error) {
+      if (!isWriterCasConflict(error) || attempt >= maxAttempts) {
+        throw error;
+      }
+
+      clearWarpAppCache(repoDir);
+      attempt += 1;
+    }
+  }
+  /* eslint-enable no-await-in-loop */
+}
+
+export function isWriterCasConflict(error) {
+  return error instanceof Error && error.message.includes(WRITER_CAS_CONFLICT_TEXT);
+}
+
 export async function createProductReadHandle(app, repoDir = null) {
   const worldline = app.worldline();
   const view = await worldline.observer('think-product', PRODUCT_READ_LENS);
 
   return {
     app,
+    repoDir,
     worldline,
     view,
     contentCore: app.core(),
@@ -149,15 +196,14 @@ export async function createProductReadHandle(app, repoDir = null) {
 }
 
 export async function openProductReadHandle(repoDir) {
-  const [app, checkpointRead] = await Promise.all([
-    openWarpApp(repoDir),
-    tryOpenCheckpointProductRead(repoDir),
-  ]);
+  const app = await openWarpApp(repoDir);
+  const checkpointRead = await tryOpenCheckpointProductRead(repoDir, app);
   const worldline = app.worldline();
   const view = checkpointRead?.view ?? await worldline.observer('think-product', PRODUCT_READ_LENS);
 
   return {
     app,
+    repoDir,
     worldline,
     view,
     contentCore: app.core(),
@@ -166,9 +212,9 @@ export async function openProductReadHandle(repoDir) {
   };
 }
 
-async function tryOpenCheckpointProductRead(repoDir) {
+async function tryOpenCheckpointProductRead(repoDir, app = null) {
   try {
-    return await openCheckpointProductRead(repoDir);
+    return await openCheckpointProductRead(repoDir, app);
   } catch {
     return null;
   }

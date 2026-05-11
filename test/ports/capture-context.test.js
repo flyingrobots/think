@@ -8,8 +8,12 @@ import { getCaptureAmbientContext, getAmbientProjectContext } from '../../src/pr
 import {
   finalizeCapturedThought,
   GRAPH_NAME,
+  inspectRawEntry,
   openProductReadHandle,
+  saveAnnotation,
   saveRawCapture,
+  saveReflectResponse,
+  startReflect,
 } from '../../src/store.js';
 import { createWriterId } from '../../src/store/model.js';
 import { createGitRepo, runGit } from '../fixtures/git.js';
@@ -94,6 +98,63 @@ test('saveRawCapture retries after the cached writer ref is advanced externally'
 
   assert.ok(saved, 'Expected retrying raw capture to be committed after the writer ref advanced.');
   assert.equal(saved.kind, 'capture', 'Expected retried write to preserve capture semantics.');
+});
+
+test('saveAnnotation retries after the cached writer ref is advanced externally', async () => {
+  const localRepoDir = await createTempDir('think-annotation-retry-');
+  await ensureGitRepo(localRepoDir);
+
+  const entry = await saveRawCapture(localRepoDir, 'annotation retry seed capture');
+  const externalApp = await openExternalWarpApp(localRepoDir);
+  await externalApp.patch((patch) => {
+    patch
+      .addNode('external:annotation-writer-advance')
+      .setProperty('external:annotation-writer-advance', 'kind', 'external_fixture');
+  });
+
+  const result = await saveAnnotation(localRepoDir, entry.id, 'annotation should retry after writer ref conflict');
+  const inspected = await inspectRawEntry(localRepoDir, entry.id);
+
+  assert.ok(result.annotationId, 'Expected annotation save to return the created annotation id.');
+  assert.ok(
+    inspected.annotations.some((annotation) => annotation.annotationId === result.annotationId),
+    'Expected the retried annotation write to be visible on inspect.'
+  );
+});
+
+test('reflect writes retry after the cached writer ref is advanced externally', async () => {
+  const localRepoDir = await createTempDir('think-reflect-retry-');
+  await ensureGitRepo(localRepoDir);
+
+  const entry = await saveRawCapture(
+    localRepoDir,
+    'We should redesign browse startup because checkpoint reads can hide transition latency.'
+  );
+  const firstExternalApp = await openExternalWarpApp(localRepoDir);
+  await firstExternalApp.patch((patch) => {
+    patch
+      .addNode('external:reflect-start-writer-advance')
+      .setProperty('external:reflect-start-writer-advance', 'kind', 'external_fixture');
+  });
+
+  const started = await startReflect(localRepoDir, entry.id, { promptType: 'challenge' });
+  assert.equal(started.ok, true, 'Expected reflect start to retry and create a session after writer ref conflict.');
+
+  const secondExternalApp = await openExternalWarpApp(localRepoDir);
+  await secondExternalApp.patch((patch) => {
+    patch
+      .addNode('external:reflect-reply-writer-advance')
+      .setProperty('external:reflect-reply-writer-advance', 'kind', 'external_fixture');
+  });
+
+  const saved = await saveReflectResponse(
+    localRepoDir,
+    started.sessionId,
+    'The transition should keep the alternate screen stable while loading the next view.'
+  );
+
+  assert.ok(saved, 'Expected reflect reply to retry and save after writer ref conflict.');
+  assert.equal(saved.sessionId, started.sessionId, 'Expected retried reflect reply to preserve session lineage.');
 });
 
 async function openExternalWarpApp(repoDir) {

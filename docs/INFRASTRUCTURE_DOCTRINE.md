@@ -107,7 +107,7 @@ class EventId {
   }
 
   static is(value: unknown): value is EventId {
-    return value instanceof EventId 
+    return value instanceof EventId
         || (value != null && (value as any)[EventId.prototype.brand] === true);
   }
 
@@ -131,34 +131,34 @@ if (outcome instanceof OpSuperseded) { ... }
 
 ### Principles
 
-**P1: Domain Concepts Demand Runtime Forms**  
+**P1: Domain Concepts Demand Runtime Forms**
 If it has invariants, identity, or behavior — give it a class.
 
-**P2: Validation at Construction & Boundaries**  
+**P2: Validation at Construction & Boundaries**
 Constructors are synchronous and establish invariants or throw. Raw data becomes trusted only here.
 
-**P3: Behavior Belongs on the Owner**  
+**P3: Behavior Belongs on the Owner**
 Prefer polymorphism over type-tag switching.
 
-**P4: Schemas Are Boundary Guards Only**  
+**P4: Schemas Are Boundary Guards Only**
 Use Zod (or similar) at system edges. Keep domain classes clean.
 
-**P5: Serialization Is Codec Territory**  
+**P5: Serialization Is Codec Territory**
 Domain objects should not know about JSON, CBOR, protobuf, etc.
 
-**P6: Immutability by Default**  
+**P6: Immutability by Default**
 Trusted objects should be difficult to mutate after construction. Use `readonly`, `freeze`, and return new values for transformations.
 
-**P7: Determinism & Replayability**  
+**P7: Determinism & Replayability**
 - All time comes from `ClockPort`
 - All randomness from `RandomPort`
-- All side effects through ports  
+- All side effects through ports
 Your core should be deterministic and replayable.
 
-**P8: Single Source of Truth**  
+**P8: Single Source of Truth**
 The runtime model rules. Types, tests, and docs document it.
 
-**P9: Runtime Dispatch When Appropriate**  
+**P9: Runtime Dispatch When Appropriate**
 `instanceof` is excellent inside the same realm. Use branding + `static is()` for cross-realm (workers, iframes).
 
 ---

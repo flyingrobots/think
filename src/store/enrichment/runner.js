@@ -5,7 +5,9 @@ import {
   getStoredEntry,
   listEntriesByKind,
   openWarpApp,
+  patchWarpApp,
 } from '../runtime.js';
+import { invalidateSearchIndex } from '../queries.js';
 import { extractTopics } from './auto-tags.js';
 import { classifyThought } from './semantic-parse.js';
 
@@ -151,72 +153,120 @@ export async function runEnrichmentPipeline(repoDir) {
   }
 
   const timestamp = getCurrentTime().toISOString();
-  let topicNodesCreated = 0;
-  let keywordNodesCreated = 0;
-  let aboutEdgesAdded = 0;
-  let mentionsEdgesAdded = 0;
-  let classifiedEdgesAdded = 0;
-  let receiptsCreated = 0;
+  const keywordNodesToCreate = [];
+  const mentionsEdgesToAdd = [];
+  const topicNodesToCreate = [];
+  const aboutEdgesToAdd = [];
+  const autoTagReceiptsToCreate = [];
+  const classifiedEdgesToAdd = [];
+  const semanticParseReceiptsToCreate = [];
 
-  await app.patch((patch) => {
-    // Create keyword nodes and mentions edges (The Inverted Index)
-    for (const [thoughtId, topics] of thoughtTopics) {
-      for (const keyword of topics) {
-        const keywordNodeId = `${KEYWORD_PREFIX}${keyword}`;
-        if (!existingKeywordNodes.has(keywordNodeId)) {
-          patch
-            .addNode(keywordNodeId)
-            .setProperty(keywordNodeId, 'kind', 'keyword')
-            .setProperty(keywordNodeId, 'name', keyword)
-            .setProperty(keywordNodeId, 'createdAt', timestamp);
-          existingKeywordNodes.add(keywordNodeId); // Local cache to prevent double-add in same patch
-          keywordNodesCreated++;
-        }
-
-        const edgeKey = `${thoughtId}\0${keywordNodeId}`;
-        if (!existingMentionsEdges.has(edgeKey)) {
-          patch.addEdge(thoughtId, keywordNodeId, 'mentions');
-          mentionsEdgesAdded++;
-        }
+  for (const [thoughtId, topics] of thoughtTopics) {
+    for (const keyword of topics) {
+      const keywordNodeId = `${KEYWORD_PREFIX}${keyword}`;
+      if (!existingKeywordNodes.has(keywordNodeId)) {
+        keywordNodesToCreate.push({ keywordNodeId, keyword });
+        existingKeywordNodes.add(keywordNodeId);
       }
+
+      const edgeKey = `${thoughtId}\0${keywordNodeId}`;
+      if (!existingMentionsEdges.has(edgeKey)) {
+        mentionsEdgesToAdd.push({ thoughtId, keywordNodeId });
+        existingMentionsEdges.add(edgeKey);
+      }
+    }
+  }
+
+  for (const topic of promotedTopics) {
+    const nodeId = `${TOPIC_PREFIX}${topic}`;
+    if (!existingTopicNodes.has(nodeId)) {
+      topicNodesToCreate.push({ nodeId, topic });
+      existingTopicNodes.add(nodeId);
+    }
+  }
+
+  for (const [thoughtId, topics] of thoughtTopics) {
+    for (const topic of topics) {
+      if (!promotedTopics.has(topic)) { continue; }
+      const topicNodeId = `${TOPIC_PREFIX}${topic}`;
+      const edgeKey = `${thoughtId}\0${topicNodeId}`;
+      if (!existingAboutEdges.has(edgeKey)) {
+        aboutEdgesToAdd.push({ thoughtId, topicNodeId });
+        existingAboutEdges.add(edgeKey);
+      }
+    }
+  }
+
+  for (const capture of captures) {
+    const { thoughtId } = capture;
+    if (!thoughtId || existingReceipts.has(thoughtId)) { continue; }
+
+    autoTagReceiptsToCreate.push({
+      artifactId: createArtifactId('auto_tags', thoughtId),
+      thoughtId,
+      topics: thoughtTopics.get(thoughtId) || [],
+    });
+    existingReceipts.add(thoughtId);
+  }
+
+  for (const [thoughtId, result] of thoughtClassifications) {
+    for (const classification of result.classifications) {
+      const classNodeId = `${CLASSIFICATION_PREFIX}${classification}`;
+      const edgeKey = `${thoughtId}\0${classNodeId}`;
+      if (!existingClassifiedEdges.has(edgeKey)) {
+        classifiedEdgesToAdd.push({ thoughtId, classNodeId });
+        existingClassifiedEdges.add(edgeKey);
+      }
+    }
+  }
+
+  for (const capture of captures) {
+    const { thoughtId } = capture;
+    if (!thoughtId || existingParseReceipts.has(thoughtId)) { continue; }
+
+    const result = thoughtClassifications.get(thoughtId);
+    if (!result) { continue; }
+
+    semanticParseReceiptsToCreate.push({
+      artifactId: createArtifactId('semantic_parse', thoughtId),
+      thoughtId,
+      result,
+    });
+    existingParseReceipts.add(thoughtId);
+  }
+
+  await patchWarpApp(repoDir, (patch) => {
+    // Create keyword nodes and mentions edges (The Inverted Index)
+    for (const { keywordNodeId, keyword } of keywordNodesToCreate) {
+      patch
+        .addNode(keywordNodeId)
+        .setProperty(keywordNodeId, 'kind', 'keyword')
+        .setProperty(keywordNodeId, 'name', keyword)
+        .setProperty(keywordNodeId, 'createdAt', timestamp);
+    }
+
+    for (const { thoughtId, keywordNodeId } of mentionsEdgesToAdd) {
+      patch.addEdge(thoughtId, keywordNodeId, 'mentions');
     }
 
     // Create promoted topic nodes
-    for (const topic of promotedTopics) {
-      const nodeId = `${TOPIC_PREFIX}${topic}`;
-      if (!existingTopicNodes.has(nodeId)) {
-        patch
-          .addNode(nodeId)
-          .setProperty(nodeId, 'kind', 'topic')
-          .setProperty(nodeId, 'name', topic)
-          .setProperty(nodeId, 'normalizedName', topic)
-          .setProperty(nodeId, 'createdAt', timestamp)
-          .setProperty(nodeId, 'source', 'auto_tags');
-        topicNodesCreated++;
-      }
+    for (const { nodeId, topic } of topicNodesToCreate) {
+      patch
+        .addNode(nodeId)
+        .setProperty(nodeId, 'kind', 'topic')
+        .setProperty(nodeId, 'name', topic)
+        .setProperty(nodeId, 'normalizedName', topic)
+        .setProperty(nodeId, 'createdAt', timestamp)
+        .setProperty(nodeId, 'source', 'auto_tags');
     }
 
     // Add about edges for promoted topics
-    for (const [thoughtId, topics] of thoughtTopics) {
-      for (const topic of topics) {
-        if (!promotedTopics.has(topic)) { continue; }
-        const topicNodeId = `${TOPIC_PREFIX}${topic}`;
-        const edgeKey = `${thoughtId}\0${topicNodeId}`;
-        if (!existingAboutEdges.has(edgeKey)) {
-          patch.addEdge(thoughtId, topicNodeId, 'about');
-          aboutEdgesAdded++;
-        }
-      }
+    for (const { thoughtId, topicNodeId } of aboutEdgesToAdd) {
+      patch.addEdge(thoughtId, topicNodeId, 'about');
     }
 
     // Create auto_tags receipt artifacts
-    for (const capture of captures) {
-      const { thoughtId } = capture;
-      if (!thoughtId || existingReceipts.has(thoughtId)) { continue; }
-
-      const topics = thoughtTopics.get(thoughtId) || [];
-      const artifactId = createArtifactId('auto_tags', thoughtId);
-
+    for (const { artifactId, thoughtId, topics } of autoTagReceiptsToCreate) {
       patch
         .addNode(artifactId)
         .setProperty(artifactId, 'kind', 'auto_tags')
@@ -230,32 +280,15 @@ export async function runEnrichmentPipeline(repoDir) {
         .setProperty(artifactId, 'schemaVersion', '1')
         .setProperty(artifactId, 'createdAt', timestamp)
         .addEdge(artifactId, thoughtId, 'derived_from');
-
-      receiptsCreated++;
     }
 
     // Add classified_as edges
-    for (const [thoughtId, result] of thoughtClassifications) {
-      for (const classification of result.classifications) {
-        const classNodeId = `${CLASSIFICATION_PREFIX}${classification}`;
-        const edgeKey = `${thoughtId}\0${classNodeId}`;
-        if (!existingClassifiedEdges.has(edgeKey)) {
-          patch.addEdge(thoughtId, classNodeId, 'classified_as');
-          classifiedEdgesAdded++;
-        }
-      }
+    for (const { thoughtId, classNodeId } of classifiedEdgesToAdd) {
+      patch.addEdge(thoughtId, classNodeId, 'classified_as');
     }
 
     // Create semantic_parse receipt artifacts
-    for (const capture of captures) {
-      const { thoughtId } = capture;
-      if (!thoughtId || existingParseReceipts.has(thoughtId)) { continue; }
-
-      const result = thoughtClassifications.get(thoughtId);
-      if (!result) { continue; }
-
-      const artifactId = createArtifactId('semantic_parse', thoughtId);
-
+    for (const { artifactId, thoughtId, result } of semanticParseReceiptsToCreate) {
       patch
         .addNode(artifactId)
         .setProperty(artifactId, 'kind', 'semantic_parse')
@@ -271,20 +304,22 @@ export async function runEnrichmentPipeline(repoDir) {
     }
 
     // Update the high-water mark cursor to the latest capture processed
-    const latestProcessed = captures.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+    const latestProcessed = [...captures].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
     if (latestProcessed) {
       patch.setProperty(GRAPH_META_ID, 'lastEnrichedCaptureId', latestProcessed.id);
     }
   });
 
+  invalidateSearchIndex(repoDir);
+
   return Object.freeze({
     capturesProcessed: captures.length,
-    topicNodesCreated,
-    keywordNodesCreated,
-    aboutEdgesAdded,
-    mentionsEdgesAdded,
-    classifiedEdgesAdded,
-    receiptsCreated,
+    topicNodesCreated: topicNodesToCreate.length,
+    keywordNodesCreated: keywordNodesToCreate.length,
+    aboutEdgesAdded: aboutEdgesToAdd.length,
+    mentionsEdgesAdded: mentionsEdgesToAdd.length,
+    classifiedEdgesAdded: classifiedEdgesToAdd.length,
+    receiptsCreated: autoTagReceiptsToCreate.length + semanticParseReceiptsToCreate.length,
     promotedTopics: [...promotedTopics].sort(),
   });
 }

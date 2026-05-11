@@ -3,52 +3,25 @@ import { TEXT_MIME } from './constants.js';
 import { encodeTextContent } from './content.js';
 import { createEntry } from './model.js';
 import {
-  clearWarpAppCache,
   createProductReadHandle,
   getGraphModelStatusForRead,
   getStoredEntry,
   openProductReadHandle,
   openWarpApp,
+  patchWarpApp,
 } from './runtime.js';
 import { ensureCaptureReadEdges, ensureFirstDerivedArtifacts } from './derivation.js';
 import { migrateGraphModel } from './migrations.js';
 import { getCheckpointGraphModelStatus } from './checkpoint-read.js';
 
-const SAVE_RAW_CAPTURE_MAX_ATTEMPTS = 3;
-const WRITER_CAS_CONFLICT_TEXT = 'writer ref was updated by another process';
-
 export async function saveRawCapture(repoDir, thought, {
   provenance = null,
   ambientContext = null,
 } = {}) {
-  return await saveRawCaptureAttempt(repoDir, thought, {
+  return await writeRawCapture(repoDir, thought, {
     provenance,
     ambientContext,
-    attempt: 1,
   });
-}
-
-async function saveRawCaptureAttempt(repoDir, thought, {
-  provenance,
-  ambientContext,
-  attempt,
-}) {
-  try {
-    return await writeRawCapture(repoDir, thought, {
-      provenance,
-      ambientContext,
-    });
-  } catch (error) {
-    if (!isWriterCasConflict(error) || attempt >= SAVE_RAW_CAPTURE_MAX_ATTEMPTS) {
-      throw error;
-    }
-    clearWarpAppCache(repoDir);
-    return await saveRawCaptureAttempt(repoDir, thought, {
-      provenance,
-      ambientContext,
-      attempt: attempt + 1,
-    });
-  }
 }
 
 async function writeRawCapture(repoDir, thought, {
@@ -83,38 +56,23 @@ async function writeRawCapture(repoDir, thought, {
     await patch.attachContent(entry.id, encodeTextContent(thought), { mime: TEXT_MIME });
   };
 
-  try {
-    await app.patch(patcher);
-  } catch (error) {
-    if (error.code === 'E_NO_STATE') {
-      // First patch in a repo requires genesis mode in git-warp 17
-      await app.patch(patcher, { genesis: true });
-    } else {
-      throw error;
-    }
-  }
-
-  // Sync with core after patch to advance the reading basis
-  await app.syncWith(app.core());
+  await patchWarpApp(repoDir, patcher, { genesisOnNoState: true });
 
   return entry;
-}
-
-function isWriterCasConflict(error) {
-  return error instanceof Error && error.message.includes(WRITER_CAS_CONFLICT_TEXT);
 }
 
 export async function finalizeCapturedThought(repoDir, entryId, {
   migrateIfNeeded = false,
   ambientContext = null,
 } = {}) {
-  const app = await openWarpApp(repoDir);
+  let app = await openWarpApp(repoDir);
 
   if (ambientContext) {
-    await patchAmbientContext(repoDir, app, entryId, ambientContext);
+    await patchAmbientContext(repoDir, entryId, ambientContext);
+    app = await openWarpApp(repoDir);
   }
 
-  const read = await createProductReadHandle(app, repoDir);
+  let read = await createProductReadHandle(app, repoDir);
   let entry = await getStoredEntry(read, entryId);
 
   if (!entry || entry.kind !== 'capture') {
@@ -124,8 +82,12 @@ export async function finalizeCapturedThought(repoDir, entryId, {
     };
   }
 
-  await ensureFirstDerivedArtifacts(app, read, entry);
-  await ensureCaptureReadEdges(app, read, entryId);
+  await ensureFirstDerivedArtifacts(repoDir, read, entry);
+  app = await openWarpApp(repoDir);
+  read = await createProductReadHandle(app, repoDir);
+  await ensureCaptureReadEdges(repoDir, read, entryId);
+  app = await openWarpApp(repoDir);
+  read = await createProductReadHandle(app, repoDir);
   entry = await getStoredEntry(read, entryId);
 
   return {
@@ -162,21 +124,10 @@ function applyAmbientContextPatch(patch, entryId, ambientContext) {
   }
 }
 
-async function patchAmbientContext(repoDir, app, entryId, ambientContext) {
+async function patchAmbientContext(repoDir, entryId, ambientContext) {
   const patcher = (patch) => {
     applyAmbientContextPatch(patch, entryId, ambientContext);
   };
 
-  try {
-    await app.patch(patcher);
-  } catch (error) {
-    if (error.code === 'E_NO_STATE') {
-      await app.patch(patcher, { genesis: true });
-    } else {
-      throw error;
-    }
-  }
-
-  // Sync with core after patch to advance the reading basis
-  await app.syncWith(app.core());
+  await patchWarpApp(repoDir, patcher, { genesisOnNoState: true });
 }
