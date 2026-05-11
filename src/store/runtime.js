@@ -1,6 +1,7 @@
 import Plumbing from '@git-stunts/plumbing';
 import WarpApp, { GitGraphAdapter } from '@git-stunts/git-warp';
 
+import { openCheckpointProductRead } from './checkpoint-product-read.js';
 import {
   ARTIFACT_PREFIX,
   CHECKPOINT_POLICY,
@@ -135,21 +136,43 @@ export function clearWarpAppCache(repoDir) {
 
 export async function createProductReadHandle(app, repoDir = null) {
   const worldline = app.worldline();
-  const view = await worldline.observer('think-product', PRODUCT_READ_LENS);
+  const checkpointRead = repoDir ? await tryOpenCheckpointProductRead(repoDir) : null;
+  const view = checkpointRead?.view ?? await worldline.observer('think-product', PRODUCT_READ_LENS);
 
   return {
     app,
     worldline,
     view,
     contentCore: app.core(),
-    blobStorage: repoDir ? await getRuntimeBlobStorage(repoDir) : null,
+    blobStorage: checkpointRead?.blobStorage ?? (repoDir ? await getRuntimeBlobStorage(repoDir) : null),
     writerId: app.writerId,
   };
 }
 
 export async function openProductReadHandle(repoDir) {
-  const app = await openWarpApp(repoDir);
-  return createProductReadHandle(app, repoDir);
+  const [app, checkpointRead] = await Promise.all([
+    openWarpApp(repoDir),
+    tryOpenCheckpointProductRead(repoDir),
+  ]);
+  const worldline = app.worldline();
+  const view = checkpointRead?.view ?? await worldline.observer('think-product', PRODUCT_READ_LENS);
+
+  return {
+    app,
+    worldline,
+    view,
+    contentCore: app.core(),
+    blobStorage: checkpointRead?.blobStorage ?? await getRuntimeBlobStorage(repoDir),
+    writerId: app.writerId,
+  };
+}
+
+async function tryOpenCheckpointProductRead(repoDir) {
+  try {
+    return await openCheckpointProductRead(repoDir);
+  } catch {
+    return null;
+  }
 }
 
 async function getRuntimeBlobStorage(repoDir) {
@@ -346,11 +369,21 @@ async function getLatestIdByKind(read, kind) {
 
 export async function readNodeText(read, nodeId, props = null) {
   const resolvedProps = props ?? await read.view.getNodeProps(nodeId);
-  const contentOid = typeof resolvedProps?._content === 'string' ? resolvedProps._content : null;
+  const contentOid = typeof resolvedProps?._content === 'string'
+    ? resolvedProps._content
+    : await readNodeContentOid(read, nodeId);
   const content = contentOid && read.blobStorage
     ? await read.blobStorage.retrieve(contentOid)
     : await read.contentCore.getContent(nodeId);
   return content ? new TextDecoder().decode(content) : '';
+}
+
+async function readNodeContentOid(read, nodeId) {
+  if (typeof read.view.getNodeContentMeta !== 'function') {
+    return null;
+  }
+  const contentMeta = await read.view.getNodeContentMeta(nodeId);
+  return typeof contentMeta?.oid === 'string' ? contentMeta.oid : null;
 }
 
 export async function getLatestCaptureId(read) {

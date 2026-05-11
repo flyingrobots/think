@@ -7,7 +7,11 @@ import {
   saveRawCapture,
 } from '../../src/store.js';
 import { listCheckpointEntriesByKind } from '../../src/store/checkpoint-read.js';
-import { openWarpApp } from '../../src/store/runtime.js';
+import {
+  listEntriesByKind,
+  openProductReadHandle,
+  openWarpApp,
+} from '../../src/store/runtime.js';
 import { runGit } from '../fixtures/git.js';
 import { createTempDir } from '../fixtures/tmp.js';
 import { formatResult } from '../fixtures/runtime.js';
@@ -46,6 +50,19 @@ test('checkpoint reads include CAS-backed raw tail captures', async () => {
   const checkpointCaptures = await listCheckpointEntriesByKind(repoDir, 'capture');
   assert.ok(checkpointCaptures, 'Expected checkpoint-backed capture listing to be reachable.');
   assert.equal(checkpointCaptures.length, 21, 'Expected checkpoint read model to include raw tail captures.');
+
+  const productRead = await openProductReadHandle(repoDir);
+  assert.equal(
+    typeof productRead.view.getNodeContentMeta,
+    'function',
+    'Expected product reads to use the checkpoint-backed view when a checkpoint is available.'
+  );
+  const productCaptures = await listEntriesByKind(productRead, 'capture');
+  assert.equal(productCaptures.length, 21, 'Expected checkpoint-backed product reads to include raw tail captures.');
+  assert.ok(
+    productCaptures.some((entry) => entry.text === 'checkpoint-backed raw capture 20'),
+    'Expected checkpoint-backed product reads to decode CAS-backed tail content.',
+  );
 
   const recent = await listRecent(repoDir, { count: 2 });
 
