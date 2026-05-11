@@ -22,7 +22,7 @@ import { assessReflectability } from './derivation.js';
 
 export async function startReflect(repoDir, seedEntryId, { promptType = null } = {}) {
   const app = await openWarpApp(repoDir);
-  const read = await createProductReadHandle(app);
+  const read = await createProductReadHandle(app, repoDir);
   const planned = await planReflect(read, seedEntryId, { promptType });
 
   if (!planned.ok) {
@@ -79,7 +79,7 @@ export async function startReflect(repoDir, seedEntryId, { promptType = null } =
 
 export async function previewReflect(repoDir, seedEntryId, { promptType = null } = {}) {
   const app = await openWarpApp(repoDir);
-  const read = await createProductReadHandle(app);
+  const read = await createProductReadHandle(app, repoDir);
   const planned = await planReflect(read, seedEntryId, { promptType });
 
   if (!planned.ok) {
@@ -101,7 +101,7 @@ export async function previewReflect(repoDir, seedEntryId, { promptType = null }
 
 export async function saveReflectResponse(repoDir, sessionId, response) {
   const app = await openWarpApp(repoDir);
-  const read = await createProductReadHandle(app);
+  const read = await createProductReadHandle(app, repoDir);
   const session = await getReflectSession(read, sessionId);
 
   if (!session) {

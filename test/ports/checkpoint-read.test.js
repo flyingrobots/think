@@ -24,9 +24,7 @@ test('checkpoint reads include CAS-backed raw tail captures', async () => {
       await saveRawCapture(repoDir, `checkpoint-backed raw capture ${i}`);
     }
     const app = await openWarpApp(repoDir);
-    if (app._surface().status) {
-      await app._surface().status();
-    }
+    await app.core().materialize();
     await app.core().createCheckpoint();
     // eslint-disable-next-line require-atomic-updates -- test fixture restores THINK_TEST_NOW in finally
     process.env.THINK_TEST_NOW = String(1_900_000_000_020);

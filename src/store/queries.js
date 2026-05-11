@@ -285,12 +285,15 @@ export async function listRecent(repoDir, { count = null, query = null } = {}) {
   const limit = count ?? DEFAULT_RECENT_LIMIT;
   const read = await openProductReadHandle(repoDir);
 
-  // If there's no query, we can use the fast chronology traversal
+  // Recent output reports the total capture count, so use the authoritative
+  // capture set instead of a potentially stale latest_capture chain.
   if (!query) {
-    const chronologyEntries = await listRecentStoredEntries(read, { limit });
+    const unfilteredRecent = (await listEntriesByKind(read, 'capture'))
+      .map(toBrowseEntry)
+      .sort(compareEntriesNewestFirst);
     return Object.freeze({
-      entries: chronologyEntries.map(toBrowseEntry),
-      total: chronologyEntries.length, // Note: total is windowed in this case
+      entries: unfilteredRecent.slice(0, limit),
+      total: unfilteredRecent.length,
     });
   }
 

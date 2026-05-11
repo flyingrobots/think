@@ -114,7 +114,7 @@ export async function finalizeCapturedThought(repoDir, entryId, {
     await patchAmbientContext(repoDir, app, entryId, ambientContext);
   }
 
-  const read = await createProductReadHandle(app);
+  const read = await createProductReadHandle(app, repoDir);
   let entry = await getStoredEntry(read, entryId);
 
   if (!entry || entry.kind !== 'capture') {

@@ -17,7 +17,7 @@ const TOPIC_PROMOTION_THRESHOLD = 2;
  */
 export async function runEnrichmentPipeline(repoDir) {
   const app = await openWarpApp(repoDir);
-  const read = await createProductReadHandle(app);
+  const read = await createProductReadHandle(app, repoDir);
   const { view } = read;
 
   // 1. Determine the starting point (high-water mark cursor)
@@ -295,7 +295,7 @@ export async function runEnrichmentPipeline(repoDir) {
  */
 export async function listTopics(repoDir) {
   const app = await openWarpApp(repoDir);
-  const read = await createProductReadHandle(app);
+  const read = await createProductReadHandle(app, repoDir);
 
   const topicResult = await read.view.query().match(`${TOPIC_PREFIX}*`).where({ kind: 'topic' }).run();
   const topics = [];

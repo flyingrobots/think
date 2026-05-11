@@ -16,7 +16,7 @@ export async function saveAnnotation(repoDir, targetEntryId, text, { writerId = 
   }
 
   const app = await openWarpApp(repoDir);
-  const read = await createProductReadHandle(app);
+  const read = await createProductReadHandle(app, repoDir);
   const targetEntry = await getStoredEntry(read, targetEntryId);
 
   if (!targetEntry) {

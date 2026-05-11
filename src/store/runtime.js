@@ -107,6 +107,7 @@ export class BaseEntry {
 }
 
 const warpAppCache = new Map();
+const runtimeBlobStorageCache = new Map();
 
 export async function openWarpApp(repoDir) {
   const cached = warpAppCache.get(repoDir);
@@ -132,7 +133,7 @@ export function clearWarpAppCache(repoDir) {
   warpAppCache.delete(repoDir);
 }
 
-export async function createProductReadHandle(app) {
+export async function createProductReadHandle(app, repoDir = null) {
   const worldline = app.worldline();
   const view = await worldline.observer('think-product', PRODUCT_READ_LENS);
 
@@ -141,13 +142,27 @@ export async function createProductReadHandle(app) {
     worldline,
     view,
     contentCore: app.core(),
+    blobStorage: repoDir ? await getRuntimeBlobStorage(repoDir) : null,
     writerId: app.writerId,
   };
 }
 
 export async function openProductReadHandle(repoDir) {
   const app = await openWarpApp(repoDir);
-  return createProductReadHandle(app);
+  return createProductReadHandle(app, repoDir);
+}
+
+async function getRuntimeBlobStorage(repoDir) {
+  const cached = runtimeBlobStorageCache.get(repoDir);
+  if (cached) {
+    return await cached;
+  }
+
+  const plumbing = Plumbing.createDefault({ cwd: repoDir });
+  const persistence = new GitGraphAdapter({ plumbing });
+  const blobStorage = persistence.createRuntimeBlobStorage();
+  runtimeBlobStorageCache.set(repoDir, blobStorage);
+  return await blobStorage;
 }
 
 export async function getGraphModelStatusForRead(read) {
@@ -177,7 +192,7 @@ export async function getStoredEntry(read, nodeId, props = null) {
   }
 
   const text = storesTextContent(resolvedProps.kind)
-    ? await readNodeText(read, nodeId)
+    ? await readNodeText(read, nodeId, resolvedProps)
     : '';
 
   return BaseEntry.from(nodeId, resolvedProps, text);
@@ -295,7 +310,10 @@ export async function getLatestStoredEntry(read, kind = 'capture') {
 export async function listRecentStoredEntries(read, { kind = 'capture', limit = 50 } = {}) {
   const latestId = await getLatestIdByKind(read, kind);
   if (!latestId) {
-    return [];
+    const fallbackEntries = await listEntriesByKind(read, kind);
+    return fallbackEntries
+      .sort(compareEntriesNewestFirst)
+      .slice(0, limit);
   }
 
   const ids = await read.view.traverse.bfs(latestId, {
@@ -326,8 +344,12 @@ async function getLatestIdByKind(read, kind) {
   return await getLatestCaptureId(read);
 }
 
-export async function readNodeText(read, nodeId) {
-  const content = await read.contentCore.getContent(nodeId);
+export async function readNodeText(read, nodeId, props = null) {
+  const resolvedProps = props ?? await read.view.getNodeProps(nodeId);
+  const contentOid = typeof resolvedProps?._content === 'string' ? resolvedProps._content : null;
+  const content = contentOid && read.blobStorage
+    ? await read.blobStorage.retrieve(contentOid)
+    : await read.contentCore.getContent(nodeId);
   return content ? new TextDecoder().decode(content) : '';
 }
 
