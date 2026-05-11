@@ -1,5 +1,5 @@
 import { parseJson } from '../../json.js';
-import { runBrowseTui } from '../../browse-tui/app.js';
+import { runBrowseTui, showSplash } from '../../browse-tui/app.js';
 import { runBrowseTuiScript } from '../../browse-tui/script.js';
 import { hasGitRepo, lsRemote } from '../../git.js';
 import { discoverMinds } from '../../minds.js';
@@ -570,8 +570,23 @@ async function runInteractiveBrowseShell(output, reporter) {
 
   let activeMind = minds[0];
   let skipSplash = false;
+  let splashShown = false;
 
   while (true) {
+    if (!splashShown) {
+      // eslint-disable-next-line no-await-in-loop -- interactive splash selects the initial mind
+      const splashResult = await showSplash({ minds, closeOnEnter: true });
+      if (splashResult.action === 'quit') {
+        return 0;
+      }
+      if (splashResult.mind) {
+        activeMind = splashResult.mind;
+      }
+      splashShown = true;
+      skipSplash = true;
+      output.out(`Opening mind "${activeMind.name}"...`);
+    }
+
     const { repoDir } = activeMind;
 
     if (!hasGitRepo(repoDir)) {

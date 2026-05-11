@@ -1,7 +1,7 @@
 import { createBijou } from '@flyingrobots/bijou';
 import { nodeRuntime, nodeIO, chalkStyle } from '@flyingrobots/bijou-node';
 import { createFramedApp, run } from '@flyingrobots/bijou-tui';
-import { thinkThemes, thinkTheme } from './theme.js';
+import { thinkShellThemes, thinkTheme } from './theme.js';
 import { selectLogo } from '../splash.js';
 import { shaderFrame, compositeAndRender, buildLogoMask, buildInteriorMask, buildDistanceFromOutline, getShaderCount, getShaderName, BG } from '../splash-shader.js';
 import { shaderForMind } from '../minds.js';
@@ -63,7 +63,7 @@ export async function runBrowseTui({
   const app = createFramedApp({
     ctx,
     pages: [browsePage],
-    shellThemes: thinkThemes,
+    shellThemes: thinkShellThemes,
     keyPriority: 'page-first',
     bodyTopRows: 1,
     bodyBottomRows: 1,
@@ -164,7 +164,7 @@ function fadeInBrowse(bootstrap, minds, activeMind) {
   });
 }
 
-export function showSplash({ minds = [] } = {}) {
+export function showSplash({ minds = [], closeOnEnter = false } = {}) {
   let cols = process.stdout.columns || 80;
   let rows = process.stdout.rows || 24;
   const startTime = Date.now();
@@ -256,6 +256,10 @@ export function showSplash({ minds = [] } = {}) {
           if (transition && transition.progress >= 1.0) {
             clearInterval(checkDone);
             cleanup();
+            if (closeOnEnter) {
+              process.stdout.write('\x1b[?25h');
+              process.stdout.write('\x1b[?1049l');
+            }
             resolve({ action: 'enter', mind: minds[mindIndex] ?? null });
           }
         }, 50);
