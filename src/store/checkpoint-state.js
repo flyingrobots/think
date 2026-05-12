@@ -1,5 +1,6 @@
 import Plumbing from '@git-stunts/plumbing';
 import WarpApp, * as GitWarp from '@git-stunts/git-warp';
+import { createAppContentReader } from './content-reader.js';
 import { CHECKPOINT_POLICY, GRAPH_NAME } from './constants.js';
 import { createWriterId } from './model.js';
 
@@ -14,28 +15,35 @@ export async function openCheckpointStateRead(repoDir, app = null) {
     return null;
   }
 
-  const blobStorage = await persistence.createRuntimeBlobStorage();
-  const state = await materializeCurrentState({
+  const resolvedApp = await resolveApp({
     app,
     persistence,
   });
+  const state = await resolvedApp.core().materialize();
 
   return Object.freeze({
-    blobStorage,
+    blobStorage: await createRuntimeBlobStorage(persistence),
     checkpointSha,
+    readContent: createAppContentReader(resolvedApp),
     reader: createCheckpointStateReader(state),
   });
 }
 
-async function materializeCurrentState({ app, persistence }) {
-  const resolvedApp = app ?? await WarpApp.open({
+function createRuntimeBlobStorage(persistence) {
+  const createStorage = persistence.createRuntimeBlobStorage;
+  if (typeof createStorage !== 'function') {
+    return null;
+  }
+  return createStorage.call(persistence);
+}
+
+async function resolveApp({ app, persistence }) {
+  return app ?? await WarpApp.open({
     persistence,
     graphName: GRAPH_NAME,
     writerId: createWriterId(),
     checkpointPolicy: CHECKPOINT_POLICY,
   });
-
-  return await resolvedApp.core().materialize();
 }
 
 function createCheckpointStateReader(state) {

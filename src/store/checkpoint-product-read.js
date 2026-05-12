@@ -218,6 +218,7 @@ export async function openCheckpointProductRead(repoDir, app = null) {
 
   return Object.freeze({
     blobStorage: checkpoint.blobStorage,
+    readContent: checkpoint.readContent,
     view: new CheckpointProductView({
       reader: checkpoint.reader,
       stateHash: checkpoint.checkpointSha,

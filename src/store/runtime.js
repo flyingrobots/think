@@ -1,6 +1,7 @@
 import Plumbing from '@git-stunts/plumbing';
 import WarpApp, { GitGraphAdapter } from '@git-stunts/git-warp';
 
+import { createAppContentReader } from './content-reader.js';
 import { openCheckpointProductRead } from './checkpoint-product-read.js';
 import {
   ARTIFACT_PREFIX,
@@ -191,6 +192,7 @@ export async function createProductReadHandle(app, repoDir = null) {
     view,
     contentCore: app.core(),
     blobStorage: repoDir ? await getRuntimeBlobStorage(repoDir) : null,
+    readContent: createAppContentReader(app),
     writerId: app.writerId,
   };
 }
@@ -208,6 +210,7 @@ export async function openProductReadHandle(repoDir) {
     view,
     contentCore: app.core(),
     blobStorage: checkpointRead?.blobStorage ?? await getRuntimeBlobStorage(repoDir),
+    readContent: checkpointRead?.readContent ?? createAppContentReader(app),
     writerId: app.writerId,
   };
 }
@@ -221,16 +224,23 @@ async function tryOpenCheckpointProductRead(repoDir, app = null) {
 }
 
 async function getRuntimeBlobStorage(repoDir) {
-  const cached = runtimeBlobStorageCache.get(repoDir);
-  if (cached) {
-    return await cached;
+  if (runtimeBlobStorageCache.has(repoDir)) {
+    return await runtimeBlobStorageCache.get(repoDir);
   }
 
   const plumbing = Plumbing.createDefault({ cwd: repoDir });
   const persistence = new GitGraphAdapter({ plumbing });
-  const blobStorage = persistence.createRuntimeBlobStorage();
+  const blobStorage = createRuntimeBlobStorage(persistence);
   runtimeBlobStorageCache.set(repoDir, blobStorage);
   return await blobStorage;
+}
+
+function createRuntimeBlobStorage(persistence) {
+  const createStorage = persistence.createRuntimeBlobStorage;
+  if (typeof createStorage !== 'function') {
+    return null;
+  }
+  return createStorage.call(persistence);
 }
 
 export async function getGraphModelStatusForRead(read) {
@@ -419,8 +429,15 @@ export async function readNodeText(read, nodeId, props = null) {
     : await readNodeContentOid(read, nodeId);
   const content = contentOid && read.blobStorage
     ? await read.blobStorage.retrieve(contentOid)
-    : await read.contentCore.getContent(nodeId);
+    : await readContent(read, nodeId);
   return content ? new TextDecoder().decode(content) : '';
+}
+
+async function readContent(read, nodeId) {
+  if (typeof read.readContent === 'function') {
+    return await read.readContent(nodeId);
+  }
+  return await read.contentCore.getContent(nodeId);
 }
 
 async function readNodeContentOid(read, nodeId) {

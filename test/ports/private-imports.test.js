@@ -11,6 +11,11 @@ const CHECKPOINT_SOURCE_FILES = Object.freeze([
   'src/store/checkpoint-product-read.js',
 ]);
 
+const RUNTIME_READ_SOURCE_FILES = Object.freeze([
+  'src/store/runtime.js',
+  'src/store/checkpoint-state.js',
+]);
+
 test('checkpoint read fast paths do not import git-warp internals from node_modules', async () => {
   const offenders = [];
 
@@ -26,5 +31,23 @@ test('checkpoint read fast paths do not import git-warp internals from node_modu
     offenders,
     [],
     'Expected production checkpoint code to use only public git-warp package exports.'
+  );
+});
+
+test('runtime read paths do not call GitGraphAdapter.createRuntimeBlobStorage without feature detection', async () => {
+  const offenders = [];
+
+  for (const relativePath of RUNTIME_READ_SOURCE_FILES) {
+    // eslint-disable-next-line no-await-in-loop -- this guard reports deterministic file-level evidence
+    const source = await readFile(join(repoRoot, relativePath), 'utf8');
+    if (source.includes('.createRuntimeBlobStorage()')) {
+      offenders.push(relativePath);
+    }
+  }
+
+  assert.deepEqual(
+    offenders,
+    [],
+    'Expected runtime reads to feature-detect the optional git-warp blob-storage helper before using it.'
   );
 });

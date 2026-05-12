@@ -8,8 +8,9 @@ import { BaseEntry } from './runtime.js';
 import { openCheckpointStateRead } from './checkpoint-state.js';
 
 class CheckpointReadModel {
-  constructor({ blobStorage, reader }) {
+  constructor({ blobStorage, readContent, reader }) {
     this._blobStorage = blobStorage;
+    this._readContent = readContent;
     this._reader = reader;
     Object.freeze(this);
   }
@@ -22,6 +23,7 @@ class CheckpointReadModel {
 
     return new CheckpointReadModel({
       blobStorage: checkpoint.blobStorage,
+      readContent: checkpoint.readContent,
       reader: checkpoint.reader,
     });
   }
@@ -87,10 +89,15 @@ class CheckpointReadModel {
 
   async _readNodeText(nodeId) {
     const oid = this._reader.getNodeContentMeta(nodeId)?.oid;
-    if (typeof oid !== 'string' || oid.length === 0) {
+    if (this._blobStorage && typeof oid === 'string' && oid.length > 0) {
+      return new TextDecoder().decode(await this._blobStorage.retrieve(oid));
+    }
+
+    const content = await this._readContent(nodeId);
+    if (!content) {
       return '';
     }
-    return new TextDecoder().decode(await this._blobStorage.retrieve(oid));
+    return new TextDecoder().decode(content);
   }
 }
 
