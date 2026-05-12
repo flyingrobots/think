@@ -6,6 +6,7 @@ blocks:
   - CORE_think-echo-phase-5-migration-and-sibling-exchange
 blocked_by:
   - CORE_think-echo-phase-1-app-contract
+  - CORE_think-echo-toolchain-capability-probe
 ---
 
 # CORE - Phase 2 - Echo runtime round-trip proof
