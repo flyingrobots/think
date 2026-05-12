@@ -50,9 +50,11 @@ export async function migrateGraphModel(repoDir) {
   }
 
   // Check reflect session edges
+  const seedEntryIdBySessionId = new Map();
   for (const node of sessionNodes) {
     const { id, props } = node;
     if (props.seedEntryId) {
+      seedEntryIdBySessionId.set(id, props.seedEntryId);
       // eslint-disable-next-line no-await-in-loop -- sequential migration
       await pushMissingEdgeIfAbsent(worldline, missingEdges, id, props.seedEntryId, 'seeded_by');
     }
@@ -61,12 +63,14 @@ export async function migrateGraphModel(repoDir) {
   // Check reflect entry edges
   for (const node of reflectNodes) {
     const { id, props } = node;
+    const sessionId = props.sessionId ?? inferReflectSessionId(props, sessionNodes);
+    const seedEntryId = props.seedEntryId ?? seedEntryIdBySessionId.get(sessionId);
     /* eslint-disable no-await-in-loop -- sequential migration edge checks */
-    if (props.sessionId) {
-      await pushMissingEdgeIfAbsent(worldline, missingEdges, id, props.sessionId, 'produced_in');
+    if (sessionId) {
+      await pushMissingEdgeIfAbsent(worldline, missingEdges, id, sessionId, 'produced_in');
     }
-    if (props.seedEntryId) {
-      await pushMissingEdgeIfAbsent(worldline, missingEdges, id, props.seedEntryId, 'responds_to');
+    if (seedEntryId) {
+      await pushMissingEdgeIfAbsent(worldline, missingEdges, id, seedEntryId, 'responds_to');
     }
     /* eslint-enable no-await-in-loop */
   }
@@ -190,4 +194,18 @@ async function pushMissingEdgeIfAbsent(worldline, target, from, to, label) {
   if (!hasEdge) {
     target.push({ from, to, label });
   }
+}
+
+function inferReflectSessionId(reflectProps, sessionNodes) {
+  const candidates = sessionNodes.filter(({ props }) => {
+    if (reflectProps.seedEntryId && props.seedEntryId !== reflectProps.seedEntryId) {
+      return false;
+    }
+    if (reflectProps.promptType && props.promptType && props.promptType !== reflectProps.promptType) {
+      return false;
+    }
+    return true;
+  });
+
+  return candidates.length === 1 ? candidates[0].id : null;
 }
