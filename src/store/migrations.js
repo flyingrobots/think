@@ -21,7 +21,7 @@ export async function migrateGraphModel(repoDir) {
   const captureResult = await worldline.query().match('entry:*').where({ kind: 'capture' }).run();
   const reflectEntryResult = await worldline.query().match('entry:*').where({ kind: 'reflect' }).run();
   const brainstormEntryResult = await worldline.query().match('entry:*').where({ kind: 'brainstorm' }).run();
-  const reflectNodes = [
+  const reflectKindNodes = [
     ...(reflectEntryResult.nodes ?? []),
     ...(brainstormEntryResult.nodes ?? []),
   ];
@@ -31,10 +31,22 @@ export async function migrateGraphModel(repoDir) {
     ...(reflectSessionResult.nodes ?? []),
     ...(brainstormSessionResult.nodes ?? []),
   ];
+  const sessionNodeIds = new Set(sessionNodes.map((node) => node.id));
   const artifactResult = await worldline.query().match(`${ARTIFACT_PREFIX}*`).run();
 
   const missingEdges = [];
   const removableEdges = [];
+  const reflectNodes = new Map();
+  addReflectNodes(reflectNodes, reflectKindNodes);
+
+  for (const node of sessionNodes) {
+    // eslint-disable-next-line no-await-in-loop -- sequential migration fallback query per reflect session
+    const linkedReflectEntryResult = await worldline.query()
+      .match('entry:*')
+      .where({ sessionId: node.id })
+      .run();
+    addReflectNodes(reflectNodes, linkedReflectEntryResult.nodes);
+  }
 
   // Check capture edges — sequential per-node edge traversal
   for (const node of captureResult.nodes ?? []) {
@@ -61,13 +73,15 @@ export async function migrateGraphModel(repoDir) {
   }
 
   // Check reflect entry edges
-  for (const node of reflectNodes) {
+  for (const node of reflectNodes.values()) {
     const { id, props } = node;
     const sessionId = props.sessionId ?? inferReflectSessionId(props, sessionNodes);
     const seedEntryId = props.seedEntryId ?? seedEntryIdBySessionId.get(sessionId);
     /* eslint-disable no-await-in-loop -- sequential migration edge checks */
     if (sessionId) {
-      await pushMissingEdgeIfAbsent(worldline, missingEdges, id, sessionId, 'produced_in');
+      await pushMissingEdgeIfAbsent(worldline, missingEdges, id, sessionId, 'produced_in', {
+        knownTargetNodeIds: sessionNodeIds,
+      });
     }
     if (seedEntryId) {
       await pushMissingEdgeIfAbsent(worldline, missingEdges, id, seedEntryId, 'responds_to');
@@ -184,16 +198,36 @@ export async function migrateGraphModel(repoDir) {
   });
 }
 
-async function pushMissingEdgeIfAbsent(worldline, target, from, to, label) {
+async function pushMissingEdgeIfAbsent(worldline, target, from, to, label, { knownTargetNodeIds = null } = {}) {
   // Verify target node exists before checking edge
-  const targetProps = await worldline.getNodeProps(to);
-  if (!targetProps) { return; }
+  if (!knownTargetNodeIds?.has(to)) {
+    const targetProps = await worldline.getNodeProps(to);
+    if (!targetProps) { return; }
+  }
 
   const traversal = await worldline.query().match(from).outgoing(label).run();
   const hasEdge = (traversal.nodes ?? []).some((n) => n.id === to);
   if (!hasEdge) {
     target.push({ from, to, label });
   }
+}
+
+function addReflectNodes(target, nodes = []) {
+  for (const node of nodes ?? []) {
+    if (!node?.id || !isReflectEntryProps(node.props ?? {})) {
+      continue;
+    }
+    target.set(node.id, node);
+  }
+}
+
+function isReflectEntryProps(props) {
+  return props.kind === 'reflect'
+    || props.kind === 'brainstorm'
+    || props.source === 'reflect'
+    || props.source === 'brainstorm'
+    || typeof props.seedEntryId === 'string'
+    || typeof props.promptType === 'string';
 }
 
 function inferReflectSessionId(reflectProps, sessionNodes) {
