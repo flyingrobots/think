@@ -6,7 +6,7 @@ import {
   GRAPH_MODEL_VERSION,
 } from './constants.js';
 import { compareEntriesNewestFirst, getCurrentTime } from './model.js';
-import { openWarpApp, patchWarpApp } from './runtime.js';
+import { openWarpApp, patchWarpApp, patchWarpAppWithWriter } from './runtime.js';
 
 export async function migrateGraphModel(repoDir) {
   const app = await openWarpApp(repoDir);
@@ -161,33 +161,46 @@ export async function migrateGraphModel(repoDir) {
   }
 
   const timestamp = getCurrentTime().toISOString();
-  await patchWarpApp(repoDir, (patch) => {
-    if (needsMetadataNode) {
+  const needsStandardPatch = removableEdges.length > 0
+    || classificationNodesToCreate.length > 0
+    || needsMetadataNode
+    || needsGraphVersionUpdate;
+
+  if (needsStandardPatch) {
+    await patchWarpApp(repoDir, (patch) => {
+      if (needsMetadataNode) {
+        patch
+          .addNode(GRAPH_META_ID)
+          .setProperty(GRAPH_META_ID, 'kind', 'graph_meta')
+          .setProperty(GRAPH_META_ID, 'createdAt', timestamp);
+      }
+
       patch
-        .addNode(GRAPH_META_ID)
-        .setProperty(GRAPH_META_ID, 'kind', 'graph_meta')
-        .setProperty(GRAPH_META_ID, 'createdAt', timestamp);
-    }
+        .setProperty(GRAPH_META_ID, 'graphModelVersion', GRAPH_MODEL_VERSION)
+        .setProperty(GRAPH_META_ID, 'updatedAt', timestamp);
 
-    patch
-      .setProperty(GRAPH_META_ID, 'graphModelVersion', GRAPH_MODEL_VERSION)
-      .setProperty(GRAPH_META_ID, 'updatedAt', timestamp);
+      for (const edge of removableEdges) {
+        patch.removeEdge(edge.from, edge.to, edge.label);
+      }
 
-    for (const edge of removableEdges) {
-      patch.removeEdge(edge.from, edge.to, edge.label);
-    }
-    for (const edge of missingEdges) {
-      patch.addEdge(edge.from, edge.to, edge.label);
-    }
+      for (const { nodeId, name } of classificationNodesToCreate) {
+        patch
+          .addNode(nodeId)
+          .setProperty(nodeId, 'kind', 'classification')
+          .setProperty(nodeId, 'name', name)
+          .setProperty(nodeId, 'createdAt', timestamp);
+      }
+    });
+  }
 
-    for (const { nodeId, name } of classificationNodesToCreate) {
-      patch
-        .addNode(nodeId)
-        .setProperty(nodeId, 'kind', 'classification')
-        .setProperty(nodeId, 'name', name)
-        .setProperty(nodeId, 'createdAt', timestamp);
-    }
-  });
+  if (missingEdges.length > 0) {
+    const migrationWriterId = `${app.writerId}.migration`;
+    await patchWarpAppWithWriter(repoDir, migrationWriterId, (patch) => {
+      for (const edge of missingEdges) {
+        patch.addEdge(edge.from, edge.to, edge.label);
+      }
+    });
+  }
 
   return Object.freeze({
     changed: true,

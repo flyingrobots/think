@@ -177,6 +177,55 @@ export async function patchWarpApp(repoDir, patcher, {
   /* eslint-enable no-await-in-loop */
 }
 
+export async function patchWarpAppWithWriter(repoDir, writerId, patcher, {
+  genesisOnNoState = false,
+  maxAttempts = DEFAULT_PATCH_MAX_ATTEMPTS,
+  syncAfterPatch = true,
+} = {}) {
+  let attempt = 1;
+
+  /* eslint-disable no-await-in-loop -- retry attempts must run sequentially against a refreshed app */
+  while (true) {
+    const app = await openWarpAppUncached(repoDir, writerId);
+
+    try {
+      try {
+        await app.patch(patcher);
+      } catch (error) {
+        if (!genesisOnNoState || error?.code !== 'E_NO_STATE') {
+          throw error;
+        }
+        await app.patch(patcher, { genesis: true });
+      }
+
+      if (syncAfterPatch) {
+        await app.syncWith(app.core());
+      }
+
+      return app;
+    } catch (error) {
+      if (!isWriterCasConflict(error) || attempt >= maxAttempts) {
+        throw error;
+      }
+
+      attempt += 1;
+    }
+  }
+  /* eslint-enable no-await-in-loop */
+}
+
+async function openWarpAppUncached(repoDir, writerId) {
+  const plumbing = Plumbing.createDefault({ cwd: repoDir });
+  const persistence = new GitGraphAdapter({ plumbing });
+
+  return await WarpApp.open({
+    persistence,
+    graphName: GRAPH_NAME,
+    writerId,
+    checkpointPolicy: CHECKPOINT_POLICY,
+  });
+}
+
 export function isWriterCasConflict(error) {
   return error instanceof Error && error.message.includes(WRITER_CAS_CONFLICT_TEXT);
 }
