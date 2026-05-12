@@ -1,5 +1,8 @@
 import { getPromptMetricsFile } from '../paths.js';
 import {
+  KEYWORD_PREFIX,
+} from './constants.js';
+import {
   compareEntriesNewestFirst,
   formatBucketKey,
   parseSince,
@@ -27,10 +30,12 @@ import {
   getStoredEntry,
   listChronologyEntries,
   listEntriesByKind,
+  listRecentStoredEntries,
   openProductReadHandle,
   resolveGraphSessionTraversal,
   toBrowseEntry,
 } from './runtime.js';
+import { listCheckpointEntriesByKind } from './checkpoint-read.js';
 import {
   assessReflectability,
   ensureFirstDerivedArtifacts,
@@ -40,6 +45,52 @@ import {
   getSessionAttributionReceiptIfPresent,
   listDirectDerivedReceipts,
 } from './derivation.js';
+import { KeywordTrie } from './trie.js';
+
+const DEFAULT_RECENT_LIMIT = 50;
+const searchIndexCache = new Map();
+const searchIndexLoadingPromises = new Map();
+
+export function invalidateSearchIndex(repoDir) {
+  searchIndexCache.delete(repoDir);
+  searchIndexLoadingPromises.delete(repoDir);
+}
+
+/**
+ * Bootstrap the in-memory search index (Trie) from keyword nodes in the graph.
+ * Uses a loading promise to prevent race conditions during concurrent requests.
+ */
+export function loadSearchIndex(repoDir) {
+  const cached = searchIndexCache.get(repoDir);
+  if (cached) {
+    return Promise.resolve(cached);
+  }
+
+  const loading = searchIndexLoadingPromises.get(repoDir);
+  if (loading) {
+    return loading;
+  }
+
+  const loadingPromise = (async () => {
+    const read = await openProductReadHandle(repoDir);
+    const trie = new KeywordTrie();
+
+    const keywordResult = await read.view.query().match(`${KEYWORD_PREFIX}*`).where({ kind: 'keyword' }).run();
+    for (const node of keywordResult.nodes ?? []) {
+      if (node.props.name) {
+        trie.insert(node.props.name);
+      }
+    }
+
+    searchIndexCache.set(repoDir, trie);
+    return trie;
+  })().finally(() => {
+    searchIndexLoadingPromises.delete(repoDir);
+  });
+
+  searchIndexLoadingPromises.set(repoDir, loadingPromise);
+  return loadingPromise;
+}
 
 export async function rememberThoughts(
   repoDir,
@@ -51,54 +102,126 @@ export async function rememberThoughts(
   } = {}
 ) {
   const read = await openProductReadHandle(repoDir);
-  const captures = (await listEntriesByKind(read, 'capture'))
-    .map((entry) => ({
-      id: entry.id,
-      text: entry.text,
-      sortKey: entry.sortKey,
-      createdAt: entry.createdAt,
+  const limitValue = limit ?? DEFAULT_RECENT_LIMIT;
+
+  // 1. If there's an explicit query, try the graph-native inverted index first (O(1))
+  if (query && String(query).trim() !== '') {
+    const explicitScope = buildExplicitRememberScope(query);
+    const queryTerms = query.toLowerCase().split(/\s+/).filter(Boolean);
+    const indexMatches = new Map();
+
+    // Use Trie for prefix matching on query terms
+    const trie = await loadSearchIndex(repoDir);
+    const expandedKeywords = new Map(); // keyword -> distance
+
+    for (const term of queryTerms) {
+      const prefixMatches = trie.search(term);
+      for (const m of prefixMatches) {
+        expandedKeywords.set(m, 0); // Exact or prefix match has distance 0
+      }
+
+      // If we don't have many matches, try fuzzy (edit distance)
+      if (prefixMatches.length < 10) {
+        const fuzzyMatches = trie.searchFuzzy(term, term.length > 4 ? 2 : 1);
+        for (const { keyword, distance } of fuzzyMatches) {
+          if (!expandedKeywords.has(keyword) || distance < expandedKeywords.get(keyword)) {
+            expandedKeywords.set(keyword, distance);
+          }
+        }
+      }
+    }
+
+    for (const [keyword, distance] of expandedKeywords) {
+      const keywordNodeId = `${KEYWORD_PREFIX}${keyword}`;
+      // eslint-disable-next-line no-await-in-loop -- sequential keyword index lookup
+      const traversal = await read.view.query().match(keywordNodeId).incoming('mentions').run();
+
+      for (const node of traversal.nodes ?? []) {
+        if (!indexMatches.has(node.id)) {
+          // eslint-disable-next-line no-await-in-loop -- sequential retrieval of indexed thoughts
+          const entry = await getStoredEntry(read, node.id);
+          if (entry) {
+            const match = buildExplicitRememberMatch({
+              ...entry,
+              ambientCwd: entry.ambientCwd ?? null,
+              ambientGitRoot: entry.ambientGitRoot ?? null,
+              ambientGitRemote: entry.ambientGitRemote ?? null,
+              ambientGitBranch: entry.ambientGitBranch ?? null,
+            }, explicitScope);
+
+            if (match) {
+              // Adjust score based on fuzzy distance
+              const fuzzyAdjustedMatch = {
+                ...match,
+                score: match.score - (distance * 0.1), // Typos rank slightly lower
+              };
+              indexMatches.set(node.id, fuzzyAdjustedMatch);
+            }
+          }
+        }
+      }
+    }
+
+    if (indexMatches.size > 0) {
+      const sortedMatches = Array.from(indexMatches.values()).sort(compareRememberMatches);
+      return Object.freeze({
+        scope: Object.freeze({ ...explicitScope, brief, limit: limitValue }),
+        matches: finalizeRememberMatches(sortedMatches, { brief, limit: limitValue }),
+      });
+    }
+
+    // Fallback: If index is empty (e.g. not enriched yet or partial word), use windowed scan
+    const chronologyList = await listRecentStoredEntries(read, { limit: 2000 });
+    const fallbackMatches = chronologyList
+      .map((entry) => buildExplicitRememberMatch({
+        ...entry,
+        ambientCwd: entry.ambientCwd ?? null,
+        ambientGitRoot: entry.ambientGitRoot ?? null,
+        ambientGitRemote: entry.ambientGitRemote ?? null,
+        ambientGitBranch: entry.ambientGitBranch ?? null,
+      }, explicitScope))
+      .filter(Boolean)
+      .sort(compareRememberMatches);
+
+    return Object.freeze({
+      scope: Object.freeze({ ...explicitScope, brief, limit: limitValue }),
+      matches: finalizeRememberMatches(fallbackMatches, { brief, limit: limitValue }),
+    });
+  }
+
+  // 2. Ambient remember (cwd-based)
+  const ambientScope = buildAmbientRememberScope(cwd);
+  const fullChronology = await listRecentStoredEntries(read, { limit: 2000 });
+  const ambientMatches = fullChronology
+    .map((entry) => buildAmbientRememberMatch({
+      ...entry,
       ambientCwd: entry.ambientCwd ?? null,
       ambientGitRoot: entry.ambientGitRoot ?? null,
       ambientGitRemote: entry.ambientGitRemote ?? null,
       ambientGitBranch: entry.ambientGitBranch ?? null,
-    }))
-    .sort(compareEntriesNewestFirst);
-
-  if (query && String(query).trim() !== '') {
-    const explicitScope = buildExplicitRememberScope(query);
-    const explicitMatches = captures
-      .map((entry) => buildExplicitRememberMatch(entry, explicitScope))
-      .filter(Boolean)
-      .sort(compareRememberMatches);
-    return {
-      scope: {
-        ...explicitScope,
-        brief,
-        limit,
-      },
-      matches: finalizeRememberMatches(explicitMatches, { brief, limit }),
-    };
-  }
-
-  const scope = buildAmbientRememberScope(cwd);
-  const matches = captures
-    .map((entry) => buildAmbientRememberMatch(entry, scope))
+    }, ambientScope))
     .filter(Boolean)
     .sort(compareRememberMatches);
-  return {
-    scope: {
-      ...scope,
-      brief,
-      limit,
-    },
-    matches: finalizeRememberMatches(matches, { brief, limit }),
-  };
+
+  return Object.freeze({
+    scope: Object.freeze({ ...ambientScope, brief, limit: limitValue }),
+    matches: finalizeRememberMatches(ambientMatches, { brief, limit: limitValue }),
+  });
 }
 
 export async function getStats(repoDir, { from, to, since, bucket } = {}) {
-  const read = await openProductReadHandle(repoDir);
-  const entries = [];
+  const checkpointCaptures = await listCheckpointEntriesByKind(repoDir, 'capture');
+  if (checkpointCaptures !== null) {
+    return statsFromCaptures(checkpointCaptures, { from, to, since, bucket });
+  }
 
+  const read = await openProductReadHandle(repoDir);
+  const captures = await listEntriesByKind(read, 'capture');
+  return statsFromCaptures(captures, { from, to, since, bucket });
+}
+
+function statsFromCaptures(captures, { from, to, since, bucket } = {}) {
+  const entries = [];
   const now = getCurrentTime();
   const sinceDate = since ? parseSince(since, now) : null;
   const fromDate = from ? new Date(from) : null;
@@ -108,7 +231,7 @@ export async function getStats(repoDir, { from, to, since, bucket } = {}) {
     toDate.setUTCHours(23, 59, 59, 999);
   }
 
-  for (const entry of await listEntriesByKind(read, 'capture')) {
+  for (const entry of captures) {
     const createdAt = new Date(entry.createdAt);
 
     if (sinceDate && createdAt < sinceDate) {continue;}
@@ -119,7 +242,7 @@ export async function getStats(repoDir, { from, to, since, bucket } = {}) {
   }
 
   if (!bucket) {
-    return { total: entries.length };
+    return Object.freeze({ total: entries.length });
   }
 
   const buckets = {};
@@ -128,12 +251,14 @@ export async function getStats(repoDir, { from, to, since, bucket } = {}) {
     buckets[key] = (buckets[key] || 0) + 1;
   }
 
-  return {
+  return Object.freeze({
     total: entries.length,
-    buckets: Object.entries(buckets)
-      .sort((a, b) => b[0].localeCompare(a[0]))
-      .map(([key, count]) => ({ key, count })),
-  };
+    buckets: Object.freeze(
+      Object.entries(buckets)
+        .sort((a, b) => b[0].localeCompare(a[0]))
+        .map(([key, count]) => Object.freeze({ key, count }))
+    ),
+  });
 }
 
 export async function getPromptMetrics({ from, to, since, bucket } = {}) {
@@ -166,9 +291,24 @@ export async function getPromptMetrics({ from, to, since, bucket } = {}) {
 }
 
 export async function listRecent(repoDir, { count = null, query = null } = {}) {
+  const limit = count ?? DEFAULT_RECENT_LIMIT;
   const read = await openProductReadHandle(repoDir);
-  const captures = await listEntriesByKind(read, 'capture');
 
+  // Recent output reports the total capture count, so use the authoritative
+  // capture set instead of a potentially stale latest_capture chain.
+  if (!query) {
+    const unfilteredRecent = (await listEntriesByKind(read, 'capture'))
+      .map(toBrowseEntry)
+      .sort(compareEntriesNewestFirst);
+    return Object.freeze({
+      entries: unfilteredRecent.slice(0, limit),
+      total: unfilteredRecent.length,
+    });
+  }
+
+  // If there is a query, we still need to filter.
+  // Future optimization: windowed search traversal.
+  const captures = await listEntriesByKind(read, 'capture');
   const recent = captures
     .map(entry => ({
       id: entry.id,
@@ -179,20 +319,16 @@ export async function listRecent(repoDir, { count = null, query = null } = {}) {
     }))
     .sort(compareEntriesNewestFirst);
 
-  const filtered = query
-    ? recent.filter((entry) => matchesRecentQuery(entry.text, query))
-    : recent;
+  const filtered = recent.filter((entry) => matchesRecentQuery(entry.text, query));
+  const total = filtered.length;
+  const entries = filtered.slice(0, limit);
 
-  if (count === null) {
-    return filtered;
-  }
-
-  return filtered.slice(0, count);
+  return Object.freeze({ entries, total });
 }
 
 export async function listReflectableRecent(repoDir) {
-  const recent = await listRecent(repoDir);
-  return recent.filter((entry) => assessReflectability(entry.text).eligible);
+  const { entries } = await listRecent(repoDir);
+  return entries.filter((entry) => assessReflectability(entry.text).eligible);
 }
 
 export async function loadBrowseChronologyEntries(repoDir) {
@@ -267,7 +403,7 @@ export async function inspectRawEntryForRead(read, entryId) {
     return null;
   }
 
-  await ensureFirstDerivedArtifacts(read.app, read, entry);
+  await ensureFirstDerivedArtifacts(read.repoDir, read, entry);
   entry = await getStoredEntry(read, entryId);
 
   const canonicalThought = await getCanonicalThought(read, entry);
@@ -275,7 +411,9 @@ export async function inspectRawEntryForRead(read, entryId) {
   const sessionAttribution = await getSessionAttributionReceipt(read, entry);
   const derivedReceipts = await listDirectDerivedReceipts(read, entryId);
 
-  return {
+  const annotations = await listAnnotationsForEntry(read, entryId);
+
+  return Object.freeze({
     entryId: entry.id,
     thoughtId: canonicalThought?.thoughtId ?? createThoughtId(entry.text),
     kind: 'raw_capture',
@@ -287,7 +425,27 @@ export async function inspectRawEntryForRead(read, entryId) {
     seedQuality,
     sessionAttribution,
     derivedReceipts,
-  };
+    annotations,
+  });
+}
+
+async function listAnnotationsForEntry(read, entryId) {
+  const traversal = await read.view.query().match(entryId).incoming('annotates').run();
+  const annotations = [];
+
+  for (const node of traversal.nodes ?? []) {
+    // eslint-disable-next-line no-await-in-loop -- sequential annotation reads
+    const entry = await getStoredEntry(read, node.id);
+    if (entry) {
+      annotations.push(Object.freeze({
+        annotationId: entry.id,
+        text: entry.text,
+        createdAt: entry.createdAt,
+      }));
+    }
+  }
+
+  return annotations.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
 async function buildBrowseWindow(read, entryId) {
@@ -305,7 +463,7 @@ async function buildBrowseWindow(read, entryId) {
   const sessionAttribution = await getSessionAttributionReceiptIfPresent(read, currentEntry);
   const sessionTraversal = await resolveGraphSessionTraversal(read, current);
 
-  return {
+  return Object.freeze({
     current,
     newer,
     older,
@@ -340,5 +498,5 @@ async function buildBrowseWindow(read, entryId) {
             : []),
         ]
       : [],
-  };
+  });
 }

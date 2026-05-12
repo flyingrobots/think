@@ -1,3 +1,9 @@
+---
+id: CORE_audit-no-latency-regression-gate
+blocks: []
+blocked_by: []
+---
+
 # Capture latency has no enforced regression gate
 
 The repo has capture benchmarks and the bearing doc explicitly calls capture latency out as a concern, but CI does not enforce a stable latency budget.

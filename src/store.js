@@ -39,3 +39,5 @@ export {
 } from './store/runtime.js';
 
 export { assessReflectability } from './store/derivation.js';
+
+export { saveAnnotation } from './store/annotate.js';

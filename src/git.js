@@ -1,11 +1,22 @@
 import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import { spawn, spawnSync } from 'node:child_process';
+import { execSync, spawn, spawnSync } from 'node:child_process';
 
 import { TimeoutError } from '@git-stunts/alfred';
 
+import { ThinkError } from './errors.js';
 import { createPushPolicy } from './policies.js';
+
+function resolveGitBinary() {
+  try {
+    return execSync('which git', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() || 'git';
+  } catch {
+    return 'git';
+  }
+}
+
+export const GIT_BINARY = resolveGitBinary();
 
 const DEFAULT_GIT_ENV = {
   GIT_AUTHOR_NAME: 'think',
@@ -74,7 +85,7 @@ export function hasGitRepo(repoDir) {
 const LS_REMOTE_TIMEOUT_MS = 5000;
 
 export function lsRemote(upstreamUrl) {
-  const result = spawnSync('git', ['ls-remote', '--exit-code', upstreamUrl], {
+  const result = spawnSync(GIT_BINARY, ['ls-remote', '--exit-code', upstreamUrl], {
     env: {
       ...process.env,
       ...NON_INTERACTIVE_PUSH_ENV,
@@ -88,7 +99,7 @@ export function lsRemote(upstreamUrl) {
 function runGitPush(repoDir, upstreamUrl, graphName, signal) {
   return new Promise((resolve, reject) => {
     const child = spawn(
-      'git',
+      GIT_BINARY,
       ['-C', repoDir, 'push', '--porcelain', upstreamUrl, `refs/warp/${graphName}/*:refs/warp/${graphName}/*`],
       {
         env: {
@@ -197,7 +208,7 @@ function buildPushError(message, details = {}) {
 }
 
 function runGit(args, options = {}) {
-  const result = spawnSync('git', args, {
+  const result = spawnSync(GIT_BINARY, args, {
     encoding: 'utf8',
     env: {
       ...process.env,
@@ -207,7 +218,7 @@ function runGit(args, options = {}) {
   });
 
   if (result.status !== 0) {
-    const error = new Error(`git command failed: git ${args.join(' ')}`);
+    const error = new ThinkError(`git command failed: git ${args.join(' ')}`, 'GIT_COMMAND_FAILED');
     error.result = result;
     throw error;
   }

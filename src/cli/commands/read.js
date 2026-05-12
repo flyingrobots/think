@@ -1,5 +1,5 @@
 import { parseJson } from '../../json.js';
-import { runBrowseTui } from '../../browse-tui/app.js';
+import { runBrowseTui, showSplash } from '../../browse-tui/app.js';
 import { runBrowseTuiScript } from '../../browse-tui/script.js';
 import { hasGitRepo, lsRemote } from '../../git.js';
 import { discoverMinds } from '../../minds.js';
@@ -21,7 +21,9 @@ import {
   rememberThoughts,
   saveReflectResponse,
   startReflect,
+  saveAnnotation,
 } from '../../store.js';
+import { runEnrichmentPipeline, listTopics } from '../../store/enrichment/runner.js';
 import { buildStatsSparkline } from '../../mcp/format.js';
 import { shouldUseInteractiveBrowseShell } from '../environment.js';
 import { runDiagnostics } from '../../doctor.js';
@@ -60,6 +62,81 @@ export async function runDoctor(output, reporter) {
   }
 
   reporter.event('doctor.done');
+  return 0;
+}
+
+export async function runAnnotate(entryId, text, output, reporter) {
+  const repoDir = getLocalRepoDir();
+
+  if (!hasGitRepo(repoDir)) {
+    output.error('No local thought repo found', 'annotate.repo_not_found');
+    return 1;
+  }
+
+  reporter.event('annotate.start', { targetEntryId: entryId });
+
+  const result = await saveAnnotation(repoDir, entryId, text);
+
+  output.out('Annotated', 'annotate.done', {
+    annotationId: result.annotationId,
+    targetEntryId: result.targetEntryId,
+  });
+
+  reporter.event('annotate.done', result);
+  return 0;
+}
+
+export async function runEnrich(output, reporter) {
+  const repoDir = getLocalRepoDir();
+
+  if (!hasGitRepo(repoDir)) {
+    output.error('No local thought repo found', 'enrich.repo_not_found');
+    return 1;
+  }
+
+  reporter.event('enrich.start');
+  const result = await runEnrichmentPipeline(repoDir);
+
+  if (output.json) {
+    output.data('enrich.result', result);
+  } else {
+    const lines = [
+      `Enriched ${result.capturesProcessed} captures`,
+      `Topics promoted: ${result.promotedTopics.length}`,
+      `Topic nodes created: ${result.topicNodesCreated}`,
+      `About edges added: ${result.aboutEdgesAdded}`,
+    ];
+    output.out(lines.join('\n'));
+  }
+
+  reporter.event('enrich.done', result);
+  return 0;
+}
+
+export async function runTopics(output, reporter) {
+  const repoDir = getLocalRepoDir();
+
+  if (!hasGitRepo(repoDir)) {
+    output.error('No local thought repo found', 'topics.repo_not_found');
+    return 1;
+  }
+
+  reporter.event('topics.start');
+  const topics = await listTopics(repoDir);
+  reporter.event('topics.done', { count: topics.length });
+
+  if (output.json) {
+    for (const topic of topics) {
+      output.data('topics.topic', topic);
+    }
+  } else if (topics.length === 0) {
+    output.out('No promoted topics yet. Capture more thoughts and run --enrich.');
+  } else {
+    for (const topic of topics) {
+      output.out(`${topic.name} (${topic.thoughtCount} thoughts)`);
+    }
+  }
+
   return 0;
 }
 
@@ -180,11 +257,12 @@ export async function runRecent(output, reporter, options) {
     return 0;
   }
 
-  const entries = await listRecent(repoDir, {
+  const result = await listRecent(repoDir, {
     count: options.recentCount === null || options.recentCount === undefined ? null : Number(options.recentCount),
     query: options.recentQuery,
   });
-  reporter.event('recent.done', { count: entries.length });
+  const { entries, total } = result;
+  reporter.event('recent.done', { count: entries.length, total });
   if (entries.length > 0) {
     if (output.json) {
       for (const [index, entry] of entries.entries()) {
@@ -197,6 +275,9 @@ export async function runRecent(output, reporter, options) {
       }
     } else {
       output.out(entries.map(entry => entry.text).join('\n'));
+      if (entries.length < total) {
+        output.out(`(showing ${entries.length} of ${total} captures)`);
+      }
     }
   }
 
@@ -489,28 +570,92 @@ async function runInteractiveBrowseShell(output, reporter) {
 
   let activeMind = minds[0];
   let skipSplash = false;
+  let splashShown = false;
+  const browseLoads = new Map();
+  const preloadMind = (mind) => {
+    const key = mind.repoDir;
+    if (!browseLoads.has(key)) {
+      browseLoads.set(key, beginInteractiveBrowseLoad(mind));
+    }
+    return browseLoads.get(key);
+  };
+  let pendingBrowseLoad = preloadMind(activeMind);
 
   while (true) {
-    const { repoDir } = activeMind;
+    const showInitialSplash = !splashShown;
+    if (showInitialSplash) {
+      // eslint-disable-next-line no-await-in-loop -- interactive splash selects the initial mind
+      const splashResult = await showSplash({ minds });
+      if (splashResult.action === 'quit') {
+        return 0;
+      }
+      if (splashResult.mind && splashResult.mind.repoDir !== activeMind.repoDir) {
+        activeMind = splashResult.mind;
+        pendingBrowseLoad = preloadMind(activeMind);
+      }
+      splashShown = true;
+      skipSplash = true;
+    }
 
-    if (!hasGitRepo(repoDir)) {
+    const { repoDir } = activeMind;
+    const screenHeldFromSplash = showInitialSplash;
+
+    if (screenHeldFromSplash && !pendingBrowseLoad.isSettled()) {
+      renderBrowseOpeningFrame(activeMind);
+    }
+    // eslint-disable-next-line no-await-in-loop -- sequential mind-switch loop
+    const loaded = await pendingBrowseLoad.promise;
+    if (!loaded.ok && loaded.reason === 'repo_missing') {
+      if (screenHeldFromSplash) {
+        restoreInteractiveBrowseScreen();
+      }
       output.error(`Mind "${activeMind.name}" has no thought repo`, 'browse.entry_not_found');
       return 1;
     }
+    if (!loaded.ok) {
+      if (screenHeldFromSplash) {
+        restoreInteractiveBrowseScreen();
+      }
+      throw loaded.error;
+    }
+    let { read, graphStatus, bootstrap } = loaded;
+    const migrationBreaksHandoff = graphStatus.migrationRequired;
+    const screenStillHeldFromSplash = screenHeldFromSplash && !migrationBreaksHandoff;
 
-    // eslint-disable-next-line no-await-in-loop -- sequential mind-switch loop
-    const read = await openProductReadHandle(repoDir);
-    // eslint-disable-next-line no-await-in-loop -- sequential mind-switch loop
-    const graphStatus = await getGraphModelStatusForRead(read);
+    if (migrationBreaksHandoff && screenHeldFromSplash) {
+      restoreInteractiveBrowseScreen();
+    }
 
     // eslint-disable-next-line no-await-in-loop -- sequential mind-switch loop
     if (!await ensureGraphModelReadyFromStatus(repoDir, 'browse', graphStatus, output, reporter)) {
       return 1;
     }
 
-    // eslint-disable-next-line no-await-in-loop -- sequential mind-switch loop
-    const bootstrap = await prepareBrowseBootstrapForRead(read);
+    if (migrationBreaksHandoff) {
+      browseLoads.delete(repoDir);
+      pendingBrowseLoad = preloadMind(activeMind);
+      // eslint-disable-next-line no-await-in-loop -- graph migration changes the read basis
+      const reloaded = await pendingBrowseLoad.promise;
+      if (!reloaded.ok) {
+        if (screenStillHeldFromSplash) {
+          restoreInteractiveBrowseScreen();
+        }
+        throw reloaded.error;
+      }
+      ({ read, bootstrap } = reloaded);
+    }
+
+    if (!bootstrap) {
+      if (screenStillHeldFromSplash) {
+        restoreInteractiveBrowseScreen();
+      }
+      output.error('Mind could not be prepared for browse', 'browse.entry_not_found');
+      return 1;
+    }
     if (!bootstrap.ok) {
+      if (screenStillHeldFromSplash) {
+        restoreInteractiveBrowseScreen();
+      }
       output.error(`Mind "${activeMind.name}" has no raw captures to browse`, 'browse.entry_not_found');
       return 1;
     }
@@ -524,6 +669,7 @@ async function runInteractiveBrowseShell(output, reporter) {
       minds,
       activeMind,
       skipSplash,
+      handoffFromSplash: screenStillHeldFromSplash,
       loadBrowseWindow: (thoughtEntryId) => getBrowseWindowForRead(read, thoughtEntryId),
       loadChronologyEntries: () => loadBrowseChronologyEntriesForRead(read),
       loadInspectEntry: (thoughtEntryId) => inspectRawEntryForRead(read, thoughtEntryId),
@@ -568,6 +714,7 @@ async function runInteractiveBrowseShell(output, reporter) {
     if (tuiResult.type === 'switch_mind') {
       activeMind = tuiResult.mind;
       skipSplash = true;
+      pendingBrowseLoad = preloadMind(activeMind);
       continue;
     }
 
@@ -575,6 +722,78 @@ async function runInteractiveBrowseShell(output, reporter) {
   }
 
   return 0;
+}
+
+function beginInteractiveBrowseLoad(mind) {
+  let settled = false;
+  const promise = loadInteractiveBrowseMind(mind).then(
+    (result) => {
+      settled = true;
+      return result;
+    },
+    (error) => {
+      settled = true;
+      return { ok: false, reason: 'error', error };
+    },
+  );
+
+  return {
+    promise,
+    isSettled: () => settled,
+  };
+}
+
+async function loadInteractiveBrowseMind(mind) {
+  const { repoDir } = mind;
+  if (!hasGitRepo(repoDir)) {
+    return { ok: false, reason: 'repo_missing' };
+  }
+
+  const read = await openProductReadHandle(repoDir);
+  const graphStatus = await getGraphModelStatusForRead(read);
+  const bootstrap = graphStatus.migrationRequired
+    ? null
+    : await prepareBrowseBootstrapForRead(read);
+
+  return {
+    ok: true,
+    read,
+    graphStatus,
+    bootstrap,
+  };
+}
+
+function renderBrowseOpeningFrame(mind) {
+  const cols = process.stdout.columns || 80;
+  const rows = process.stdout.rows || 24;
+  const bg = '\x1b[48;2;45;25;34m';
+  const titleFg = '\x1b[38;2;255;252;201m';
+  const dimFg = '\x1b[38;2;140;138;110m';
+  const accentFg = '\x1b[38;2;65;183;151m';
+  const title = `Opening mind "${mind.name}"`;
+  const subtitle = 'Preparing read view';
+  const barWidth = Math.max(4, Math.min(32, cols - 4));
+  const fillWidth = Math.floor(barWidth * 0.65);
+  const bar = `[${'='.repeat(fillWidth)}${' '.repeat(barWidth - fillWidth)}]`;
+  const centerY = Math.max(0, Math.floor(rows / 2) - 2);
+
+  process.stdout.write(`${bg}\x1b[2J`);
+  writeCenteredLine(centerY, title, titleFg, cols);
+  writeCenteredLine(centerY + 2, bar, accentFg, cols);
+  writeCenteredLine(centerY + 4, subtitle, dimFg, cols);
+  process.stdout.write('\x1b[0m');
+}
+
+function restoreInteractiveBrowseScreen() {
+  process.stdout.write('\x1b[?25h');
+  process.stdout.write('\x1b[?7h');
+  process.stdout.write('\x1b[?1049l');
+}
+
+function writeCenteredLine(row, text, fg, cols) {
+  const fittedText = text.length > cols ? text.slice(0, cols) : text;
+  const column = Math.max(0, Math.floor((cols - fittedText.length) / 2));
+  process.stdout.write(`\x1b[${row + 1};${column + 1}H${fg}${fittedText}`);
 }
 
 export async function runInspect(entryId, output, reporter) {
@@ -618,6 +837,11 @@ export async function runInspect(entryId, output, reporter) {
     }
     if (entry.sessionAttribution) {
       output.data('inspect.receipt', entry.sessionAttribution);
+    }
+    if (entry.annotations && entry.annotations.length > 0) {
+      for (const annotation of entry.annotations) {
+        output.data('inspect.annotation', annotation);
+      }
     }
     return 0;
   }
@@ -673,6 +897,13 @@ export async function runInspect(entryId, output, reporter) {
   } else {
     lines.push('Session: pending');
     lines.push('Why: Session attribution has not been materialized yet.');
+  }
+
+  if (entry.annotations && entry.annotations.length > 0) {
+    lines.push('Annotations');
+    for (const annotation of entry.annotations) {
+      lines.push(`${annotation.createdAt}: ${annotation.text}`);
+    }
   }
 
   output.out(lines.join('\n'));

@@ -6,22 +6,26 @@ export function isInteractiveReflectAvailable() {
   return process.stdin.isTTY === true && process.stdout.isTTY === true;
 }
 
+function isInteractiveShellAvailable(outputOrOptions) {
+  return !outputOrOptions.json && isInteractiveReflectAvailable();
+}
+
 export function shouldUseInteractiveReflectShell(output) {
-  return !output.json && isInteractiveReflectAvailable();
+  return isInteractiveShellAvailable(output);
 }
 
 export function shouldUseInteractiveBrowseShell(output) {
-  return !output.json && isInteractiveReflectAvailable();
+  return isInteractiveShellAvailable(output);
 }
 
 export function canInteractivelyOpenBrowseShell(options) {
-  return !options.json && isInteractiveReflectAvailable();
+  return isInteractiveShellAvailable(options);
 }
 
 export function canInteractivelyPickReflectSeed(options) {
-  return !options.json && isInteractiveReflectAvailable();
+  return isInteractiveShellAvailable(options);
 }
 
 export function canInteractivelyOfferGraphMigration(output) {
-  return !output.json && isInteractiveReflectAvailable();
+  return isInteractiveShellAvailable(output);
 }

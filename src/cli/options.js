@@ -1,4 +1,22 @@
 import { REFLECT_PROMPT_TYPES } from '../store.js';
+
+export const COMMANDS = Object.freeze({
+  ANNOTATE: 'annotate',
+  CAPTURE: 'capture',
+  ENRICH: 'enrich',
+  RECENT: 'recent',
+  REMEMBER: 'remember',
+  STATS: 'stats',
+  TOPICS: 'topics',
+  PROMPT_METRICS: 'prompt_metrics',
+  BROWSE: 'browse',
+  INSPECT: 'inspect',
+  DOCTOR: 'doctor',
+  MIGRATE_GRAPH: 'migrate_graph',
+  INGEST: 'ingest',
+  REFLECT_START: 'reflect_start',
+  REFLECT_REPLY: 'reflect_reply',
+});
 import {
   canInteractivelyOpenBrowseShell,
   canInteractivelyPickReflectSeed,
@@ -15,6 +33,10 @@ export function parseArgs(args) {
     recent: false,
     remember: false,
     ingest: false,
+    annotateFlag: false,
+    annotate: null,
+    enrich: false,
+    topics: false,
     reflectFlag: false,
     reflect: null,
     reflectMode: null,
@@ -82,9 +104,19 @@ export function parseArgs(args) {
       } else if (arg === '--inspect') {
         options.inspectFlag = true;
         options.inspect = '';
+      } else if (arg === '--annotate') {
+        options.annotateFlag = true;
+        options.annotate = '';
       } else if (arg.startsWith('--inspect=')) {
         options.inspectFlag = true;
         options.inspect = arg.slice('--inspect='.length);
+      } else if (arg.startsWith('--annotate=')) {
+        options.annotateFlag = true;
+        options.annotate = arg.slice('--annotate='.length);
+      } else if (arg === '--enrich') {
+        options.enrich = true;
+      } else if (arg === '--topics') {
+        options.topics = true;
       } else if (arg === '--migrate-graph') {
         options.migrateGraph = true;
       } else if (arg === '--doctor') {
@@ -137,47 +169,28 @@ export function parseArgs(args) {
     positionals.push(arg);
   }
 
-  return {
+  return Object.freeze({
     ...options,
-    positionals,
-  };
+    positionals: Object.freeze(positionals),
+  });
 }
 
 export function resolveCommand(options) {
-  if (options.reflectSessionFlag) {
-    return 'reflect_reply';
-  }
-  if (options.reflectFlag) {
-    return 'reflect_start';
-  }
-  if (options.browseFlag) {
-    return 'browse';
-  }
-  if (options.inspectFlag) {
-    return 'inspect';
-  }
-  if (options.doctor) {
-    return 'doctor';
-  }
-  if (options.migrateGraph) {
-    return 'migrate_graph';
-  }
-  if (options.ingest) {
-    return 'ingest';
-  }
-  if (options.remember) {
-    return 'remember';
-  }
-  if (options.stats) {
-    return 'stats';
-  }
-  if (options.promptMetrics) {
-    return 'prompt_metrics';
-  }
-  if (options.recent) {
-    return 'recent';
-  }
-  return 'capture';
+  if (options.reflectSessionFlag) { return COMMANDS.REFLECT_REPLY; }
+  if (options.reflectFlag) { return COMMANDS.REFLECT_START; }
+  if (options.browseFlag) { return COMMANDS.BROWSE; }
+  if (options.inspectFlag) { return COMMANDS.INSPECT; }
+  if (options.annotateFlag) { return COMMANDS.ANNOTATE; }
+  if (options.enrich) { return COMMANDS.ENRICH; }
+  if (options.topics) { return COMMANDS.TOPICS; }
+  if (options.doctor) { return COMMANDS.DOCTOR; }
+  if (options.migrateGraph) { return COMMANDS.MIGRATE_GRAPH; }
+  if (options.ingest) { return COMMANDS.INGEST; }
+  if (options.remember) { return COMMANDS.REMEMBER; }
+  if (options.stats) { return COMMANDS.STATS; }
+  if (options.promptMetrics) { return COMMANDS.PROMPT_METRICS; }
+  if (options.recent) { return COMMANDS.RECENT; }
+  return COMMANDS.CAPTURE;
 }
 
 export function validateOptions(options, command) {
@@ -279,6 +292,23 @@ export function validateOptions(options, command) {
     return '--prompt-metrics does not take a thought';
   }
 
+  if (command === 'annotate') {
+    if (!options.annotate) {
+      return '--annotate requires an entry id';
+    }
+    if (options.positionals.length === 0) {
+      return '--annotate requires annotation text';
+    }
+  }
+
+  if (command === 'enrich' && options.positionals.length > 0) {
+    return '--enrich does not take a thought';
+  }
+
+  if (command === 'topics' && options.positionals.length > 0) {
+    return '--topics does not take a thought';
+  }
+
   if (command === 'reflect_start') {
     if (options.reflectMode && !REFLECT_PROMPT_TYPES.includes(options.reflectMode)) {
       return 'Invalid --mode value';
@@ -350,6 +380,9 @@ export function countExplicitCommands(options) {
     options.stats,
     options.reflectFlag,
     options.reflectSessionFlag,
+    options.annotateFlag,
+    options.enrich,
+    options.topics,
   ].filter(Boolean).length;
 }
 

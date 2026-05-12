@@ -13,22 +13,29 @@ export function captureProvenanceFromEnvironment(environment = process.env) {
   });
 }
 
+export class CaptureProvenance {
+  constructor(ingress, sourceApp, sourceURL) {
+    this.ingress = ingress;
+    this.sourceApp = sourceApp;
+    this.sourceURL = sourceURL;
+    Object.freeze(this);
+  }
+}
+
 export function normalizeCaptureProvenance(provenance) {
   if (!provenance || typeof provenance !== 'object') {
     return null;
   }
 
-  const normalized = {
-    ingress: normalizeIngress(provenance.ingress),
-    sourceApp: normalizeString(provenance.sourceApp),
-    sourceURL: normalizeUrl(provenance.sourceURL),
-  };
+  const ingress = normalizeIngress(provenance.ingress);
+  const sourceApp = normalizeString(provenance.sourceApp);
+  const sourceURL = normalizeUrl(provenance.sourceURL);
 
-  if (!normalized.ingress && !normalized.sourceApp && !normalized.sourceURL) {
+  if (!ingress && !sourceApp && !sourceURL) {
     return null;
   }
 
-  return normalized;
+  return new CaptureProvenance(ingress, sourceApp, sourceURL);
 }
 
 function normalizeIngress(value) {
@@ -49,13 +56,19 @@ function normalizeString(value) {
   return trimmed === '' ? null : trimmed;
 }
 
+const SAFE_URL_SCHEMES = new Set(['http:', 'https:']);
+
 function normalizeUrl(value) {
   if (typeof value !== 'string' || value.trim() === '') {
     return null;
   }
 
   try {
-    return new URL(value).toString();
+    const parsed = new URL(value);
+    if (!SAFE_URL_SCHEMES.has(parsed.protocol)) {
+      return null;
+    }
+    return parsed.toString();
   } catch {
     return null;
   }

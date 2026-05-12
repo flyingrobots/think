@@ -4,27 +4,19 @@ import * as z from 'zod/v4';
 
 import pkg from '../../package.json' with { type: 'json' };
 import { VALID_CAPTURE_INGRESSES } from '../capture-provenance.js';
-import { toToolResult } from './result.js';
-import {
-  formatBrowseWindow,
-  formatInspectEntry,
-  formatPromptMetrics,
-  formatRecentEntries,
-  formatStats,
-} from './format.js';
 import {
   browseThought,
   captureThought,
   getPromptMetricsForMcp,
   getThoughtStats,
-  checkThinkHealth,
+  checkThinkHealthForMcp,
   inspectThought,
   listRecentThoughts,
   migrateThoughtGraph,
   rememberThoughtsForMcp,
 } from './service.js';
 
-const recentEntrySchema = z.object({
+const mcpEntrySchema = z.object({
   createdAt: z.string(),
   entryId: z.string(),
   sessionId: z.string().nullable(),
@@ -32,13 +24,46 @@ const recentEntrySchema = z.object({
   text: z.string(),
 });
 
-const browseEntrySchema = z.object({
-  createdAt: z.string(),
+const migrationSchema = z.object({
+  changed: z.boolean(),
+  edgesAdded: z.number().int().nonnegative(),
+  edgesRemoved: z.number().int().nonnegative(),
+  graphModelVersion: z.number().int().positive(),
+  metadataUpdated: z.boolean(),
+}).nullable();
+
+const matchSchema = z.object({
   entryId: z.string(),
-  sessionId: z.string().nullable(),
-  sortKey: z.string(),
   text: z.string(),
+  createdAt: z.string(),
+  sortKey: z.string(),
+  score: z.number(),
+  tier: z.number(),
+  matchKinds: z.array(z.string()),
+  reasonText: z.string(),
 });
+
+const scopeSchema = z.object({
+  scopeKind: z.string(),
+}).passthrough();
+
+const sessionContextSchema = z.object({
+  entryId: z.string(),
+  sessionId: z.string(),
+  reasonKind: z.string(),
+  reasonText: z.string(),
+  sessionPosition: z.number().int(),
+  sessionCount: z.number().int(),
+}).nullable();
+
+const inspectEntrySchema = z.object({
+  entryId: z.string(),
+  thoughtId: z.string(),
+  kind: z.string(),
+  text: z.string(),
+  sortKey: z.string(),
+  createdAt: z.string(),
+}).passthrough();
 
 const bucketSchema = z.object({
   count: z.number().int().nonnegative(),
@@ -88,14 +113,14 @@ export function createThinkMcpServer() {
     outputSchema: {
       backupStatus: z.enum(['backed_up', 'pending', 'skipped']),
       entryId: z.string(),
-      migration: z.any().nullable(),
+      migration: migrationSchema,
       repoBootstrapped: z.boolean(),
       status: z.literal('saved_locally'),
       warnings: z.array(z.string()),
     },
-  }, async ({ ingress, sourceApp, sourceURL, text }) => toToolResult(await captureThought(text, {
+  }, async ({ ingress, sourceApp, sourceURL, text }) => (await captureThought(text, {
     provenance: { ingress, sourceApp, sourceURL },
-  })));
+  })).toToolResult());
 
   server.registerTool('recent', {
     description: 'List recent raw captures from Think.',
@@ -104,12 +129,13 @@ export function createThinkMcpServer() {
       query: z.string().optional().describe('Optional case-insensitive text filter.'),
     },
     outputSchema: {
-      entries: z.array(recentEntrySchema),
+      entries: z.array(mcpEntrySchema),
       repoPresent: z.boolean(),
+      total: z.number().int().nonnegative(),
     },
   }, async ({ count, query }) => {
     const result = await listRecentThoughts({ count: count ?? null, query: query ?? null });
-    return toToolResult(result, formatRecentEntries(result.entries));
+    return result.toToolResult();
   });
 
   server.registerTool('remember', {
@@ -120,15 +146,15 @@ export function createThinkMcpServer() {
       query: z.string().optional().describe('Optional explicit recall query. When omitted, uses ambient project context.'),
     },
     outputSchema: {
-      matches: z.array(z.any()),
+      matches: z.array(matchSchema),
       repoPresent: z.boolean(),
-      scope: z.any(),
+      scope: scopeSchema,
     },
-  }, async ({ brief, limit, query }) => toToolResult(await rememberThoughtsForMcp({
+  }, async ({ brief, limit, query }) => (await rememberThoughtsForMcp({
     brief: brief ?? false,
     limit: limit ?? null,
     query: query ?? null,
-  })));
+  })).toToolResult());
 
   server.registerTool('browse', {
     description: 'Return a browse window for one thought, including chronology and session neighbors. If entryId is omitted, starts from the latest capture.',
@@ -136,11 +162,11 @@ export function createThinkMcpServer() {
       entryId: z.string().optional().describe('Optional capture entry id. When omitted, uses the latest capture.'),
     },
     outputSchema: {
-      current: browseEntrySchema,
-      newer: browseEntrySchema.nullable(),
-      older: browseEntrySchema.nullable(),
-      sessionContext: z.any().nullable(),
-      sessionEntries: z.array(browseEntrySchema),
+      current: mcpEntrySchema,
+      newer: mcpEntrySchema.nullable(),
+      older: mcpEntrySchema.nullable(),
+      sessionContext: sessionContextSchema,
+      sessionEntries: z.array(mcpEntrySchema),
       sessionSteps: z.array(z.object({
         createdAt: z.string(),
         direction: z.enum(['next', 'previous']),
@@ -153,7 +179,7 @@ export function createThinkMcpServer() {
     },
   }, async ({ entryId }) => {
     const result = await browseThought({ entryId: entryId ?? null });
-    return toToolResult(result, formatBrowseWindow(result));
+    return result.toToolResult();
   });
 
   server.registerTool('inspect', {
@@ -162,11 +188,11 @@ export function createThinkMcpServer() {
       entryId: z.string().describe('The raw capture entry id to inspect.'),
     },
     outputSchema: {
-      entry: z.any(),
+      entry: inspectEntrySchema,
     },
   }, async ({ entryId }) => {
     const result = await inspectThought(entryId);
-    return toToolResult(result, formatInspectEntry(result));
+    return result.toToolResult();
   });
 
   server.registerTool('stats', {
@@ -184,7 +210,7 @@ export function createThinkMcpServer() {
     },
   }, async ({ bucket, from, since, to }) => {
     const result = await getThoughtStats({ bucket: bucket ?? null, from: from ?? null, since: since ?? null, to: to ?? null });
-    return toToolResult(result, formatStats(result));
+    return result.toToolResult();
   });
 
   server.registerTool('prompt_metrics', {
@@ -202,7 +228,7 @@ export function createThinkMcpServer() {
     },
   }, async ({ bucket, from, since, to }) => {
     const result = await getPromptMetricsForMcp({ bucket: bucket ?? null, from: from ?? null, since: since ?? null, to: to ?? null });
-    return toToolResult(result, formatPromptMetrics(result));
+    return result.toToolResult();
   });
 
   const checkSchema = z.object({
@@ -216,7 +242,7 @@ export function createThinkMcpServer() {
     outputSchema: {
       checks: z.array(checkSchema),
     },
-  }, async () => toToolResult(await checkThinkHealth()));
+  }, async () => (await checkThinkHealthForMcp()).toToolResult());
 
   server.registerTool('migrate_graph', {
     description: 'Upgrade the local Think graph model in place.',
@@ -227,7 +253,7 @@ export function createThinkMcpServer() {
       graphModelVersion: z.number().int().positive(),
       metadataUpdated: z.boolean(),
     },
-  }, async () => toToolResult(await migrateThoughtGraph()));
+  }, async () => (await migrateThoughtGraph()).toToolResult());
 
   return server;
 }

@@ -10,42 +10,43 @@ import {
   SESSION_IDLE_GAP_MS,
   SESSION_PREFIX,
 } from './constants.js';
+import { encodeTextContent } from './content.js';
 import {
   compareEntriesNewestFirst,
-  compareEntriesOldestFirst,
   createArtifactId,
   createThoughtId,
   getCurrentTime,
   normalizeSeed,
 } from './model.js';
 import {
-  getLatestCaptureId,
+  getLatestStoredEntry,
   getProducedInSessionId,
   getStoredEntry,
   hasNode,
   listEntriesByKind,
+  patchWarpApp,
 } from './runtime.js';
 
 export function assessReflectability(text) {
   const seedQuality = deriveSeedQuality(createThoughtId(text), text);
 
   if (seedQuality.verdict === 'likely_reflectable') {
-    return {
+    return Object.freeze({
       eligible: true,
       kind: 'pressure_testable',
       text: 'This entry looks like a candidate idea, question, or decision that can be pressure-tested.',
-    };
+    });
   }
 
-  return {
+  return Object.freeze({
     eligible: false,
     kind: 'not_pressure_testable',
     text: 'This entry looks more like a note than a pressure-testable idea.',
     suggestion: 'Pick a different seed or capture a sharper claim first.',
-  };
+  });
 }
 
-export async function ensureFirstDerivedArtifacts(app, read, entry) {
+export async function ensureFirstDerivedArtifacts(repoDir, read, entry) {
   if (!entry || entry.kind !== 'capture') {
     return null;
   }
@@ -90,7 +91,7 @@ export async function ensureFirstDerivedArtifacts(app, read, entry) {
     };
   }
 
-  await app.patch(async (patch) => {
+  await patchWarpApp(repoDir, async (patch) => {
     ensureGraphMetadataNode(patch, graphMetaProps);
 
     if (!thoughtNodeExists) {
@@ -101,7 +102,7 @@ export async function ensureFirstDerivedArtifacts(app, read, entry) {
         .setProperty(thoughtId, 'createdAt', entry.createdAt)
         .setProperty(thoughtId, 'schemaVersion', SCHEMA_VERSION);
 
-      await patch.attachContent(thoughtId, entry.text, { mime: 'text/plain; charset=utf-8' });
+      await patch.attachContent(thoughtId, encodeTextContent(entry.text), { mime: 'text/plain; charset=utf-8' });
     }
 
     if (needsCaptureThoughtLink) {
@@ -139,18 +140,17 @@ export async function ensureFirstDerivedArtifacts(app, read, entry) {
   };
 }
 
-export async function ensureCaptureReadEdges(app, read, entryId) {
+export async function ensureCaptureReadEdges(repoDir, read, entryId) {
   const entry = await getStoredEntry(read, entryId);
   if (!entry || entry.kind !== 'capture') {
     return;
   }
 
-  const latestCaptureId = await getLatestCaptureId(read);
-  if (latestCaptureId === entry.id) {
+  const latestEntry = await getLatestStoredEntry(read);
+  if (latestEntry && latestEntry.id === entry.id) {
     return;
   }
 
-  const latestEntry = latestCaptureId ? await getStoredEntry(read, latestCaptureId) : null;
   if (latestEntry && compareEntriesNewestFirst(entry, latestEntry) >= 0) {
     return;
   }
@@ -160,7 +160,7 @@ export async function ensureCaptureReadEdges(app, read, entryId) {
     .outgoing('latest_capture')
     .run();
 
-  await app.patch((patch) => {
+  await patchWarpApp(repoDir, (patch) => {
     for (const node of latestCaptureNodes.nodes ?? []) {
       patch.removeEdge(GRAPH_META_ID, node.id, 'latest_capture');
     }
@@ -168,6 +168,7 @@ export async function ensureCaptureReadEdges(app, read, entryId) {
     patch.addEdge(GRAPH_META_ID, entry.id, 'latest_capture');
     if (latestEntry) {
       patch.addEdge(entry.id, latestEntry.id, 'older');
+      patch.addEdge(latestEntry.id, entry.id, 'newer');
     }
   });
 }
@@ -226,7 +227,7 @@ export function deriveSeedQuality(thoughtId, text) {
   const normalized = normalizeSeed(text);
   const eligible = REFLECT_MARKERS.some((pattern) => pattern.test(normalized));
 
-  return {
+  return Object.freeze({
     artifactId: createArtifactId('seed_quality', thoughtId),
     kind: 'seed_quality',
     primaryInputKind: 'thought',
@@ -236,87 +237,70 @@ export function deriveSeedQuality(thoughtId, text) {
     reasonText: eligible
       ? 'Contains explicit proposal, uncertainty, or decision language that can be pressure-tested.'
       : 'Reads more like a status, narrative, or observational note than a pressure-testable idea.',
-    promptFamilies: eligible ? [...REFLECT_PROMPT_TYPES] : [],
+    promptFamilies: Object.freeze(eligible ? [...REFLECT_PROMPT_TYPES] : []),
     deriver: DERIVER_NAME,
     deriverVersion: DERIVER_VERSION,
     schemaVersion: SCHEMA_VERSION,
     createdAt: getCurrentTime().toISOString(),
-  };
+  });
 }
 
 export async function deriveSessionAttribution(read, entry) {
-  const captures = await listEntriesByKind(read, 'capture');
-  const ordered = captures
-    .filter((candidate) => candidate.id !== entry.id)
-    .concat([{ ...entry }])
-    .sort(compareEntriesOldestFirst);
+  const latestEntry = await getLatestStoredEntry(read);
 
-  let sessionStart = ordered[0];
-  let previous = null;
+  if (latestEntry && latestEntry.id !== entry.id) {
+    const gapMs = Date.parse(entry.createdAt) - Date.parse(latestEntry.createdAt);
+    if (gapMs <= SESSION_IDLE_GAP_MS) {
+      const activeSessionId = latestEntry.sessionId || `${SESSION_PREFIX}${latestEntry.sortKey}`;
+      const sessionCreatedAt = latestEntry.sessionCreatedAt || latestEntry.createdAt;
+      const sessionStartSortKey = latestEntry.sessionStartSortKey || latestEntry.sortKey;
 
-  for (const capture of ordered) {
-    if (previous) {
-      const gapMs = Date.parse(capture.createdAt) - Date.parse(previous.createdAt);
-      if (gapMs > SESSION_IDLE_GAP_MS) {
-        sessionStart = capture;
-      }
-    }
-
-    if (capture.id === entry.id) {
-      const withinBucket = previous
-        && (Date.parse(capture.createdAt) - Date.parse(previous.createdAt)) <= SESSION_IDLE_GAP_MS;
-      const sessionId = `${SESSION_PREFIX}${sessionStart.sortKey}`;
-
-      return {
-        artifactId: createArtifactId('session_attribution', entry.id, sessionId),
+      return Object.freeze({
+        artifactId: createArtifactId('session_attribution', entry.id, activeSessionId),
         kind: 'session_attribution',
         primaryInputKind: 'capture',
         primaryInputId: entry.id,
-        sessionId,
-        sessionCreatedAt: sessionStart.createdAt,
-        sessionStartSortKey: sessionStart.sortKey,
-        reasonKind: withinBucket ? 'temporal_proximity' : 'new_session_bucket',
-        reasonText: withinBucket
-          ? 'Captured within 5 minutes of neighboring entries in the same session bucket.'
-          : 'Started a new session bucket because no neighboring capture fell within the 5 minute idle-gap threshold.',
+        sessionId: activeSessionId,
+        sessionCreatedAt,
+        sessionStartSortKey,
+        reasonKind: 'temporal_proximity',
+        reasonText: 'Captured within 5 minutes of the most recent entry.',
         deriver: DERIVER_NAME,
         deriverVersion: DERIVER_VERSION,
         schemaVersion: SCHEMA_VERSION,
         createdAt: getCurrentTime().toISOString(),
-      };
+      });
     }
-
-    previous = capture;
   }
 
-  const fallbackSessionId = `${SESSION_PREFIX}${entry.sortKey}`;
-  return {
-    artifactId: createArtifactId('session_attribution', entry.id, fallbackSessionId),
+  const sessionId = `${SESSION_PREFIX}${entry.sortKey}`;
+  return Object.freeze({
+    artifactId: createArtifactId('session_attribution', entry.id, sessionId),
     kind: 'session_attribution',
     primaryInputKind: 'capture',
     primaryInputId: entry.id,
-    sessionId: fallbackSessionId,
+    sessionId,
     sessionCreatedAt: entry.createdAt,
     sessionStartSortKey: entry.sortKey,
     reasonKind: 'new_session_bucket',
-    reasonText: 'Started a new session bucket because no neighboring capture fell within the 5 minute idle-gap threshold.',
+    reasonText: 'Started a new session bucket because no recent capture fell within the 5 minute idle-gap threshold.',
     deriver: DERIVER_NAME,
     deriverVersion: DERIVER_VERSION,
     schemaVersion: SCHEMA_VERSION,
     createdAt: getCurrentTime().toISOString(),
-  };
+  });
 }
 
 export async function getCanonicalThought(read, entry) {
   const thoughtId = entry.thoughtId ?? createThoughtId(entry.text);
   const thoughtProps = await read.view.getNodeProps(thoughtId);
 
-  return {
+  return Object.freeze({
     entryId: entry.id,
     thoughtId,
     relation: 'expresses',
     stored: Boolean(thoughtProps),
-  };
+  });
 }
 
 export async function getSeedQualityReceipt(read, entry) {
@@ -327,7 +311,7 @@ export async function getSeedQualityReceipt(read, entry) {
     return null;
   }
 
-  return {
+  return Object.freeze({
     artifactId,
     kind: 'seed_quality',
     primaryInputKind: props.primaryInputKind,
@@ -335,12 +319,12 @@ export async function getSeedQualityReceipt(read, entry) {
     verdict: props.verdict,
     reasonKind: props.reasonKind,
     reasonText: props.reasonText,
-    promptFamilies: parseJsonArray(props.promptFamiliesJson),
+    promptFamilies: Object.freeze(parseJsonArray(props.promptFamiliesJson)),
     deriver: props.deriver,
     deriverVersion: props.deriverVersion,
     schemaVersion: props.schemaVersion,
     createdAt: props.createdAt,
-  };
+  });
 }
 
 export async function getSessionAttributionReceipt(read, entry) {
@@ -353,7 +337,7 @@ export async function getSessionAttributionReceipt(read, entry) {
     return null;
   }
 
-  return {
+  return Object.freeze({
     artifactId,
     kind: 'session_attribution',
     primaryInputKind: props.primaryInputKind,
@@ -365,7 +349,7 @@ export async function getSessionAttributionReceipt(read, entry) {
     deriverVersion: props.deriverVersion,
     schemaVersion: props.schemaVersion,
     createdAt: props.createdAt,
-  };
+  });
 }
 
 export async function getSessionAttributionReceiptIfPresent(read, entry) {
@@ -379,7 +363,7 @@ export async function getSessionAttributionReceiptIfPresent(read, entry) {
     return null;
   }
 
-  return {
+  return Object.freeze({
     artifactId,
     kind: 'session_attribution',
     primaryInputKind: props.primaryInputKind,
@@ -391,7 +375,7 @@ export async function getSessionAttributionReceiptIfPresent(read, entry) {
     deriverVersion: props.deriverVersion,
     schemaVersion: props.schemaVersion,
     createdAt: props.createdAt,
-  };
+  });
 }
 
 function addArtifactNode(patch, artifact) {

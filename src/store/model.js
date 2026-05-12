@@ -1,22 +1,35 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import os from 'node:os';
+
+import { ValidationError } from '../errors.js';
 
 import { parseJson } from '../json.js';
 import {
   ARTIFACT_PREFIX,
+  BUCKET_PERIODS,
   DERIVER_VERSION,
   ENTRY_PREFIX,
   MAX_REFLECT_STEPS,
   REFLECT_SESSION_PREFIX,
   SCHEMA_VERSION,
+  TEXT_CONTENT_KINDS,
   THOUGHT_PREFIX,
 } from './constants.js';
 
+/**
+ * Ports for deterministic execution.
+ */
+export const DEFAULT_PORTS = Object.freeze({
+  clock: { now: () => new Date() },
+  random: { uuid: () => crypto.randomUUID() },
+  host: { hostname: () => os.hostname() },
+});
+
 export function storesTextContent(kind) {
-  return kind === 'capture' || kind === 'reflect' || kind === 'thought';
+  return TEXT_CONTENT_KINDS.includes(kind);
 }
 
-export function getCurrentTime() {
+export function getCurrentTime(ports = DEFAULT_PORTS) {
   if (process.env.THINK_TEST_NOW) {
     const ms = parseInt(process.env.THINK_TEST_NOW, 10);
     if (!Number.isNaN(ms)) {
@@ -24,7 +37,7 @@ export function getCurrentTime() {
     }
   }
 
-  return new Date();
+  return ports.clock.now();
 }
 
 export function parseSince(since, now) {
@@ -44,9 +57,12 @@ export function parseSince(since, now) {
 }
 
 export function formatBucketKey(date, bucket) {
+  if (!BUCKET_PERIODS.includes(bucket)) {
+    throw new Error(`formatBucketKey: invalid bucket "${bucket}" (expected ${BUCKET_PERIODS.join(', ')})`);
+  }
+
   const iso = date.toISOString();
-  if (bucket === 'hour') {return `${iso.substring(0, 13)  }:00`;}
-  if (bucket === 'day') {return iso.substring(0, 10);}
+  if (bucket === 'hour') { return `${iso.substring(0, 13)}:00`; }
   if (bucket === 'week') {
     const day = new Date(date);
     day.setUTCHours(0, 0, 0, 0);
@@ -97,57 +113,87 @@ export function createArtifactId(kind, primaryInputId, discriminator = '') {
   return `${ARTIFACT_PREFIX}${fingerprint}`;
 }
 
-export function createWriterId() {
-  const hostname = os.hostname().toLowerCase().replace(/[^a-z0-9._-]+/g, '-');
+export function createWriterId(ports = DEFAULT_PORTS) {
+  const hostname = ports.host.hostname().toLowerCase().replace(/[^a-z0-9._-]+/g, '-');
   const safeHostname = hostname || 'unknown-host';
   return `local.${safeHostname}.cli`;
 }
 
-export function createEntry(text, writerId, { kind, source }) {
-  const timestamp = getCurrentTime();
-  const unique = randomUUID();
-  const createdAt = timestamp.toISOString();
-  const sortKey = `${String(timestamp.getTime()).padStart(13, '0')}-${unique}`;
-
-  return {
-    id: `${ENTRY_PREFIX}${sortKey}`,
+export class Entry {
+  constructor(text, writerId, {
     kind,
     source,
-    channel: 'cli',
-    writerId,
-    createdAt,
-    sortKey,
-    text,
-  };
+    seedEntryId = null,
+    contrastEntryId = null,
+    sessionId = null,
+    promptType = null,
+  }, ports = DEFAULT_PORTS) {
+    if (!text || typeof text !== 'string') {
+      throw new ValidationError('Entry: text is required and must be a non-empty string');
+    }
+    if (!writerId || typeof writerId !== 'string') {
+      throw new ValidationError('Entry: writerId is required and must be a non-empty string');
+    }
+
+    const timestamp = getCurrentTime(ports);
+    const unique = ports.random.uuid();
+    const createdAt = timestamp.toISOString();
+    const sortKey = `${String(timestamp.getTime()).padStart(13, '0')}-${unique}`;
+
+    this.id = `${ENTRY_PREFIX}${sortKey}`;
+    this.kind = kind;
+    this.source = source;
+    this.channel = 'cli';
+    this.writerId = writerId;
+    this.createdAt = createdAt;
+    this.sortKey = sortKey;
+    this.text = text;
+    this.seedEntryId = seedEntryId;
+    this.contrastEntryId = contrastEntryId;
+    this.sessionId = sessionId;
+    this.promptType = promptType;
+
+    Object.freeze(this);
+  }
 }
 
-export function createReflectSession(writerId, {
-  seedEntryId,
-  contrastEntryId,
-  promptType,
-  question,
-  selectionReason,
-}) {
-  const timestamp = getCurrentTime();
-  const createdAt = timestamp.toISOString();
-  const unique = randomUUID();
-  const sortKey = `${String(timestamp.getTime()).padStart(13, '0')}-${unique}`;
+export function createEntry(text, writerId, options, ports = DEFAULT_PORTS) {
+  return new Entry(text, writerId, options, ports);
+}
 
-  return {
-    id: `${REFLECT_SESSION_PREFIX}${unique}`,
-    kind: 'reflect_session',
-    source: 'reflect',
-    channel: 'cli',
-    writerId,
-    createdAt,
-    sortKey,
+export class ReflectSession {
+  constructor(writerId, {
     seedEntryId,
     contrastEntryId,
     promptType,
     question,
     selectionReason,
-    maxSteps: MAX_REFLECT_STEPS,
-  };
+  }, ports = DEFAULT_PORTS) {
+    const timestamp = getCurrentTime(ports);
+    const createdAt = timestamp.toISOString();
+    const unique = ports.random.uuid();
+    const sortKey = `${String(timestamp.getTime()).padStart(13, '0')}-${unique}`;
+
+    this.id = `${REFLECT_SESSION_PREFIX}${unique}`;
+    this.kind = 'reflect_session';
+    this.source = 'reflect';
+    this.channel = 'cli';
+    this.writerId = writerId;
+    this.createdAt = createdAt;
+    this.sortKey = sortKey;
+    this.seedEntryId = seedEntryId;
+    this.contrastEntryId = contrastEntryId;
+    this.promptType = promptType;
+    this.question = question;
+    this.selectionReason = selectionReason;
+    this.maxSteps = MAX_REFLECT_STEPS;
+
+    Object.freeze(this);
+  }
+}
+
+export function createReflectSession(writerId, options, ports = DEFAULT_PORTS) {
+  return new ReflectSession(writerId, options, ports);
 }
 
 export function compareEntriesNewestFirst(left, right) {

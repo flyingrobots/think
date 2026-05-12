@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { createResolved } from '@flyingrobots/bijou';
 import { createWindowedBrowseModel } from '../../src/browse-tui/model.js';
+import { thinkShellThemes, thinkThemes } from '../../src/browse-tui/theme.js';
 import { renderBrowseModel } from '../../src/browse-tui/view.js';
 import * as styleExports from '../../src/browse-tui/style.js';
 
@@ -47,4 +49,38 @@ test('windowed browse initializes with no drawer open', () => {
     /┌|└|┐|┘/,
     'Expected the initial live browse frame not to render any drawer border before the user opens a panel.'
   );
+});
+
+test('all browse shell themes resolve with status tokens', () => {
+  const requiredTokens = [
+    'surface.primary',
+    'surface.secondary',
+    'surface.elevated',
+    'surface.overlay',
+    'surface.muted',
+    'semantic.primary',
+    'semantic.muted',
+    'border.primary',
+    'border.muted',
+    'ui.cursor',
+    'ui.scrollThumb',
+    'ui.scrollTrack',
+  ];
+
+  for (const shellTheme of thinkShellThemes) {
+    const { theme } = shellTheme;
+    assert.equal(shellTheme.id, theme.name, 'Expected shell theme id to match the theme name');
+    const resolved = createResolved(theme, false);
+    assert.doesNotThrow(
+      () => {
+        for (const token of requiredTokens) {
+          resolved.tokenGraph.get(token, resolved.colorScheme);
+        }
+      },
+      `Expected shell theme ${theme.name} to resolve`
+    );
+    assert.ok(theme.status.active, `Expected shell theme ${theme.name} to define active status`);
+    assert.ok(theme.status.muted, `Expected shell theme ${theme.name} to define muted status`);
+  }
+  assert.equal(thinkShellThemes.length, thinkThemes.length);
 });

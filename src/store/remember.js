@@ -4,7 +4,7 @@ import { normalizeSeed } from './model.js';
 export function buildAmbientRememberScope(cwd) {
   const context = getAmbientProjectContext(cwd);
 
-  return {
+  return Object.freeze({
     scopeKind: 'ambient_project',
     cwd: context.cwd,
     gitRoot: context.gitRoot,
@@ -12,15 +12,15 @@ export function buildAmbientRememberScope(cwd) {
     gitBranch: context.gitBranch,
     projectName: context.projectName,
     projectTokens: context.projectTokens,
-  };
+  });
 }
 
 export function buildExplicitRememberScope(query) {
-  return {
+  return Object.freeze({
     scopeKind: 'query',
     queryText: String(query).trim(),
-    queryTerms: buildQueryTerms(query),
-  };
+    queryTerms: Object.freeze(buildQueryTerms(query)),
+  });
 }
 
 export function buildAmbientRememberMatch(entry, scope) {
@@ -86,16 +86,16 @@ export function buildAmbientRememberMatch(entry, scope) {
     return null;
   }
 
-  return {
+  return Object.freeze({
     entryId: entry.id,
     text: entry.text,
     sortKey: entry.sortKey,
     createdAt: entry.createdAt,
     score,
     tier,
-    matchKinds,
+    matchKinds: Object.freeze(matchKinds),
     reasonText,
-  };
+  });
 }
 
 export function buildExplicitRememberMatch(entry, scope) {
@@ -114,16 +114,16 @@ export function buildExplicitRememberMatch(entry, scope) {
     ? `matched query phrase "${scope.queryText}"`
     : `matched query terms "${matchedTerms.join('", "')}"`;
 
-  return {
+  return Object.freeze({
     entryId: entry.id,
     text: entry.text,
     sortKey: entry.sortKey,
     createdAt: entry.createdAt,
     score: matchedTerms.length || 1,
     tier: 1,
-    matchKinds,
+    matchKinds: Object.freeze(matchKinds),
     reasonText,
-  };
+  });
 }
 
 export function compareRememberMatches(left, right) {

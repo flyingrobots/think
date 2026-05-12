@@ -21,7 +21,7 @@ Unlike traditional note-taking apps that prioritize organization over ingestion,
 ## Quick Start
 
 ### 1. Local Setup
-Clone, install dependencies, and capture your first thought.
+Requires **Node.js >= 22** and **Git**. Clone, install, capture.
 ```bash
 npm install
 node ./bin/think.js "first captured thought"

@@ -1,9 +1,6 @@
-import {
-  getAmbientProjectContext,
-  getCaptureAmbientContext,
-} from '../project-context.js';
 import { normalizeCaptureProvenance } from '../capture-provenance.js';
 import { TEXT_MIME } from './constants.js';
+import { encodeTextContent } from './content.js';
 import { createEntry } from './model.js';
 import {
   createProductReadHandle,
@@ -11,23 +8,31 @@ import {
   getStoredEntry,
   openProductReadHandle,
   openWarpApp,
+  patchWarpApp,
 } from './runtime.js';
 import { ensureCaptureReadEdges, ensureFirstDerivedArtifacts } from './derivation.js';
 import { migrateGraphModel } from './migrations.js';
+import { getCheckpointGraphModelStatus } from './checkpoint-read.js';
 
 export async function saveRawCapture(repoDir, thought, {
   provenance = null,
-  cwd = process.cwd(),
   ambientContext = null,
 } = {}) {
+  return await writeRawCapture(repoDir, thought, {
+    provenance,
+    ambientContext,
+  });
+}
+
+async function writeRawCapture(repoDir, thought, {
+  provenance,
+  ambientContext,
+}) {
   const app = await openWarpApp(repoDir);
   const entry = createEntry(thought, app.writerId, { kind: 'capture', source: 'capture' });
-  const captureAmbientContext = ambientContext ?? getCaptureAmbientContext(cwd);
-  // Keep the store boundary defensive because direct callers can bypass the
-  // CLI and MCP normalization helpers before reaching persistence.
   const captureProvenance = normalizeCaptureProvenance(provenance);
 
-  await app.patch(async patch => {
+  const patcher = async (patch) => {
     patch
       .addNode(entry.id)
       .setProperty(entry.id, 'kind', entry.kind)
@@ -37,7 +42,7 @@ export async function saveRawCapture(repoDir, thought, {
       .setProperty(entry.id, 'createdAt', entry.createdAt)
       .setProperty(entry.id, 'sortKey', entry.sortKey);
 
-    applyAmbientContextPatch(patch, entry.id, captureAmbientContext);
+    applyAmbientContextPatch(patch, entry.id, ambientContext);
     if (captureProvenance?.ingress) {
       patch.setProperty(entry.id, 'captureIngress', captureProvenance.ingress);
     }
@@ -48,19 +53,26 @@ export async function saveRawCapture(repoDir, thought, {
       patch.setProperty(entry.id, 'captureSourceURL', captureProvenance.sourceURL);
     }
 
-    await patch.attachContent(entry.id, thought, { mime: TEXT_MIME });
-  });
+    await patch.attachContent(entry.id, encodeTextContent(thought), { mime: TEXT_MIME });
+  };
+
+  await patchWarpApp(repoDir, patcher, { genesisOnNoState: true });
 
   return entry;
 }
 
 export async function finalizeCapturedThought(repoDir, entryId, {
   migrateIfNeeded = false,
-  cwd = process.cwd(),
   ambientContext = null,
 } = {}) {
-  const app = await openWarpApp(repoDir);
-  let read = await createProductReadHandle(app);
+  let app = await openWarpApp(repoDir);
+
+  if (ambientContext) {
+    await patchAmbientContext(repoDir, entryId, ambientContext);
+    app = await openWarpApp(repoDir);
+  }
+
+  let read = await createProductReadHandle(app, repoDir);
   let entry = await getStoredEntry(read, entryId);
 
   if (!entry || entry.kind !== 'capture') {
@@ -70,13 +82,12 @@ export async function finalizeCapturedThought(repoDir, entryId, {
     };
   }
 
-  const resolvedAmbientContext = ambientContext ?? getAmbientProjectContext(cwd);
-  await patchAmbientContext(app, entryId, resolvedAmbientContext);
-  read = await createProductReadHandle(app);
-  entry = await getStoredEntry(read, entryId);
-
-  await ensureFirstDerivedArtifacts(app, read, entry);
-  await ensureCaptureReadEdges(app, read, entryId);
+  await ensureFirstDerivedArtifacts(repoDir, read, entry);
+  app = await openWarpApp(repoDir);
+  read = await createProductReadHandle(app, repoDir);
+  await ensureCaptureReadEdges(repoDir, read, entryId);
+  app = await openWarpApp(repoDir);
+  read = await createProductReadHandle(app, repoDir);
   entry = await getStoredEntry(read, entryId);
 
   return {
@@ -86,6 +97,10 @@ export async function finalizeCapturedThought(repoDir, entryId, {
 }
 
 export async function getGraphModelStatus(repoDir) {
+  const checkpointStatus = await getCheckpointGraphModelStatus(repoDir);
+  if (checkpointStatus !== null) {
+    return checkpointStatus;
+  }
   const read = await openProductReadHandle(repoDir);
   return getGraphModelStatusForRead(read);
 }
@@ -109,8 +124,10 @@ function applyAmbientContextPatch(patch, entryId, ambientContext) {
   }
 }
 
-async function patchAmbientContext(app, entryId, ambientContext) {
-  await app.patch(patch => {
+async function patchAmbientContext(repoDir, entryId, ambientContext) {
+  const patcher = (patch) => {
     applyAmbientContextPatch(patch, entryId, ambientContext);
-  });
+  };
+
+  await patchWarpApp(repoDir, patcher, { genesisOnNoState: true });
 }

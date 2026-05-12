@@ -1,27 +1,40 @@
 import Plumbing from '@git-stunts/plumbing';
 import WarpApp, { GitGraphAdapter } from '@git-stunts/git-warp';
 
+import { ValidationError } from './errors.js';
 import { ensureGitRepo, hasGitRepo } from './git.js';
-import { GRAPH_NAME, loadBrowseChronologyEntries, prepareBrowseBootstrap as loadBrowseBootstrap } from './store.js';
+import {
+  GRAPH_NAME,
+  loadBrowseChronologyEntries,
+  prepareBrowseBootstrap as loadBrowseBootstrap,
+} from './store.js';
+import {
+  ENTRY_PREFIX,
+  GRAPH_META_ID,
+  GRAPH_MODEL_VERSION,
+  SCHEMA_VERSION,
+  SESSION_PREFIX,
+  TEXT_MIME,
+} from './store/constants.js';
+import { encodeTextContent } from './store/content.js';
 
 const DEFAULT_START_TIME_MS = Date.parse('2026-03-20T16:00:00.000Z');
 const WITHIN_SESSION_GAP_MS = 30 * 1000;
 const BETWEEN_SESSION_GAP_MS = 10 * 60 * 1000;
-const TEXT_MIME = 'text/plain; charset=utf-8';
 
 // eslint-disable-next-line require-await -- wraps store call that returns a promise (git-warp)
 export async function prepareBrowseBootstrap(repoDir) {
   if (!hasGitRepo(repoDir)) {
-    return {
+    return Object.freeze({
       ok: false,
       reason: 'repo_missing',
       current: null,
       newer: null,
       older: null,
       sessionContext: null,
-      sessionEntries: [],
-      sessionSteps: [],
-    };
+      sessionEntries: Object.freeze([]),
+      sessionSteps: Object.freeze([]),
+    });
   }
 
   return loadBrowseBootstrap(repoDir);
@@ -42,16 +55,16 @@ export async function createSyntheticBrowseFixture({
   sessionCount = 10,
 } = {}) {
   if (!repoDir) {
-    throw new Error('repoDir is required');
+    throw new ValidationError('repoDir is required');
   }
   if (!Number.isInteger(captureCount) || captureCount <= 0) {
-    throw new Error('captureCount must be a positive integer');
+    throw new ValidationError('captureCount must be a positive integer');
   }
   if (!Number.isInteger(sessionCount) || sessionCount <= 0) {
-    throw new Error('sessionCount must be a positive integer');
+    throw new ValidationError('sessionCount must be a positive integer');
   }
   if (sessionCount > captureCount) {
-    throw new Error('sessionCount cannot exceed captureCount');
+    throw new ValidationError('sessionCount cannot exceed captureCount');
   }
 
   await ensureGitRepo(repoDir);
@@ -76,14 +89,14 @@ export async function createSyntheticBrowseFixture({
         timestampMs: currentMs,
       });
       sessionStartSortKey ??= entry.sortKey;
-      entry.sessionId = `session:${sessionStartSortKey}`;
+      entry.sessionId = `${SESSION_PREFIX}${sessionStartSortKey}`;
       entries.push(entry);
       createdCaptures += 1;
       currentMs += WITHIN_SESSION_GAP_MS;
     }
 
     if (countInSession > 0) {
-      const sessionId = `session:${sessionStartSortKey}`;
+      const sessionId = `${SESSION_PREFIX}${sessionStartSortKey}`;
       entries.push({
         type: 'session',
         id: sessionId,
@@ -99,11 +112,11 @@ export async function createSyntheticBrowseFixture({
 
   await graph.patch(async (patch) => {
     patch
-      .addNode('meta:graph')
-      .setProperty('meta:graph', 'kind', 'graph_meta')
-      .setProperty('meta:graph', 'createdAt', new Date(DEFAULT_START_TIME_MS).toISOString())
-      .setProperty('meta:graph', 'updatedAt', new Date(currentMs).toISOString())
-      .setProperty('meta:graph', 'graphModelVersion', 3);
+      .addNode(GRAPH_META_ID)
+      .setProperty(GRAPH_META_ID, 'kind', 'graph_meta')
+      .setProperty(GRAPH_META_ID, 'createdAt', new Date(DEFAULT_START_TIME_MS).toISOString())
+      .setProperty(GRAPH_META_ID, 'updatedAt', new Date(currentMs).toISOString())
+      .setProperty(GRAPH_META_ID, 'graphModelVersion', GRAPH_MODEL_VERSION);
 
     for (const item of entries) {
       if (item.type === 'session') {
@@ -112,7 +125,7 @@ export async function createSyntheticBrowseFixture({
           .setProperty(item.id, 'kind', 'session')
           .setProperty(item.id, 'createdAt', item.createdAt)
           .setProperty(item.id, 'sortKey', item.sortKey)
-          .setProperty(item.id, 'schemaVersion', '1');
+          .setProperty(item.id, 'schemaVersion', SCHEMA_VERSION);
         continue;
       }
 
@@ -129,7 +142,7 @@ export async function createSyntheticBrowseFixture({
       patch.addEdge(item.id, item.sessionId, 'captured_in');
 
       // eslint-disable-next-line no-await-in-loop -- sequential graph writes within a patch transaction
-      await patch.attachContent(item.id, item.text, { mime: TEXT_MIME });
+      await patch.attachContent(item.id, encodeTextContent(item.text), { mime: TEXT_MIME });
     }
 
     const captures = entries
@@ -137,7 +150,7 @@ export async function createSyntheticBrowseFixture({
       .sort((left, right) => right.sortKey.localeCompare(left.sortKey));
 
     if (captures[0]) {
-      patch.addEdge('meta:graph', captures[0].id, 'latest_capture');
+      patch.addEdge(GRAPH_META_ID, captures[0].id, 'latest_capture');
     }
 
     for (let index = 0; index + 1 < captures.length; index += 1) {
@@ -145,14 +158,14 @@ export async function createSyntheticBrowseFixture({
     }
   });
 
-  return {
+  return Object.freeze({
     captureCount,
     sessionCount,
     startTimeMs: DEFAULT_START_TIME_MS,
     endTimeMs: currentMs,
     withinSessionGapMs: WITHIN_SESSION_GAP_MS,
     betweenSessionGapMs: BETWEEN_SESSION_GAP_MS,
-  };
+  });
 }
 
 function distributeCaptures(captureCount, sessionCount) {
@@ -177,7 +190,7 @@ function createSyntheticEntry({ thoughtNumber, sessionNumber, captureNumberInSes
 
   return {
     type: 'capture',
-    id: `entry:${sortKey}`,
+    id: `${ENTRY_PREFIX}${sortKey}`,
     createdAt,
     sortKey,
     text: createSyntheticThought({

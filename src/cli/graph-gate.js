@@ -54,6 +54,7 @@ export async function ensureGraphModelReadyFromStatus(repoDir, command, status, 
 
   output.error('Graph migration required. Run think --migrate-graph.', 'graph.migration_required', {
     command,
+    remediation: 'think --migrate-graph',
     ...status,
   });
   return false;

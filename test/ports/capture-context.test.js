@@ -1,12 +1,21 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import Plumbing from '@git-stunts/plumbing';
+import WarpApp, { GitGraphAdapter } from '@git-stunts/git-warp';
 
 import { ensureGitRepo } from '../../src/git.js';
+import { getCaptureAmbientContext, getAmbientProjectContext } from '../../src/project-context.js';
 import {
   finalizeCapturedThought,
+  GRAPH_NAME,
+  inspectRawEntry,
   openProductReadHandle,
+  saveAnnotation,
   saveRawCapture,
+  saveReflectResponse,
+  startReflect,
 } from '../../src/store.js';
+import { createWriterId } from '../../src/store/model.js';
 import { createGitRepo, runGit } from '../fixtures/git.js';
 import { createTempDir } from '../fixtures/tmp.js';
 import { formatResult } from '../fixtures/runtime.js';
@@ -38,7 +47,7 @@ test('saveRawCapture writes cwd receipts first and defers git enrichment to foll
   );
 
   const entry = await saveRawCapture(localRepoDir, 'capture should stay cheap', {
-    cwd: projectRepoDir,
+    ambientContext: getCaptureAmbientContext(projectRepoDir),
   });
   const readBeforeFollowthrough = await openProductReadHandle(localRepoDir);
   const savedBeforeFollowthrough = await readBeforeFollowthrough.view.getNodeProps(entry.id);
@@ -50,7 +59,7 @@ test('saveRawCapture writes cwd receipts first and defers git enrichment to foll
   assert.equal(savedBeforeFollowthrough.ambientGitBranch ?? null, null, 'Expected git branch enrichment to be deferred until followthrough.');
 
   const followthrough = await finalizeCapturedThought(localRepoDir, entry.id, {
-    cwd: projectRepoDir,
+    ambientContext: getAmbientProjectContext(projectRepoDir),
   });
   const readAfterFollowthrough = await openProductReadHandle(localRepoDir);
   const savedAfterFollowthrough = await readAfterFollowthrough.view.getNodeProps(entry.id);
@@ -70,3 +79,90 @@ test('saveRawCapture writes cwd receipts first and defers git enrichment to foll
     'Expected followthrough to backfill the current git branch receipt.'
   );
 });
+
+test('saveRawCapture retries after the cached writer ref is advanced externally', async () => {
+  const localRepoDir = await createTempDir('think-capture-retry-');
+  await ensureGitRepo(localRepoDir);
+
+  await saveRawCapture(localRepoDir, 'seed capture before external writer advance');
+  const externalApp = await openExternalWarpApp(localRepoDir);
+  await externalApp.patch((patch) => {
+    patch
+      .addNode('external:writer-advance')
+      .setProperty('external:writer-advance', 'kind', 'external_fixture');
+  });
+
+  const entry = await saveRawCapture(localRepoDir, 'capture should retry after writer ref conflict');
+  const read = await openProductReadHandle(localRepoDir);
+  const saved = await read.view.getNodeProps(entry.id);
+
+  assert.ok(saved, 'Expected retrying raw capture to be committed after the writer ref advanced.');
+  assert.equal(saved.kind, 'capture', 'Expected retried write to preserve capture semantics.');
+});
+
+test('saveAnnotation retries after the cached writer ref is advanced externally', async () => {
+  const localRepoDir = await createTempDir('think-annotation-retry-');
+  await ensureGitRepo(localRepoDir);
+
+  const entry = await saveRawCapture(localRepoDir, 'annotation retry seed capture');
+  const externalApp = await openExternalWarpApp(localRepoDir);
+  await externalApp.patch((patch) => {
+    patch
+      .addNode('external:annotation-writer-advance')
+      .setProperty('external:annotation-writer-advance', 'kind', 'external_fixture');
+  });
+
+  const result = await saveAnnotation(localRepoDir, entry.id, 'annotation should retry after writer ref conflict');
+  const inspected = await inspectRawEntry(localRepoDir, entry.id);
+
+  assert.ok(result.annotationId, 'Expected annotation save to return the created annotation id.');
+  assert.ok(
+    inspected.annotations.some((annotation) => annotation.annotationId === result.annotationId),
+    'Expected the retried annotation write to be visible on inspect.'
+  );
+});
+
+test('reflect writes retry after the cached writer ref is advanced externally', async () => {
+  const localRepoDir = await createTempDir('think-reflect-retry-');
+  await ensureGitRepo(localRepoDir);
+
+  const entry = await saveRawCapture(
+    localRepoDir,
+    'We should redesign browse startup because checkpoint reads can hide transition latency.'
+  );
+  const firstExternalApp = await openExternalWarpApp(localRepoDir);
+  await firstExternalApp.patch((patch) => {
+    patch
+      .addNode('external:reflect-start-writer-advance')
+      .setProperty('external:reflect-start-writer-advance', 'kind', 'external_fixture');
+  });
+
+  const started = await startReflect(localRepoDir, entry.id, { promptType: 'challenge' });
+  assert.equal(started.ok, true, 'Expected reflect start to retry and create a session after writer ref conflict.');
+
+  const secondExternalApp = await openExternalWarpApp(localRepoDir);
+  await secondExternalApp.patch((patch) => {
+    patch
+      .addNode('external:reflect-reply-writer-advance')
+      .setProperty('external:reflect-reply-writer-advance', 'kind', 'external_fixture');
+  });
+
+  const saved = await saveReflectResponse(
+    localRepoDir,
+    started.sessionId,
+    'The transition should keep the alternate screen stable while loading the next view.'
+  );
+
+  assert.ok(saved, 'Expected reflect reply to retry and save after writer ref conflict.');
+  assert.equal(saved.sessionId, started.sessionId, 'Expected retried reflect reply to preserve session lineage.');
+});
+
+async function openExternalWarpApp(repoDir) {
+  return await WarpApp.open({
+    persistence: new GitGraphAdapter({
+      plumbing: Plumbing.createDefault({ cwd: repoDir }),
+    }),
+    graphName: GRAPH_NAME,
+    writerId: createWriterId(),
+  });
+}

@@ -1,3 +1,11 @@
+---
+id: DX-018-explicit-mind-management
+blocks:
+  - SURFACE_mind-switch-loop-in-command
+  - SURFACE_scripted-browse-no-mind-switch
+blocked_by: []
+---
+
 # DX-018 — Explicit Mind Management
 
 Legend: [DX — Developer Experience](../../legends/DX-developer-experience.md)

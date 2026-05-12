@@ -1,4 +1,4 @@
-const HELP_TEXT = {
+const HELP_TEXT = Object.freeze({
   general: [
     'Usage: think "raw thought"',
     '       think --ingest',
@@ -8,6 +8,9 @@ const HELP_TEXT = {
     '       think --prompt-metrics [--since=DURATION] [--from=DATE] [--to=DATE] [--bucket=hour|day|week]',
     '       think --browse[=<entryId>]',
     '       think --inspect=<entryId>',
+    '       think --annotate=<entryId> <note>',
+    '       think --enrich',
+    '       think --topics',
     '       think --reflect[=<entryId>] [--mode=challenge|constraint|sharpen]',
     '       think --reflect-session=<sessionId> <response>',
     '       think --migrate-graph',
@@ -21,6 +24,9 @@ const HELP_TEXT = {
     'Command help:',
     '  think --recent --help',
     '  think --inspect -h',
+    '  think --annotate --help',
+    '  think --enrich --help',
+    '  think --topics -h',
     '',
     'To capture text that starts with a dash, end option parsing first:',
     '  think -- "-h"',
@@ -82,6 +88,21 @@ const HELP_TEXT = {
     '',
     'Show exact metadata and derived receipts for a single capture.',
   ].join('\n'),
+  annotate: [
+    'Usage: think --annotate=<entryId> <note>',
+    '',
+    'Attach a note to an existing capture.',
+  ].join('\n'),
+  enrich: [
+    'Usage: think --enrich',
+    '',
+    'Extract keyword, topic, and classification receipts from captured thoughts.',
+  ].join('\n'),
+  topics: [
+    'Usage: think --topics',
+    '',
+    'List promoted topics produced by enrichment.',
+  ].join('\n'),
   reflect: [
     'Usage: think --reflect',
     '       think --reflect=<entryId> [--mode=challenge|constraint|sharpen]',
@@ -108,12 +129,12 @@ const HELP_TEXT = {
     'Reports think directory, local repo, graph model version,',
     'entry count, and upstream reachability.',
   ].join('\n'),
-};
+});
 
 export function renderHelp(topic) {
   const resolvedTopic = HELP_TEXT[topic] ? topic : 'general';
-  return {
+  return Object.freeze({
     topic: resolvedTopic,
     message: HELP_TEXT[resolvedTopic],
-  };
+  });
 }

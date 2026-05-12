@@ -1,36 +1,46 @@
-export function createOutput({ stdout, stderr, reporter, json }) {
-  return {
-    json,
-    out(message, eventName, data = {}) {
-      if (json) {
-        reporter.event(eventName ?? 'cli.output', {
-          ...data,
-          message,
-        });
-        return;
-      }
+export class CliOutput {
+  constructor({ stdout, stderr, reporter, json }) {
+    this.json = json;
+    this._stdout = stdout;
+    this._stderr = stderr;
+    this._reporter = reporter;
+  }
 
-      stdout.write(message.endsWith('\n') ? message : `${message}\n`);
-    },
-    error(message, eventName, data = {}) {
-      if (json) {
-        reporter.event(eventName ?? 'cli.error_output', {
-          ...data,
-          message,
-        });
-        return;
-      }
+  out(message, eventName, data = {}) {
+    if (this.json) {
+      this._reporter.event(eventName ?? 'cli.output', {
+        ...data,
+        message,
+      });
+      return;
+    }
 
-      stderr.write(message.endsWith('\n') ? message : `${message}\n`);
-    },
-    data(eventName, data = {}) {
-      if (!json) {
-        return;
-      }
+    this._stdout.write(message.endsWith('\n') ? message : `${message}\n`);
+  }
 
-      reporter.event(eventName, data);
-    },
-  };
+  error(message, eventName, data = {}) {
+    if (this.json) {
+      this._reporter.event(eventName ?? 'cli.error_output', {
+        ...data,
+        message,
+      });
+      return;
+    }
+
+    this._stderr.write(message.endsWith('\n') ? message : `${message}\n`);
+  }
+
+  data(eventName, data = {}) {
+    if (!this.json) {
+      return;
+    }
+
+    this._reporter.event(eventName, data);
+  }
+}
+
+export function createOutput(options) {
+  return new CliOutput(options);
 }
 
 export function writeShellBlock(content, output) {
@@ -41,32 +51,32 @@ export function writeShellBlock(content, output) {
   output.out(content);
 }
 
+const STDERR_EVENTS = Object.freeze([
+  'cli.validation_failed',
+  'cli.failure',
+  'cli.error',
+  'capture.validation_failed',
+  'backup.pending',
+  'backup.failure',
+  'backup.timeout',
+  'backup.retry',
+  'reflect.validation_failed',
+  'reflect.seed_not_found',
+  'reflect.seed_ineligible',
+  'reflect.session_not_found',
+  'graph.migration_required',
+  'graph.migration_cancelled',
+  'graph.migration.failed',
+  'browse.entry_not_found',
+  'inspect.entry_not_found',
+]);
+
 export function resolveJsonStream(payload) {
   if (payload.event === 'backup.status' && payload.status === 'pending') {
     return 'stderr';
   }
 
-  if (
-    [
-      'cli.validation_failed',
-      'cli.failure',
-      'cli.error',
-      'capture.validation_failed',
-      'backup.pending',
-      'backup.failure',
-      'backup.timeout',
-      'backup.retry',
-      'reflect.validation_failed',
-      'reflect.seed_not_found',
-      'reflect.seed_ineligible',
-      'reflect.session_not_found',
-      'graph.migration_required',
-      'graph.migration_cancelled',
-      'graph.migration.failed',
-      'browse.entry_not_found',
-      'inspect.entry_not_found',
-    ].includes(payload.event)
-  ) {
+  if (STDERR_EVENTS.includes(payload.event)) {
     return 'stderr';
   }
 

@@ -1,8 +1,10 @@
 import { runDiagnostics } from '../doctor.js';
+import { ValidationError, NotFoundError, GraphError } from '../errors.js';
 import { ensureGitRepo, hasGitRepo, lsRemote, pushWarpRefs } from '../git.js';
 import { getLocalRepoDir, getThinkDir, getUpstreamUrl } from '../paths.js';
 import { capturePolicy } from '../policies.js';
 import { normalizeCaptureProvenance } from '../capture-provenance.js';
+import { getCaptureAmbientContext, getAmbientProjectContext } from '../project-context.js';
 import {
   finalizeCapturedThought,
   getBrowseWindow,
@@ -21,11 +23,22 @@ import {
   buildAmbientRememberScope,
   buildExplicitRememberScope,
 } from '../store/remember.js';
+import {
+  BrowseOutcome,
+  CaptureOutcome,
+  HealthOutcome,
+  McpOutcome,
+  MigrationOutcome,
+  PromptMetricsOutcome,
+  RecentThoughtsOutcome,
+  RememberOutcome,
+  StatsOutcome,
+} from './result.js';
 
 export async function captureThought(text, { provenance = null } = {}) {
   const thought = String(text ?? '');
   if (thought.trim() === '') {
-    throw new Error('Thought cannot be empty');
+    throw new ValidationError('Thought cannot be empty');
   }
   const captureProvenance = normalizeCaptureProvenance(provenance);
 
@@ -45,6 +58,7 @@ export async function captureThought(text, { provenance = null } = {}) {
   const { entry, migration, warnings } = await capturePolicy.execute(async () => {
     const saved = await saveRawCapture(repoDir, thought, {
       provenance: captureProvenance,
+      ambientContext: getCaptureAmbientContext(process.cwd()),
     });
     let mig = null;
     const warns = [];
@@ -52,6 +66,7 @@ export async function captureThought(text, { provenance = null } = {}) {
     try {
       const followthrough = await finalizeCapturedThought(repoDir, saved.id, {
         migrateIfNeeded: graphStatus.migrationRequired,
+        ambientContext: getAmbientProjectContext(process.cwd()),
       });
       mig = followthrough.migration ?? null;
     } catch (error) {
@@ -68,30 +83,32 @@ export async function captureThought(text, { provenance = null } = {}) {
     backupStatus = backedUp ? 'backed_up' : 'pending';
   }
 
-  return {
+  return new CaptureOutcome({
     backupStatus,
     entryId: entry.id,
     migration,
     repoBootstrapped: !repoAlreadyExists,
     status: 'saved_locally',
     warnings,
-  };
+  });
 }
 
 export async function listRecentThoughts({ count = null, query = null } = {}) {
   const repoDir = getLocalRepoDir();
   if (!hasGitRepo(repoDir)) {
-    return {
+    return new RecentThoughtsOutcome({
       entries: [],
       repoPresent: false,
-    };
+      total: 0,
+    });
   }
 
-  const entries = await listRecent(repoDir, { count, query });
-  return {
-    entries: entries.map(toRecentEntry),
+  const result = await listRecent(repoDir, { count, query });
+  return new RecentThoughtsOutcome({
+    entries: result.entries.map(toMcpEntry),
     repoPresent: true,
-  };
+    total: result.total,
+  });
 }
 
 export async function rememberThoughtsForMcp({
@@ -102,11 +119,11 @@ export async function rememberThoughtsForMcp({
 } = {}) {
   const repoDir = getLocalRepoDir();
   if (!hasGitRepo(repoDir)) {
-    return {
+    return new RememberOutcome({
       matches: [],
       repoPresent: false,
       scope: buildRememberScope({ cwd, query, limit, brief }),
-    };
+    });
   }
 
   await assertGraphReady('remember');
@@ -118,17 +135,17 @@ export async function rememberThoughtsForMcp({
     brief,
   });
 
-  return {
+  return new RememberOutcome({
     matches: remember.matches,
     repoPresent: true,
     scope: remember.scope,
-  };
+  });
 }
 
 export async function browseThought({ entryId = null } = {}) {
   const repoDir = getLocalRepoDir();
   if (!hasGitRepo(repoDir)) {
-    throw new Error('No raw captures available to browse');
+    throw new NotFoundError('No raw captures available to browse');
   }
 
   await assertGraphReady('browse');
@@ -137,22 +154,22 @@ export async function browseThought({ entryId = null } = {}) {
   if (entryId) {
     window = await getBrowseWindow(repoDir, entryId);
     if (!window) {
-      throw new Error('Browse entry not found');
+      throw new NotFoundError('Browse entry not found');
     }
   } else {
     const bootstrap = await prepareBrowseBootstrap(repoDir);
     if (!bootstrap.ok) {
-      throw new Error('No raw captures available to browse');
+      throw new NotFoundError('No raw captures available to browse');
     }
     window = bootstrap;
   }
 
-  return {
-    current: toBrowseEntry(window.current),
-    newer: toBrowseEntry(window.newer),
-    older: toBrowseEntry(window.older),
+  return new BrowseOutcome({
+    current: toMcpEntry(window.current),
+    newer: toMcpEntry(window.newer),
+    older: toMcpEntry(window.older),
     sessionContext: window.sessionContext,
-    sessionEntries: window.sessionEntries.map(toBrowseEntry),
+    sessionEntries: window.sessionEntries.map(toMcpEntry),
     sessionSteps: window.sessionSteps.map((step) => ({
       createdAt: step.createdAt,
       direction: step.direction,
@@ -162,56 +179,56 @@ export async function browseThought({ entryId = null } = {}) {
       sortKey: step.sortKey,
       text: step.text,
     })),
-  };
+  });
 }
 
 export async function inspectThought(entryId) {
   const repoDir = getLocalRepoDir();
   if (!hasGitRepo(repoDir)) {
-    throw new Error('Inspect entry not found');
+    throw new NotFoundError('Inspect entry not found');
   }
 
   await assertGraphReady('inspect');
 
   const entry = await inspectRawEntry(repoDir, entryId);
   if (!entry) {
-    throw new Error('Inspect entry not found');
+    throw new NotFoundError('Inspect entry not found');
   }
 
-  return { entry };
+  return new McpOutcome({ entry });
 }
 
 export async function getThoughtStats({ from = null, to = null, since = null, bucket = null } = {}) {
   const repoDir = getLocalRepoDir();
   if (!hasGitRepo(repoDir)) {
-    return {
+    return new StatsOutcome({
       buckets: null,
       repoPresent: false,
       total: 0,
-    };
+    });
   }
 
   const stats = await getStats(repoDir, { from, to, since, bucket });
-  return {
+  return new StatsOutcome({
     buckets: stats.buckets ?? null,
     repoPresent: true,
     total: stats.total,
-  };
+  });
 }
 
 export async function getPromptMetricsForMcp({ from = null, to = null, since = null, bucket = null } = {}) {
   const promptMetrics = await getPromptMetrics({ from, to, since, bucket });
-  return {
+  return new PromptMetricsOutcome({
     buckets: promptMetrics.buckets ?? null,
     summary: promptMetrics.summary,
     timings: promptMetrics.timings,
-  };
+  });
 }
 
-export function checkThinkHealth() {
+export async function checkThinkHealthForMcp() {
   const repoDir = getLocalRepoDir();
   const upstreamUrl = getUpstreamUrl();
-  return runDiagnostics({
+  const diagnostics = await runDiagnostics({
     thinkDir: getThinkDir(),
     repoDir,
     upstreamUrl,
@@ -223,16 +240,18 @@ export function checkThinkHealth() {
       : null,
     checkUpstreamReachable: upstreamUrl ? () => lsRemote(upstreamUrl) : null,
   });
+
+  return new HealthOutcome(diagnostics);
 }
 
-// eslint-disable-next-line require-await -- wraps store call that returns a promise (git-warp)
 export async function migrateThoughtGraph() {
   const repoDir = getLocalRepoDir();
   if (!hasGitRepo(repoDir)) {
-    throw new Error('No local thought repo found to migrate');
+    throw new GraphError('No local thought repo found to migrate');
   }
 
-  return migrateGraphModel(repoDir);
+  const result = await migrateGraphModel(repoDir);
+  return new MigrationOutcome(result);
 }
 
 async function assertGraphReady(command) {
@@ -242,9 +261,10 @@ async function assertGraphReady(command) {
     return;
   }
 
-  const error = new Error('Graph migration required. Run think --migrate-graph.');
+  const error = new GraphError('Graph migration required. Run think --migrate-graph.');
   error.code = 'graph_migration_required';
   error.command = command;
+  error.remediation = 'think --migrate-graph';
   error.status = status;
   throw error;
 }
@@ -261,26 +281,21 @@ function buildRememberScope({ cwd, query, limit, brief }) {
   };
 }
 
-function toBrowseEntry(entry) {
+function toMcpEntry(entry) {
   if (!entry) {
     return null;
   }
 
-  return {
+  return Object.freeze({
     createdAt: entry.createdAt,
     entryId: entry.id,
     sessionId: entry.sessionId ?? null,
     sortKey: entry.sortKey,
     text: entry.text,
-  };
+  });
 }
 
-function toRecentEntry(entry) {
-  return {
-    createdAt: entry.createdAt,
-    entryId: entry.id,
-    sessionId: entry.sessionId ?? null,
-    sortKey: entry.sortKey,
-    text: entry.text,
-  };
+/** @deprecated Use checkThinkHealthForMcp instead */
+export function checkThinkHealth() {
+  return checkThinkHealthForMcp();
 }

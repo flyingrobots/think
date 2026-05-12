@@ -19,6 +19,7 @@ Do not audit the repository by recursively walking the filesystem. Follow the au
 
 ### 2. The Bedrock
 - **`ARCHITECTURE.md`**: The authoritative structural reference (Git, WARP, Minds).
+- **`docs/INFRASTRUCTURE_DOCTRINE.md`**: The runtime-first engineering standards (MANDATORY).
 - **`docs/VISION.md`**: Core tenets and the capture doctrine.
 - **`docs/method/process.md`**: Repo work doctrine (Backlog lanes, Cycle loop).
 

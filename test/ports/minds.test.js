@@ -131,6 +131,22 @@ test('shaderForMind stays within the shader count range', () => {
   }
 });
 
+test('shaderForMind throws when shaderCount is zero', () => {
+  assert.throws(
+    () => shaderForMind('test', 0),
+    { message: /shaderCount/ },
+    'Expected shaderForMind to reject zero shaderCount.'
+  );
+});
+
+test('shaderForMind throws when shaderCount is negative', () => {
+  assert.throws(
+    () => shaderForMind('test', -1),
+    { message: /shaderCount/ },
+    'Expected shaderForMind to reject negative shaderCount.'
+  );
+});
+
 test('shaderForMind handles single-character names', () => {
   const index = shaderForMind('x', 5);
   assert.ok(index >= 0 && index < 5);

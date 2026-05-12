@@ -2,16 +2,17 @@ import { readFile } from 'node:fs/promises';
 
 import { parseJson } from '../json.js';
 
-export async function readPromptMetricsRecords(filePath) {
+export async function readPromptMetricsRecords(filePath, { reader = null } = {}) {
   try {
-    const contents = await readFile(filePath, 'utf8');
+    const read = reader ?? ((p) => readFile(p, 'utf8'));
+    const contents = await read(filePath);
     return String(contents)
       .split('\n')
       .map((line) => line.trim())
       .filter(Boolean)
       .map((line) => {
         try {
-          return parseJson(line);
+          return normalizeMetricRecord(parseJson(line));
         } catch {
           return null;
         }
@@ -25,25 +26,44 @@ export async function readPromptMetricsRecords(filePath) {
   }
 }
 
+function normalizeMetricRecord(raw) {
+  if (!raw || typeof raw !== 'object' || !raw.sessionId) {
+    return null;
+  }
+
+  return Object.freeze({
+    sessionId: String(raw.sessionId),
+    ts: raw.ts ?? null,
+    dismissalOutcome: raw.dismissalOutcome ?? null,
+    trigger: raw.trigger ?? null,
+    triggerToVisibleMs: typeof raw.triggerToVisibleMs === 'number' ? raw.triggerToVisibleMs : null,
+    typingDurationMs: typeof raw.typingDurationMs === 'number' ? raw.typingDurationMs : null,
+    submitToHideMs: typeof raw.submitToHideMs === 'number' ? raw.submitToHideMs : null,
+    submitToLocalCaptureMs: typeof raw.submitToLocalCaptureMs === 'number' ? raw.submitToLocalCaptureMs : null,
+    captureOutcome: raw.captureOutcome ?? null,
+    backupState: raw.backupState ?? null,
+  });
+}
+
 export function summarizePromptMetrics(records) {
-  return records.reduce((summary, record) => {
-    summary.sessions += 1;
+  const summary = records.reduce((acc, record) => {
+    acc.sessions += 1;
 
     if (record.dismissalOutcome === 'submitted') {
-      summary.submitted += 1;
+      acc.submitted += 1;
     } else if (record.dismissalOutcome === 'abandoned_empty') {
-      summary.abandonedEmpty += 1;
+      acc.abandonedEmpty += 1;
     } else if (record.dismissalOutcome === 'abandoned_started') {
-      summary.abandonedStarted += 1;
+      acc.abandonedStarted += 1;
     }
 
     if (record.trigger === 'hotkey') {
-      summary.hotkey += 1;
+      acc.hotkey += 1;
     } else if (record.trigger === 'menu') {
-      summary.menu += 1;
+      acc.menu += 1;
     }
 
-    return summary;
+    return acc;
   }, {
     sessions: 0,
     submitted: 0,
@@ -52,6 +72,8 @@ export function summarizePromptMetrics(records) {
     hotkey: 0,
     menu: 0,
   });
+
+  return Object.freeze(summary);
 }
 
 export function summarizePromptMetricTimings(records) {
@@ -68,14 +90,14 @@ export function summarizePromptMetricTimings(records) {
       .filter((value) => Number.isFinite(value))
       .sort((left, right) => left - right);
 
-    return {
+    return Object.freeze({
       metric,
       sampleCount: samples.length,
       medianMs: samples.length > 0 ? median(samples) : null,
       meanMs: samples.length > 0 ? mean(samples) : null,
       minMs: samples.length > 0 ? samples[0] : null,
       maxMs: samples.length > 0 ? samples[samples.length - 1] : null,
-    };
+    });
   });
 }
 
@@ -109,7 +131,9 @@ export function summarizePromptMetricBuckets(records, bucket, formatBucketKey) {
     }
   }
 
-  return Object.values(buckets).sort((left, right) => right.key.localeCompare(left.key));
+  return Object.values(buckets)
+    .map((b) => Object.freeze(b))
+    .sort((left, right) => right.key.localeCompare(left.key));
 }
 
 function median(values) {

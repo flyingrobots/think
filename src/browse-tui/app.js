@@ -1,7 +1,7 @@
 import { createBijou } from '@flyingrobots/bijou';
 import { nodeRuntime, nodeIO, chalkStyle } from '@flyingrobots/bijou-node';
 import { createFramedApp, run } from '@flyingrobots/bijou-tui';
-import { thinkTheme } from './theme.js';
+import { thinkShellThemes, thinkTheme } from './theme.js';
 import { selectLogo } from '../splash.js';
 import { shaderFrame, compositeAndRender, buildLogoMask, buildInteriorMask, buildDistanceFromOutline, getShaderCount, getShaderName, BG } from '../splash-shader.js';
 import { shaderForMind } from '../minds.js';
@@ -17,6 +17,7 @@ export async function runBrowseTui({
   minds = [],
   activeMind = null,
   skipSplash = false,
+  handoffFromSplash = false,
   loadBrowseWindow = null,
   loadChronologyEntries = null,
   loadInspectEntry = null,
@@ -33,6 +34,7 @@ export async function runBrowseTui({
     // caller can re-bootstrap with the correct mind's data.
     const selectedMind = splashResult.mind;
     if (selectedMind && activeMind && selectedMind.repoDir !== activeMind.repoDir) {
+      restoreTerminalScreen();
       return { type: 'switch_mind', mind: selectedMind };
     }
   }
@@ -63,6 +65,7 @@ export async function runBrowseTui({
   const app = createFramedApp({
     ctx,
     pages: [browsePage],
+    shellThemes: thinkShellThemes,
     keyPriority: 'page-first',
     bodyTopRows: 1,
     bodyBottomRows: 1,
@@ -74,6 +77,11 @@ export async function runBrowseTui({
       return resolveHelpLine(pageModel);
     },
     overlayFactory: (overlayCtx) => buildBrowseOverlays(overlayCtx.pageModel, overlayCtx.screenRect, ctx),
+    onShellThemeChange: ({ shellTheme }) => {
+      if (modelRef.current) {
+        modelRef.current.notice = `Theme set to ${shellTheme.label}`;
+      }
+    },
     observeKey: (msg, route) => {
       // Let the frame handle its own bindings (help, quit confirm, etc.)
       if (route === 'frame' || route === 'help' || route === 'palette') {
@@ -87,17 +95,31 @@ export async function runBrowseTui({
   // When splash ran, fade the browse content in from plum before
   // handing off to bijou. This avoids both the screen-clear flash
   // and the content pop.
-  const splashRan = !skipSplash;
-  if (splashRan) {
-    await fadeInBrowse(bootstrap, minds, activeMind);
-  }
+  const screenHeldFromSplash = !skipSplash || handoffFromSplash;
+  try {
+    if (screenHeldFromSplash) {
+      await fadeInBrowse(bootstrap, minds, activeMind);
+    }
 
-  await run(app, { ctx });
+    await run(app, screenHeldFromSplash
+      ? { ctx, altScreen: false, hideCursor: false }
+      : { ctx });
+  } finally {
+    if (screenHeldFromSplash) {
+      restoreTerminalScreen();
+    }
+  }
 
   if (modelRef.current?.switchTarget) {
     return { type: 'switch_mind', mind: modelRef.current.switchTarget };
   }
   return { type: 'quit' };
+}
+
+function restoreTerminalScreen() {
+  process.stdout.write('\x1b[?25h');
+  process.stdout.write('\x1b[?7h');
+  process.stdout.write('\x1b[?1049l');
 }
 
 const FADE_IN_DURATION_MS = 800;
@@ -158,7 +180,7 @@ function fadeInBrowse(bootstrap, minds, activeMind) {
   });
 }
 
-export function showSplash({ minds = [] } = {}) {
+export function showSplash({ minds = [], closeOnEnter = false } = {}) {
   let cols = process.stdout.columns || 80;
   let rows = process.stdout.rows || 24;
   const startTime = Date.now();
@@ -176,6 +198,7 @@ export function showSplash({ minds = [] } = {}) {
 
   process.stdout.write('\x1b[?1049h'); // enter alt screen
   process.stdout.write('\x1b[?25l');   // hide cursor
+  process.stdout.write('\x1b[?7l');    // disable wrap
   process.stdout.write(`\x1b[48;2;${BG[0]};${BG[1]};${BG[2]}m`);
   process.stdout.write('\x1b[2J');     // clear screen
 
@@ -250,13 +273,15 @@ export function showSplash({ minds = [] } = {}) {
           if (transition && transition.progress >= 1.0) {
             clearInterval(checkDone);
             cleanup();
+            if (closeOnEnter) {
+              restoreTerminalScreen();
+            }
             resolve({ action: 'enter', mind: minds[mindIndex] ?? null });
           }
         }, 50);
       } else if (key === 113 || (key === 27 && data.length === 1)) { // q / Escape (not arrow seq)
         cleanup();
-        process.stdout.write('\x1b[?25h');
-        process.stdout.write('\x1b[?1049l');
+        restoreTerminalScreen();
         resolve({ action: 'quit' });
       } else if (key === 9) {                              // Tab — next mind (or shader if single)
         if (multiMind) {

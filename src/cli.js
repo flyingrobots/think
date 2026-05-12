@@ -1,7 +1,9 @@
+import { ThinkError } from './errors.js';
 import { createVerboseReporter } from './verbose.js';
 import { stringifyJson } from './json.js';
 import { renderHelp } from './cli/help.js';
 import {
+  COMMANDS,
   parseArgs,
   resolveCommand,
   resolveHelpTopic,
@@ -10,13 +12,16 @@ import {
 import { createOutput, resolveJsonStream } from './cli/output.js';
 import { runCapture, runIngest, runMigrateGraph } from './cli/commands/capture.js';
 import {
+  runAnnotate,
   runBrowse,
   runDoctor,
+  runEnrich,
   runInspect,
   runPromptMetrics,
   runRecent,
   runRemember,
   runStats,
+  runTopics,
 } from './cli/commands/read.js';
 import { runReflectReply, runReflectStart } from './cli/commands/reflect.js';
 
@@ -57,52 +62,55 @@ export async function main(argv, { stdout, stderr, stdin }) {
       return 0;
     }
 
-    let exitCode = 0;
-    if (command === 'recent') {
-      exitCode = await runRecent(output, reporter, options);
-    } else if (command === 'remember') {
-      exitCode = await runRemember(output, reporter, options);
-    } else if (command === 'browse') {
-      exitCode = await runBrowse(options.browse, output, reporter);
-    } else if (command === 'inspect') {
-      exitCode = await runInspect(options.inspect, output, reporter);
-    } else if (command === 'doctor') {
-      exitCode = await runDoctor(output, reporter);
-    } else if (command === 'migrate_graph') {
-      exitCode = await runMigrateGraph(output, reporter);
-    } else if (command === 'ingest') {
-      exitCode = await runIngest(stdin, output, reporter);
-    } else if (command === 'stats') {
-      exitCode = await runStats(output, reporter, options);
-    } else if (command === 'prompt_metrics') {
-      exitCode = await runPromptMetrics(output, reporter, options);
-    } else if (command === 'reflect_start') {
-      exitCode = await runReflectStart(options.reflect, output, reporter, {
+    const dispatch = {
+      [COMMANDS.ANNOTATE]: () => runAnnotate(options.annotate, options.positionals.join(' '), output, reporter),
+      [COMMANDS.ENRICH]: () => runEnrich(output, reporter),
+      [COMMANDS.TOPICS]: () => runTopics(output, reporter),
+      [COMMANDS.RECENT]: () => runRecent(output, reporter, options),
+      [COMMANDS.REMEMBER]: () => runRemember(output, reporter, options),
+      [COMMANDS.BROWSE]: () => runBrowse(options.browse, output, reporter),
+      [COMMANDS.INSPECT]: () => runInspect(options.inspect, output, reporter),
+      [COMMANDS.DOCTOR]: () => runDoctor(output, reporter),
+      [COMMANDS.MIGRATE_GRAPH]: () => runMigrateGraph(output, reporter),
+      [COMMANDS.INGEST]: () => runIngest(stdin, output, reporter),
+      [COMMANDS.STATS]: () => runStats(output, reporter, options),
+      [COMMANDS.PROMPT_METRICS]: () => runPromptMetrics(output, reporter, options),
+      [COMMANDS.REFLECT_START]: () => runReflectStart(options.reflect, output, reporter, {
         reflectMode: options.reflectMode,
-      });
-    } else if (command === 'reflect_reply') {
-      exitCode = await runReflectReply(
+      }),
+      [COMMANDS.REFLECT_REPLY]: () => runReflectReply(
         options.reflectSession,
         options.positionals.join(' '),
         output,
         reporter
-      );
-    } else {
-      const thought = options.positionals.length <= 1
-        ? (options.positionals[0] ?? '')
-        : options.positionals.join(' ');
-      exitCode = await runCapture(thought, output, reporter);
-    }
+      ),
+      [COMMANDS.CAPTURE]: () => {
+        const thought = options.positionals.length <= 1
+          ? (options.positionals[0] ?? '')
+          : options.positionals.join(' ');
+        if (!thought && stdin && !stdin.isTTY) {
+          stderr.write('Hint: piped input detected. Use --ingest to capture stdin.\n');
+        }
+        return runCapture(thought, output, reporter);
+      },
+    };
+
+    const handler = dispatch[command] ?? dispatch[COMMANDS.CAPTURE];
+    const exitCode = await handler();
 
     reporter.event(exitCode === 0 ? 'cli.success' : 'cli.failure', { command, exitCode });
     return exitCode;
   } catch (error) {
-    reporter.event('cli.error', {
-      command,
-      message: error instanceof Error ? error.message : String(error),
-    });
-    if (!options.json) {
-      output.error('Something went wrong');
+    const message = error instanceof Error ? error.message : String(error);
+    const code = error instanceof ThinkError ? error.code : 'UNEXPECTED_ERROR';
+    reporter.event('cli.error', { command, message, code });
+
+    if (error instanceof ThinkError) {
+      output.error(message, `cli.${code.toLowerCase()}`, { command });
+    } else if (options.json) {
+      output.error(message, 'cli.unexpected_error', { command });
+    } else {
+      output.error(`Something went wrong: ${message}`);
     }
     return 1;
   }

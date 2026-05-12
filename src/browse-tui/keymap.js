@@ -21,5 +21,6 @@ export const browseKeymap = createKeyMap()
   .group('Actions', (group) => group
     .bind('r', 'Reflect', { type: 'reflect' })
     .bind('m', 'Mind', { type: 'open_mind_switcher' })
+    .bind('f10', 'Perf stream', { type: 'toggle_perf_stream' })
     .bind('q', 'Quit', { type: 'quit' })
     .bind('escape', 'Close/Quit', { type: 'escape' }));
