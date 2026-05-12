@@ -11,6 +11,11 @@ timeline
 
 ## Active Gravity
 
+### 0. Local Mind Repairability
+- Pulling `CORE_repair-v17-git-warp-minds` into cycle `0066`.
+- Making the git-warp v17 checkpoint repair path repeatable for local minds.
+- Keeping version-specific repair logic outside normal capture and read flows.
+
 ### 1. Performance Hardening
 - Profiling CLI capture to identify Node startup and WARP graph bottlenecks.
 - Benchmark harness maturation for warm-path regression detection.
@@ -33,4 +38,4 @@ timeline
 
 ## Next Target
 
-The immediate focus is **Performance Profiling** to neutralize capture latency and ensure the "Sacred Capture" moment remains truly cheap.
+The immediate focus is **Local Mind Repairability**: turn the manual git-warp v17 checkpoint recovery into an explicit, testable repair script for broken local minds.
