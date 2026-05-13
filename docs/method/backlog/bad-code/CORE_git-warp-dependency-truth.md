@@ -24,5 +24,7 @@ short-term guard, but it should not become permanent dependency sludge.
   documented local/workspace dependency path.
 - Checkpoint read tests pass from a clean install, not only from a local
   linked git-warp checkout.
+- The archived v17 repair acceptance fixture runs its full repair assertion in
+  clean CI instead of skipping when the v17 migration package is unavailable.
 - The state-reader compatibility bridge is either documented as intentional
   version support or removed after the dependency cutover.

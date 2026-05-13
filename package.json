@@ -47,6 +47,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@git-stunts/git-cas": "^5.3.2",
     "eslint": "^10.1.0",
     "globals": "^17.4.0"
   }
