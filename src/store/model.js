@@ -58,7 +58,7 @@ export function parseSince(since, now) {
 
 export function formatBucketKey(date, bucket) {
   if (!BUCKET_PERIODS.includes(bucket)) {
-    throw new Error(`formatBucketKey: invalid bucket "${bucket}" (expected ${BUCKET_PERIODS.join(', ')})`);
+    throw new ValidationError(`formatBucketKey: invalid bucket "${bucket}" (expected ${BUCKET_PERIODS.join(', ')})`);
   }
 
   const iso = date.toISOString();

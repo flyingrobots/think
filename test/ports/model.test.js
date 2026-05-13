@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { Entry, ReflectSession, createEntry, createReflectSession, storesTextContent } from '../../src/store/model.js';
+import { ValidationError } from '../../src/errors.js';
+import {
+  Entry,
+  ReflectSession,
+  createEntry,
+  createReflectSession,
+  formatBucketKey,
+  storesTextContent,
+} from '../../src/store/model.js';
 import { ENTRY_KINDS, BUCKET_PERIODS } from '../../src/store/constants.js';
 
 test('createEntry returns an Entry instance', () => {
@@ -82,4 +90,11 @@ test('storesTextContent validates against ENTRY_KINDS', () => {
     assert.equal(typeof storesTextContent(kind), 'boolean', `Expected boolean for kind "${kind}".`);
   }
   assert.equal(storesTextContent('invalid_kind'), false, 'Expected false for invalid kind.');
+});
+
+test('formatBucketKey rejects unsupported buckets with a validation error', () => {
+  assert.throws(
+    () => formatBucketKey(new Date('2026-05-13T00:00:00.000Z'), 'month'),
+    (error) => error instanceof ValidationError && /invalid bucket/.test(error.message)
+  );
 });

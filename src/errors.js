@@ -40,3 +40,19 @@ export class CaptureError extends ThinkError {
     this.name = 'CaptureError';
   }
 }
+
+export class DependencyError extends ThinkError {
+  constructor(message) {
+    super(message, 'DEPENDENCY_ERROR');
+    this.name = 'DependencyError';
+  }
+}
+
+export class PortNotImplementedError extends ThinkError {
+  constructor(portName, methodName) {
+    super(`${portName}.${methodName} is not implemented`, 'PORT_NOT_IMPLEMENTED');
+    this.name = 'PortNotImplementedError';
+    this.portName = portName;
+    this.methodName = methodName;
+  }
+}

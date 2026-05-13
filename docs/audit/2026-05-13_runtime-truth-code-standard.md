@@ -272,9 +272,9 @@ Backlog:
 
 - `CORE_runtime-domain-model-cutover`
 
-### F6. Generic errors still appear in source
+### F6. Generic source errors were present at baseline and should stay cleared
 
-Severity: Medium
+Severity: Cleared by follow-up refactor on this branch
 
 Evidence:
 
@@ -288,6 +288,10 @@ nine source occurrences, including:
 - `src/store/checkpoint-product-read.js`
 - `src/store/checkpoint-state.js`
 
+The follow-up refactor on `cycle/runtime-truth-standards-audit` replaced
+those generic source errors with `ValidationError`, `NotFoundError`,
+`DependencyError`, and `PortNotImplementedError`.
+
 Impact:
 
 Generic errors make runtime dispatch depend on message text or broad
@@ -296,13 +300,14 @@ classes with stable codes.
 
 Required direction:
 
-- Replace generic source errors with domain-specific error classes.
-- Port base classes should throw typed `PortNotImplementedError` or avoid
-  callable abstract methods in JavaScript.
+- Keep source free of generic `throw new Error(...)` and
+  `throw new TypeError(...)`.
+- Add the check to the Runtime Truth ratchet so future source code cannot
+  reintroduce generic runtime failures.
 
 Backlog:
 
-- `CORE_runtime-domain-model-cutover`
+- `CORE_runtime-truth-standard-ratchet`
 
 ### F7. Browse/TUI code has the largest human-scale violations
 

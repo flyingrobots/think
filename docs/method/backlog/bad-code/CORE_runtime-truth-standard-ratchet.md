@@ -21,6 +21,8 @@ hotspots are paid down deliberately.
   same rule set used in `docs/audit/2026-05-13_runtime-truth-code-standard.md`.
 - CI fails when a PR adds new or worsened violations.
 - The ratchet separately reports source, test, and benchmark violations.
+- CI fails if source reintroduces generic `throw new Error(...)` or
+  `throw new TypeError(...)`.
 - Once source violations reach zero, the strict limits move into
   `eslint.config.js` as hard errors for JavaScript.
 - TypeScript-specific unsafe-type rules are added when TypeScript source

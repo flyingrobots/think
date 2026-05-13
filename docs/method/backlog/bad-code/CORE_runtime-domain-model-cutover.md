@@ -20,8 +20,8 @@ runtime models, not informal shape conventions.
 - Promote graph model status, capture results, remember scopes, browse
   windows, migration outcomes, prompt metric summaries, and repair
   outcomes into runtime-backed classes or equivalent Swift value types.
-- Replace generic `throw new Error(...)` in source with domain-specific
-  error classes.
+- Keep source failures represented by domain-specific error classes, not
+  generic runtime errors.
 - Boundary DTOs remain plain only at adapters and wire schemas.
 - Tests assert `instanceof` or equivalent runtime identity for important
   outcomes inside one realm.

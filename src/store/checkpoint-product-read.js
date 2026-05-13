@@ -1,3 +1,4 @@
+import { NotFoundError, ValidationError } from '../errors.js';
 import { openCheckpointStateRead } from './checkpoint-state.js';
 
 const DEFAULT_PATTERN = '*';
@@ -64,7 +65,7 @@ class CheckpointProductQuery {
       return this._applyPredicateWhere(strand, criteria);
     }
     if (!isPlainWhereObject(criteria)) {
-      throw new TypeError('checkpoint product query where() expects an object or predicate');
+      throw new ValidationError('checkpoint product query where() expects an object or predicate');
     }
 
     const filtered = [];
@@ -129,7 +130,7 @@ class CheckpointProductTraversal {
 
   bfs(start, options = {}) {
     if (!this._reader.hasNode(start)) {
-      throw new Error(`Start node not found: ${start}`);
+      throw new NotFoundError(`Start node not found: ${start}`);
     }
 
     const direction = normalizeTraversalDirection(options.dir);
@@ -278,7 +279,7 @@ function normalizeTraversalDirection(direction = 'out') {
   if (direction === 'both') {
     return 'both';
   }
-  throw new Error(`Unsupported traversal direction: ${direction}`);
+  throw new ValidationError(`Unsupported traversal direction: ${direction}`);
 }
 
 function normalizeLabelFilter(labelFilter) {
