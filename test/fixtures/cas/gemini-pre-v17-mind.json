@@ -1,0 +1,19 @@
+{
+  "description": "Archived Gemini mind fixture captured before git-warp v17 checkpoint repair.",
+  "slug": "test-fixtures/gemini-pre-v17-mind-v1",
+  "treeOid": "5e84c970995f4d9c7135b9ce382e80894af0fee6",
+  "tarball": {
+    "name": "think-gemini-pre-v17-mind.tar.gz",
+    "bytes": 1585268,
+    "sha256": "24aade22b1cfce39dfe61e47a2acabc14d43520063a4a67567f305f393435e8c"
+  },
+  "source": {
+    "mind": "gemini",
+    "graph": "think",
+    "checkpoint": "9c6288a985186ec69a0223e4f0bd1a83d71e38aa",
+    "schema": 4
+  },
+  "expected": {
+    "upgradedSchema": 5
+  }
+}

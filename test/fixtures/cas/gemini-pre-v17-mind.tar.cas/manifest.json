@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "slug": "test-fixtures/gemini-pre-v17-mind-v1",
+  "filename": "think-gemini-pre-v17-mind.tar.gz",
+  "size": 1585268,
+  "chunks": [
+    {
+      "index": 0,
+      "size": 262144,
+      "digest": "06304ef0fcf35923d5c088b0754a5f9dbabbb911385cd474843b873f956d99d5",
+      "blob": "c73c9dd4a188ab0f76f59a213c9ffc5db68a44bd"
+    },
+    {
+      "index": 1,
+      "size": 262144,
+      "digest": "c5d80795e88d98515b5a0672aff167f74ef973d60bfa2e29afc5d1b72faa9fbc",
+      "blob": "fc5313dd10a58bb030ddd9038196b8d9cf709153"
+    },
+    {
+      "index": 2,
+      "size": 262144,
+      "digest": "6c2be1d5240e9ba03cfe0a39a8377f4c64a025204f82a4040823986e9f2d3bd4",
+      "blob": "4b38133d9187ed159c8e0bf88b419c8f89725e3a"
+    },
+    {
+      "index": 3,
+      "size": 262144,
+      "digest": "40448c26d481ee8edc2cd363c08594010390e634d1df3077e96e559600f4d832",
+      "blob": "8ee3bf6f4e9ccbd769cf6b13085fa4ddb571f4cc"
+    },
+    {
+      "index": 4,
+      "size": 262144,
+      "digest": "b3ced22628526ea02ddee188ae2a437c342cb79073285bdfd5ee4b25f31d9950",
+      "blob": "94cb8d1b3b09cdc1872366b5b581d5e523717031"
+    },
+    {
+      "index": 5,
+      "size": 262144,
+      "digest": "a661898208aa48494e824fe6cde36b8627a2dedfe2eda1411155bd266cc5c1cc",
+      "blob": "63d07b0112dc22375cbe9cb4b302f51fa623a806"
+    },
+    {
+      "index": 6,
+      "size": 12404,
+      "digest": "1631d123a05c5344f3cdb66aa1c43e0483d77394b19cb1ce39b8b714574e7020",
+      "blob": "f6314b6f844d2c673c542cc07d802e1909b264a5"
+    }
+  ]
+}

@@ -29,7 +29,8 @@
     "install-hooks": "git config --local core.hooksPath scripts/hooks",
     "tui": "node ./bin/think.js --browse",
     "benchmark:browse": "node benchmarks/browse-bootstrap.js",
-    "benchmark:capture": "node benchmarks/capture-latency.js"
+    "benchmark:capture": "node benchmarks/capture-latency.js",
+    "repair:v17-mind": "node ./scripts/repair-v17-mind.mjs"
   },
   "engines": {
     "node": ">=22.0.0"
@@ -46,6 +47,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@git-stunts/git-cas": "^5.3.2",
     "eslint": "^10.1.0",
     "globals": "^17.4.0"
   }
