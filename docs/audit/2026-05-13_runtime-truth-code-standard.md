@@ -41,6 +41,10 @@ swift test --package-path macos --list-tests
 `swift test --package-path macos --list-tests` built the Swift package and
 listed the macOS tests successfully.
 
+Follow-up enforcement added `scripts/runtime-truth-ratchet.mjs`, which
+uses the same strict JavaScript rule set against tracked JavaScript files
+and is wired into `npm run lint`.
+
 ## Executive Summary
 
 Think already has strong runtime-truth instincts: explicit domain error
@@ -87,6 +91,19 @@ Violations by rule:
 | `max-params` | 3 |
 | `max-lines` | 1 |
 
+The committed ratchet baseline differs slightly from the original audit
+command because it uses `--no-ignore` and separately accounts for tracked
+benchmark files. Current ratcheted counts are:
+
+| Category | Violations |
+| --- | ---: |
+| Source/scripts | 150 |
+| Tests | 45 |
+| Benchmarks | 5 |
+| Total | 200 |
+
+The ratchet also records zero generic source `Error`/`TypeError` throws.
+
 Largest files:
 
 | Lines | File | Status |
@@ -113,30 +130,36 @@ Highest-density strict-rule hotspots:
 
 ## Findings
 
-### F1. Doctrine is documented, but enforcement is not active
+### F1. Doctrine has a ratchet; full hard gates remain
 
-Severity: High
+Severity: Medium
 
 Evidence:
 
-- `eslint.config.js` currently enforces many safety rules, but not the
-  new size/complexity limits.
+- `package.json` runs `scripts/runtime-truth-ratchet.mjs` from
+  `npm run lint`.
+- `docs/audit/runtime-truth-ratchet-baseline.json` stores the current
+  strict-limit and generic-source-error baseline.
+- The ratchet fails new or worsened strict-limit counts by total,
+  category, rule, file, and per-file rule.
+- The ratchet fails any source reintroduction of generic
+  `throw new Error(...)` or `throw new TypeError(...)`.
 - The TypeScript-specific rules in the doctrine cannot run because the
   repository currently has no TypeScript source or `@typescript-eslint`
   setup.
-- The strict JavaScript profile reports 195 current violations.
+- Swift size and complexity limits still need a native equivalent.
 
 Impact:
 
-The standard is now normative, but CI will not stop new drift unless the
-repo adds a ratchet. Without a ratchet, new work can add more violations
-while old debt remains invisible.
+CI now stops new JavaScript drift, but existing violations remain real
+debt. Runtime Truth is not fully enforced until source counts are paid
+down and the limits move into the normal lint profile as hard errors.
 
 Required direction:
 
-- Add a ratcheted strict-limits report.
-- Fail new or worsened violations first.
-- Convert ratchet to full hard gate after the hotspots are split.
+- Keep ratcheted counts stable or decreasing.
+- Convert ratcheted limits to full hard gates after hotspots are split.
+- Add TypeScript and Swift equivalents when those surfaces need them.
 
 Backlog:
 
@@ -401,9 +424,11 @@ Phase 1: Documentation and measurement.
 
 Phase 2: Enforcement ratchet.
 
-- Add a strict-limits report to CI.
-- Fail only new or worsened violations at first.
-- Track full violation count in a committed baseline.
+- Completed for tracked JavaScript/MJS/CJS files in
+  `scripts/runtime-truth-ratchet.mjs`.
+- `npm run lint` now fails new or worsened ratcheted violations.
+- `docs/audit/runtime-truth-ratchet-baseline.json` tracks the full
+  current violation count.
 
 Phase 3: Boundary cleanup.
 

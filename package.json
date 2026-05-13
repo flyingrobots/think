@@ -14,7 +14,7 @@
     "think-mcp": "./bin/think-mcp.js"
   },
   "scripts": {
-    "lint": "eslint .",
+    "lint": "eslint . && npm run runtime-truth:ratchet",
     "macos": "node ./scripts/package-macos-app.mjs --open",
     "macos:bundle": "node ./scripts/package-macos-app.mjs",
     "macos:dev": "swift run --package-path macos ThinkMenuBarApp",
@@ -30,7 +30,8 @@
     "tui": "node ./bin/think.js --browse",
     "benchmark:browse": "node benchmarks/browse-bootstrap.js",
     "benchmark:capture": "node benchmarks/capture-latency.js",
-    "repair:v17-mind": "node ./scripts/repair-v17-mind.mjs"
+    "repair:v17-mind": "node ./scripts/repair-v17-mind.mjs",
+    "runtime-truth:ratchet": "node ./scripts/runtime-truth-ratchet.mjs"
   },
   "engines": {
     "node": ">=22.0.0"
