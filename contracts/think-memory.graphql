@@ -1,5 +1,12 @@
-# Think owns these application nouns. Echo must only receive generated
-# generic intents and observation requests for this family.
+# Provisional toolchain probe fixture.
+#
+# The source of truth for this family is the Think memory data model in
+# docs/design/0068-think-memory-data-model/think-memory-data-model.md.
+# GraphQL must express that model, not invent it. Before Phase 2 runtime
+# round-trip work, revise this schema against the model checklist.
+#
+# Think owns these application nouns. Echo must only receive generated generic
+# intents and observation requests for this family.
 
 directive @wes_op(name: String!) on FIELD_DEFINITION
 directive @wes_footprint(reads: [String!], writes: [String!]) on FIELD_DEFINITION

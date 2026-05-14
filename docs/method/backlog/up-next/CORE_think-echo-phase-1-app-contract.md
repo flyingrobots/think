@@ -15,6 +15,12 @@ Legend: CORE
 Author the smallest Think-owned contract family needed for a raw capture and
 exact inspect round trip.
 
+Update: `contracts/think-memory.graphql` exists and proves the local
+Echo/Wesley toolchain can compile the family, but it is now explicitly a
+provisional probe fixture. The semantic source of truth is the data model in
+`docs/design/0068-think-memory-data-model/think-memory-data-model.md`.
+Before Phase 2, revise this GraphQL contract from the model.
+
 The likely first file is:
 
 ```text
@@ -54,11 +60,15 @@ reflection outputs to the first contract.
 ## Acceptance Criteria
 
 - [x] A Think-owned GraphQL contract file exists.
-- [x] The contract supports one capture mutation and one exact inspect query.
-- [x] The contract names `mindId` explicitly, even if only `default` is used.
+- [ ] The contract supports one capture mutation and one exact inspect query
+  using model-derived fields.
+- [x] The provisional contract names `mindId` explicitly, even if only
+  `default` is used.
 - [x] Generated-artifact locations are decided but generated output is not treated
   as semantic source truth.
 - [x] No Echo or Continuum schema is modified to add Think domain nouns.
+- [ ] The contract exposes `ThoughtContent`, `ThoughtCapture`,
+  `ThoughtProvenance`, and `CausalRef` from the pinned model.
 
 ## Evidence
 

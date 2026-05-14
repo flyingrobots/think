@@ -5,6 +5,7 @@ blocks:
   - CORE_think-echo-phase-4-read-observers
   - CORE_think-echo-phase-5-migration-and-sibling-exchange
 blocked_by:
+  - CORE_think-memory-data-model
   - CORE_think-echo-phase-1-app-contract
   - CORE_think-echo-toolchain-capability-probe
 ---
@@ -25,6 +26,9 @@ production capture path.
 
 The proof should:
 
+0. Confirm `docs/design/0068-think-memory-data-model/think-memory-data-model.md`
+   is the source truth for the contract.
+0. Revise `contracts/think-memory.graphql` from that model.
 0. Run `npm run echo:probe -- --json` and require
    `ready_enough_for_phase_2`.
 1. Build a `CaptureThought` input through generated or minimally generated
@@ -46,6 +50,7 @@ usable migration path.
 ## Constraints
 
 - Do not switch the CLI, MCP server, macOS app, or default store to Echo.
+- Do not treat the current GraphQL probe fixture as semantic source truth.
 - Do not require existing `~/.think/*` minds to migrate.
 - Do not depend on `git-warp` in the hot proof path.
 - Do not hand-roll runtime bytes if the current Wesley/Echo toolchain can

@@ -27,7 +27,10 @@ Think owns:
 
 - application/domain nouns such as thought, mind, capture provenance, inspect,
   remember, browse, and session;
-- `contracts/think-memory.graphql`;
+- the memory model in
+  `docs/design/0068-think-memory-data-model/think-memory-data-model.md`;
+- `contracts/think-memory.graphql` as a generated-contract expression of that
+  model, currently only a provisional toolchain probe fixture;
 - product policy and user-facing workflows;
 - the adapter that chooses when an Echo-backed proof path is used.
 
@@ -53,7 +56,8 @@ Wesley owns:
 
 ## First Witness
 
-The first witness is deliberately small:
+The first witness is deliberately small, but it must follow the pinned data
+model:
 
 ```text
 CaptureThought -> Echo dispatch_intent(...)
@@ -69,6 +73,7 @@ npm run echo:probe -- --json
 
 That command checks the local sibling Echo/Wesley toolchain and verifies that
 `contracts/think-memory.graphql` can generate Echo-facing Rust helper output.
+Before Phase 2, the schema must be revised from the data model.
 
 ## Playback Questions
 
@@ -77,6 +82,8 @@ That command checks the local sibling Echo/Wesley toolchain and verifies that
 - [x] Does Think have a local app contract for raw capture and exact inspect?
 - [x] Does the contract name `mindId` before multi-mind migration work starts?
 - [x] Does Think have a local probe for Echo/Wesley readiness?
+- [x] Does Think have a data model before the runtime proof?
+- [ ] Has the GraphQL contract been revised from that data model?
 - [ ] Does a runtime round trip dispatch and observe one thought through Echo?
 - [ ] Does the production CLI stay on the existing store until the proof works?
 
@@ -92,6 +99,7 @@ That command checks the local sibling Echo/Wesley toolchain and verifies that
 ## Backlog Context
 
 This packet covers Phase 0 and anchors Phase 1 from the Think-on-Echo backlog
-lane. Phase 2 remains the first runtime proof: a separate witness must dispatch
-`CaptureThought`, observe `InspectThought`, inspect the `ReadingEnvelope`, and
-decode a Think-owned `ThoughtEntry`.
+lane. The data model packet now sits before Phase 2. Phase 2 remains the first
+runtime proof: a separate witness must dispatch `CaptureThought`, observe
+`InspectThought`, inspect the `ReadingEnvelope`, and decode a Think-owned
+`ThoughtEntry` whose fields are defined by the model, not by ad hoc GraphQL.

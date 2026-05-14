@@ -34,6 +34,8 @@ This review is meant to answer five questions:
 - [`0027-m5-additional-ingress-surfaces.md`](./0027-m5-additional-ingress-surfaces.md): milestone note for extending raw capture into additional human and agent ingress surfaces without changing the sacred capture core. The explicit-ingest and URL-capture slices are implemented, and the next planned slice is selected-text / share-based capture.
 - [`0028-m5-shortcuts-url-capture.md`](./0028-m5-shortcuts-url-capture.md): implemented `M5` slice note for local URL-triggered capture and Apple Shortcuts as a thin human wrapper over the same raw-capture core.
 - [`0029-m5-selected-text-share-capture.md`](./0029-m5-selected-text-share-capture.md): current `M5` slice note for explicit selected-text and share/send capture on macOS without drifting into clipping or import semantics.
+- [`0067-think-echo-contract-proof/think-echo-contract-proof.md`](./0067-think-echo-contract-proof/think-echo-contract-proof.md): Think-on-Echo ownership split and proof boundary.
+- [`0068-think-memory-data-model/think-memory-data-model.md`](./0068-think-memory-data-model/think-memory-data-model.md): source-of-truth memory data model that GraphQL must express before the Echo round trip.
 - [`ROADMAP.md`](./ROADMAP.md): milestone sequence, hill mapping, exit criteria, and review checkpoints.
 
 ## Archived Slice History
