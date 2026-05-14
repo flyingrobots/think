@@ -12,8 +12,8 @@ Legend: CORE
 
 ## Sponsors
 
-- Human: James
-- Agent: Codex
+- Human: sponsored human user
+- Agent: sponsored agent user
 
 ## Hill
 

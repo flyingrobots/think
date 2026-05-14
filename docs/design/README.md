@@ -201,6 +201,13 @@ Approve these docs only if they preserve the core doctrine:
 
 If a design choice improves technical sophistication but adds friction to capture, it should be rejected.
 
+## Sponsor Labels
+
+`Human` and `Agent` sponsor labels are sponsored-user abstractions, not literal
+people or tool identities. New design docs should use abstract roles such as
+`sponsored human user` and `sponsored agent user` unless a specific person or
+agent identity is itself part of the design.
+
 ## Out Of Scope For This Review
 
 - final UI mockups
