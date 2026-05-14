@@ -27,13 +27,18 @@ assumptions from becoming folklore.
 
 ## Acceptance Criteria
 
-- Think has a command, script, or test helper that reports the available
+- [x] Think has a command, script, or test helper that reports the available
   Wesley/Echo contract-hosting capability in JSON.
-- The probe distinguishes "generator unavailable", "Echo runtime unavailable",
+- [x] The probe distinguishes "generator unavailable", "Echo runtime unavailable",
   "generated target unsupported", and "ready enough for Phase 2".
-- The probe records exact paths or versions for any sibling checkout or local
+- [x] The probe records exact paths or versions for any sibling checkout or local
   binary it uses.
-- Phase 2 can invoke the probe or documents why it replaced the probe with a
+- [x] Phase 2 can invoke the probe or documents why it replaced the probe with a
   stronger witness.
-- Missing capabilities become explicit follow-on backlog items, not inline
+- [x] Missing capabilities become explicit follow-on backlog items, not inline
   TODO comments in the round-trip proof.
+
+## Evidence
+
+- `scripts/think-echo-capability-probe.mjs`
+- `npm run echo:probe -- --json`

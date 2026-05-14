@@ -25,6 +25,8 @@ production capture path.
 
 The proof should:
 
+0. Run `npm run echo:probe -- --json` and require
+   `ready_enough_for_phase_2`.
 1. Build a `CaptureThought` input through generated or minimally generated
    contract helpers.
 2. Dispatch the canonical intent through Echo.

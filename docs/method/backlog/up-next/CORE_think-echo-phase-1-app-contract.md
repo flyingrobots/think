@@ -53,9 +53,15 @@ reflection outputs to the first contract.
 
 ## Acceptance Criteria
 
-- A Think-owned GraphQL contract file exists.
-- The contract supports one capture mutation and one exact inspect query.
-- The contract names `mindId` explicitly, even if only `default` is used.
-- Generated-artifact locations are decided but generated output is not treated
+- [x] A Think-owned GraphQL contract file exists.
+- [x] The contract supports one capture mutation and one exact inspect query.
+- [x] The contract names `mindId` explicitly, even if only `default` is used.
+- [x] Generated-artifact locations are decided but generated output is not treated
   as semantic source truth.
-- No Echo or Continuum schema is modified to add Think domain nouns.
+- [x] No Echo or Continuum schema is modified to add Think domain nouns.
+
+## Evidence
+
+- `contracts/think-memory.graphql`
+- `test/ports/think-echo-contract.test.js`
+- `scripts/think-echo-capability-probe.mjs`

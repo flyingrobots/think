@@ -1,0 +1,60 @@
+# Think owns these application nouns. Echo must only receive generated
+# generic intents and observation requests for this family.
+
+directive @wes_op(name: String!) on FIELD_DEFINITION
+directive @wes_footprint(reads: [String!], writes: [String!]) on FIELD_DEFINITION
+
+enum ThoughtIngress {
+  CLI
+  MCP
+  MACOS
+  IMPORT
+  TEST
+  UNKNOWN
+}
+
+type CaptureProvenance {
+  ingress: ThoughtIngress!
+  source: String
+  url: String
+  application: String
+}
+
+input CaptureProvenanceInput {
+  ingress: ThoughtIngress!
+  source: String
+  url: String
+  application: String
+}
+
+input CaptureThoughtInput {
+  mindId: ID!
+  actorId: ID
+  text: String!
+  capturedAt: String!
+  provenance: CaptureProvenanceInput
+}
+
+type ThoughtEntry {
+  entryId: ID!
+  mindId: ID!
+  actorId: ID
+  text: String!
+  capturedAt: String!
+  provenance: CaptureProvenance
+}
+
+type CaptureThoughtResult {
+  entry: ThoughtEntry!
+}
+
+type Query {
+  inspectThought(mindId: ID!, entryId: ID!): ThoughtEntry!
+    @wes_op(name: "InspectThought")
+}
+
+type Mutation {
+  captureThought(input: CaptureThoughtInput!): CaptureThoughtResult!
+    @wes_op(name: "CaptureThought")
+    @wes_footprint(reads: ["ThoughtEntry"], writes: ["ThoughtEntry"])
+}
