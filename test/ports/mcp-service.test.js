@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createCaptureThoughtService } from '../../src/mcp/service.js';
+import {
+  createCaptureThoughtService,
+  createMigrateThoughtGraphService,
+} from '../../src/mcp/service.js';
 
 test('MCP capture returns saved locally when post-save followthrough defers', async () => {
   const calls = [];
@@ -27,6 +30,31 @@ test('MCP capture returns saved locally when post-save followthrough defers', as
   assert.equal(outcome.structuredContent.backupStatus, 'skipped');
   assert.equal(outcome.structuredContent.migration, null);
   assert.equal(outcome.structuredContent.warnings.length, 1);
+});
+
+test('MCP migrate_graph returns a no-op when the graph model is current', async () => {
+  const calls = [];
+  const migrateThoughtGraph = createMigrateThoughtGraphService({
+    getGraphModelStatus: () => record(calls, 'getGraphModelStatus', {
+      currentGraphModelVersion: 4,
+      requiredGraphModelVersion: 4,
+      migrationRequired: false,
+    }),
+    getLocalRepoDir: () => record(calls, 'repoDir', '/tmp/think-claude'),
+    hasGitRepo: () => record(calls, 'hasGitRepo', true),
+    migrateGraphModel: () => record(calls, 'migrateGraphModel'),
+  });
+
+  const outcome = await migrateThoughtGraph();
+
+  assert.deepEqual(calls, ['repoDir', 'hasGitRepo', 'getGraphModelStatus']);
+  assert.deepEqual(outcome.structuredContent, {
+    changed: false,
+    edgesAdded: 0,
+    edgesRemoved: 0,
+    graphModelVersion: 4,
+    metadataUpdated: false,
+  });
 });
 
 function createDeferredFollowthroughDeps(calls) {

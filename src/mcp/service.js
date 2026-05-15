@@ -308,14 +308,30 @@ export async function checkThinkHealthForMcp() {
   return new HealthOutcome(diagnostics);
 }
 
-export async function migrateThoughtGraph() {
-  const repoDir = getLocalRepoDir();
-  if (!hasGitRepo(repoDir)) {
-    throw new GraphError('No local thought repo found to migrate');
-  }
+const defaultMigrationDeps = Object.freeze({
+  getGraphModelStatus,
+  getLocalRepoDir,
+  hasGitRepo,
+  migrateGraphModel,
+});
 
-  const result = await migrateGraphModel(repoDir);
-  return new MigrationOutcome(result);
+export const migrateThoughtGraph = createMigrateThoughtGraphService();
+
+export function createMigrateThoughtGraphService(deps = defaultMigrationDeps) {
+  return async function migrateThoughtGraphWithDeps() {
+    const repoDir = deps.getLocalRepoDir();
+    if (!deps.hasGitRepo(repoDir)) {
+      throw new GraphError('No local thought repo found to migrate');
+    }
+
+    const status = await deps.getGraphModelStatus(repoDir);
+    if (!status.migrationRequired) {
+      return new MigrationOutcome(createNoopMigrationResult(status));
+    }
+
+    const result = await deps.migrateGraphModel(repoDir);
+    return new MigrationOutcome(result);
+  };
 }
 
 async function assertGraphReady(command) {
@@ -343,6 +359,16 @@ function buildRememberScope({ cwd, query, limit, brief }) {
     brief,
     limit,
   };
+}
+
+function createNoopMigrationResult(status) {
+  return Object.freeze({
+    changed: false,
+    graphModelVersion: status.currentGraphModelVersion ?? status.requiredGraphModelVersion,
+    edgesAdded: 0,
+    edgesRemoved: 0,
+    metadataUpdated: false,
+  });
 }
 
 function toMcpEntry(entry) {

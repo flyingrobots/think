@@ -162,7 +162,10 @@ export async function runMigrateGraph(output, reporter) {
     return 1;
   }
 
-  const result = await migrateGraphModel(repoDir);
+  const status = await getGraphModelStatus(repoDir);
+  const result = status.migrationRequired
+    ? await migrateGraphModel(repoDir)
+    : createNoopMigrationResult(status);
   reporter.event('migrate_graph.done', result);
 
   if (output.json) {
@@ -185,6 +188,16 @@ export async function runMigrateGraph(output, reporter) {
   }
   output.out(lines.join('\n'));
   return 0;
+}
+
+function createNoopMigrationResult(status) {
+  return Object.freeze({
+    changed: false,
+    graphModelVersion: status.currentGraphModelVersion ?? status.requiredGraphModelVersion,
+    edgesAdded: 0,
+    edgesRemoved: 0,
+    metadataUpdated: false,
+  });
 }
 
 async function readStdinText(stdin) {
