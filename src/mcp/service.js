@@ -2,7 +2,6 @@ import { runDiagnostics } from '../doctor.js';
 import { ValidationError, NotFoundError, GraphError } from '../errors.js';
 import { ensureGitRepo, hasGitRepo, lsRemote, pushWarpRefs } from '../git.js';
 import { getLocalRepoDir, getThinkDir, getUpstreamUrl } from '../paths.js';
-import { capturePolicy } from '../policies.js';
 import { normalizeCaptureProvenance } from '../capture-provenance.js';
 import { getCaptureAmbientContext, getAmbientProjectContext } from '../project-context.js';
 import {
@@ -35,62 +34,127 @@ import {
   StatsOutcome,
 } from './result.js';
 
-export async function captureThought(text, { provenance = null } = {}) {
+const CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS = 3_000;
+const CAPTURE_FOLLOWTHROUGH_DEFERRED = Object.freeze({ status: 'deferred' });
+const CAPTURE_FOLLOWTHROUGH_DEFERRED_WARNING =
+  'Capture followthrough deferred; raw thought saved locally before derived graph updates completed.';
+const NO_GRAPH_MIGRATION_STATUS = Object.freeze({
+  currentGraphModelVersion: null,
+  requiredGraphModelVersion: null,
+  migrationRequired: false,
+});
+
+const defaultCaptureDeps = Object.freeze({
+  ensureGitRepo,
+  finalizeCapturedThought,
+  getAmbientProjectContext,
+  getCaptureAmbientContext,
+  getCwd: () => process.cwd(),
+  getGraphModelStatus,
+  getLocalRepoDir,
+  getUpstreamUrl,
+  graphName: GRAPH_NAME,
+  hasGitRepo,
+  pushWarpRefs,
+  saveRawCapture,
+  waitForFollowthrough: waitForCaptureFollowthrough,
+});
+
+export const captureThought = createCaptureThoughtService();
+
+export function createCaptureThoughtService(deps = defaultCaptureDeps) {
+  return async function captureThoughtWithDeps(text, { provenance = null } = {}) {
+    const thought = normalizeThoughtText(text);
+    const captureProvenance = normalizeCaptureProvenance(provenance);
+    const repoDir = deps.getLocalRepoDir();
+    const repoAlreadyExists = deps.hasGitRepo(repoDir);
+
+    await deps.ensureGitRepo(repoDir);
+    const entry = await deps.saveRawCapture(repoDir, thought, {
+      provenance: captureProvenance,
+      ambientContext: deps.getCaptureAmbientContext(deps.getCwd()),
+    });
+    const followthrough = await runCaptureFollowthrough(deps, repoDir, entry.id, repoAlreadyExists);
+    const backupStatus = await runCaptureBackup(deps, repoDir);
+
+    return new CaptureOutcome({
+      backupStatus,
+      entryId: entry.id,
+      migration: followthrough.migration,
+      repoBootstrapped: !repoAlreadyExists,
+      status: 'saved_locally',
+      warnings: followthrough.warnings,
+    });
+  };
+}
+
+function normalizeThoughtText(text) {
   const thought = String(text ?? '');
   if (thought.trim() === '') {
     throw new ValidationError('Thought cannot be empty');
   }
-  const captureProvenance = normalizeCaptureProvenance(provenance);
+  return thought;
+}
 
-  const repoDir = getLocalRepoDir();
-  const repoAlreadyExists = hasGitRepo(repoDir);
+async function runCaptureFollowthrough(deps, repoDir, entryId, repoAlreadyExists) {
+  const warnings = [];
+  const followthroughPromise = buildCaptureFollowthrough(deps, repoDir, entryId, repoAlreadyExists);
 
-  await ensureGitRepo(repoDir);
-
-  const graphStatus = repoAlreadyExists
-    ? await getGraphModelStatus(repoDir)
-    : {
-        currentGraphModelVersion: null,
-        requiredGraphModelVersion: null,
-        migrationRequired: false,
-      };
-
-  const { entry, migration, warnings } = await capturePolicy.execute(async () => {
-    const saved = await saveRawCapture(repoDir, thought, {
-      provenance: captureProvenance,
-      ambientContext: getCaptureAmbientContext(process.cwd()),
-    });
-    let mig = null;
-    const warns = [];
-
-    try {
-      const followthrough = await finalizeCapturedThought(repoDir, saved.id, {
-        migrateIfNeeded: graphStatus.migrationRequired,
-        ambientContext: getAmbientProjectContext(process.cwd()),
-      });
-      mig = followthrough.migration ?? null;
-    } catch (error) {
-      warns.push(error instanceof Error ? error.message : String(error));
+  try {
+    const followthrough = await deps.waitForFollowthrough(followthroughPromise);
+    if (!isDeferredCaptureFollowthrough(followthrough)) {
+      return { migration: followthrough?.migration ?? null, warnings };
     }
-
-    return { entry: saved, migration: mig, warnings: warns };
-  });
-
-  const upstreamUrl = getUpstreamUrl();
-  let backupStatus = 'skipped';
-  if (upstreamUrl) {
-    const backedUp = await pushWarpRefs(repoDir, upstreamUrl, GRAPH_NAME);
-    backupStatus = backedUp ? 'backed_up' : 'pending';
+  } catch (error) {
+    warnings.push(error instanceof Error ? error.message : String(error));
+    return { migration: null, warnings };
   }
 
-  return new CaptureOutcome({
-    backupStatus,
-    entryId: entry.id,
-    migration,
-    repoBootstrapped: !repoAlreadyExists,
-    status: 'saved_locally',
-    warnings,
+  followthroughPromise.catch(() => {});
+  warnings.push(CAPTURE_FOLLOWTHROUGH_DEFERRED_WARNING);
+  return { migration: null, warnings };
+}
+
+async function buildCaptureFollowthrough(deps, repoDir, entryId, repoAlreadyExists) {
+  const graphStatus = repoAlreadyExists
+    ? await deps.getGraphModelStatus(repoDir)
+    : NO_GRAPH_MIGRATION_STATUS;
+
+  return await deps.finalizeCapturedThought(repoDir, entryId, {
+    migrateIfNeeded: graphStatus.migrationRequired,
+    ambientContext: deps.getAmbientProjectContext(deps.getCwd()),
   });
+}
+
+function isDeferredCaptureFollowthrough(followthrough) {
+  return followthrough?.status === CAPTURE_FOLLOWTHROUGH_DEFERRED.status;
+}
+
+async function runCaptureBackup(deps, repoDir) {
+  const upstreamUrl = deps.getUpstreamUrl();
+  if (!upstreamUrl) {
+    return 'skipped';
+  }
+
+  const backedUp = await deps.pushWarpRefs(repoDir, upstreamUrl, deps.graphName);
+  return backedUp ? 'backed_up' : 'pending';
+}
+
+async function waitForCaptureFollowthrough(followthroughPromise) {
+  let timeoutId = null;
+  const timeout = new Promise((resolve) => {
+    timeoutId = setTimeout(
+      () => resolve(CAPTURE_FOLLOWTHROUGH_DEFERRED),
+      CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS
+    );
+    timeoutId.unref?.();
+  });
+
+  try {
+    return await Promise.race([followthroughPromise, timeout]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 export async function listRecentThoughts({ count = null, query = null } = {}) {
