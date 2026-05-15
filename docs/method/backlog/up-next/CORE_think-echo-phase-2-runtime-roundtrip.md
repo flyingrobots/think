@@ -28,6 +28,8 @@ The proof should:
 
 0. Confirm `docs/design/0068-think-memory-data-model/think-memory-data-model.md`
    is the source truth for the contract.
+0. Follow `docs/design/0069-think-echo-integration-plan/think-echo-integration-plan.md`
+   for the runtime port and adapter shape.
 0. Use the model-derived `contracts/think-memory.graphql` contract.
 0. Run `npm run echo:probe -- --json` and require
    `ready_enough_for_phase_2`.

@@ -30,7 +30,7 @@ Think owns:
 - the memory model in
   `docs/design/0068-think-memory-data-model/think-memory-data-model.md`;
 - `contracts/think-memory.graphql` as a generated-contract expression of that
-  model, currently only a provisional toolchain probe fixture;
+  model;
 - product policy and user-facing workflows;
 - the adapter that chooses when an Echo-backed proof path is used.
 
@@ -73,7 +73,6 @@ npm run echo:probe -- --json
 
 That command checks the local sibling Echo/Wesley toolchain and verifies that
 `contracts/think-memory.graphql` can generate Echo-facing Rust helper output.
-Before Phase 2, the schema must be revised from the data model.
 
 ## Playback Questions
 

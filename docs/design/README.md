@@ -36,6 +36,7 @@ This review is meant to answer five questions:
 - [`0029-m5-selected-text-share-capture.md`](./0029-m5-selected-text-share-capture.md): current `M5` slice note for explicit selected-text and share/send capture on macOS without drifting into clipping or import semantics.
 - [`0067-think-echo-contract-proof/think-echo-contract-proof.md`](./0067-think-echo-contract-proof/think-echo-contract-proof.md): Think-on-Echo ownership split and proof boundary.
 - [`0068-think-memory-data-model/think-memory-data-model.md`](./0068-think-memory-data-model/think-memory-data-model.md): source-of-truth memory data model that GraphQL must express before the Echo round trip.
+- [`0069-think-echo-integration-plan/think-echo-integration-plan.md`](./0069-think-echo-integration-plan/think-echo-integration-plan.md): integration path for putting Echo behind a Think-owned memory runtime port.
 - [`ROADMAP.md`](./ROADMAP.md): milestone sequence, hill mapping, exit criteria, and review checkpoints.
 
 ## Archived Slice History
