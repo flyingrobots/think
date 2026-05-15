@@ -76,7 +76,7 @@ outside the hot CLI path.
 ## Current Evidence
 
 - Phase 0 charter: `docs/design/0067-think-echo-contract-proof/think-echo-contract-proof.md`
-- Data model source truth: `docs/design/0068-think-memory-data-model/think-memory-data-model.md`
+- Data model source of truth: `docs/design/0068-think-memory-data-model/think-memory-data-model.md`
 - Phase 1 model-derived contract: `contracts/think-memory.graphql`
 - Toolchain probe: `npm run echo:probe -- --json`
 

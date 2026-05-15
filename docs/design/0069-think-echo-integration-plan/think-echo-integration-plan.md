@@ -139,7 +139,7 @@ Owns GraphQL contract source:
 
 The contract is allowed to use GraphQL-friendly shapes, but it must stay a
 projection of the model. Generated output is build/proof material, not semantic
-source truth.
+source of truth.
 
 ### Layer 3: Generated Boundary
 

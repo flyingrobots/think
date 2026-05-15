@@ -676,7 +676,7 @@ Echo does not receive:
 
 ### Phase M0: Freeze The Model
 
-- Treat this document as source truth.
+- Treat this document as the source of truth.
 - Mark current GraphQL as provisional until revised against this model.
 - Add model-level tests before runtime round-trip code.
 
@@ -695,7 +695,7 @@ Echo does not receive:
 - Revise `contracts/think-memory.graphql` to match `ThoughtEntry`,
   `ThoughtContent`, `ThoughtCapture`, `ThoughtProvenance`, and `CausalRef`.
 - Run `npm run echo:probe -- --json`.
-- Keep generated files out of semantic source truth unless a later build step
+- Keep generated files out of semantic source of truth unless a later build step
   requires checked-in fixtures.
 
 ### Phase M3: Echo Round Trip

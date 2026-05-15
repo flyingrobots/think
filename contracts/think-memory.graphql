@@ -1,6 +1,6 @@
 # Think-owned memory contract for the Echo proof.
 #
-# Source truth:
+# Source of truth:
 # docs/design/0068-think-memory-data-model/think-memory-data-model.md
 #
 # GraphQL expresses the Think memory model. Echo must only receive generated
