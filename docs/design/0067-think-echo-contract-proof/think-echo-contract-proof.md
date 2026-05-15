@@ -83,7 +83,7 @@ Before Phase 2, the schema must be revised from the data model.
 - [x] Does the contract name `mindId` before multi-mind migration work starts?
 - [x] Does Think have a local probe for Echo/Wesley readiness?
 - [x] Does Think have a data model before the runtime proof?
-- [ ] Has the GraphQL contract been revised from that data model?
+- [x] Has the GraphQL contract been revised from that data model?
 - [ ] Does a runtime round trip dispatch and observe one thought through Echo?
 - [ ] Does the production CLI stay on the existing store until the proof works?
 

@@ -19,6 +19,10 @@ const generatorMarkers = Object.freeze([
   'pub const OP_INSPECT_THOUGHT',
   'pub struct CaptureThoughtInput',
   'pub struct ThoughtEntry',
+  'pub struct ThoughtContent',
+  'pub struct ThoughtCapture',
+  'pub struct ThoughtProvenance',
+  'pub struct CausalRef',
   'pub fn pack_capture_thought_intent',
   'pub fn inspect_thought_observation_request',
 ]);

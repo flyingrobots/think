@@ -77,11 +77,8 @@ outside the hot CLI path.
 
 - Phase 0 charter: `docs/design/0067-think-echo-contract-proof/think-echo-contract-proof.md`
 - Data model source truth: `docs/design/0068-think-memory-data-model/think-memory-data-model.md`
-- Phase 1 provisional contract: `contracts/think-memory.graphql`
+- Phase 1 model-derived contract: `contracts/think-memory.graphql`
 - Toolchain probe: `npm run echo:probe -- --json`
-
-The provisional GraphQL contract must be revised from the data model before the
-Phase 2 Echo runtime round trip.
 
 ## Non-Goals
 

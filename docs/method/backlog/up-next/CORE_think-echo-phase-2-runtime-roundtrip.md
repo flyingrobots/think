@@ -28,7 +28,7 @@ The proof should:
 
 0. Confirm `docs/design/0068-think-memory-data-model/think-memory-data-model.md`
    is the source truth for the contract.
-0. Revise `contracts/think-memory.graphql` from that model.
+0. Use the model-derived `contracts/think-memory.graphql` contract.
 0. Run `npm run echo:probe -- --json` and require
    `ready_enough_for_phase_2`.
 1. Build a `CaptureThought` input through generated or minimally generated
