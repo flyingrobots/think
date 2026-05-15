@@ -27,7 +27,7 @@ production capture path.
 The proof should:
 
 1. Confirm `docs/design/0068-think-memory-data-model/think-memory-data-model.md`
-   is the source truth for the contract.
+   is the source of truth for the contract.
 2. Follow `docs/design/0069-think-echo-integration-plan/think-echo-integration-plan.md`
    for the runtime port and adapter shape.
 3. Use the model-derived `contracts/think-memory.graphql` contract.
@@ -52,7 +52,7 @@ usable migration path.
 ## Constraints
 
 - Do not switch the CLI, MCP server, macOS app, or default store to Echo.
-- Do not treat the current GraphQL probe fixture as semantic source truth.
+- Do not treat the current GraphQL probe fixture as semantic source of truth.
 - Do not require existing `~/.think/*` minds to migrate.
 - Do not depend on `git-warp` in the hot proof path.
 - Do not hand-roll runtime bytes if the current Wesley/Echo toolchain can

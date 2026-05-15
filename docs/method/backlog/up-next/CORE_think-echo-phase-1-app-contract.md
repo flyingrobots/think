@@ -18,7 +18,7 @@ exact inspect round trip.
 Update: `contracts/think-memory.graphql` now expresses the pinned data model in
 `docs/design/0068-think-memory-data-model/think-memory-data-model.md` for the
 Phase 2 proof. The GraphQL file is still a contract expression, not semantic
-source truth.
+source of truth.
 
 The likely first file is:
 
@@ -64,7 +64,7 @@ reflection outputs to the first contract.
 - [x] The provisional contract names `mindId` explicitly, even if only
   `default` is used.
 - [x] Generated-artifact locations are decided but generated output is not treated
-  as semantic source truth.
+  as semantic source of truth.
 - [x] No Echo or Continuum schema is modified to add Think domain nouns.
 - [x] The contract exposes `ThoughtContent`, `ThoughtCapture`,
   `ThoughtProvenance`, and `CausalRef` from the pinned model.
