@@ -192,11 +192,17 @@ ThoughtEntry {
   mindId
   capturedAt
   content
-  source
+  provenance
   metadata
   causalRef
 }
 ```
+
+For Phase 2, `provenance` is the canonical model field. Any `source` field on a
+temporary GraphQL or adapter surface is only a flattened display alias derived
+from `ThoughtProvenance.ingress`, `sourceApp`, `sourceUrl`, or `importOrigin`.
+It is not a separate domain fact and must not replace the structured provenance
+object at the core boundary.
 
 ### ThoughtContent
 
@@ -517,7 +523,7 @@ erDiagram
     THOUGHT_ENTRY {
       string thoughtId PK
       string mindId FK
-      string capturedAt
+      datetime capturedAt
       string causalRefId FK
     }
 
@@ -725,8 +731,6 @@ Echo does not receive:
 
 ## Open Model Decisions
 
-- Whether `thoughtId` is content-derived, capture-event-derived, or both via
-  separate `contentDigest` and `captureId`.
 - Whether `actorId` and `writerId` remain separate product fields.
 - How much ambient project context is safe by default in shared or imported
   minds.
@@ -734,6 +738,29 @@ Echo does not receive:
   runtime evidence.
 - How GraphQL schema generation should be governed so the model remains source
   truth.
+
+## Phase 2 ID Contract
+
+For the first Echo proof, `thoughtId` is the stable product id for one captured
+thought entry inside a `Mind`. It is capture-event-derived, unique within
+`mindId`, and safe to use as the `InspectThought` lookup key.
+
+`captureId` remains the admission-event id exposed by `ThoughtCapture`.
+`content.digest` is the content-derived identity and is not unique by itself:
+two repeated captures can have the same digest while still producing distinct
+`thoughtId` and `captureId` values.
+
+GraphQL mapping:
+
+- `ThoughtEntry.thoughtId`: unique product entry id scoped by `mindId`.
+- `ThoughtCapture.captureId`: unique capture admission id.
+- `ThoughtContent.digest`: content equality fingerprint.
+- `actorId`: sponsored user abstraction that initiated capture, when known.
+- `writerId`: runtime writer identity, when the backing runtime exposes one.
+
+Migration note: if later product work introduces a first-class canonical content
+identity, it should be added as a separate field rather than overloading the
+Phase 2 `thoughtId` contract.
 
 ## Acceptance
 

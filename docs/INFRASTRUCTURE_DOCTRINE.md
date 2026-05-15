@@ -275,7 +275,7 @@ even when the exact linter differs.
     "@typescript-eslint/no-unsafe-call": "error",
     "@typescript-eslint/only-throw-error": "error",
     "@typescript-eslint/switch-exhaustiveness-check": "error",
-    "no-floating-promises": "error"
+    "@typescript-eslint/no-floating-promises": "error"
   }
 }
 ```

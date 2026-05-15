@@ -366,8 +366,7 @@ Backlog:
 - Existing: `SURFACE_splash-monolith`
 - Existing: `SURFACE_mind-switch-loop-in-command`
 
-### F8. Swift adapter is closer to hexagonal shape, but app state is a
-composition hotspot
+### F8. Swift adapter is closer to hexagonal shape, but app state is a composition hotspot
 
 Severity: Medium
 

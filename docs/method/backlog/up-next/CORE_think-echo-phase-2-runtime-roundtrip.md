@@ -26,22 +26,22 @@ production capture path.
 
 The proof should:
 
-0. Confirm `docs/design/0068-think-memory-data-model/think-memory-data-model.md`
+1. Confirm `docs/design/0068-think-memory-data-model/think-memory-data-model.md`
    is the source truth for the contract.
-0. Follow `docs/design/0069-think-echo-integration-plan/think-echo-integration-plan.md`
+2. Follow `docs/design/0069-think-echo-integration-plan/think-echo-integration-plan.md`
    for the runtime port and adapter shape.
-0. Use the model-derived `contracts/think-memory.graphql` contract.
-0. Run `npm run echo:probe -- --json` and require
+3. Use the model-derived `contracts/think-memory.graphql` contract.
+4. Run `npm run echo:probe -- --json` and require
    `ready_enough_for_phase_2`.
-1. Build a `CaptureThought` input through generated or minimally generated
+5. Build a `CaptureThought` input through generated or minimally generated
    contract helpers.
-2. Dispatch the canonical intent through Echo.
-3. Receive admission evidence for the capture.
-4. Build an exact `InspectThought` observation by entry id or coordinate.
-5. Receive a `ReadingEnvelope` or equivalent Echo observation artifact.
-6. Verify the reading posture is complete.
-7. Decode the payload into a Think-owned `ThoughtEntry`.
-8. Assert that raw text and capture metadata survived the round trip.
+6. Dispatch the canonical intent through Echo.
+7. Receive admission evidence for the capture.
+8. Build an exact `InspectThought` observation by entry id or coordinate.
+9. Receive a `ReadingEnvelope` or equivalent Echo observation artifact.
+10. Verify the reading posture is complete.
+11. Decode the payload into a Think-owned `ThoughtEntry`.
+12. Assert that raw text and capture metadata survived the round trip.
 
 ## Why
 

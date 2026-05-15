@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const baselinePath = path.join(repoRoot, 'docs', 'audit', 'runtime-truth-ratchet-baseline.json');
+const COMMAND_TIMEOUT_MS = 120_000;
 const sourcePrefixes = Object.freeze(['src/', 'bin/', 'scripts/']);
 const strictRuleIds = Object.freeze([
   'complexity',
@@ -25,7 +26,7 @@ const strictRuleArgs = Object.freeze([
   'complexity:["error",8]',
   'max-statements:["error",25]',
 ]);
-const genericThrowPattern = /\bthrow\s+new\s+(Error|TypeError)\s*\(/u;
+const genericThrowPattern = /\bthrow\s+new\s+(Error|TypeError)\s*\(/gu;
 
 class RuntimeTruthRatchetError extends Error {
   constructor(message) {
@@ -61,10 +62,21 @@ function run(command, args, { allowFailure = false } = {}) {
     cwd: repoRoot,
     encoding: 'utf8',
     maxBuffer: 32 * 1024 * 1024,
+    timeout: COMMAND_TIMEOUT_MS,
   });
 
   if (result.error) {
+    if (result.error.code === 'ETIMEDOUT') {
+      throw new RuntimeTruthRatchetError(
+        `Runtime truth ratchet: command timed out after ${COMMAND_TIMEOUT_MS}ms: ${command} ${args.join(' ')}`
+      );
+    }
     throw result.error;
+  }
+  if (result.signal) {
+    throw new RuntimeTruthRatchetError(
+      `Runtime truth ratchet: command exited via signal ${result.signal}: ${command} ${args.join(' ')}`
+    );
   }
   if (!allowFailure && result.status !== 0) {
     throw new RuntimeTruthRatchetError([
@@ -126,24 +138,34 @@ function collectStrictLimitFindings(files) {
 function collectGenericThrowFindings(files) {
   const findings = [];
   for (const file of files) {
-    const lines = readFileSync(path.join(repoRoot, file), 'utf8').split('\n');
-    for (let index = 0; index < lines.length; index += 1) {
-      const line = lines[index];
-      const match = genericThrowPattern.exec(line);
-      if (match === null) {
-        continue;
-      }
+    const content = readFileSync(path.join(repoRoot, file), 'utf8');
+    genericThrowPattern.lastIndex = 0;
+    for (const match of content.matchAll(genericThrowPattern)) {
+      const position = locateTextPosition(content, match.index ?? 0);
       findings.push(Object.freeze({
         category: classifyFile(file),
-        column: match.index + 1,
+        column: position.column,
         file,
         kind: match[1],
-        line: index + 1,
-        text: line.trim(),
+        line: position.line,
+        text: firstMatchedLine(match[0]),
       }));
     }
   }
   return findings.sort(compareFindings);
+}
+
+function locateTextPosition(content, offset) {
+  const prefix = content.slice(0, offset);
+  const lastNewlineIndex = prefix.lastIndexOf('\n');
+  return Object.freeze({
+    column: offset - lastNewlineIndex,
+    line: prefix.split('\n').length,
+  });
+}
+
+function firstMatchedLine(text) {
+  return text.split('\n')[0]?.trim() ?? '';
 }
 
 function classifyFile(file) {

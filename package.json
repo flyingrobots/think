@@ -14,7 +14,7 @@
     "think-mcp": "./bin/think-mcp.js"
   },
   "scripts": {
-    "lint": "eslint . && npm run runtime-truth:ratchet",
+    "lint": "node ./scripts/lint.mjs",
     "macos": "node ./scripts/package-macos-app.mjs --open",
     "macos:bundle": "node ./scripts/package-macos-app.mjs",
     "macos:dev": "swift run --package-path macos ThinkMenuBarApp",

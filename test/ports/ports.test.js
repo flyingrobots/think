@@ -27,6 +27,8 @@ test('abstract random port reports a typed not-implemented error', () => {
 
 function isPortError(error, portName, methodName) {
   return error instanceof PortNotImplementedError
+    && error.code === 'PORT_NOT_IMPLEMENTED'
+    && error.message === `${portName}.${methodName} is not implemented`
     && error.portName === portName
     && error.methodName === methodName;
 }

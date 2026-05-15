@@ -20,5 +20,7 @@ logic in one app-state class.
 - Move process restart behind a port instead of constructing `Process`
   inside `CaptureAppState`.
 - Split retry orchestration from menu-bar state.
-- `CaptureAppState.swift` falls below 250 lines or is divided by one
-  primary responsibility per file.
+- `CaptureAppState.swift` is no more than 250 lines, or is split into
+  multiple files with exactly one primary responsibility per file.
+- A primary responsibility is a single class, struct, actor, or small cohesive
+  set of closely related functions that implement one feature or concern.

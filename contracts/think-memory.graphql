@@ -8,6 +8,7 @@
 
 directive @wes_op(name: String!) on FIELD_DEFINITION
 directive @wes_footprint(reads: [String!], writes: [String!]) on FIELD_DEFINITION
+scalar DateTime
 
 enum ThoughtIngress {
   CLI
@@ -85,7 +86,7 @@ type ThoughtCapture {
   mindId: ID!
   actorId: ID
   writerId: ID
-  capturedAt: String!
+  capturedAt: DateTime!
   ingress: ThoughtIngress!
   boundary: String
   causalRef: CausalRef!
@@ -94,7 +95,7 @@ type ThoughtCapture {
 type ThoughtEntry {
   thoughtId: ID!
   mindId: ID!
-  capturedAt: String!
+  capturedAt: DateTime!
   content: ThoughtContent!
   capture: ThoughtCapture!
   provenance: ThoughtProvenance!
@@ -107,7 +108,7 @@ input CaptureThoughtInput {
   mindId: ID!
   actorId: ID
   writerId: ID
-  capturedAt: String!
+  capturedAt: DateTime!
   content: ThoughtContentInput!
   provenance: ThoughtProvenanceInput!
   source: String

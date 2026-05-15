@@ -154,19 +154,22 @@ function runGenerator(paths, generator) {
 function runGeneratorUnchecked(paths) {
   const tempDir = mkdtempSync(path.join(tmpdir(), 'think-echo-probe-'));
   const generatedPath = path.join(tempDir, 'think_memory.generated.rs');
-  const result = runCommand('cargo', generatorArgs(paths.contract, generatedPath), {
-    cwd: paths.echoRepo,
-    timeoutMs: 180_000,
-  });
-  const markers = readGeneratedMarkers(generatedPath);
-  rmSync(tempDir, { force: true, recursive: true });
+  try {
+    const result = runCommand('cargo', generatorArgs(paths.contract, generatedPath), {
+      cwd: paths.echoRepo,
+      timeoutMs: 180_000,
+    });
+    const markers = readGeneratedMarkers(generatedPath);
 
-  return Object.freeze({
-    markers,
-    ok: result.status === 0 && markers.length === generatorMarkers.length,
-    result,
-    skipped: false,
-  });
+    return Object.freeze({
+      markers,
+      ok: result.status === 0 && markers.length === generatorMarkers.length,
+      result,
+      skipped: false,
+    });
+  } finally {
+    rmSync(tempDir, { force: true, recursive: true });
+  }
 }
 
 function generatorArgs(schemaPath, outputPath) {
