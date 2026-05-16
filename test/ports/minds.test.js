@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import { execSync } from 'node:child_process';
 import { createTempDir } from '../fixtures/tmp.js';
+import { ValidationError } from '../../src/errors.js';
 import { discoverMinds, shaderForMind } from '../../src/minds.js';
 
 // ---------------------------------------------------------------------------
@@ -134,7 +135,7 @@ test('shaderForMind stays within the shader count range', () => {
 test('shaderForMind throws when shaderCount is zero', () => {
   assert.throws(
     () => shaderForMind('test', 0),
-    { message: /shaderCount/ },
+    (error) => error instanceof ValidationError && /shaderCount/.test(error.message),
     'Expected shaderForMind to reject zero shaderCount.'
   );
 });
@@ -142,7 +143,7 @@ test('shaderForMind throws when shaderCount is zero', () => {
 test('shaderForMind throws when shaderCount is negative', () => {
   assert.throws(
     () => shaderForMind('test', -1),
-    { message: /shaderCount/ },
+    (error) => error instanceof ValidationError && /shaderCount/.test(error.message),
     'Expected shaderForMind to reject negative shaderCount.'
   );
 });

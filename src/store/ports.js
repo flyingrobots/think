@@ -1,10 +1,12 @@
+import { PortNotImplementedError } from '../errors.js';
+
 /**
  * ClockPort interface for deterministic time.
  * Adheres to Infrastructure Doctrine P7.
  */
 export class ClockPort {
   /** @returns {Date} */
-  now() { throw new Error('now() not implemented'); }
+  now() { throw new PortNotImplementedError('ClockPort', 'now'); }
 }
 
 /**
@@ -13,7 +15,7 @@ export class ClockPort {
  */
 export class HostPort {
   /** @returns {string} */
-  hostname() { throw new Error('hostname() not implemented'); }
+  hostname() { throw new PortNotImplementedError('HostPort', 'hostname'); }
 }
 
 /**
@@ -22,7 +24,7 @@ export class HostPort {
  */
 export class RandomPort {
   /** @returns {string} */
-  uuid() { throw new Error('uuid() not implemented'); }
+  uuid() { throw new PortNotImplementedError('RandomPort', 'uuid'); }
 }
 
 class SystemClock extends ClockPort {

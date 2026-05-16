@@ -12,6 +12,11 @@ Release discipline:
 
 ## Unreleased
 
+- added a Runtime Truth ratchet to `npm run lint`, including strict-limit baseline enforcement and a generic source-error guard
+- added the Think-on-Echo proof seam with a model-derived GraphQL memory contract, Echo/Wesley capability probe, and pinned Think memory data model
+- fixed MCP capture to return after the raw local save when post-save graph follow-through is slow, matching the CLI trapdoor behavior
+- fixed graph migration commands to return a fast no-op when the graph model is already current
+- tightened PR review cleanup around lint arg forwarding, runtime ratchet hardening, Echo probe cleanup, and the Think memory contract timestamp scalar
 - fixed MCP tool result envelopes so structured content matches each registered output schema again
 - fixed checkpoint-backed reads to use public `@git-stunts/git-warp` package exports instead of private `node_modules` internals
 - fixed cached writer retries across raw capture follow-through, annotations, reflect writes, migrations, and enrichment patches

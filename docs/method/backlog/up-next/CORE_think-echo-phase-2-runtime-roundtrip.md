@@ -5,6 +5,7 @@ blocks:
   - CORE_think-echo-phase-4-read-observers
   - CORE_think-echo-phase-5-migration-and-sibling-exchange
 blocked_by:
+  - CORE_think-memory-data-model
   - CORE_think-echo-phase-1-app-contract
   - CORE_think-echo-toolchain-capability-probe
 ---
@@ -25,15 +26,22 @@ production capture path.
 
 The proof should:
 
-1. Build a `CaptureThought` input through generated or minimally generated
+1. Confirm `docs/design/0068-think-memory-data-model/think-memory-data-model.md`
+   is the source of truth for the contract.
+2. Follow `docs/design/0069-think-echo-integration-plan/think-echo-integration-plan.md`
+   for the runtime port and adapter shape.
+3. Use the model-derived `contracts/think-memory.graphql` contract.
+4. Run `npm run echo:probe -- --json` and require
+   `ready_enough_for_phase_2`.
+5. Build a `CaptureThought` input through generated or minimally generated
    contract helpers.
-2. Dispatch the canonical intent through Echo.
-3. Receive admission evidence for the capture.
-4. Build an exact `InspectThought` observation by entry id or coordinate.
-5. Receive a `ReadingEnvelope` or equivalent Echo observation artifact.
-6. Verify the reading posture is complete.
-7. Decode the payload into a Think-owned `ThoughtEntry`.
-8. Assert that raw text and capture metadata survived the round trip.
+6. Dispatch the canonical intent through Echo.
+7. Receive admission evidence for the capture.
+8. Build an exact `InspectThought` observation by entry id or coordinate.
+9. Receive a `ReadingEnvelope` or equivalent Echo observation artifact.
+10. Verify the reading posture is complete.
+11. Decode the payload into a Think-owned `ThoughtEntry`.
+12. Assert that raw text and capture metadata survived the round trip.
 
 ## Why
 
@@ -44,6 +52,7 @@ usable migration path.
 ## Constraints
 
 - Do not switch the CLI, MCP server, macOS app, or default store to Echo.
+- Do not treat the current GraphQL probe fixture as semantic source of truth.
 - Do not require existing `~/.think/*` minds to migrate.
 - Do not depend on `git-warp` in the hot proof path.
 - Do not hand-roll runtime bytes if the current Wesley/Echo toolchain can

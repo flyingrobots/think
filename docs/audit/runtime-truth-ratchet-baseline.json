@@ -1,0 +1,428 @@
+{
+  "generatedFrom": "scripts/runtime-truth-ratchet.mjs",
+  "genericSourceThrows": {
+    "byCategory": {},
+    "byFile": {},
+    "total": 0
+  },
+  "strictLimits": {
+    "byCategory": {
+      "benchmark": 5,
+      "source": 150,
+      "test": 45
+    },
+    "byFile": {
+      "benchmarks/browse-bootstrap.js": {
+        "byRule": {
+          "complexity": 1,
+          "max-lines-per-function": 1
+        },
+        "category": "benchmark",
+        "total": 2
+      },
+      "benchmarks/capture-latency.js": {
+        "byRule": {
+          "complexity": 1,
+          "max-lines-per-function": 2
+        },
+        "category": "benchmark",
+        "total": 3
+      },
+      "scripts/repair-v17-mind.mjs": {
+        "byRule": {
+          "complexity": 4,
+          "max-lines-per-function": 3,
+          "max-statements": 1
+        },
+        "category": "source",
+        "total": 8
+      },
+      "src/browse-benchmark.js": {
+        "byRule": {
+          "complexity": 1,
+          "max-lines-per-function": 2,
+          "max-statements": 1
+        },
+        "category": "source",
+        "total": 4
+      },
+      "src/browse-tui/actions.js": {
+        "byRule": {
+          "complexity": 1,
+          "max-lines-per-function": 1,
+          "max-statements": 1
+        },
+        "category": "source",
+        "total": 3
+      },
+      "src/browse-tui/app.js": {
+        "byRule": {
+          "complexity": 2,
+          "max-lines-per-function": 4
+        },
+        "category": "source",
+        "total": 6
+      },
+      "src/browse-tui/commands.js": {
+        "byRule": {
+          "max-lines-per-function": 1,
+          "max-params": 1
+        },
+        "category": "source",
+        "total": 2
+      },
+      "src/browse-tui/keys.js": {
+        "byRule": {
+          "complexity": 3,
+          "max-lines-per-function": 3
+        },
+        "category": "source",
+        "total": 6
+      },
+      "src/browse-tui/loaders.js": {
+        "byRule": {
+          "complexity": 1
+        },
+        "category": "source",
+        "total": 1
+      },
+      "src/browse-tui/model.js": {
+        "byRule": {
+          "max-lines-per-function": 1
+        },
+        "category": "source",
+        "total": 1
+      },
+      "src/browse-tui/overlays.js": {
+        "byRule": {
+          "complexity": 1,
+          "max-lines-per-function": 1
+        },
+        "category": "source",
+        "total": 2
+      },
+      "src/browse-tui/page.js": {
+        "byRule": {
+          "complexity": 2,
+          "max-lines-per-function": 2
+        },
+        "category": "source",
+        "total": 4
+      },
+      "src/browse-tui/panels.js": {
+        "byRule": {
+          "max-lines-per-function": 1
+        },
+        "category": "source",
+        "total": 1
+      },
+      "src/browse-tui/reflect.js": {
+        "byRule": {
+          "complexity": 1
+        },
+        "category": "source",
+        "total": 1
+      },
+      "src/browse-tui/resolve.js": {
+        "byRule": {
+          "complexity": 1,
+          "max-lines-per-function": 1
+        },
+        "category": "source",
+        "total": 2
+      },
+      "src/browse-tui/script.js": {
+        "byRule": {
+          "complexity": 3,
+          "max-lines-per-function": 2,
+          "max-statements": 1
+        },
+        "category": "source",
+        "total": 6
+      },
+      "src/browse-tui/view.js": {
+        "byRule": {
+          "max-lines-per-function": 2
+        },
+        "category": "source",
+        "total": 2
+      },
+      "src/cli.js": {
+        "byRule": {
+          "complexity": 1,
+          "max-lines-per-function": 1,
+          "max-statements": 1
+        },
+        "category": "source",
+        "total": 3
+      },
+      "src/cli/commands/capture.js": {
+        "byRule": {
+          "complexity": 1,
+          "max-lines-per-function": 1,
+          "max-statements": 1
+        },
+        "category": "source",
+        "total": 3
+      },
+      "src/cli/commands/read.js": {
+        "byRule": {
+          "complexity": 6,
+          "max-lines-per-function": 6,
+          "max-statements": 5
+        },
+        "category": "source",
+        "total": 17
+      },
+      "src/cli/commands/reflect.js": {
+        "byRule": {
+          "complexity": 1,
+          "max-lines-per-function": 3,
+          "max-statements": 1
+        },
+        "category": "source",
+        "total": 5
+      },
+      "src/cli/graph-gate.js": {
+        "byRule": {
+          "max-lines-per-function": 1
+        },
+        "category": "source",
+        "total": 1
+      },
+      "src/cli/options.js": {
+        "byRule": {
+          "complexity": 3,
+          "max-lines-per-function": 2,
+          "max-statements": 3
+        },
+        "category": "source",
+        "total": 8
+      },
+      "src/git.js": {
+        "byRule": {
+          "max-lines-per-function": 2
+        },
+        "category": "source",
+        "total": 2
+      },
+      "src/mcp/server.js": {
+        "byRule": {
+          "max-lines-per-function": 1
+        },
+        "category": "source",
+        "total": 1
+      },
+      "src/mcp/service.js": {
+        "byRule": {
+          "max-lines-per-function": 2
+        },
+        "category": "source",
+        "total": 2
+      },
+      "src/splash-shader.js": {
+        "byRule": {
+          "complexity": 3,
+          "max-depth": 8,
+          "max-lines-per-function": 1,
+          "max-params": 1,
+          "max-statements": 4
+        },
+        "category": "source",
+        "total": 17
+      },
+      "src/store/checkpoint-product-read.js": {
+        "byRule": {
+          "complexity": 1
+        },
+        "category": "source",
+        "total": 1
+      },
+      "src/store/derivation.js": {
+        "byRule": {
+          "complexity": 2,
+          "max-lines-per-function": 3
+        },
+        "category": "source",
+        "total": 5
+      },
+      "src/store/enrichment/runner.js": {
+        "byRule": {
+          "complexity": 2,
+          "max-lines-per-function": 2,
+          "max-statements": 1
+        },
+        "category": "source",
+        "total": 5
+      },
+      "src/store/enrichment/semantic-parse.js": {
+        "byRule": {
+          "complexity": 1
+        },
+        "category": "source",
+        "total": 1
+      },
+      "src/store/migrations.js": {
+        "byRule": {
+          "complexity": 1,
+          "max-lines-per-function": 1,
+          "max-params": 1,
+          "max-statements": 1
+        },
+        "category": "source",
+        "total": 4
+      },
+      "src/store/model.js": {
+        "byRule": {
+          "complexity": 1
+        },
+        "category": "source",
+        "total": 1
+      },
+      "src/store/prompt-metrics.js": {
+        "byRule": {
+          "complexity": 2
+        },
+        "category": "source",
+        "total": 2
+      },
+      "src/store/queries.js": {
+        "byRule": {
+          "complexity": 3,
+          "max-depth": 3,
+          "max-lines-per-function": 2,
+          "max-statements": 1
+        },
+        "category": "source",
+        "total": 9
+      },
+      "src/store/reflect.js": {
+        "byRule": {
+          "max-lines-per-function": 3
+        },
+        "category": "source",
+        "total": 3
+      },
+      "src/store/remember.js": {
+        "byRule": {
+          "complexity": 1,
+          "max-lines-per-function": 1,
+          "max-statements": 1
+        },
+        "category": "source",
+        "total": 3
+      },
+      "src/store/runtime.js": {
+        "byRule": {
+          "complexity": 7,
+          "max-lines-per-function": 1
+        },
+        "category": "source",
+        "total": 8
+      },
+      "test/acceptance/graph-migration.test.js": {
+        "byRule": {
+          "complexity": 2,
+          "max-lines-per-function": 7
+        },
+        "category": "test",
+        "total": 9
+      },
+      "test/acceptance/json-output.test.js": {
+        "byRule": {
+          "max-lines-per-function": 1
+        },
+        "category": "test",
+        "total": 1
+      },
+      "test/acceptance/mcp.test.js": {
+        "byRule": {
+          "max-lines-per-function": 1
+        },
+        "category": "test",
+        "total": 1
+      },
+      "test/acceptance/prompt-metrics.test.js": {
+        "byRule": {
+          "max-lines-per-function": 2
+        },
+        "category": "test",
+        "total": 2
+      },
+      "test/acceptance/read-modes.test.js": {
+        "byRule": {
+          "max-lines": 1,
+          "max-lines-per-function": 13,
+          "max-statements": 1
+        },
+        "category": "test",
+        "total": 15
+      },
+      "test/acceptance/reflect.test.js": {
+        "byRule": {
+          "max-lines-per-function": 6,
+          "max-statements": 1
+        },
+        "category": "test",
+        "total": 7
+      },
+      "test/acceptance/repair-v17-mind.test.js": {
+        "byRule": {
+          "max-lines-per-function": 2,
+          "max-statements": 1
+        },
+        "category": "test",
+        "total": 3
+      },
+      "test/ports/capture-context.test.js": {
+        "byRule": {
+          "max-lines-per-function": 1,
+          "max-statements": 1
+        },
+        "category": "test",
+        "total": 2
+      },
+      "test/ports/checkpoint-read.test.js": {
+        "byRule": {
+          "max-lines-per-function": 1,
+          "max-statements": 1
+        },
+        "category": "test",
+        "total": 2
+      },
+      "test/ports/docs-consistency.test.js": {
+        "byRule": {
+          "max-lines-per-function": 1
+        },
+        "category": "test",
+        "total": 1
+      },
+      "test/ports/repair-v17-mind.test.js": {
+        "byRule": {
+          "complexity": 1,
+          "max-lines-per-function": 1
+        },
+        "category": "test",
+        "total": 2
+      }
+    },
+    "byRule": {
+      "complexity": 61,
+      "max-depth": 11,
+      "max-lines": 1,
+      "max-lines-per-function": 96,
+      "max-params": 3,
+      "max-statements": 28
+    },
+    "total": 200
+  },
+  "strictRuleIds": [
+    "complexity",
+    "max-depth",
+    "max-lines",
+    "max-lines-per-function",
+    "max-params",
+    "max-statements"
+  ],
+  "version": 1
+}

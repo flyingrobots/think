@@ -1,3 +1,5 @@
+import { DependencyError } from '../errors.js';
+
 export function createAppContentReader(app) {
   if (typeof app?.getContent === 'function') {
     return async (nodeId) => await app.getContent(nodeId);
@@ -8,5 +10,5 @@ export function createAppContentReader(app) {
     return async (nodeId) => await core.getContent(nodeId);
   }
 
-  throw new Error('Installed @git-stunts/git-warp does not expose a public content reader');
+  throw new DependencyError('Installed @git-stunts/git-warp does not expose a public content reader');
 }

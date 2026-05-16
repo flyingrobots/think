@@ -64,14 +64,21 @@ outside the hot CLI path.
 
 ## Acceptance Criteria
 
-- Each phase has its own backlog card.
-- Phase 1 and Phase 2 are small enough to pull into a single METHOD cycle.
-- No card requires changing the production capture path before the round-trip
+- [x] Each phase has its own backlog card.
+- [x] Phase 1 and Phase 2 are small enough to pull into a single METHOD cycle.
+- [x] No card requires changing the production capture path before the round-trip
   proof exists.
-- Existing `git-warp` repair work remains framed as data rescue and continuity,
+- [x] Existing `git-warp` repair work remains framed as data rescue and continuity,
   not the long-term architecture.
-- The first executable witness is raw capture plus exact inspect, not remember,
+- [x] The first executable witness is raw capture plus exact inspect, not remember,
   browse, migration, or cross-runtime sync.
+
+## Current Evidence
+
+- Phase 0 charter: `docs/design/0067-think-echo-contract-proof/think-echo-contract-proof.md`
+- Data model source of truth: `docs/design/0068-think-memory-data-model/think-memory-data-model.md`
+- Phase 1 model-derived contract: `contracts/think-memory.graphql`
+- Toolchain probe: `npm run echo:probe -- --json`
 
 ## Non-Goals
 

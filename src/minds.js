@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 
+import { ValidationError } from './errors.js';
 import { hasGitRepo } from './git.js';
 import { getThinkDir } from './paths.js';
 
@@ -51,7 +52,7 @@ export function discoverMinds(thinkDir = getThinkDir()) {
  */
 export function shaderForMind(name, shaderCount) {
   if (shaderCount <= 0) {
-    throw new Error(`shaderForMind: shaderCount must be > 0 (got ${shaderCount})`);
+    throw new ValidationError(`shaderForMind: shaderCount must be > 0 (got ${shaderCount})`);
   }
   let hash = 5381;
   for (const ch of name) {

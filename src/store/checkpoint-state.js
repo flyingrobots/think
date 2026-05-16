@@ -1,5 +1,6 @@
 import Plumbing from '@git-stunts/plumbing';
 import WarpApp, * as GitWarp from '@git-stunts/git-warp';
+import { DependencyError } from '../errors.js';
 import { createAppContentReader } from './content-reader.js';
 import { CHECKPOINT_POLICY, GRAPH_NAME } from './constants.js';
 import { createWriterId } from './model.js';
@@ -49,7 +50,7 @@ async function resolveApp({ app, persistence }) {
 function createCheckpointStateReader(state) {
   const createReader = GitWarp.createStateReader ?? GitWarp.createStateReaderV5;
   if (typeof createReader !== 'function') {
-    throw new Error('Installed @git-stunts/git-warp does not expose a public state reader factory');
+    throw new DependencyError('Installed @git-stunts/git-warp does not expose a public state reader factory');
   }
   return createReader(state);
 }

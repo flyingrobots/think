@@ -1,0 +1,133 @@
+# Think-owned memory contract for the Echo proof.
+#
+# Source of truth:
+# docs/design/0068-think-memory-data-model/think-memory-data-model.md
+#
+# GraphQL expresses the Think memory model. Echo must only receive generated
+# generic intents and observation requests for this family.
+
+directive @wes_op(name: String!) on FIELD_DEFINITION
+directive @wes_footprint(reads: [String!], writes: [String!]) on FIELD_DEFINITION
+scalar DateTime
+
+enum ThoughtIngress {
+  CLI
+  MCP
+  MACOS
+  IMPORT
+  TEST
+  UNKNOWN
+}
+
+enum CausalRuntime {
+  ECHO
+  GIT_WARP
+  IMPORTED
+}
+
+enum RedactionState {
+  FULL
+  REDACTED
+  UNAVAILABLE
+}
+
+type ThoughtContent {
+  text: String!
+  mime: String!
+  digest: String!
+  length: Int
+  redactionState: RedactionState!
+}
+
+input ThoughtContentInput {
+  text: String!
+  mime: String!
+  digest: String!
+  length: Int
+}
+
+type CausalRef {
+  runtime: CausalRuntime!
+  coordinate: String
+  intentId: String
+  entryNodeId: String
+  basis: String
+  witness: String
+  migration: String
+}
+
+type ThoughtProvenance {
+  ingress: ThoughtIngress!
+  sourceApp: String
+  sourceUrl: String
+  ambientCwd: String
+  ambientGitRoot: String
+  ambientGitRemote: String
+  ambientGitBranch: String
+  importOrigin: String
+  repairOrigin: String
+}
+
+input ThoughtProvenanceInput {
+  ingress: ThoughtIngress!
+  sourceApp: String
+  sourceUrl: String
+  ambientCwd: String
+  ambientGitRoot: String
+  ambientGitRemote: String
+  ambientGitBranch: String
+  importOrigin: String
+  repairOrigin: String
+}
+
+type ThoughtCapture {
+  captureId: ID!
+  thoughtId: ID!
+  mindId: ID!
+  actorId: ID
+  writerId: ID
+  capturedAt: DateTime!
+  ingress: ThoughtIngress!
+  boundary: String
+  causalRef: CausalRef!
+}
+
+type ThoughtEntry {
+  thoughtId: ID!
+  mindId: ID!
+  capturedAt: DateTime!
+  content: ThoughtContent!
+  capture: ThoughtCapture!
+  provenance: ThoughtProvenance!
+  source: String
+  metadataJson: String
+  causalRef: CausalRef!
+}
+
+input CaptureThoughtInput {
+  mindId: ID!
+  actorId: ID
+  writerId: ID
+  capturedAt: DateTime!
+  content: ThoughtContentInput!
+  provenance: ThoughtProvenanceInput!
+  source: String
+  metadataJson: String
+}
+
+type CaptureThoughtResult {
+  entry: ThoughtEntry!
+  capture: ThoughtCapture!
+  causalRef: CausalRef!
+}
+
+type Query {
+  inspectThought(mindId: ID!, thoughtId: ID!): ThoughtEntry!
+    @wes_op(name: "InspectThought")
+}
+
+type Mutation {
+  captureThought(input: CaptureThoughtInput!): CaptureThoughtResult!
+    @wes_op(name: "CaptureThought")
+    @wes_footprint(reads: ["ThoughtEntry"], writes: ["ThoughtEntry"])
+}

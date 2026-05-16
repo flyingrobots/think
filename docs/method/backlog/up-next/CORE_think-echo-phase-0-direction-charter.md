@@ -43,8 +43,13 @@ or schema is added.
 
 ## Acceptance Criteria
 
-- A design packet exists for the Think-on-Echo proof.
-- The packet names the first witness command or test shape.
-- The packet explicitly excludes remember, browse, migration, multi-mind UX,
+- [x] A design packet exists for the Think-on-Echo proof.
+- [x] The packet names the first witness command or test shape.
+- [x] The packet explicitly excludes remember, browse, migration, multi-mind UX,
   and `git-warp` exchange from the first proof.
-- The packet references this backlog phase map.
+- [x] The packet references this backlog phase map.
+
+## Evidence
+
+- `docs/design/0067-think-echo-contract-proof/think-echo-contract-proof.md`
+- `npm run echo:probe -- --json`
