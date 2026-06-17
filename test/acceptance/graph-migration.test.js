@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import Plumbing from '@git-stunts/plumbing';
 import WarpApp, { GitGraphAdapter } from '@git-stunts/git-warp';
 
+import { createThinkPlumbing } from '../../src/git.js';
 import { createThinkContext, runThink } from '../fixtures/think.js';
 import { formatResult } from '../fixtures/runtime.js';
 import { assertContains, assertFailure, assertSuccess, parseJsonLines } from '../support/assertions.js';
@@ -73,7 +73,7 @@ test('think --migrate-graph upgrades a version-1 property-linked repo additively
   const { entryId } = captureWithEntryId(context, legacyThought);
 
   const graph = await openThinkGraph(context.localRepoDir);
-  await stripGraphNativeEdges(graph);
+  await downgradeGraphToV1(graph);
 
   const beforeEdges = await graph.getEdges();
   assert.ok(!beforeEdges.some((edge) => edge.label === 'expresses'),
@@ -543,15 +543,16 @@ function startReflectWithSavedReply(context, seedEntryId, response) {
 }
 
 async function openThinkGraph(repoDir) {
-  const plumbing = Plumbing.createDefault({ cwd: repoDir });
+  const plumbing = createThinkPlumbing(repoDir);
   const persistence = new GitGraphAdapter({ plumbing });
   const app = await WarpApp.open({
     persistence,
     graphName: 'think',
     writerId: 'graph-migration-spec',
   });
+  const graph = app.core();
 
-  return app.core();
+  return graph;
 }
 
 async function listArtifactNodes(graph) {

@@ -1,12 +1,12 @@
 import { parseJson } from '../../json.js';
-import { runBrowseTui, showSplash } from '../../browse-tui/app.js';
+import { runBrowseAppShellTui } from '../../browse/app.js';
+import { createGitWarpBrowseDataPort } from '../../browse/adapters/git-warp.js';
 import { runBrowseTuiScript } from '../../browse-tui/script.js';
-import { hasGitRepo, lsRemote } from '../../git.js';
+import { hasGitRepo } from '../../git.js';
 import { discoverMinds } from '../../minds.js';
 import { getLocalRepoDir, getThinkDir } from '../../paths.js';
 import {
   getBrowseWindow,
-  getBrowseWindowForRead,
   getGraphModelStatus,
   getGraphModelStatusForRead,
   getPromptMetrics,
@@ -16,9 +16,8 @@ import {
   listRecent,
   loadBrowseChronologyEntriesForRead,
   openProductReadHandle,
-  prepareBrowseBootstrapForRead,
   previewReflect,
-  rememberThoughts,
+  rememberThoughtsForRead,
   saveReflectResponse,
   startReflect,
   saveAnnotation,
@@ -26,44 +25,7 @@ import {
 import { runEnrichmentPipeline, listTopics } from '../../store/enrichment/runner.js';
 import { buildStatsSparkline } from '../../mcp/format.js';
 import { shouldUseInteractiveBrowseShell } from '../environment.js';
-import { runDiagnostics } from '../../doctor.js';
 import { ensureGraphModelReady, ensureGraphModelReadyFromStatus } from '../graph-gate.js';
-
-const DOCTOR_SYMBOLS = { ok: '✓', warn: '!', fail: '✗', skip: '○' };
-
-export async function runDoctor(output, reporter) {
-  const thinkDir = getThinkDir();
-  const repoDir = getLocalRepoDir();
-  const upstreamUrl = (process.env.THINK_UPSTREAM_URL || '').trim();
-
-  reporter.event('doctor.start');
-
-  const result = await runDiagnostics({
-    thinkDir,
-    repoDir,
-    upstreamUrl,
-    getGraphModelStatus: hasGitRepo(repoDir)
-      ? () => getGraphModelStatus(repoDir)
-      : null,
-    getEntryCount: hasGitRepo(repoDir)
-      ? async () => (await getStats(repoDir, {})).total
-      : null,
-    checkUpstreamReachable: upstreamUrl ? () => lsRemote(upstreamUrl) : null,
-  });
-
-  if (output.json) {
-    output.data('doctor.result', { checks: result.checks });
-  } else {
-    output.out('think doctor');
-    for (const check of result.checks) {
-      const symbol = DOCTOR_SYMBOLS[check.status] ?? '?';
-      output.out(`  ${symbol} ${check.message}`);
-    }
-  }
-
-  reporter.event('doctor.done');
-  return 0;
-}
 
 export async function runAnnotate(entryId, text, output, reporter) {
   const repoDir = getLocalRepoDir();
@@ -309,16 +271,22 @@ export async function runRemember(output, reporter, options) {
     return 0;
   }
 
-  if (!await ensureGraphModelReady(repoDir, 'remember', output, reporter, getGraphModelStatus)) {
+  reporter.event('remember.read_open.start');
+  const read = await openProductReadHandle(repoDir);
+  reporter.event('remember.read_open.done');
+  const graphStatus = await getGraphModelStatusForRead(read);
+  if (!await ensureGraphModelReadyFromStatus(repoDir, 'remember', graphStatus, output, reporter)) {
     return 1;
   }
 
-  const remember = await rememberThoughts(repoDir, {
+  reporter.event('remember.scan.start');
+  const remember = await rememberThoughtsForRead(read, {
     cwd: process.cwd(),
     query,
     limit,
     brief,
   });
+  reporter.event('remember.scan.done', { count: remember.matches.length });
 
   reporter.event('remember.done', {
     scopeKind: remember.scope.scopeKind,
@@ -553,247 +521,31 @@ async function runInteractiveBrowseShell(output, reporter) {
     return 0;
   }
 
-  // --- Interactive mode: discover minds, splash, bootstrap loop ---
+  const activeMind = resolveInteractiveBrowseMinds()[0];
 
-  const envRepoDir = (process.env.THINK_REPO_DIR || '').trim();
-  let minds;
-  if (envRepoDir) {
-    minds = [{ name: 'default', repoDir: getLocalRepoDir(), isDefault: true }];
-  } else {
-    minds = discoverMinds(getThinkDir());
-  }
-
-  // Fall back to default repo if no minds discovered
-  if (minds.length === 0) {
-    minds = [{ name: 'default', repoDir: getLocalRepoDir(), isDefault: true }];
-  }
-
-  let activeMind = minds[0];
-  let skipSplash = false;
-  let splashShown = false;
-  const browseLoads = new Map();
-  const preloadMind = (mind) => {
-    const key = mind.repoDir;
-    if (!browseLoads.has(key)) {
-      browseLoads.set(key, beginInteractiveBrowseLoad(mind));
-    }
-    return browseLoads.get(key);
-  };
-  let pendingBrowseLoad = preloadMind(activeMind);
-
-  while (true) {
-    const showInitialSplash = !splashShown;
-    if (showInitialSplash) {
-      // eslint-disable-next-line no-await-in-loop -- interactive splash selects the initial mind
-      const splashResult = await showSplash({ minds });
-      if (splashResult.action === 'quit') {
-        return 0;
-      }
-      if (splashResult.mind && splashResult.mind.repoDir !== activeMind.repoDir) {
-        activeMind = splashResult.mind;
-        pendingBrowseLoad = preloadMind(activeMind);
-      }
-      splashShown = true;
-      skipSplash = true;
-    }
-
-    const { repoDir } = activeMind;
-    const screenHeldFromSplash = showInitialSplash;
-
-    if (screenHeldFromSplash && !pendingBrowseLoad.isSettled()) {
-      renderBrowseOpeningFrame(activeMind);
-    }
-    // eslint-disable-next-line no-await-in-loop -- sequential mind-switch loop
-    const loaded = await pendingBrowseLoad.promise;
-    if (!loaded.ok && loaded.reason === 'repo_missing') {
-      if (screenHeldFromSplash) {
-        restoreInteractiveBrowseScreen();
-      }
-      output.error(`Mind "${activeMind.name}" has no thought repo`, 'browse.entry_not_found');
-      return 1;
-    }
-    if (!loaded.ok) {
-      if (screenHeldFromSplash) {
-        restoreInteractiveBrowseScreen();
-      }
-      throw loaded.error;
-    }
-    let { read, graphStatus, bootstrap } = loaded;
-    const migrationBreaksHandoff = graphStatus.migrationRequired;
-    const screenStillHeldFromSplash = screenHeldFromSplash && !migrationBreaksHandoff;
-
-    if (migrationBreaksHandoff && screenHeldFromSplash) {
-      restoreInteractiveBrowseScreen();
-    }
-
-    // eslint-disable-next-line no-await-in-loop -- sequential mind-switch loop
-    if (!await ensureGraphModelReadyFromStatus(repoDir, 'browse', graphStatus, output, reporter)) {
-      return 1;
-    }
-
-    if (migrationBreaksHandoff) {
-      browseLoads.delete(repoDir);
-      pendingBrowseLoad = preloadMind(activeMind);
-      // eslint-disable-next-line no-await-in-loop -- graph migration changes the read basis
-      const reloaded = await pendingBrowseLoad.promise;
-      if (!reloaded.ok) {
-        if (screenStillHeldFromSplash) {
-          restoreInteractiveBrowseScreen();
-        }
-        throw reloaded.error;
-      }
-      ({ read, bootstrap } = reloaded);
-    }
-
-    if (!bootstrap) {
-      if (screenStillHeldFromSplash) {
-        restoreInteractiveBrowseScreen();
-      }
-      output.error('Mind could not be prepared for browse', 'browse.entry_not_found');
-      return 1;
-    }
-    if (!bootstrap.ok) {
-      if (screenStillHeldFromSplash) {
-        restoreInteractiveBrowseScreen();
-      }
-      output.error(`Mind "${activeMind.name}" has no raw captures to browse`, 'browse.entry_not_found');
-      return 1;
-    }
-
-    const initialEntryId = bootstrap.current.id;
-    reporter.event('browse.shell_started', { seedEntryId: initialEntryId, mind: activeMind.name });
-
-    // eslint-disable-next-line no-await-in-loop -- sequential mind-switch loop
-    const tuiResult = await runBrowseTui({
-      bootstrap,
-      minds,
-      activeMind,
-      skipSplash,
-      handoffFromSplash: screenStillHeldFromSplash,
-      loadBrowseWindow: (thoughtEntryId) => getBrowseWindowForRead(read, thoughtEntryId),
-      loadChronologyEntries: () => loadBrowseChronologyEntriesForRead(read),
-      loadInspectEntry: (thoughtEntryId) => inspectRawEntryForRead(read, thoughtEntryId),
-      previewReflectEntry: (thoughtEntryId, promptType) => previewReflect(repoDir, thoughtEntryId, { promptType }),
-      startReflectSession: async (thoughtEntryId, promptType) => {
-        const session = await startReflect(repoDir, thoughtEntryId, { promptType });
-        if (session.ok) {
-          reporter.event('reflect.session_started', {
-            sessionId: session.sessionId,
-            seedEntryId: session.seedEntryId,
-            contrastEntryId: session.contrastEntryId ?? null,
-            promptType: session.promptType,
-            maxSteps: session.maxSteps,
-            selectionReason: session.selectionReason,
-          });
-          reporter.event('reflect.prompt', {
-            sessionId: session.sessionId,
-            promptType: session.promptType,
-            question: session.question,
-          });
-        }
-        return session;
-      },
-      saveReflectSessionResponse: async (sessionId, response) => {
-        const saved = await saveReflectResponse(repoDir, sessionId, response);
-        if (saved) {
-          reporter.event('reflect.entry_saved', {
-            entryId: saved.id,
-            kind: saved.kind,
-            seedEntryId: saved.seedEntryId,
-            contrastEntryId: saved.contrastEntryId ?? null,
-            sessionId: saved.sessionId,
-            promptType: saved.promptType,
-          });
-        }
-        return saved;
-      },
-    });
-
-    reporter.event('browse.shell_finished', { entryId: initialEntryId });
-
-    if (tuiResult.type === 'switch_mind') {
-      activeMind = tuiResult.mind;
-      skipSplash = true;
-      pendingBrowseLoad = preloadMind(activeMind);
-      continue;
-    }
-
-    break;
-  }
+  reporter.event('browse.shell_started', { mind: activeMind.name });
+  await runBrowseAppShellTui({
+    dataPort: createGitWarpBrowseDataPort({
+      repoDir: activeMind.repoDir,
+      mindName: activeMind.name,
+    }),
+    mindName: activeMind.name,
+  });
+  reporter.event('browse.shell_finished', { mind: activeMind.name });
 
   return 0;
 }
 
-function beginInteractiveBrowseLoad(mind) {
-  let settled = false;
-  const promise = loadInteractiveBrowseMind(mind).then(
-    (result) => {
-      settled = true;
-      return result;
-    },
-    (error) => {
-      settled = true;
-      return { ok: false, reason: 'error', error };
-    },
-  );
-
-  return {
-    promise,
-    isSettled: () => settled,
-  };
-}
-
-async function loadInteractiveBrowseMind(mind) {
-  const { repoDir } = mind;
-  if (!hasGitRepo(repoDir)) {
-    return { ok: false, reason: 'repo_missing' };
+function resolveInteractiveBrowseMinds() {
+  const envRepoDir = (process.env.THINK_REPO_DIR || '').trim();
+  if (envRepoDir) {
+    return [{ name: 'default', repoDir: getLocalRepoDir(), isDefault: true }];
   }
 
-  const read = await openProductReadHandle(repoDir);
-  const graphStatus = await getGraphModelStatusForRead(read);
-  const bootstrap = graphStatus.migrationRequired
-    ? null
-    : await prepareBrowseBootstrapForRead(read);
-
-  return {
-    ok: true,
-    read,
-    graphStatus,
-    bootstrap,
-  };
-}
-
-function renderBrowseOpeningFrame(mind) {
-  const cols = process.stdout.columns || 80;
-  const rows = process.stdout.rows || 24;
-  const bg = '\x1b[48;2;45;25;34m';
-  const titleFg = '\x1b[38;2;255;252;201m';
-  const dimFg = '\x1b[38;2;140;138;110m';
-  const accentFg = '\x1b[38;2;65;183;151m';
-  const title = `Opening mind "${mind.name}"`;
-  const subtitle = 'Preparing read view';
-  const barWidth = Math.max(4, Math.min(32, cols - 4));
-  const fillWidth = Math.floor(barWidth * 0.65);
-  const bar = `[${'='.repeat(fillWidth)}${' '.repeat(barWidth - fillWidth)}]`;
-  const centerY = Math.max(0, Math.floor(rows / 2) - 2);
-
-  process.stdout.write(`${bg}\x1b[2J`);
-  writeCenteredLine(centerY, title, titleFg, cols);
-  writeCenteredLine(centerY + 2, bar, accentFg, cols);
-  writeCenteredLine(centerY + 4, subtitle, dimFg, cols);
-  process.stdout.write('\x1b[0m');
-}
-
-function restoreInteractiveBrowseScreen() {
-  process.stdout.write('\x1b[?25h');
-  process.stdout.write('\x1b[?7h');
-  process.stdout.write('\x1b[?1049l');
-}
-
-function writeCenteredLine(row, text, fg, cols) {
-  const fittedText = text.length > cols ? text.slice(0, cols) : text;
-  const column = Math.max(0, Math.floor((cols - fittedText.length) / 2));
-  process.stdout.write(`\x1b[${row + 1};${column + 1}H${fg}${fittedText}`);
+  const minds = discoverMinds(getThinkDir());
+  return minds.length > 0
+    ? minds
+    : [{ name: 'default', repoDir: getLocalRepoDir(), isDefault: true }];
 }
 
 export async function runInspect(entryId, output, reporter) {

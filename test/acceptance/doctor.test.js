@@ -41,6 +41,7 @@ test('think --json --doctor emits a structured health report', async () => {
   const resultEvent = events.find((e) => e.event === 'doctor.result');
   assert.ok(resultEvent, 'Expected a doctor.result event in JSON output.');
   assert.ok(Array.isArray(resultEvent.checks), 'Expected checks to be an array.');
+  assert.ok(Array.isArray(resultEvent.fixes), 'Expected fixes to be an array.');
 
   const names = resultEvent.checks.map((c) => c.name);
   assert.ok(names.includes('think_dir'), 'Expected think_dir check in JSON result.');
@@ -53,4 +54,12 @@ test('think --doctor rejects an unexpected thought argument', async () => {
   const doctor = runThink(context, ['--doctor', 'this should fail']);
   assert.notEqual(doctor.status, 0, 'Expected --doctor with a thought to fail.');
   assertContains(doctor, '--doctor does not take a thought', 'Expected validation error.');
+});
+
+test('think --fix requires --doctor', async () => {
+  const context = await createThinkContext();
+
+  const doctor = runThink(context, ['--fix']);
+  assert.notEqual(doctor.status, 0, 'Expected --fix without --doctor to fail.');
+  assertContains(doctor, '--fix requires --doctor', 'Expected validation error.');
 });

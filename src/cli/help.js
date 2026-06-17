@@ -14,7 +14,7 @@ const HELP_TEXT = Object.freeze({
     '       think --reflect[=<entryId>] [--mode=challenge|constraint|sharpen]',
     '       think --reflect-session=<sessionId> <response>',
     '       think --migrate-graph',
-    '       think --doctor',
+    '       think --doctor [--fix]',
     '',
     'Global options:',
     '  --help, -h   Show help',
@@ -123,11 +123,14 @@ const HELP_TEXT = Object.freeze({
     'Backfill additive graph edges required by newer read surfaces.',
   ].join('\n'),
   doctor: [
-    'Usage: think --doctor',
+    'Usage: think --doctor [--fix]',
     '',
     'Check the health of the local Think environment.',
     'Reports think directory, local repo, graph model version,',
-    'entry count, and upstream reachability.',
+    'entry count, Git fsmonitor state, and upstream reachability.',
+    '',
+    'Options:',
+    '  --fix        Apply safe automatic repairs, currently disabling local Git fsmonitor',
   ].join('\n'),
 });
 

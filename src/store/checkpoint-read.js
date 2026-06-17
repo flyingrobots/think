@@ -59,6 +59,17 @@ class CheckpointReadModel {
     );
   }
 
+  listEntryPropsByKind(kind) {
+    if (kind !== 'capture') {
+      return null;
+    }
+
+    return this._entryNodeIds()
+      .map((nodeId) => this._entryCandidate(nodeId, kind))
+      .filter(Boolean)
+      .map(({ nodeId, props }) => Object.freeze({ id: nodeId, ...props }));
+  }
+
   _entryNodeIds() {
     return this._reader.project().nodes.filter((nodeId) => nodeId.startsWith(ENTRY_PREFIX));
   }
@@ -115,4 +126,12 @@ export async function listCheckpointEntriesByKind(repoDir, kind, app = null) {
     return null;
   }
   return await readModel.listEntriesByKind(kind);
+}
+
+export async function listCheckpointEntryPropsByKind(repoDir, kind, app = null) {
+  const readModel = await CheckpointReadModel.open(repoDir, app);
+  if (readModel === null) {
+    return null;
+  }
+  return readModel.listEntryPropsByKind(kind);
 }

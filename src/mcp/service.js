@@ -1,6 +1,6 @@
 import { runDiagnostics } from '../doctor.js';
 import { ValidationError, NotFoundError, GraphError } from '../errors.js';
-import { ensureGitRepo, hasGitRepo, lsRemote, pushWarpRefs } from '../git.js';
+import { ensureGitRepo, getFsmonitorStatus, hasGitRepo, lsRemote, pushWarpRefs } from '../git.js';
 import { getLocalRepoDir, getThinkDir, getUpstreamUrl } from '../paths.js';
 import { normalizeCaptureProvenance } from '../capture-provenance.js';
 import { getCaptureAmbientContext, getAmbientProjectContext } from '../project-context.js';
@@ -8,12 +8,15 @@ import {
   finalizeCapturedThought,
   getBrowseWindow,
   getGraphModelStatus,
+  getGraphModelStatusForRead,
   getPromptMetrics,
   getStats,
+  getStatsForRead,
   GRAPH_NAME,
   inspectRawEntry,
   listRecent,
   migrateGraphModel,
+  openProductReadHandle,
   prepareBrowseBootstrap,
   rememberThoughts,
   saveRawCapture,
@@ -22,6 +25,7 @@ import {
   buildAmbientRememberScope,
   buildExplicitRememberScope,
 } from '../store/remember.js';
+import { getCheckpointRefStatus } from '../store/checkpoint-state.js';
 import {
   BrowseOutcome,
   CaptureOutcome,
@@ -292,15 +296,27 @@ export async function getPromptMetricsForMcp({ from = null, to = null, since = n
 export async function checkThinkHealthForMcp() {
   const repoDir = getLocalRepoDir();
   const upstreamUrl = getUpstreamUrl();
+  const repoPresent = hasGitRepo(repoDir);
+  let readPromise = null;
+  const getRead = () => {
+    readPromise ??= openProductReadHandle(repoDir);
+    return readPromise;
+  };
   const diagnostics = await runDiagnostics({
     thinkDir: getThinkDir(),
     repoDir,
     upstreamUrl,
-    getGraphModelStatus: hasGitRepo(repoDir)
-      ? () => getGraphModelStatus(repoDir)
+    getGraphModelStatus: repoPresent
+      ? async () => getGraphModelStatusForRead(await getRead())
       : null,
-    getEntryCount: hasGitRepo(repoDir)
-      ? async () => (await getStats(repoDir, {})).total
+    getEntryCount: repoPresent
+      ? async () => (await getStatsForRead(await getRead(), {})).total
+      : null,
+    getFsmonitorStatus: repoPresent
+      ? () => getFsmonitorStatus(repoDir)
+      : null,
+    getCheckpointStatus: repoPresent
+      ? () => getCheckpointRefStatus(repoDir)
       : null,
     checkUpstreamReachable: upstreamUrl ? () => lsRemote(upstreamUrl) : null,
   });

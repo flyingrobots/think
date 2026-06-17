@@ -48,6 +48,7 @@ export function parseArgs(args) {
     inspect: null,
     migrateGraph: false,
     doctor: false,
+    fix: false,
     from: null,
     to: null,
     since: null,
@@ -121,6 +122,8 @@ export function parseArgs(args) {
         options.migrateGraph = true;
       } else if (arg === '--doctor') {
         options.doctor = true;
+      } else if (arg === '--fix') {
+        options.fix = true;
       } else if (arg === '--reflect') {
         options.reflectFlag = true;
         options.reflect = '';
@@ -212,6 +215,10 @@ export function validateOptions(options, command) {
       return 'Use explicit command flags with --help, for example think --recent --help';
     }
     return null;
+  }
+
+  if (options.fix && command !== 'doctor') {
+    return '--fix requires --doctor';
   }
 
   if (command === 'recent' && options.positionals.length > 0) {

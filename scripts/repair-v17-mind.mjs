@@ -7,6 +7,8 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 
+import { createThinkPlumbing } from '../src/git.js';
+
 const GRAPH_DEFAULT = 'think';
 const NULL_OID = '0000000000000000000000000000000000000000';
 const CONTENT_ANCHOR_RE = /^(?<mode>100644|040000) (?<kind>blob|tree) (?<oid>[0-9a-f]{40,64})\t_content_(?<anchorOid>[0-9a-f]{40,64})$/u;
@@ -427,11 +429,9 @@ async function createV17Crypto(packageRoot) {
 
 async function createV17Persistence({ repoDir, runner }) {
   const gitWarp = await import('@git-stunts/git-warp');
-  const plumbingModule = await import('@git-stunts/plumbing');
   const { GitGraphAdapter } = gitWarp;
-  const Plumbing = plumbingModule.default ?? plumbingModule;
   const persistence = new GitGraphAdapter({
-    plumbing: Plumbing.createDefault({ cwd: repoDir }),
+    plumbing: createThinkPlumbing(repoDir),
   });
 
   return createContentAnchorAwarePersistence(
@@ -442,13 +442,11 @@ async function createV17Persistence({ repoDir, runner }) {
 
 export async function materializeGraph({ repoDir, graph, runner = runCommand }) {
   const gitWarp = await import('@git-stunts/git-warp');
-  const plumbingModule = await import('@git-stunts/plumbing');
   const { default: DefaultWarpApp, GitGraphAdapter, WarpApp: NamedWarpApp } = gitWarp;
   const WarpApp = DefaultWarpApp ?? NamedWarpApp;
-  const Plumbing = plumbingModule.default ?? plumbingModule;
   const persistence = createContentAnchorAwarePersistence(
     new GitGraphAdapter({
-      plumbing: Plumbing.createDefault({ cwd: repoDir }),
+      plumbing: createThinkPlumbing(repoDir),
     }),
     createGitObjectTypeReader({ repoDir, runner })
   );

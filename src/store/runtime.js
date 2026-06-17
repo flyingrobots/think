@@ -1,8 +1,9 @@
-import Plumbing from '@git-stunts/plumbing';
-import WarpApp, { GitGraphAdapter } from '@git-stunts/git-warp';
+import WarpApp, { GitGraphAdapter, openWarpGraph, openWarpWorldline } from '@git-stunts/git-warp';
 
+import { createThinkPlumbing } from '../git.js';
 import { createAppContentReader } from './content-reader.js';
 import { openCheckpointProductRead } from './checkpoint-product-read.js';
+import { deleteCheckpointRef, isUnsupportedCheckpointSchemaError } from './checkpoint-state.js';
 import {
   ARTIFACT_PREFIX,
   CHECKPOINT_POLICY,
@@ -113,6 +114,7 @@ export class BaseEntry {
 const WRITER_CAS_CONFLICT_TEXT = 'writer ref was updated by another process';
 const DEFAULT_PATCH_MAX_ATTEMPTS = 3;
 const warpAppCache = new Map();
+const warpWorldlineCache = new Map();
 const runtimeBlobStorageCache = new Map();
 
 export async function openWarpApp(repoDir) {
@@ -121,22 +123,107 @@ export async function openWarpApp(repoDir) {
     return cached;
   }
 
-  const plumbing = Plumbing.createDefault({ cwd: repoDir });
-  const persistence = new GitGraphAdapter({ plumbing });
-
-  const app = await WarpApp.open({
-    persistence,
-    graphName: GRAPH_NAME,
-    writerId: createWriterId(),
-    checkpointPolicy: CHECKPOINT_POLICY,
-  });
-
+  const app = await openWarpAppWithCheckpointRepair(repoDir, createWriterId());
   warpAppCache.set(repoDir, app);
   return app;
 }
 
+export async function openWarpGraphHandle(repoDir, writerId = createWriterId()) {
+  return await openWarpGraphWithCheckpointRepair(repoDir, writerId);
+}
+
+export async function openThinkWorldline(repoDir) {
+  const cached = warpWorldlineCache.get(repoDir);
+  if (cached) {
+    return cached;
+  }
+
+  const worldline = await openThinkWorldlineWithCheckpointRepair(repoDir, createWriterId());
+  warpWorldlineCache.set(repoDir, worldline);
+  return worldline;
+}
+
+async function openWarpAppWithCheckpointRepair(repoDir, writerId) {
+  try {
+    return await openWarpAppOnce(repoDir, writerId);
+  } catch (error) {
+    if (!isUnsupportedCheckpointSchemaError(error)) {
+      throw error;
+    }
+
+    await deleteCheckpointRef(repoDir);
+    return await openWarpAppOnce(repoDir, writerId);
+  }
+}
+
+async function openWarpGraphWithCheckpointRepair(repoDir, writerId) {
+  try {
+    return await openWarpGraphOnce(repoDir, writerId);
+  } catch (error) {
+    if (!isUnsupportedCheckpointSchemaError(error)) {
+      throw error;
+    }
+
+    await deleteCheckpointRef(repoDir);
+    return await openWarpGraphOnce(repoDir, writerId);
+  }
+}
+
+async function openThinkWorldlineWithCheckpointRepair(repoDir, writerId) {
+  try {
+    return await openThinkWorldlineOnce(repoDir, writerId);
+  } catch (error) {
+    if (!isUnsupportedCheckpointSchemaError(error)) {
+      throw error;
+    }
+
+    await deleteCheckpointRef(repoDir);
+    return await openThinkWorldlineOnce(repoDir, writerId);
+  }
+}
+
+async function openWarpAppOnce(repoDir, writerId) {
+  const persistence = createThinkWarpPersistence(repoDir);
+
+  return await WarpApp.open({
+    persistence,
+    graphName: GRAPH_NAME,
+    writerId,
+    checkpointPolicy: CHECKPOINT_POLICY,
+  });
+}
+
+async function openWarpGraphOnce(repoDir, writerId) {
+  const persistence = createThinkWarpPersistence(repoDir);
+
+  return await openWarpGraph({
+    persistence,
+    graphName: GRAPH_NAME,
+    writerId,
+    checkpointPolicy: CHECKPOINT_POLICY,
+  });
+}
+
+async function openThinkWorldlineOnce(repoDir, writerId) {
+  const persistence = createThinkWarpPersistence(repoDir);
+
+  return await openWarpWorldline({
+    persistence,
+    worldlineName: GRAPH_NAME,
+    writerId,
+    checkpointPolicy: CHECKPOINT_POLICY,
+  });
+}
+
+function createThinkWarpPersistence(repoDir) {
+  return new GitGraphAdapter({
+    plumbing: createThinkPlumbing(repoDir),
+  });
+}
+
 export function clearWarpAppCache(repoDir) {
   warpAppCache.delete(repoDir);
+  warpWorldlineCache.delete(repoDir);
 }
 
 export async function patchWarpApp(repoDir, patcher, {
@@ -165,6 +252,30 @@ export async function patchWarpApp(repoDir, patcher, {
       }
 
       return app;
+    } catch (error) {
+      if (!isWriterCasConflict(error) || attempt >= maxAttempts) {
+        throw error;
+      }
+
+      clearWarpAppCache(repoDir);
+      attempt += 1;
+    }
+  }
+  /* eslint-enable no-await-in-loop */
+}
+
+export async function commitThinkWorldline(repoDir, patcher, {
+  maxAttempts = DEFAULT_PATCH_MAX_ATTEMPTS,
+} = {}) {
+  let attempt = 1;
+
+  /* eslint-disable no-await-in-loop -- retry attempts must run sequentially against a refreshed worldline */
+  while (true) {
+    const worldline = await openThinkWorldline(repoDir);
+
+    try {
+      await worldline.commit(patcher);
+      return worldline;
     } catch (error) {
       if (!isWriterCasConflict(error) || attempt >= maxAttempts) {
         throw error;
@@ -215,15 +326,7 @@ export async function patchWarpAppWithWriter(repoDir, writerId, patcher, {
 }
 
 async function openWarpAppUncached(repoDir, writerId) {
-  const plumbing = Plumbing.createDefault({ cwd: repoDir });
-  const persistence = new GitGraphAdapter({ plumbing });
-
-  return await WarpApp.open({
-    persistence,
-    graphName: GRAPH_NAME,
-    writerId,
-    checkpointPolicy: CHECKPOINT_POLICY,
-  });
+  return await openWarpAppWithCheckpointRepair(repoDir, writerId);
 }
 
 export function isWriterCasConflict(error) {
@@ -277,7 +380,7 @@ async function getRuntimeBlobStorage(repoDir) {
     return await runtimeBlobStorageCache.get(repoDir);
   }
 
-  const plumbing = Plumbing.createDefault({ cwd: repoDir });
+  const plumbing = createThinkPlumbing(repoDir);
   const persistence = new GitGraphAdapter({ plumbing });
   const blobStorage = createRuntimeBlobStorage(persistence);
   runtimeBlobStorageCache.set(repoDir, blobStorage);
@@ -366,6 +469,18 @@ export async function listEntriesByKind(read, kind) {
   return entries;
 }
 
+export async function listEntryPropsByKind(read, kind) {
+  const result = await read.view.query()
+    .match(getMatchPatternsForKind(kind))
+    .where({ kind })
+    .run();
+
+  return (result.nodes ?? []).map((node) => Object.freeze({
+    id: node.id,
+    ...(node.props ?? {}),
+  }));
+}
+
 function getMatchPatternsForKind(kind) {
   if (kind === 'capture' || kind === 'reflect') {
     return `${ENTRY_PREFIX}*`;
@@ -435,30 +550,27 @@ export async function getLatestStoredEntry(read, kind = 'capture') {
 }
 
 export async function listRecentStoredEntries(read, { kind = 'capture', limit = 50 } = {}) {
-  const latestId = await getLatestIdByKind(read, kind);
-  if (!latestId) {
-    const fallbackEntries = await listEntriesByKind(read, kind);
-    return fallbackEntries
-      .sort(compareEntriesNewestFirst)
-      .slice(0, limit);
+  const entries = [];
+  for await (const entry of iterateRecentStoredEntries(read, { kind, limit })) {
+    entries.push(entry);
+  }
+  return entries;
+}
+
+export async function* iterateRecentStoredEntries(read, { kind = 'capture', limit = 50 } = {}) {
+  const maxEntries = Number.isInteger(limit) ? Math.max(0, limit) : 50;
+  if (maxEntries === 0) {
+    return;
   }
 
-  const ids = await read.view.traverse.bfs(latestId, {
-    dir: 'out',
-    labelFilter: 'older',
-  });
-
-  const entries = [];
-  for (const id of ids) {
-    if (entries.length >= limit) { break; }
-    // eslint-disable-next-line no-await-in-loop -- sequential retrieval of windowed entries
-    const entry = await getStoredEntry(read, id);
+  const candidates = await listEntryPropsByKind(read, kind);
+  for (const candidate of candidates.sort(compareEntriesNewestFirst).slice(0, maxEntries)) {
+    // eslint-disable-next-line no-await-in-loop -- bounded retrieval of selected recent entries
+    const entry = await getStoredEntry(read, candidate.id, candidate);
     if (entry && entry.kind === kind) {
-      entries.push(entry);
+      yield entry;
     }
   }
-
-  return entries;
 }
 
 async function getLatestIdByKind(read, kind) {

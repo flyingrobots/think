@@ -12,6 +12,11 @@ import {
 
 const CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS = 3_000;
 const CAPTURE_FOLLOWTHROUGH_DEFERRED = Object.freeze({ status: 'deferred' });
+const NO_GRAPH_MIGRATION_STATUS = Object.freeze({
+  currentGraphModelVersion: null,
+  requiredGraphModelVersion: null,
+  migrationRequired: false,
+});
 
 export async function runCapture(thought, output, reporter) {
   if (thought.trim() === '') {
@@ -30,13 +35,6 @@ export async function runCapture(thought, output, reporter) {
   await ensureGitRepo(repoDir);
   reporter.event(repoAlreadyExists ? 'repo.ensure.done' : 'repo.bootstrap.done', { repoDir });
 
-  const graphStatus = repoAlreadyExists
-    ? await getGraphModelStatus(repoDir)
-    : {
-        currentGraphModelVersion: null,
-        requiredGraphModelVersion: null,
-        migrationRequired: false,
-      };
   const provenance = captureProvenanceFromEnvironment(process.env);
   const ambientContext = getCaptureAmbientContext(process.cwd());
 
@@ -49,60 +47,60 @@ export async function runCapture(thought, output, reporter) {
     entryId: entry.id,
   });
 
+  await runCaptureFollowthrough(repoDir, entry.id, repoAlreadyExists, reporter);
+
+  return await runBackup(repoDir, output, reporter);
+}
+
+async function runCaptureFollowthrough(repoDir, entryId, repoAlreadyExists, reporter) {
   try {
-    if (graphStatus.migrationRequired) {
-      reporter.event('graph.migration.start', {
-        command: 'capture',
-        trigger: 'post_capture',
-        entryId: entry.id,
-        currentGraphModelVersion: graphStatus.currentGraphModelVersion,
-        requiredGraphModelVersion: graphStatus.requiredGraphModelVersion,
-      });
-    }
-
-    const followthroughPromise = finalizeCapturedThought(repoDir, entry.id, {
-      migrateIfNeeded: graphStatus.migrationRequired,
-      ambientContext: getAmbientProjectContext(process.cwd()),
-    });
-    const followthrough = graphStatus.migrationRequired
-      ? await followthroughPromise
-      : await waitForCaptureFollowthrough(followthroughPromise);
-
-    if (followthrough === CAPTURE_FOLLOWTHROUGH_DEFERRED) {
+    const graphStatusPromise = repoAlreadyExists
+      ? getGraphModelStatus(repoDir)
+      : Promise.resolve(NO_GRAPH_MIGRATION_STATUS);
+    const graphStatus = await waitForCaptureFollowthrough(graphStatusPromise);
+    if (graphStatus === CAPTURE_FOLLOWTHROUGH_DEFERRED) {
+      graphStatusPromise.catch(() => {});
       reporter.event('capture.followthrough.deferred', {
         command: 'capture',
         trigger: 'post_capture',
-        entryId: entry.id,
+        entryId,
         timeoutMs: CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS,
       });
-      return await runBackup(repoDir, output, reporter);
+      return;
     }
 
     if (graphStatus.migrationRequired) {
-      reporter.event('graph.migration.done', {
+      reporter.event('graph.migration.deferred', {
         command: 'capture',
         trigger: 'post_capture',
-        entryId: entry.id,
+        entryId,
         currentGraphModelVersion: graphStatus.currentGraphModelVersion,
         requiredGraphModelVersion: graphStatus.requiredGraphModelVersion,
-        ...(followthrough.migration ?? {
-          changed: false,
-          graphModelVersion: graphStatus.currentGraphModelVersion,
-          edgesAdded: 0,
-          metadataUpdated: false,
-        }),
+      });
+    }
+
+    const followthroughPromise = finalizeCapturedThought(repoDir, entryId, {
+      migrateIfNeeded: false,
+      ambientContext: getAmbientProjectContext(process.cwd()),
+    });
+    const followthrough = await waitForCaptureFollowthrough(followthroughPromise);
+    if (followthrough === CAPTURE_FOLLOWTHROUGH_DEFERRED) {
+      followthroughPromise.catch(() => {});
+      reporter.event('capture.followthrough.deferred', {
+        command: 'capture',
+        trigger: 'post_capture',
+        entryId,
+        timeoutMs: CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS,
       });
     }
   } catch (error) {
     reporter.event('graph.migration.failed', {
       command: 'capture',
       trigger: 'post_capture',
-      entryId: entry.id,
+      entryId,
       message: error instanceof Error ? error.message : String(error),
     });
   }
-
-  return await runBackup(repoDir, output, reporter);
 }
 
 async function runBackup(repoDir, output, reporter) {

@@ -1,18 +1,16 @@
 import { normalizeCaptureProvenance } from '../capture-provenance.js';
-import { TEXT_MIME } from './constants.js';
+import { GRAPH_META_ID, GRAPH_MODEL_VERSION, TEXT_MIME } from './constants.js';
 import { encodeTextContent } from './content.js';
 import { createEntry } from './model.js';
 import {
+  commitThinkWorldline,
   createProductReadHandle,
-  getGraphModelStatusForRead,
   getStoredEntry,
-  openProductReadHandle,
+  openThinkWorldline,
   openWarpApp,
-  patchWarpApp,
 } from './runtime.js';
 import { ensureCaptureReadEdges, ensureFirstDerivedArtifacts } from './derivation.js';
 import { migrateGraphModel } from './migrations.js';
-import { getCheckpointGraphModelStatus } from './checkpoint-read.js';
 
 export async function saveRawCapture(repoDir, thought, {
   provenance = null,
@@ -28,8 +26,8 @@ async function writeRawCapture(repoDir, thought, {
   provenance,
   ambientContext,
 }) {
-  const app = await openWarpApp(repoDir);
-  const entry = createEntry(thought, app.writerId, { kind: 'capture', source: 'capture' });
+  const worldline = await openThinkWorldline(repoDir);
+  const entry = createEntry(thought, worldline.writerId, { kind: 'capture', source: 'capture' });
   const captureProvenance = normalizeCaptureProvenance(provenance);
 
   const patcher = async (patch) => {
@@ -56,7 +54,7 @@ async function writeRawCapture(repoDir, thought, {
     await patch.attachContent(entry.id, encodeTextContent(thought), { mime: TEXT_MIME });
   };
 
-  await patchWarpApp(repoDir, patcher, { genesisOnNoState: true });
+  await commitThinkWorldline(repoDir, patcher);
 
   return entry;
 }
@@ -97,12 +95,20 @@ export async function finalizeCapturedThought(repoDir, entryId, {
 }
 
 export async function getGraphModelStatus(repoDir) {
-  const checkpointStatus = await getCheckpointGraphModelStatus(repoDir);
-  if (checkpointStatus !== null) {
-    return checkpointStatus;
-  }
-  const read = await openProductReadHandle(repoDir);
-  return getGraphModelStatusForRead(read);
+  const worldline = await openThinkWorldline(repoDir);
+  await worldline.prepareOpticBasis();
+  const coordinate = await worldline.coordinate();
+  const fact = await coordinate
+    .optic()
+    .node(GRAPH_META_ID)
+    .prop('graphModelVersion')
+    .read();
+  const currentGraphModelVersion = Number(fact?.value ?? 1);
+  return {
+    currentGraphModelVersion,
+    requiredGraphModelVersion: GRAPH_MODEL_VERSION,
+    migrationRequired: currentGraphModelVersion < GRAPH_MODEL_VERSION,
+  };
 }
 
 function applyAmbientContextPatch(patch, entryId, ambientContext) {
@@ -129,5 +135,5 @@ async function patchAmbientContext(repoDir, entryId, ambientContext) {
     applyAmbientContextPatch(patch, entryId, ambientContext);
   };
 
-  await patchWarpApp(repoDir, patcher, { genesisOnNoState: true });
+  await commitThinkWorldline(repoDir, patcher);
 }

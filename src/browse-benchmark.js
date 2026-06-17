@@ -1,8 +1,7 @@
-import Plumbing from '@git-stunts/plumbing';
 import WarpApp, { GitGraphAdapter } from '@git-stunts/git-warp';
 
 import { ValidationError } from './errors.js';
-import { ensureGitRepo, hasGitRepo } from './git.js';
+import { createThinkPlumbing, ensureGitRepo, hasGitRepo } from './git.js';
 import {
   GRAPH_NAME,
   loadBrowseChronologyEntries,
@@ -204,7 +203,7 @@ function createSyntheticEntry({ thoughtNumber, sessionNumber, captureNumberInSes
 
 // eslint-disable-next-line require-await -- wraps git-warp WarpApp.open which returns a promise
 async function openGraph(repoDir) {
-  const plumbing = Plumbing.createDefault({ cwd: repoDir });
+  const plumbing = createThinkPlumbing(repoDir);
   const persistence = new GitGraphAdapter({ plumbing });
 
   return WarpApp.open({

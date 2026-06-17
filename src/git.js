@@ -4,6 +4,7 @@ import path from 'node:path';
 import { execSync, spawn, spawnSync } from 'node:child_process';
 
 import { TimeoutError } from '@git-stunts/alfred';
+import Plumbing, { ShellRunnerFactory } from '@git-stunts/plumbing';
 
 import { ThinkError } from './errors.js';
 import { createPushPolicy } from './policies.js';
@@ -17,6 +18,8 @@ function resolveGitBinary() {
 }
 
 export const GIT_BINARY = resolveGitBinary();
+
+export const THINK_GIT_CONFIG_ARGS = Object.freeze(['-c', 'core.fsmonitor=false']);
 
 const DEFAULT_GIT_ENV = {
   GIT_AUTHOR_NAME: 'think',
@@ -40,8 +43,20 @@ export async function ensureGitRepo(repoDir) {
     runGit(['init', repoDir], { cwd: process.cwd() });
   }
 
+  setFsmonitorDisabled(repoDir);
   runGit(['-C', repoDir, 'config', 'user.name', DEFAULT_GIT_ENV.GIT_AUTHOR_NAME]);
   runGit(['-C', repoDir, 'config', 'user.email', DEFAULT_GIT_ENV.GIT_AUTHOR_EMAIL]);
+}
+
+export function setFsmonitorDisabled(repoDir) {
+  runGit(['-C', repoDir, 'config', 'core.fsmonitor', 'false']);
+}
+
+export function createThinkPlumbing(repoDir) {
+  return new Plumbing({
+    cwd: repoDir,
+    runner: createFsmonitorDisabledRunner(),
+  });
 }
 
 export async function pushWarpRefs(repoDir, upstreamUrl, graphName, { reporter } = {}) {
@@ -85,7 +100,7 @@ export function hasGitRepo(repoDir) {
 const LS_REMOTE_TIMEOUT_MS = 5000;
 
 export function lsRemote(upstreamUrl) {
-  const result = spawnSync(GIT_BINARY, ['ls-remote', '--exit-code', upstreamUrl], {
+  const result = spawnSync(GIT_BINARY, withThinkGitConfig(['ls-remote', '--exit-code', upstreamUrl]), {
     env: {
       ...process.env,
       ...NON_INTERACTIVE_PUSH_ENV,
@@ -96,11 +111,88 @@ export function lsRemote(upstreamUrl) {
   return result.status === 0;
 }
 
+export function getFsmonitorStatus(repoDir) {
+  const effective = readGitConfigWithOrigin(['-C', repoDir, 'config', '--show-origin', '--get', 'core.fsmonitor']);
+
+  return Object.freeze({
+    effectiveValue: effective?.value ?? null,
+    effectiveSource: effective?.origin ?? null,
+    localValue: readGitConfigValue(['-C', repoDir, 'config', '--local', '--get', 'core.fsmonitor']),
+    globalValue: readGitConfigValue(['config', '--global', '--get', 'core.fsmonitor']),
+  });
+}
+
+function createFsmonitorDisabledRunner() {
+  const runner = ShellRunnerFactory.create();
+
+  return (options) => runner({
+    ...options,
+    args: withThinkGitConfig(options.args),
+  });
+}
+
+function withThinkGitConfig(args) {
+  return [...THINK_GIT_CONFIG_ARGS, ...args];
+}
+
+function readGitConfigValue(args) {
+  const raw = readOptionalGitConfig(args);
+  return raw === null ? null : raw.trim();
+}
+
+function readGitConfigWithOrigin(args) {
+  const raw = readOptionalGitConfig(args);
+  if (raw === null) {
+    return null;
+  }
+
+  const line = raw.trim().split('\n').filter(Boolean).at(-1);
+  if (!line) {
+    return null;
+  }
+
+  const tabIndex = line.lastIndexOf('\t');
+  if (tabIndex === -1) {
+    return Object.freeze({ origin: 'unknown', value: line.trim() });
+  }
+
+  return Object.freeze({
+    origin: line.slice(0, tabIndex).trim(),
+    value: line.slice(tabIndex + 1).trim(),
+  });
+}
+
+function readOptionalGitConfig(args) {
+  const result = spawnSync(GIT_BINARY, args, {
+    encoding: 'utf8',
+    env: process.env,
+  });
+
+  if (result.status === 0) {
+    return result.stdout;
+  }
+
+  if (result.status === 1) {
+    return null;
+  }
+
+  const error = new ThinkError(`git config inspection failed: git ${args.join(' ')}`, 'GIT_COMMAND_FAILED');
+  error.result = result;
+  throw error;
+}
+
 function runGitPush(repoDir, upstreamUrl, graphName, signal) {
   return new Promise((resolve, reject) => {
     const child = spawn(
       GIT_BINARY,
-      ['-C', repoDir, 'push', '--porcelain', upstreamUrl, `refs/warp/${graphName}/*:refs/warp/${graphName}/*`],
+      withThinkGitConfig([
+        '-C',
+        repoDir,
+        'push',
+        '--porcelain',
+        upstreamUrl,
+        `refs/warp/${graphName}/*:refs/warp/${graphName}/*`,
+      ]),
       {
         env: {
           ...process.env,
@@ -208,7 +300,7 @@ function buildPushError(message, details = {}) {
 }
 
 function runGit(args, options = {}) {
-  const result = spawnSync(GIT_BINARY, args, {
+  const result = spawnSync(GIT_BINARY, withThinkGitConfig(args), {
     encoding: 'utf8',
     env: {
       ...process.env,
@@ -218,7 +310,7 @@ function runGit(args, options = {}) {
   });
 
   if (result.status !== 0) {
-    const error = new ThinkError(`git command failed: git ${args.join(' ')}`, 'GIT_COMMAND_FAILED');
+    const error = new ThinkError(`git command failed: git ${withThinkGitConfig(args).join(' ')}`, 'GIT_COMMAND_FAILED');
     error.result = result;
     throw error;
   }

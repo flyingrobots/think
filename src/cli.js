@@ -11,10 +11,10 @@ import {
 } from './cli/options.js';
 import { createOutput, resolveJsonStream } from './cli/output.js';
 import { runCapture, runIngest, runMigrateGraph } from './cli/commands/capture.js';
+import { runDoctor } from './cli/commands/doctor.js';
 import {
   runAnnotate,
   runBrowse,
-  runDoctor,
   runEnrich,
   runInspect,
   runPromptMetrics,
@@ -70,7 +70,7 @@ export async function main(argv, { stdout, stderr, stdin }) {
       [COMMANDS.REMEMBER]: () => runRemember(output, reporter, options),
       [COMMANDS.BROWSE]: () => runBrowse(options.browse, output, reporter),
       [COMMANDS.INSPECT]: () => runInspect(options.inspect, output, reporter),
-      [COMMANDS.DOCTOR]: () => runDoctor(output, reporter),
+      [COMMANDS.DOCTOR]: () => runDoctor(output, reporter, options),
       [COMMANDS.MIGRATE_GRAPH]: () => runMigrateGraph(output, reporter),
       [COMMANDS.INGEST]: () => runIngest(stdin, output, reporter),
       [COMMANDS.STATS]: () => runStats(output, reporter, options),

@@ -19,7 +19,9 @@ export {
 
 export {
   rememberThoughts,
+  rememberThoughtsForRead,
   getStats,
+  getStatsForRead,
   getPromptMetrics,
   listRecent,
   listReflectableRecent,
