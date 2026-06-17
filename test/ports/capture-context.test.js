@@ -1,9 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import Plumbing from '@git-stunts/plumbing';
 import WarpApp, { GitGraphAdapter } from '@git-stunts/git-warp';
 
-import { ensureGitRepo } from '../../src/git.js';
+import { createThinkPlumbing, ensureGitRepo } from '../../src/git.js';
 import { getCaptureAmbientContext, getAmbientProjectContext } from '../../src/project-context.js';
 import {
   finalizeCapturedThought,
@@ -160,7 +159,7 @@ test('reflect writes retry after the cached writer ref is advanced externally', 
 async function openExternalWarpApp(repoDir) {
   return await WarpApp.open({
     persistence: new GitGraphAdapter({
-      plumbing: Plumbing.createDefault({ cwd: repoDir }),
+      plumbing: createThinkPlumbing(repoDir),
     }),
     graphName: GRAPH_NAME,
     writerId: createWriterId(),
