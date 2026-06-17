@@ -1,6 +1,6 @@
 import { createBijou } from '@flyingrobots/bijou';
 import { nodeRuntime, nodeIO, chalkStyle } from '@flyingrobots/bijou-node';
-import { createFramedApp, run } from '@flyingrobots/bijou-tui';
+import { createFramedApp } from '@flyingrobots/bijou-tui';
 import { thinkShellThemes, thinkTheme } from './theme.js';
 import { selectLogo } from '../splash.js';
 import { shaderFrame, compositeAndRender, buildLogoMask, buildInteriorMask, buildDistanceFromOutline, getShaderCount, getShaderName, BG } from '../splash-shader.js';
@@ -101,9 +101,7 @@ export async function runBrowseTui({
       await fadeInBrowse(bootstrap, minds, activeMind);
     }
 
-    await run(app, screenHeldFromSplash
-      ? { ctx, altScreen: false, hideCursor: false }
-      : { ctx });
+    await app.run({ ctx });
   } finally {
     if (screenHeldFromSplash) {
       restoreTerminalScreen();
