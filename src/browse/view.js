@@ -88,6 +88,8 @@ function renderReadyLines(view, width) {
     ...wrapText(current.text, width),
   ];
 
+  lines.push('', ...renderHistoryMap(view, width));
+
   if (view.newer || view.older) {
     lines.push('');
   }
@@ -99,6 +101,60 @@ function renderReadyLines(view, width) {
   }
 
   return lines;
+}
+
+function renderHistoryMap(view, width) {
+  const lines = [fitLine('History', width)];
+  for (const item of historyMapEntries(view)) {
+    lines.push(renderHistoryMapItem(item, width));
+  }
+
+  const sessionLine = renderHistorySessionLine(view?.sessionContext, width);
+  if (sessionLine) {
+    lines.push(sessionLine);
+  }
+
+  return lines;
+}
+
+function historyMapEntries(view) {
+  const entries = [];
+  pushHistoryMapEntry(entries, view?.newer, '⠒', 'newer');
+  pushHistoryMapEntry(entries, view?.current, '⣿', 'now');
+  pushHistoryMapEntry(entries, view?.older, '⠤', 'older');
+  return entries;
+}
+
+function pushHistoryMapEntry(entries, entry, glyph, label) {
+  if (entry) {
+    entries.push({ glyph, label, entry });
+  }
+}
+
+function renderHistoryMapItem(item, width) {
+  return fitLine(
+    `${item.glyph} ${item.label.padEnd(5)} ${shortEntryId(item.entry.id)} ${formatEntryTime(item.entry)}`,
+    width
+  );
+}
+
+function renderHistorySessionLine(sessionContext, width) {
+  if (!sessionContext) {
+    return null;
+  }
+
+  return fitLine(`  ${formatSessionProgress(sessionContext)}`, width);
+}
+
+function formatSessionProgress({ sessionPosition, sessionCount }) {
+  if (sessionPosition && sessionCount) {
+    return `session ${sessionPosition}/${sessionCount}`;
+  }
+  return 'session linked';
+}
+
+function formatEntryTime(entry) {
+  return entry?.createdAt ? String(entry.createdAt) : '';
 }
 
 function formatEntryMeta(entry) {

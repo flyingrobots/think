@@ -105,6 +105,21 @@ test('Browse data port maps unavailable History into an empty view', async () =>
   assert.match(view.message, /No raw captures/);
 });
 
+test('Browse data port streams History capture window updates', async () => {
+  const dataPort = createStreamingHistoryDataPort();
+  const task = dataPort.loadInitialViewTask();
+  const partialViews = [];
+  const unsubscribe = task.subscribe((view) => partialViews.push(view));
+
+  const finalView = await task.promise;
+  unsubscribe();
+  task.dispose();
+
+  assert.equal(partialViews.length, 1);
+  assert.equal(partialViews[0].current.text, 'Checkpoint History view.');
+  assert.equal(finalView.current.text, 'Final live History view.');
+});
+
 test('Browse page loads initial data through the port inside a Bijou page', async () => {
   const dataPort = createMemoryBrowseDataPort({
     status: 'ready',
@@ -132,6 +147,30 @@ test('Browse page loads initial data through the port inside a Bijou page', asyn
 
   assert.equal(loadedModel.status, 'ready');
   assert.equal(loadedModel.view.current.text, 'The first frame can load without blocking startup.');
+});
+
+test('Browse page applies streamed initial History updates before the final load', async () => {
+  const fixture = createStreamedInitialViewPage();
+  const [initialModel, commands] = fixture.page.init();
+  const emitted = [];
+
+  const cleanup = commands[0]((msg) => emitted.push(msg));
+  await new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
+  assert.equal(emitted.length, 1);
+  const [partialModel] = fixture.page.update(emitted[0], initialModel);
+  assert.equal(partialModel.view.current.text, 'Checkpoint snapshot is already usable.');
+
+  fixture.resolveFinal();
+  await new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
+  cleanup.dispose();
+
+  assert.equal(emitted.length, 2);
+  const [finalModel] = fixture.page.update(emitted[1], partialModel);
+  assert.equal(finalModel.view.current.text, 'Live History finished loading.');
 });
 
 test('Browse page disposes cancellable background load tasks', async () => {
@@ -190,7 +229,7 @@ test('Browse shell app is a Bijou AppShell, not a hand-rolled terminal loop', as
   assert.doesNotMatch(source, /setRawMode|process\\.stdin|\\x1b/);
 });
 
-test('Browse page body renders loading, ready, empty, and error states', () => {
+test('Browse page body renders loading state with a real spinner', () => {
   const loading = createBrowseModel({ mindName: 'codex', columns: 64, rows: 10 });
   const loadingText = renderBrowsePaneText(loading);
   assert.match(loadingText, /Mind: codex/);
@@ -201,7 +240,10 @@ test('Browse page body renders loading, ready, empty, and error states', () => {
 
   const advancedLoadingText = renderBrowsePaneText(advanceBrowseLoading(loading));
   assert.notEqual(advancedLoadingText, loadingText);
+});
 
+test('Browse page body renders ready state with a History rail', () => {
+  const loading = createBrowseModel({ mindName: 'codex', columns: 64, rows: 10 });
   const ready = applyBrowseLoaded(loading, createBrowseInitialView({
     status: 'ready',
     mindName: 'codex',
@@ -210,11 +252,22 @@ test('Browse page body renders loading, ready, empty, and error states', () => {
       text: 'Draw this text without leaking storage implementation details.',
       createdAt: '2026-06-17T13:00:00.000Z',
     },
+    older: {
+      id: 'entry:1779999999000-older',
+      text: 'Older context.',
+      createdAt: '2026-06-17T12:59:59.000Z',
+    },
   }));
   const readyText = renderBrowsePaneText(ready);
   assert.match(readyText, /Draw this text/);
+  assert.match(readyText, /History/);
+  assert.match(readyText, /now/);
+  assert.match(readyText, /older/);
   assert.doesNotMatch(readyText, /git-warp|checkpoint|graph/i);
+});
 
+test('Browse page body renders empty, migration, and repo-missing states', () => {
+  const loading = createBrowseModel({ mindName: 'codex', columns: 64, rows: 10 });
   const empty = applyBrowseLoaded(loading, createBrowseInitialView({ status: 'empty' }));
   assert.match(renderBrowsePaneText(empty), /No raw captures/);
 
@@ -267,6 +320,98 @@ test('Git WARP implements the Browse History port for capture windows', async ()
   assert.equal(historyWindow.ok, true);
   assert.equal(historyWindow.current.text, 'Git WARP is one possible History backend.');
 });
+
+function createStreamingHistoryDataPort() {
+  return createHistoryBrowseDataPort({
+    history: {
+      loadLatestCaptureWindow: () => Promise.resolve(createHistoryWindow(
+        'entry:1780000001000-final',
+        'Final live History view.'
+      )),
+      loadLatestCaptureWindowUpdates: async function* loadUpdates() {
+        yield historyWindowUpdate(false, 'entry:1780000000000-partial', 'Checkpoint History view.');
+        yield historyWindowUpdate(true, 'entry:1780000001000-final', 'Final live History view.');
+      },
+    },
+  });
+}
+
+function createStreamedInitialViewPage() {
+  const partialView = createBrowseInitialView({
+    status: 'ready',
+    mindName: 'codex',
+    current: createBrowseEntry('entry:1780000000000-partial', 'Checkpoint snapshot is already usable.'),
+  });
+  const finalView = createBrowseInitialView({
+    status: 'ready',
+    mindName: 'codex',
+    current: createBrowseEntry('entry:1780000001000-final', 'Live History finished loading.'),
+  });
+  let resolveFinal;
+  const listeners = new Set();
+
+  return {
+    page: createBrowsePage({
+      dataPort: createControlledStreamDataPort({
+        listeners,
+        partialView,
+        setResolve: (resolve) => {
+          resolveFinal = resolve;
+        },
+      }),
+    }),
+    resolveFinal() {
+      resolveFinal(finalView);
+    },
+  };
+}
+
+function createControlledStreamDataPort({ listeners, partialView, setResolve }) {
+  return {
+    loadInitialViewTask() {
+      queueMicrotask(() => emitToListeners(listeners, partialView));
+      return {
+        promise: new Promise((resolve) => {
+          setResolve(resolve);
+        }),
+        subscribe(listener) {
+          listeners.add(listener);
+          return () => listeners.delete(listener);
+        },
+        dispose() {
+          listeners.clear();
+        },
+      };
+    },
+  };
+}
+
+function emitToListeners(listeners, view) {
+  for (const listener of listeners) {
+    listener(view);
+  }
+}
+
+function historyWindowUpdate(final, id, text) {
+  return {
+    final,
+    historyWindow: createHistoryWindow(id, text),
+  };
+}
+
+function createHistoryWindow(id, text) {
+  return createHistoryReadyWindow({
+    current: { id, text },
+  });
+}
+
+function createBrowseEntry(id, text) {
+  return {
+    id,
+    text,
+    createdAt: '2026-06-17T13:00:00.000Z',
+  };
+}
 
 function key(name) {
   return {

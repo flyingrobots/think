@@ -18,7 +18,7 @@ export async function ensureGraphModelReadyFromStatus(repoDir, command, status, 
     if (decision === 'upgrade') {
       writeShellBlock(renderGraphMigrationProgress({
         command,
-        phase: 'Applying graph migration',
+        phase: 'Applying History migration',
         progress: 0.75,
       }), output);
       reporter.event('graph.migration.start', {
@@ -45,16 +45,17 @@ export async function ensureGraphModelReadyFromStatus(repoDir, command, status, 
       command,
       ...status,
     });
-    output.error('Graph upgrade cancelled', 'graph.migration_cancelled', {
+      output.error('History upgrade cancelled', 'graph.migration_cancelled', {
       command,
       ...status,
     });
     return false;
   }
 
-  output.error('Graph migration required. Run think --migrate-graph.', 'graph.migration_required', {
+  output.error('History migration required. Run think --migrate-history.', 'graph.migration_required', {
     command,
-    remediation: 'think --migrate-graph',
+    remediation: 'think --migrate-history',
+    legacyRemediation: 'think --migrate-graph',
     ...status,
   });
   return false;

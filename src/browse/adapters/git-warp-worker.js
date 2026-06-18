@@ -1,11 +1,23 @@
 import { parentPort, workerData } from 'node:worker_threads';
 
-import { loadGitWarpBrowseInitialView } from './git-warp.js';
+import { loadGitWarpBrowseInitialViewUpdates } from './git-warp.js';
 
 try {
+  let finalView = null;
+  for await (const update of loadGitWarpBrowseInitialViewUpdates(workerData)) {
+    if (update.final) {
+      finalView = update.view;
+    } else {
+      parentPort.postMessage({
+        type: 'partial',
+        view: update.view,
+      });
+    }
+  }
+
   parentPort.postMessage({
     type: 'loaded',
-    view: await loadGitWarpBrowseInitialView(workerData),
+    view: finalView ?? { status: 'error', message: 'Browse Git WARP worker produced no view' },
   });
 } catch (error) {
   parentPort.postMessage({

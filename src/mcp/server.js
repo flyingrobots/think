@@ -245,7 +245,7 @@ export function createThinkMcpServer() {
   }, async () => (await checkThinkHealthForMcp()).toToolResult());
 
   server.registerTool('migrate_graph', {
-    description: 'Upgrade the local Think graph model in place.',
+    description: 'Upgrade the local Think History model in place. Kept as migrate_graph for MCP compatibility.',
     outputSchema: {
       changed: z.boolean(),
       edgesAdded: z.number().int().nonnegative(),

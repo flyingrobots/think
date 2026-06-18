@@ -146,31 +146,24 @@ export async function ensureCaptureReadEdges(repoDir, read, entryId) {
     return;
   }
 
-  const latestEntry = await getLatestStoredEntry(read);
-  if (latestEntry && latestEntry.id === entry.id) {
+  const captures = (await listEntriesByKind(read, 'capture')).sort(compareEntriesNewestFirst);
+  const entryIndex = captures.findIndex((capture) => capture.id === entry.id);
+  const newerEntry = entryIndex > 0 ? captures[entryIndex - 1] : null;
+  const olderEntry = entryIndex >= 0 ? captures[entryIndex + 1] ?? null : null;
+
+  if (!newerEntry && !olderEntry) {
     return;
   }
-
-  if (latestEntry && compareEntriesNewestFirst(entry, latestEntry) >= 0) {
-    return;
-  }
-
-  const latestCaptureNodes = await read.view.query()
-    .match(GRAPH_META_ID)
-    .outgoing('latest_capture')
-    .run();
-  const latestCaptureNodeIds = new Set(
-    (latestCaptureNodes.nodes ?? []).map((node) => node.id)
-  );
 
   await patchWarpApp(repoDir, (patch) => {
-    if (!latestCaptureNodeIds.has(entry.id)) {
-      patch.addEdge(GRAPH_META_ID, entry.id, 'latest_capture');
+    if (newerEntry) {
+      patch.addEdge(newerEntry.id, entry.id, 'older');
+      patch.addEdge(entry.id, newerEntry.id, 'newer');
     }
 
-    if (latestEntry) {
-      patch.addEdge(entry.id, latestEntry.id, 'older');
-      patch.addEdge(latestEntry.id, entry.id, 'newer');
+    if (olderEntry) {
+      patch.addEdge(entry.id, olderEntry.id, 'older');
+      patch.addEdge(olderEntry.id, entry.id, 'newer');
     }
   });
 }

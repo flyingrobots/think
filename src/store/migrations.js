@@ -12,7 +12,7 @@ export async function migrateGraphModel(repoDir) {
   const worldline = await openThinkWorldline(repoDir);
   const read = worldline.live();
 
-  // Check current graph model version
+  // Check current History model version
   const graphMeta = await read.getNodeProps(GRAPH_META_ID);
   const needsMetadataNode = !graphMeta;
   const needsGraphVersionUpdate = !graphMeta || graphMeta.graphModelVersion !== GRAPH_MODEL_VERSION;
@@ -105,21 +105,6 @@ export async function migrateGraphModel(repoDir) {
   const captures = (captureResult.nodes ?? [])
     .map((node) => ({ id: node.id, sortKey: String(node.props.sortKey || '') }))
     .sort(compareEntriesNewestFirst);
-
-  // Check latest_capture edge
-  const latestCaptureId = captures[0]?.id ?? null;
-  const latestCaptureTraversal = await read.query()
-    .match(GRAPH_META_ID)
-    .outgoing('latest_capture')
-    .run();
-  const currentLatestEdges = latestCaptureTraversal.nodes ?? [];
-
-  if (latestCaptureId) {
-    const hasLatest = currentLatestEdges.some((n) => n.id === latestCaptureId);
-    if (!hasLatest) {
-      missingEdges.push({ from: GRAPH_META_ID, to: latestCaptureId, label: 'latest_capture' });
-    }
-  }
 
   // Check older chain
   for (let index = 0; index + 1 < captures.length; index += 1) {

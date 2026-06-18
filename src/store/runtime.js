@@ -546,36 +546,10 @@ function getMatchPatternsForKind(kind) {
 }
 
 export async function listChronologyEntries(read) {
-  const latestCaptureId = await getLatestCaptureId(read);
-  if (!latestCaptureId) {
-    const captures = await listEntriesByKind(read, 'capture');
-    return captures
-      .map((entry) => ({
-        id: entry.id,
-        text: entry.text,
-        sortKey: entry.sortKey,
-        createdAt: entry.createdAt,
-        sessionId: entry.sessionId ?? null,
-      }))
-      .sort(compareEntriesNewestFirst);
-  }
-
-  const chronologyIds = await read.view.traverse.bfs(latestCaptureId, {
-    dir: 'out',
-    labelFilter: 'older',
-  });
-  const entries = [];
-  for (const currentId of chronologyIds) {
-    // eslint-disable-next-line no-await-in-loop -- sequential graph traversal following 'older' edges
-    const entry = await getStoredEntry(read, currentId);
-    if (!entry || entry.kind !== 'capture') {
-      continue;
-    }
-
-    entries.push(toBrowseEntry(entry));
-  }
-
-  return entries;
+  const captures = await listEntriesByKind(read, 'capture');
+  return captures
+    .map(toBrowseEntry)
+    .sort(compareEntriesNewestFirst);
 }
 
 export async function getSingleNeighborId(read, nodeId, direction, label) {
@@ -617,8 +591,6 @@ export async function* iterateRecentStoredEntries(read, { kind = 'capture', limi
 
 async function getLatestIdByKind(read, kind) {
   if (kind !== 'capture') {
-    // For now, only capture has a latest pointer.
-    // Future: generic latest_by_kind metadata.
     return null;
   }
 
@@ -653,8 +625,8 @@ async function readNodeContentOid(read, nodeId) {
 
 export async function getLatestCaptureId(read) {
   const result = await read.view.query()
-    .match(GRAPH_META_ID)
-    .outgoing('latest_capture')
+    .match(getMatchPatternsForKind('capture'))
+    .where({ kind: 'capture' })
     .run();
   return latestCaptureNodeId(result.nodes ?? []);
 }

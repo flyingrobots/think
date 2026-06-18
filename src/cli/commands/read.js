@@ -9,20 +9,22 @@ import { getLocalRepoDir, getThinkDir } from '../../paths.js';
 import {
   getBrowseWindow,
   getGraphModelStatus,
-  getGraphModelStatusForRead,
   getPromptMetrics,
   getStats,
   inspectRawEntry,
-  inspectRawEntryForRead,
   listRecent,
-  loadBrowseChronologyEntriesForRead,
-  openProductReadHandle,
   previewReflect,
   rememberThoughtsForRead,
   saveReflectResponse,
   startReflect,
   saveAnnotation,
 } from '../../store.js';
+import {
+  getHistoryModelStatusForRead,
+  inspectHistoryEntryForRead,
+  loadHistoryChronologyEntriesForRead,
+  openHistoryReadHandle,
+} from '../../history/read.js';
 import { runEnrichmentPipeline, listTopics } from '../../store/enrichment/runner.js';
 import { buildStatsSparkline } from '../../mcp/format.js';
 import { shouldUseInteractiveBrowseShell } from '../environment.js';
@@ -273,9 +275,9 @@ export async function runRemember(output, reporter, options) {
   }
 
   reporter.event('remember.read_open.start');
-  const read = await openProductReadHandle(repoDir);
+  const read = await openHistoryReadHandle(repoDir);
   reporter.event('remember.read_open.done');
-  const graphStatus = await getGraphModelStatusForRead(read);
+  const graphStatus = await getHistoryModelStatusForRead(read);
   if (!await ensureGraphModelReadyFromStatus(repoDir, 'remember', graphStatus, output, reporter)) {
     return 1;
   }
@@ -453,12 +455,12 @@ async function runInteractiveBrowseShell(output, reporter) {
       output.error('No raw captures available to browse', 'browse.entry_not_found');
       return 1;
     }
-    const read = await openProductReadHandle(repoDir);
-    const graphStatus = await getGraphModelStatusForRead(read);
+    const read = await openHistoryReadHandle(repoDir);
+    const graphStatus = await getHistoryModelStatusForRead(read);
     if (!await ensureGraphModelReadyFromStatus(repoDir, 'browse', graphStatus, output, reporter)) {
       return 1;
     }
-    const entries = await loadBrowseChronologyEntriesForRead(read);
+    const entries = await loadHistoryChronologyEntriesForRead(read);
     if (entries.length === 0) {
       output.error('No raw captures available to browse', 'browse.entry_not_found');
       return 1;
@@ -471,7 +473,7 @@ async function runInteractiveBrowseShell(output, reporter) {
     const inspectById = new Map();
     for (const entry of entries) {
       // eslint-disable-next-line no-await-in-loop -- sequential graph reads for each entry
-      inspectById.set(entry.id, await inspectRawEntryForRead(read, entry.id));
+      inspectById.set(entry.id, await inspectHistoryEntryForRead(read, entry.id));
     }
 
     const result = await runBrowseTuiScript({
@@ -513,7 +515,7 @@ async function runInteractiveBrowseShell(output, reporter) {
         }
         return saved;
       },
-      loadInspectEntry: (thoughtEntryId) => inspectRawEntryForRead(read, thoughtEntryId),
+      loadInspectEntry: (thoughtEntryId) => inspectHistoryEntryForRead(read, thoughtEntryId),
     });
 
     output.out(result.output);

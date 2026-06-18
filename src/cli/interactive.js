@@ -116,14 +116,14 @@ export function renderInteractiveReflectSkipped(ctx = initDefaultContext()) {
 }
 
 export function renderGraphMigrationIntro(command, status, ctx = initDefaultContext()) {
-  const header = headerBox('Upgrade thought graph', { ctx });
+  const header = headerBox('Upgrade History', { ctx });
   const body = markdown(
     [
-      '**Your thought graph uses an older model.**',
+      '**Your History uses an older model.**',
       '',
-      `\`${command}\` needs graph model version ${status.requiredGraphModelVersion} before it can continue.`,
+      `\`${command}\` needs History model version ${status.requiredGraphModelVersion} before it can continue.`,
       '',
-      `Current graph model version: ${status.currentGraphModelVersion}`,
+      `Current History model version: ${status.currentGraphModelVersion}`,
     ].join('\n'),
     { ctx }
   );

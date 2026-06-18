@@ -148,10 +148,6 @@ export async function createSyntheticBrowseFixture({
       .filter((item) => item.type === 'capture')
       .sort((left, right) => right.sortKey.localeCompare(left.sortKey));
 
-    if (captures[0]) {
-      patch.addEdge(GRAPH_META_ID, captures[0].id, 'latest_capture');
-    }
-
     for (let index = 0; index + 1 < captures.length; index += 1) {
       patch.addEdge(captures[index].id, captures[index + 1].id, 'older');
     }

@@ -27,7 +27,6 @@ import {
 } from './prompt-metrics.js';
 import {
   getLatestCaptureId,
-  getSingleNeighborId,
   getStoredEntry,
   iterateRecentStoredEntries,
   listChronologyEntries,
@@ -401,7 +400,7 @@ export async function listRecent(repoDir, { count = null, query = null } = {}) {
   const read = await openProductReadHandle(repoDir);
 
   // Recent output reports the total capture count, so use the authoritative
-  // capture set instead of a potentially stale latest_capture chain.
+  // capture set instead of derived chronology edges.
   if (!query) {
     const unfilteredRecent = (await listEntriesByKind(read, 'capture'))
       .map(toBrowseEntry)
@@ -562,10 +561,9 @@ async function buildBrowseWindow(read, entryId) {
   }
 
   const current = toBrowseEntry(currentEntry);
-  const olderEntryId = await getSingleNeighborId(read, entryId, 'outgoing', 'older');
-  const newerEntryId = await getSingleNeighborId(read, entryId, 'incoming', 'older');
-  const older = olderEntryId ? toBrowseEntry(await getStoredEntry(read, olderEntryId)) : null;
-  const newer = newerEntryId ? toBrowseEntry(await getStoredEntry(read, newerEntryId)) : null;
+  const neighbors = await resolveChronologyNeighbors(read, currentEntry);
+  const older = neighbors.older ? toBrowseEntry(neighbors.older) : null;
+  const newer = neighbors.newer ? toBrowseEntry(neighbors.newer) : null;
   const sessionAttribution = await getSessionAttributionReceiptIfPresent(read, currentEntry);
   const sessionTraversal = await resolveGraphSessionTraversal(read, current);
 
@@ -604,5 +602,18 @@ async function buildBrowseWindow(read, entryId) {
             : []),
         ]
       : [],
+  });
+}
+
+async function resolveChronologyNeighbors(read, currentEntry) {
+  const entries = (await listEntriesByKind(read, 'capture')).sort(compareEntriesNewestFirst);
+  const index = entries.findIndex((entry) => entry.id === currentEntry.id);
+  if (index < 0) {
+    return Object.freeze({ older: null, newer: null });
+  }
+
+  return Object.freeze({
+    newer: index > 0 ? entries[index - 1] : null,
+    older: entries[index + 1] ?? null,
   });
 }

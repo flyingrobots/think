@@ -47,6 +47,7 @@ export function parseArgs(args) {
     inspectFlag: false,
     inspect: null,
     migrateGraph: false,
+    migrateOption: null,
     doctor: false,
     fix: false,
     from: null,
@@ -118,8 +119,9 @@ export function parseArgs(args) {
         options.enrich = true;
       } else if (arg === '--topics') {
         options.topics = true;
-      } else if (arg === '--migrate-graph') {
+      } else if (arg === '--migrate-history' || arg === '--migrate-graph') {
         options.migrateGraph = true;
+        options.migrateOption = arg;
       } else if (arg === '--doctor') {
         options.doctor = true;
       } else if (arg === '--fix') {
@@ -279,11 +281,12 @@ export function validateOptions(options, command) {
   }
 
   if (command === 'migrate_graph') {
+    const migrateOption = options.migrateOption ?? '--migrate-history';
     if (options.positionals.length > 0) {
-      return '--migrate-graph does not take a thought';
+      return `${migrateOption} does not take a thought`;
     }
     if (hasTimeFilters || hasRecentFilter || options.reflectMode) {
-      return '--migrate-graph cannot be combined with other command options';
+      return `${migrateOption} cannot be combined with other command options`;
     }
   }
 
@@ -412,7 +415,7 @@ function commandToHelpTopic(command) {
     return 'prompt-metrics';
   }
   if (command === 'migrate_graph') {
-    return 'migrate-graph';
+    return 'migrate-history';
   }
   if (command === 'reflect_start') {
     return 'reflect';

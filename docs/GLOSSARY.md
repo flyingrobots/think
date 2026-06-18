@@ -94,7 +94,7 @@ A lightweight derived judgment about whether a thought looks like a plausible `R
 
 A derived judgment about which session a capture appears to belong to.
 
-## Graph / Substrate Terms
+## History / Substrate Terms
 
 ### Git/WARP repo
 
@@ -138,19 +138,22 @@ It should not be the default product read path.
 
 Enabling checkpoints was one of the major browse-performance fixes in M4.
 
-### graph model version
+### History model version
 
-The versioned internal graph shape used by `think`.
+The versioned internal History read shape used by `think`.
+
+Older code and compatibility surfaces may still call this the graph model
+because the current backend is implemented on `git-warp`.
 
 Current read behavior targets:
 
-- graph model `v3`
+- History model `v4`
 
 ### migration
 
-The process of upgrading old graph state to the current graph model.
+The process of upgrading old History state to the current History model.
 
-Graph-native read commands may require migration. Raw capture remains exempt and saves first.
+History read commands may require migration. Raw capture remains exempt and saves first.
 
 ## Operational Terms
 
