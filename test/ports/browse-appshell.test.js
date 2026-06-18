@@ -7,7 +7,11 @@ import {
   createBrowsePage,
   createBrowseShellApp,
 } from '../../src/browse/app.js';
-import { createGitWarpBrowseDataPort } from '../../src/browse/adapters/git-warp.js';
+import {
+  createGitWarpBrowseDataPort,
+  createGitWarpHistoryPort,
+} from '../../src/browse/adapters/git-warp.js';
+import { createHistoryBrowseDataPort } from '../../src/browse/adapters/history.js';
 import {
   browseInitialViewFromBootstrap,
   createBrowseInitialView,
@@ -22,6 +26,10 @@ import {
   BROWSE_LOADING_FRAMES,
   renderBrowsePaneText,
 } from '../../src/browse/view.js';
+import {
+  createHistoryReadyWindow,
+  createHistoryUnavailable,
+} from '../../src/history/port.js';
 import { ensureGitRepo } from '../../src/git.js';
 import { migrateGraphModel, saveRawCapture } from '../../src/store.js';
 import { createTempDir } from '../fixtures/tmp.js';
@@ -58,6 +66,42 @@ test('Browse data port maps empty bootstrap data into an empty view', () => {
 
   assert.equal(view.status, 'empty');
   assert.equal(view.reason, 'no_entries');
+  assert.match(view.message, /No raw captures/);
+});
+
+test('Browse data port maps a History capture window into an initial view', async () => {
+  const dataPort = createHistoryBrowseDataPort({
+    mindName: 'codex',
+    history: {
+      loadLatestCaptureWindow: () => Promise.resolve(createHistoryReadyWindow({
+        current: {
+          id: 'entry:1780000000000-abcdef12-3456-7890-abcd-ef1234567890',
+          text: 'History is the Browse contract.',
+          createdAt: '2026-06-17T13:00:00.000Z',
+        },
+      })),
+    },
+  });
+
+  const view = await dataPort.loadInitialView();
+
+  assert.equal(view.status, 'ready');
+  assert.equal(view.mindName, 'codex');
+  assert.equal(view.current.text, 'History is the Browse contract.');
+});
+
+test('Browse data port maps unavailable History into an empty view', async () => {
+  const dataPort = createHistoryBrowseDataPort({
+    history: {
+      loadLatestCaptureWindow: () => Promise.resolve(createHistoryUnavailable({
+        reason: 'no_entries',
+      })),
+    },
+  });
+
+  const view = await dataPort.loadInitialView();
+
+  assert.equal(view.status, 'empty');
   assert.match(view.message, /No raw captures/);
 });
 
@@ -152,7 +196,7 @@ test('Browse page body renders loading, ready, empty, and error states', () => {
   assert.match(loadingText, /Mind: codex/);
   assert.match(loadingText, new RegExp(`[${BROWSE_LOADING_FRAMES.join('')}]`, 'u'));
   assert.doesNotMatch(loadingText, /\[[=-]+\]/);
-  assert.match(loadingText, /Waiting on Git WARP read/);
+  assert.match(loadingText, /Waiting on history read/);
   assert.doesNotMatch(loadingText, /THINK BROWSE/);
 
   const advancedLoadingText = renderBrowsePaneText(advanceBrowseLoading(loading));
@@ -173,6 +217,12 @@ test('Browse page body renders loading, ready, empty, and error states', () => {
 
   const empty = applyBrowseLoaded(loading, createBrowseInitialView({ status: 'empty' }));
   assert.match(renderBrowsePaneText(empty), /No raw captures/);
+
+  const migration = applyBrowseLoaded(loading, createBrowseInitialView({
+    status: 'migration_required',
+  }));
+  assert.match(renderBrowsePaneText(migration), /History migration required/);
+  assert.doesNotMatch(renderBrowsePaneText(migration), /Graph migration required/);
 
   const error = applyBrowseLoaded(loading, createBrowseInitialView({
     status: 'repo_missing',
@@ -201,6 +251,21 @@ test('Git WARP Browse adapter reads the latest raw capture through the Browse po
   assert.equal(view.status, 'ready');
   assert.equal(view.mindName, 'fixture');
   assert.equal(view.current.text, 'Browse adapter should turn store data into reader data.');
+});
+
+test('Git WARP implements the Browse History port for capture windows', async () => {
+  const repoDir = await createTempDir('think-browse-history-');
+  await ensureGitRepo(repoDir);
+  await saveRawCapture(repoDir, 'Git WARP is one possible History backend.');
+  await migrateGraphModel(repoDir);
+
+  const historyWindow = await createGitWarpHistoryPort({
+    repoDir,
+    mindName: 'fixture',
+  }).loadLatestCaptureWindow();
+
+  assert.equal(historyWindow.ok, true);
+  assert.equal(historyWindow.current.text, 'Git WARP is one possible History backend.');
 });
 
 function key(name) {

@@ -9,7 +9,7 @@ export const BROWSE_DATA_STATUSES = Object.freeze([
 const BROWSE_DEFAULT_MESSAGES = Object.freeze({
   empty: 'No raw captures available to browse',
   repo_missing: 'No thought repo found for this mind',
-  migration_required: 'Graph migration required before Browse can open',
+  migration_required: 'History migration required before Browse can open',
   error: 'Browse could not open',
 });
 

@@ -28,7 +28,7 @@ const BROWSE_STATUS_RENDERERS = Object.freeze({
   ),
   migration_required: (model, width) => renderMessageLines(
     model,
-    'Graph migration required before Browse can open',
+    'History migration required before Browse can open',
     width
   ),
 });
@@ -68,7 +68,7 @@ function renderErrorLines(model, width) {
 function renderLoadingLines(model, width) {
   return [
     fitLine(`${loadingFrame(model.loadingStep)} Opening mind`, width),
-    ...wrapText('Waiting on Git WARP read', width),
+    ...wrapText('Waiting on history read', width),
   ];
 }
 
