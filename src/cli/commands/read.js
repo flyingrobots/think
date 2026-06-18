@@ -1,6 +1,7 @@
 import { parseJson } from '../../json.js';
 import { runBrowseAppShellTui } from '../../browse/app.js';
 import { createGitWarpBrowseDataPort } from '../../browse/adapters/git-warp.js';
+import { selectBrowseMindWithTitleScreen } from '../../browse/title-screen.js';
 import { runBrowseTuiScript } from '../../browse-tui/script.js';
 import { hasGitRepo } from '../../git.js';
 import { discoverMinds } from '../../minds.js';
@@ -521,7 +522,12 @@ async function runInteractiveBrowseShell(output, reporter) {
     return 0;
   }
 
-  const activeMind = resolveInteractiveBrowseMinds()[0];
+  const minds = resolveInteractiveBrowseMinds();
+  const selected = await selectBrowseMindWithTitleScreen({ minds });
+  if (selected.action === 'quit') {
+    return 0;
+  }
+  const activeMind = selected.mind ?? minds[0];
 
   reporter.event('browse.shell_started', { mind: activeMind.name });
   await runBrowseAppShellTui({
