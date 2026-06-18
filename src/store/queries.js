@@ -34,7 +34,7 @@ import {
   listEntriesByKind,
   listRecentStoredEntries,
   openProductReadHandle,
-  resolveGraphSessionTraversal,
+  resolveHistorySessionTraversal,
   toBrowseEntry,
 } from './runtime.js';
 import { listCheckpointEntryPropsByKind } from './checkpoint-read.js';
@@ -565,7 +565,7 @@ async function buildBrowseWindow(read, entryId) {
   const older = neighbors.older ? toBrowseEntry(neighbors.older) : null;
   const newer = neighbors.newer ? toBrowseEntry(neighbors.newer) : null;
   const sessionAttribution = await getSessionAttributionReceiptIfPresent(read, currentEntry);
-  const sessionTraversal = await resolveGraphSessionTraversal(read, current);
+  const sessionTraversal = await resolveHistorySessionTraversal(read, current);
 
   return Object.freeze({
     current,

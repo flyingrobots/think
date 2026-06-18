@@ -103,7 +103,14 @@ async function* loadGitWarpHistoryWindowUpdates({ repoDir }) {
     };
   }
 
-  yield finalHistoryUpdate(await loadLiveHistoryWindow(repoDir));
+  try {
+    yield finalHistoryUpdate(await loadLiveHistoryWindow(repoDir));
+  } catch (error) {
+    if (!checkpointWindow?.ok) {
+      throw error;
+    }
+    yield finalHistoryUpdate(createCheckpointFallbackWindow(checkpointWindow, error));
+  }
 }
 
 async function loadLiveHistoryWindow(repoDir) {
@@ -141,11 +148,11 @@ function createGitWarpBrowseInitialViewTask({ repoDir, mindName }) {
       };
     },
     dispose() {
+      state.listeners.clear();
       if (state.settled) {
         return;
       }
       state.settled = true;
-      state.listeners.clear();
       state.rejectTask?.(new BrowseDataLoadError('Browse Git WARP worker load cancelled'));
       worker.terminate().catch(() => {});
     },
@@ -231,6 +238,21 @@ function createHistoryWindowFromBrowseBootstrap(bootstrap) {
   }
 
   return createHistoryReadyWindow(bootstrap);
+}
+
+function createCheckpointFallbackWindow(checkpointWindow, error) {
+  return createHistoryReadyWindow({
+    ...checkpointWindow,
+    stale: true,
+    reason: 'live_load_failed',
+    message: `Showing checkpoint while live History failed: ${formatErrorMessage(error)}`,
+  });
+}
+
+function formatErrorMessage(error) {
+  return error instanceof Error && error.message
+    ? error.message
+    : String(error || 'unknown error');
 }
 
 async function loadCheckpointHistoryWindow(repoDir) {

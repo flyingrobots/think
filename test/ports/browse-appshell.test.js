@@ -69,6 +69,33 @@ test('Browse data port maps empty bootstrap data into an empty view', () => {
   assert.match(view.message, /No raw captures/);
 });
 
+test('Browse data port preserves ready History metadata', () => {
+  const graphStatus = {
+    currentGraphModelVersion: 4,
+    requiredGraphModelVersion: 4,
+    migrationRequired: false,
+  };
+  const view = browseInitialViewFromBootstrap({
+    ok: true,
+    current: {
+      id: 'entry:1780000000000-abcdef12-3456-7890-abcd-ef1234567890',
+      text: 'Checkpoint data can stay visible while live History catches up.',
+      createdAt: '2026-06-17T13:00:00.000Z',
+    },
+    older: null,
+    newer: null,
+    sessionContext: null,
+    message: 'Showing checkpoint while live History failed: fixture failure',
+    reason: 'live_load_failed',
+    graphStatus,
+  }, { mindName: 'codex' });
+
+  assert.equal(view.status, 'ready');
+  assert.equal(view.message, 'Showing checkpoint while live History failed: fixture failure');
+  assert.equal(view.reason, 'live_load_failed');
+  assert.equal(view.graphStatus, graphStatus);
+});
+
 test('Browse data port maps a History capture window into an initial view', async () => {
   const dataPort = createHistoryBrowseDataPort({
     mindName: 'codex',
@@ -319,6 +346,19 @@ test('Git WARP implements the Browse History port for capture windows', async ()
 
   assert.equal(historyWindow.ok, true);
   assert.equal(historyWindow.current.text, 'Git WARP is one possible History backend.');
+});
+
+test('Git WARP History port treats empty migrated repos as no entries', async () => {
+  const repoDir = await createTempDir('think-browse-empty-history-');
+  await ensureGitRepo(repoDir);
+  await migrateGraphModel(repoDir);
+
+  const historyWindow = await createGitWarpHistoryPort({
+    repoDir,
+  }).loadLatestCaptureWindow();
+
+  assert.equal(historyWindow.ok, false);
+  assert.equal(historyWindow.reason, 'no_entries');
 });
 
 function createStreamingHistoryDataPort() {

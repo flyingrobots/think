@@ -1,5 +1,6 @@
 import WarpApp, { GitGraphAdapter, openWarpGraph, openWarpWorldline } from '@git-stunts/git-warp';
 
+import { resolveHistorySessionEntries } from '../history/session.js';
 import { createThinkPlumbing } from '../git.js';
 import { createAppContentReader } from './content-reader.js';
 import { openCheckpointProductRead } from './checkpoint-product-read.js';
@@ -20,7 +21,6 @@ import {
 } from './constants.js';
 import {
   compareEntriesNewestFirst,
-  compareEntriesOldestFirst,
   createWriterId,
   storesTextContent,
 } from './model.js';
@@ -438,15 +438,6 @@ function createRuntimeBlobStorage(persistence) {
 }
 
 export async function getGraphModelStatusForRead(read) {
-  const latestCaptureId = await getLatestCaptureId(read);
-  if (!latestCaptureId) {
-    return {
-      currentGraphModelVersion: 1,
-      requiredGraphModelVersion: GRAPH_MODEL_VERSION,
-      migrationRequired: true,
-    };
-  }
-
   const props = await read.view.getNodeProps(GRAPH_META_ID);
   const currentGraphModelVersion = Number(props?.graphModelVersion ?? 1);
 
@@ -654,33 +645,13 @@ export async function hasNode(read, nodeId) {
   return read.view.hasNode(nodeId);
 }
 
-export async function resolveGraphSessionTraversal(read, entry) {
-  if (!entry?.sessionId) {
-    return {
-      entries: [],
-      sessionCount: 0,
-      sessionPosition: null,
-      previous: null,
-      next: null,
-    };
+export async function resolveHistorySessionTraversal(read, entry) {
+  if (!entry) {
+    return emptySessionTraversal();
   }
 
-  const neighbors = await read.view.query()
-    .match(entry.sessionId)
-    .incoming('captured_in')
-    .run();
-  const sessionEntries = [];
-
-  for (const neighbor of neighbors.nodes ?? []) {
-    // eslint-disable-next-line no-await-in-loop -- sequential graph reads for session neighbor traversal
-    const capture = await getStoredEntry(read, neighbor.id, neighbor.props ?? null);
-    if (!capture || capture.kind !== 'capture') {
-      continue;
-    }
-    sessionEntries.push(toBrowseEntry(capture));
-  }
-
-  sessionEntries.sort(compareEntriesOldestFirst);
+  const captures = await listEntriesByKind(read, 'capture');
+  const sessionEntries = resolveHistorySessionEntries(captures, entry).map(toBrowseEntry);
   const sessionIndex = sessionEntries.findIndex((candidate) => candidate.id === entry.id);
 
   if (sessionIndex === -1) {
@@ -699,5 +670,17 @@ export async function resolveGraphSessionTraversal(read, entry) {
     sessionPosition: sessionIndex + 1,
     previous: sessionIndex > 0 ? sessionEntries[sessionIndex - 1] : null,
     next: sessionIndex + 1 < sessionEntries.length ? sessionEntries[sessionIndex + 1] : null,
+  };
+}
+
+export const resolveGraphSessionTraversal = resolveHistorySessionTraversal;
+
+function emptySessionTraversal() {
+  return {
+    entries: [],
+    sessionCount: 0,
+    sessionPosition: null,
+    previous: null,
+    next: null,
   };
 }

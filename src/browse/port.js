@@ -47,6 +47,9 @@ function browseInitialViewInputFromBootstrap(bootstrap, mindName) {
     older: bootstrap.older,
     newer: bootstrap.newer,
     sessionContext: bootstrap.sessionContext,
+    message: bootstrap.message,
+    reason: bootstrap.reason,
+    graphStatus: bootstrap.graphStatus,
   };
 }
 

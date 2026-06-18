@@ -138,7 +138,7 @@ It should not be the default product read path.
 
 Enabling checkpoints was one of the major browse-performance fixes in M4.
 
-### History model version
+### history model version
 
 The versioned internal History read shape used by `think`.
 
