@@ -96,14 +96,8 @@ export async function finalizeCapturedThought(repoDir, entryId, {
 
 export async function getGraphModelStatus(repoDir) {
   const worldline = await openThinkWorldline(repoDir);
-  await worldline.prepareOpticBasis();
-  const coordinate = await worldline.coordinate();
-  const fact = await coordinate
-    .optic()
-    .node(GRAPH_META_ID)
-    .prop('graphModelVersion')
-    .read();
-  const currentGraphModelVersion = Number(fact?.value ?? 1);
+  const graphMeta = await worldline.live().getNodeProps(GRAPH_META_ID);
+  const currentGraphModelVersion = Number(graphMeta?.graphModelVersion ?? 1);
   return {
     currentGraphModelVersion,
     requiredGraphModelVersion: GRAPH_MODEL_VERSION,

@@ -6,42 +6,41 @@ import {
   GRAPH_MODEL_VERSION,
 } from './constants.js';
 import { compareEntriesNewestFirst, getCurrentTime } from './model.js';
-import { openWarpApp, patchWarpApp, patchWarpAppWithWriter } from './runtime.js';
+import { commitThinkWorldline, openThinkWorldline, patchWarpAppWithWriter } from './runtime.js';
 
 export async function migrateGraphModel(repoDir) {
-  const app = await openWarpApp(repoDir);
-  const worldline = app.worldline();
+  const worldline = await openThinkWorldline(repoDir);
+  const read = worldline.live();
 
   // Check current graph model version
-  const graphMeta = await worldline.getNodeProps(GRAPH_META_ID);
+  const graphMeta = await read.getNodeProps(GRAPH_META_ID);
   const needsMetadataNode = !graphMeta;
   const needsGraphVersionUpdate = !graphMeta || graphMeta.graphModelVersion !== GRAPH_MODEL_VERSION;
 
   // Query each node kind separately — no full materialization
-  const captureResult = await worldline.query().match('entry:*').where({ kind: 'capture' }).run();
-  const reflectEntryResult = await worldline.query().match('entry:*').where({ kind: 'reflect' }).run();
-  const brainstormEntryResult = await worldline.query().match('entry:*').where({ kind: 'brainstorm' }).run();
+  const captureResult = await read.query().match('entry:*').where({ kind: 'capture' }).run();
+  const reflectEntryResult = await read.query().match('entry:*').where({ kind: 'reflect' }).run();
+  const brainstormEntryResult = await read.query().match('entry:*').where({ kind: 'brainstorm' }).run();
   const reflectKindNodes = [
     ...(reflectEntryResult.nodes ?? []),
     ...(brainstormEntryResult.nodes ?? []),
   ];
-  const reflectSessionResult = await worldline.query().match('reflect:*').run();
-  const brainstormSessionResult = await worldline.query().match('brainstorm:*').run();
+  const reflectSessionResult = await read.query().match('reflect:*').run();
+  const brainstormSessionResult = await read.query().match('brainstorm:*').run();
   const sessionNodes = [
     ...(reflectSessionResult.nodes ?? []),
     ...(brainstormSessionResult.nodes ?? []),
   ];
   const sessionNodeIds = new Set(sessionNodes.map((node) => node.id));
-  const artifactResult = await worldline.query().match(`${ARTIFACT_PREFIX}*`).run();
+  const artifactResult = await read.query().match(`${ARTIFACT_PREFIX}*`).run();
 
   const missingEdges = [];
-  const removableEdges = [];
   const reflectNodes = new Map();
   addReflectNodes(reflectNodes, reflectKindNodes);
 
   for (const node of sessionNodes) {
     // eslint-disable-next-line no-await-in-loop -- sequential migration fallback query per reflect session
-    const linkedReflectEntryResult = await worldline.query()
+    const linkedReflectEntryResult = await read.query()
       .match('entry:*')
       .where({ sessionId: node.id })
       .run();
@@ -53,10 +52,10 @@ export async function migrateGraphModel(repoDir) {
     const { id, props } = node;
     /* eslint-disable no-await-in-loop -- sequential migration edge checks */
     if (props.thoughtId) {
-      await pushMissingEdgeIfAbsent(worldline, missingEdges, id, props.thoughtId, 'expresses');
+      await pushMissingEdgeIfAbsent(read, missingEdges, id, props.thoughtId, 'expresses');
     }
     if (props.sessionId) {
-      await pushMissingEdgeIfAbsent(worldline, missingEdges, id, props.sessionId, 'captured_in');
+      await pushMissingEdgeIfAbsent(read, missingEdges, id, props.sessionId, 'captured_in');
     }
     /* eslint-enable no-await-in-loop */
   }
@@ -68,7 +67,7 @@ export async function migrateGraphModel(repoDir) {
     if (props.seedEntryId) {
       seedEntryIdBySessionId.set(id, props.seedEntryId);
       // eslint-disable-next-line no-await-in-loop -- sequential migration
-      await pushMissingEdgeIfAbsent(worldline, missingEdges, id, props.seedEntryId, 'seeded_by');
+      await pushMissingEdgeIfAbsent(read, missingEdges, id, props.seedEntryId, 'seeded_by');
     }
   }
 
@@ -79,12 +78,12 @@ export async function migrateGraphModel(repoDir) {
     const seedEntryId = props.seedEntryId ?? seedEntryIdBySessionId.get(sessionId);
     /* eslint-disable no-await-in-loop -- sequential migration edge checks */
     if (sessionId) {
-      await pushMissingEdgeIfAbsent(worldline, missingEdges, id, sessionId, 'produced_in', {
+      await pushMissingEdgeIfAbsent(read, missingEdges, id, sessionId, 'produced_in', {
         knownTargetNodeIds: sessionNodeIds,
       });
     }
     if (seedEntryId) {
-      await pushMissingEdgeIfAbsent(worldline, missingEdges, id, seedEntryId, 'responds_to');
+      await pushMissingEdgeIfAbsent(read, missingEdges, id, seedEntryId, 'responds_to');
     }
     /* eslint-enable no-await-in-loop */
   }
@@ -94,10 +93,10 @@ export async function migrateGraphModel(repoDir) {
     const { id, props } = node;
     /* eslint-disable no-await-in-loop -- sequential migration edge checks */
     if (props.primaryInputKind === 'thought' && props.primaryInputId) {
-      await pushMissingEdgeIfAbsent(worldline, missingEdges, id, props.primaryInputId, 'derived_from');
+      await pushMissingEdgeIfAbsent(read, missingEdges, id, props.primaryInputId, 'derived_from');
     }
     if (props.primaryInputKind === 'capture' && props.primaryInputId) {
-      await pushMissingEdgeIfAbsent(worldline, missingEdges, id, props.primaryInputId, 'contextualizes');
+      await pushMissingEdgeIfAbsent(read, missingEdges, id, props.primaryInputId, 'contextualizes');
     }
     /* eslint-enable no-await-in-loop */
   }
@@ -109,17 +108,12 @@ export async function migrateGraphModel(repoDir) {
 
   // Check latest_capture edge
   const latestCaptureId = captures[0]?.id ?? null;
-  const latestCaptureTraversal = await worldline.query()
+  const latestCaptureTraversal = await read.query()
     .match(GRAPH_META_ID)
     .outgoing('latest_capture')
     .run();
   const currentLatestEdges = latestCaptureTraversal.nodes ?? [];
 
-  for (const node of currentLatestEdges) {
-    if (node.id !== latestCaptureId) {
-      removableEdges.push({ from: GRAPH_META_ID, to: node.id, label: 'latest_capture' });
-    }
-  }
   if (latestCaptureId) {
     const hasLatest = currentLatestEdges.some((n) => n.id === latestCaptureId);
     if (!hasLatest) {
@@ -130,7 +124,7 @@ export async function migrateGraphModel(repoDir) {
   // Check older chain
   for (let index = 0; index + 1 < captures.length; index += 1) {
     // eslint-disable-next-line no-await-in-loop -- sequential chain check
-    await pushMissingEdgeIfAbsent(worldline, missingEdges, captures[index].id, captures[index + 1].id, 'older');
+    await pushMissingEdgeIfAbsent(read, missingEdges, captures[index].id, captures[index + 1].id, 'older');
   }
 
   // Check classification nodes
@@ -138,7 +132,7 @@ export async function migrateGraphModel(repoDir) {
   for (const name of CLASSIFICATIONS) {
     const nodeId = `${CLASSIFICATION_PREFIX}${name}`;
     // eslint-disable-next-line no-await-in-loop -- checking 7 standing nodes
-    const existing = await worldline.getNodeProps(nodeId);
+    const existing = await read.getNodeProps(nodeId);
     if (!existing) {
       classificationNodesToCreate.push({ nodeId, name });
     }
@@ -146,7 +140,6 @@ export async function migrateGraphModel(repoDir) {
 
   if (
     missingEdges.length === 0
-    && removableEdges.length === 0
     && classificationNodesToCreate.length === 0
     && !needsMetadataNode
     && !needsGraphVersionUpdate
@@ -161,13 +154,12 @@ export async function migrateGraphModel(repoDir) {
   }
 
   const timestamp = getCurrentTime().toISOString();
-  const needsStandardPatch = removableEdges.length > 0
-    || classificationNodesToCreate.length > 0
+  const needsStandardPatch = classificationNodesToCreate.length > 0
     || needsMetadataNode
     || needsGraphVersionUpdate;
 
   if (needsStandardPatch) {
-    await patchWarpApp(repoDir, (patch) => {
+    await commitThinkWorldline(repoDir, (patch) => {
       if (needsMetadataNode) {
         patch
           .addNode(GRAPH_META_ID)
@@ -178,10 +170,6 @@ export async function migrateGraphModel(repoDir) {
       patch
         .setProperty(GRAPH_META_ID, 'graphModelVersion', GRAPH_MODEL_VERSION)
         .setProperty(GRAPH_META_ID, 'updatedAt', timestamp);
-
-      for (const edge of removableEdges) {
-        patch.removeEdge(edge.from, edge.to, edge.label);
-      }
 
       for (const { nodeId, name } of classificationNodesToCreate) {
         patch
@@ -194,7 +182,7 @@ export async function migrateGraphModel(repoDir) {
   }
 
   if (missingEdges.length > 0) {
-    const migrationWriterId = `${app.writerId}.migration`;
+    const migrationWriterId = `${worldline.writerId}.migration`;
     await patchWarpAppWithWriter(repoDir, migrationWriterId, (patch) => {
       for (const edge of missingEdges) {
         patch.addEdge(edge.from, edge.to, edge.label);
@@ -206,19 +194,19 @@ export async function migrateGraphModel(repoDir) {
     changed: true,
     graphModelVersion: GRAPH_MODEL_VERSION,
     edgesAdded: missingEdges.length,
-    edgesRemoved: removableEdges.length,
+    edgesRemoved: 0,
     metadataUpdated: needsMetadataNode || needsGraphVersionUpdate,
   });
 }
 
-async function pushMissingEdgeIfAbsent(worldline, target, from, to, label, { knownTargetNodeIds = null } = {}) {
+async function pushMissingEdgeIfAbsent(read, target, from, to, label, { knownTargetNodeIds = null } = {}) {
   // Verify target node exists before checking edge
   if (!knownTargetNodeIds?.has(to)) {
-    const targetProps = await worldline.getNodeProps(to);
+    const targetProps = await read.getNodeProps(to);
     if (!targetProps) { return; }
   }
 
-  const traversal = await worldline.query().match(from).outgoing(label).run();
+  const traversal = await read.query().match(from).outgoing(label).run();
   const hasEdge = (traversal.nodes ?? []).some((n) => n.id === to);
   if (!hasEdge) {
     target.push({ from, to, label });

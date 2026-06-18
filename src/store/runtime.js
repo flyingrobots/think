@@ -334,37 +334,79 @@ export function isWriterCasConflict(error) {
 }
 
 export async function createProductReadHandle(app, repoDir = null) {
+  if (repoDir) {
+    const checkpointRead = await tryOpenCheckpointProductRead(repoDir, app);
+    return await createWorldlineProductReadHandle({
+      app,
+      repoDir,
+      checkpointRead,
+    });
+  }
+
+  return await createCompatProductReadHandle(app);
+}
+
+async function createCompatProductReadHandle(app) {
   const worldline = app.worldline();
-  const view = await worldline.observer('think-product', PRODUCT_READ_LENS);
 
   return {
     app,
-    repoDir,
+    repoDir: null,
     worldline,
-    view,
+    view: await worldline.observer('think-product', PRODUCT_READ_LENS),
     contentCore: app.core(),
-    blobStorage: repoDir ? await getRuntimeBlobStorage(repoDir) : null,
+    blobStorage: null,
     readContent: createAppContentReader(app),
     writerId: app.writerId,
   };
 }
 
 export async function openProductReadHandle(repoDir) {
-  const app = await openWarpApp(repoDir);
-  const checkpointRead = await tryOpenCheckpointProductRead(repoDir, app);
-  const worldline = app.worldline();
-  const view = checkpointRead?.view ?? await worldline.observer('think-product', PRODUCT_READ_LENS);
+  const checkpointRead = await tryOpenCheckpointProductRead(repoDir);
+  return await createWorldlineProductReadHandle({
+    repoDir,
+    checkpointRead,
+  });
+}
+
+async function createWorldlineProductReadHandle({
+  app = null,
+  repoDir,
+  checkpointRead = null,
+}) {
+  const worldline = await openThinkWorldline(repoDir);
+  const blobStorage = await resolveProductBlobStorage(repoDir, checkpointRead);
 
   return {
     app,
     repoDir,
     worldline,
-    view,
-    contentCore: app.core(),
-    blobStorage: checkpointRead?.blobStorage ?? await getRuntimeBlobStorage(repoDir),
-    readContent: checkpointRead?.readContent ?? createAppContentReader(app),
-    writerId: app.writerId,
+    view: resolveProductView(checkpointRead, worldline),
+    contentCore: resolveProductContentCore(app),
+    blobStorage,
+    readContent: resolveProductContentReader(checkpointRead, app),
+    writerId: worldline.writerId,
   };
+}
+
+function resolveProductView(checkpointRead, worldline) {
+  return checkpointRead?.view ?? worldline.live();
+}
+
+function resolveProductContentCore(app) {
+  return app?.core?.() ?? null;
+}
+
+async function resolveProductBlobStorage(repoDir, checkpointRead) {
+  return checkpointRead?.blobStorage ?? await getRuntimeBlobStorage(repoDir);
+}
+
+function resolveProductContentReader(checkpointRead, app) {
+  return checkpointRead?.readContent ?? resolveAppContentReader(app);
+}
+
+function resolveAppContentReader(app) {
+  return app ? createAppContentReader(app) : null;
 }
 
 async function tryOpenCheckpointProductRead(repoDir, app = null) {
@@ -598,7 +640,7 @@ async function readContent(read, nodeId) {
   if (typeof read.readContent === 'function') {
     return await read.readContent(nodeId);
   }
-  return await read.contentCore.getContent(nodeId);
+  return await read.contentCore?.getContent?.(nodeId) ?? null;
 }
 
 async function readNodeContentOid(read, nodeId) {
@@ -614,7 +656,17 @@ export async function getLatestCaptureId(read) {
     .match(GRAPH_META_ID)
     .outgoing('latest_capture')
     .run();
-  return result.nodes?.[0]?.id ?? null;
+  return latestCaptureNodeId(result.nodes ?? []);
+}
+
+function latestCaptureNodeId(nodes) {
+  const [latest] = nodes
+    .map((node) => ({
+      id: node.id,
+      sortKey: String(node.props?.sortKey ?? ''),
+    }))
+    .sort(compareEntriesNewestFirst);
+  return latest?.id ?? null;
 }
 
 export async function getProducedInSessionId(read, entry) {

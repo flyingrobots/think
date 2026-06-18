@@ -159,13 +159,15 @@ export async function ensureCaptureReadEdges(repoDir, read, entryId) {
     .match(GRAPH_META_ID)
     .outgoing('latest_capture')
     .run();
+  const latestCaptureNodeIds = new Set(
+    (latestCaptureNodes.nodes ?? []).map((node) => node.id)
+  );
 
   await patchWarpApp(repoDir, (patch) => {
-    for (const node of latestCaptureNodes.nodes ?? []) {
-      patch.removeEdge(GRAPH_META_ID, node.id, 'latest_capture');
+    if (!latestCaptureNodeIds.has(entry.id)) {
+      patch.addEdge(GRAPH_META_ID, entry.id, 'latest_capture');
     }
 
-    patch.addEdge(GRAPH_META_ID, entry.id, 'latest_capture');
     if (latestEntry) {
       patch.addEdge(entry.id, latestEntry.id, 'older');
       patch.addEdge(latestEntry.id, entry.id, 'newer');
