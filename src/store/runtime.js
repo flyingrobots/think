@@ -652,8 +652,7 @@ export async function resolveHistorySessionTraversal(read, entry) {
     return emptySessionTraversal();
   }
 
-  const captures = await listEntriesByKind(read, 'capture');
-  const sessionEntries = resolveHistorySessionEntries(captures, entry).map(toBrowseEntry);
+  const sessionEntries = await listHistorySessionBrowseEntries(read, entry);
   const sessionIndex = sessionEntries.findIndex((candidate) => candidate.id === entry.id);
 
   if (sessionIndex === -1) {
@@ -676,6 +675,31 @@ export async function resolveHistorySessionTraversal(read, entry) {
 }
 
 export const resolveGraphSessionTraversal = resolveHistorySessionTraversal;
+
+async function listHistorySessionBrowseEntries(read, entry) {
+  const captureProps = await listEntryPropsByKind(read, 'capture');
+  const sessionEntryProps = resolveHistorySessionEntries(captureProps, entry);
+  const sessionEntries = [];
+
+  for (const props of sessionEntryProps) {
+    // eslint-disable-next-line no-await-in-loop -- bounded hydration of entries in the visible session
+    const sessionEntry = await readHistorySessionBrowseEntry(read, entry, props);
+    if (sessionEntry) {
+      sessionEntries.push(sessionEntry);
+    }
+  }
+
+  return sessionEntries;
+}
+
+async function readHistorySessionBrowseEntry(read, currentEntry, props) {
+  if (props.id === currentEntry.id) {
+    return toBrowseEntry(currentEntry);
+  }
+
+  const capture = await getStoredEntry(read, props.id, props);
+  return capture?.kind === 'capture' ? toBrowseEntry(capture) : null;
+}
 
 function emptySessionTraversal() {
   return {

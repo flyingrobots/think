@@ -606,14 +606,18 @@ async function buildBrowseWindow(read, entryId) {
 }
 
 async function resolveChronologyNeighbors(read, currentEntry) {
-  const entries = (await listEntriesByKind(read, 'capture')).sort(compareEntriesNewestFirst);
+  const entries = (await listEntryPropsByKind(read, 'capture')).sort(compareEntriesNewestFirst);
   const index = entries.findIndex((entry) => entry.id === currentEntry.id);
   if (index < 0) {
     return Object.freeze({ older: null, newer: null });
   }
 
   return Object.freeze({
-    newer: index > 0 ? entries[index - 1] : null,
-    older: entries[index + 1] ?? null,
+    newer: await hydrateChronologyNeighbor(read, entries[index - 1] ?? null),
+    older: await hydrateChronologyNeighbor(read, entries[index + 1] ?? null),
   });
+}
+
+async function hydrateChronologyNeighbor(read, props) {
+  return props ? await getStoredEntry(read, props.id, props) : null;
 }
