@@ -27,12 +27,21 @@ const HISTORY_VIEW_READERS = Object.freeze({
 });
 
 export function createHistoryBrowseDataPort({ history, mindName = 'default' }) {
+  const loadInitialView = async () => browseInitialViewFromHistoryWindow(
+    await history.loadLatestCaptureWindow(),
+    { mindName }
+  );
+
   return Object.freeze({
-    async loadInitialView() {
-      return browseInitialViewFromHistoryWindow(
-        await history.loadLatestCaptureWindow(),
-        { mindName }
-      );
+    loadInitialView,
+    loadInitialViewTask() {
+      if (typeof history.loadLatestCaptureWindowUpdates !== 'function') {
+        return {
+          promise: loadInitialView(),
+          dispose() {},
+        };
+      }
+      return createHistoryBrowseInitialViewTask({ history, mindName });
     },
   });
 }
@@ -42,4 +51,70 @@ export function browseInitialViewFromHistoryWindow(
   { mindName = 'default' } = {}
 ) {
   return HISTORY_VIEW_READERS[String(historyWindow?.ok === true)](historyWindow, mindName);
+}
+
+function createHistoryBrowseInitialViewTask({ history, mindName }) {
+  const state = { disposed: false, listeners: new Set() };
+
+  return {
+    promise: loadHistoryBrowseInitialViewFromUpdates({ history, mindName, state }),
+    subscribe(listener) {
+      state.listeners.add(listener);
+      return () => {
+        state.listeners.delete(listener);
+      };
+    },
+    dispose() {
+      state.disposed = true;
+      state.listeners.clear();
+    },
+  };
+}
+
+async function loadHistoryBrowseInitialViewFromUpdates({ history, mindName, state }) {
+  let finalView = null;
+  for await (const rawUpdate of history.loadLatestCaptureWindowUpdates()) {
+    if (state.disposed) {
+      break;
+    }
+
+    const update = normalizeHistoryWindowUpdate(rawUpdate);
+    const view = browseInitialViewFromHistoryWindow(update.historyWindow, { mindName });
+    if (update.final) {
+      finalView = view;
+    } else {
+      emitHistoryUpdate(state, view);
+    }
+  }
+  return resolveHistoryBrowseFinalView({ finalView, history, mindName, state });
+}
+
+async function resolveHistoryBrowseFinalView({ finalView, history, mindName, state }) {
+  if (state.disposed) {
+    return finalView ?? createBrowseInitialView({ status: 'error', mindName });
+  }
+  return finalView ?? browseInitialViewFromHistoryWindow(
+    await history.loadLatestCaptureWindow(),
+    { mindName }
+  );
+}
+
+function normalizeHistoryWindowUpdate(update) {
+  if (update && Object.hasOwn(update, 'historyWindow')) {
+    return Object.freeze({
+      final: update.final !== false,
+      historyWindow: update.historyWindow,
+    });
+  }
+
+  return Object.freeze({
+    final: true,
+    historyWindow: update,
+  });
+}
+
+function emitHistoryUpdate(state, view) {
+  for (const listener of state.listeners) {
+    listener(view);
+  }
 }

@@ -1,25 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-pushing_to_main=false
-while read -r _ _ remote_ref _; do
-  if [[ "$remote_ref" == "refs/heads/main" ]]; then
-    pushing_to_main=true
-    break
-  fi
-done
-
-if [[ "$pushing_to_main" == "true" ]]; then
-  echo "Running local pre-push checks for think..."
-  npm run test:ports
-  npm run test:m1
-
-  if [ "$(uname -s)" = "Darwin" ] && command -v swift >/dev/null 2>&1; then
-    npm run test:m2
-  else
-    echo "Skipping macOS pre-push tests because Darwin/swift is unavailable."
-  fi
-else
-  echo "pre-push: running fast tests..."
-  npm run test:ports
+if [[ "${THINK_PRE_PUSH_FULL:-0}" == "1" ]]; then
+  echo "pre-push: running full local suite..."
+  npm run test:local
+  exit 0
 fi
+
+echo "pre-push: running fast checks..."
+npm run test:fast
+echo "pre-push: set THINK_PRE_PUSH_FULL=1 to run npm run test:local before pushing."

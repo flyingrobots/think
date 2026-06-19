@@ -7,10 +7,10 @@ import {
 } from '../../store/checkpoint-read.js';
 import { compareEntriesNewestFirst } from '../../store/model.js';
 import {
-  getGraphModelStatusForRead,
-  openProductReadHandle,
-  prepareBrowseBootstrapForRead,
-} from '../../store.js';
+  getHistoryModelStatusForRead,
+  openHistoryReadHandle,
+  prepareHistoryBrowseBootstrapForRead,
+} from '../../history/read.js';
 import {
   createHistoryReadyWindow,
   createHistoryUnavailable,
@@ -51,30 +51,71 @@ export function createGitWarpHistoryPort({ repoDir }) {
     loadLatestCaptureWindow() {
       return loadGitWarpHistoryWindow({ repoDir });
     },
+    loadLatestCaptureWindowUpdates() {
+      return loadGitWarpHistoryWindowUpdates({ repoDir });
+    },
   });
 }
 
 export async function loadGitWarpBrowseInitialView({ repoDir, mindName = 'default' }) {
-  return browseInitialViewFromHistoryWindow(
-    await loadGitWarpHistoryWindow({ repoDir }),
-    { mindName }
-  );
+  let finalView = null;
+  for await (const update of loadGitWarpBrowseInitialViewUpdates({ repoDir, mindName })) {
+    finalView = update.view;
+  }
+  return finalView ?? createBrowseInitialView({ status: 'error', mindName });
+}
+
+export async function* loadGitWarpBrowseInitialViewUpdates({ repoDir, mindName = 'default' }) {
+  for await (const update of loadGitWarpHistoryWindowUpdates({ repoDir })) {
+    yield {
+      final: update.final,
+      view: browseInitialViewFromHistoryWindow(update.historyWindow, { mindName }),
+    };
+  }
 }
 
 async function loadGitWarpHistoryWindow({ repoDir }) {
+  let finalWindow = null;
+  for await (const update of loadGitWarpHistoryWindowUpdates({ repoDir })) {
+    finalWindow = update.historyWindow;
+  }
+  return finalWindow ?? createHistoryUnavailable({ reason: 'missing_bootstrap' });
+}
+
+async function* loadGitWarpHistoryWindowUpdates({ repoDir }) {
   if (!hasGitRepo(repoDir)) {
-    return createHistoryUnavailable({
-      reason: 'repo_missing',
-    });
+    yield {
+      final: true,
+      historyWindow: createHistoryUnavailable({ reason: 'repo_missing' }),
+    };
+    return;
   }
 
   const checkpointWindow = await loadCheckpointHistoryWindow(repoDir);
   if (checkpointWindow) {
-    return checkpointWindow;
+    if (!checkpointWindow.ok) {
+      yield finalHistoryUpdate(checkpointWindow);
+      return;
+    }
+    yield {
+      final: false,
+      historyWindow: checkpointWindow,
+    };
   }
 
-  const read = await openProductReadHandle(repoDir);
-  const graphStatus = await getGraphModelStatusForRead(read);
+  try {
+    yield finalHistoryUpdate(await loadLiveHistoryWindow(repoDir));
+  } catch (error) {
+    if (!checkpointWindow?.ok) {
+      throw error;
+    }
+    yield finalHistoryUpdate(createCheckpointFallbackWindow(checkpointWindow, error));
+  }
+}
+
+async function loadLiveHistoryWindow(repoDir) {
+  const read = await openHistoryReadHandle(repoDir);
+  const graphStatus = await getHistoryModelStatusForRead(read);
 
   if (graphStatus.migrationRequired) {
     return createHistoryUnavailable({
@@ -83,17 +124,31 @@ async function loadGitWarpHistoryWindow({ repoDir }) {
     });
   }
 
-  return createHistoryWindowFromBrowseBootstrap(await prepareBrowseBootstrapForRead(read));
+  return createHistoryWindowFromBrowseBootstrap(await prepareHistoryBrowseBootstrapForRead(read));
+}
+
+function finalHistoryUpdate(historyWindow) {
+  return Object.freeze({
+    final: true,
+    historyWindow,
+  });
 }
 
 function createGitWarpBrowseInitialViewTask({ repoDir, mindName }) {
-  const state = { settled: false, rejectTask: null };
+  const state = { settled: false, rejectTask: null, listeners: new Set() };
   const worker = createBrowseWorker({ repoDir, mindName });
   const promise = createBrowseWorkerPromise(worker, state);
 
   return {
     promise,
+    subscribe(listener) {
+      state.listeners.add(listener);
+      return () => {
+        state.listeners.delete(listener);
+      };
+    },
     dispose() {
+      state.listeners.clear();
       if (state.settled) {
         return;
       }
@@ -113,7 +168,7 @@ function createBrowseWorker({ repoDir, mindName }) {
 function createBrowseWorkerPromise(worker, state) {
   return new Promise((resolve, reject) => {
     state.rejectTask = reject;
-    worker.once('message', (message) => handleWorkerMessage(message, state, resolve, reject));
+    worker.on('message', (message) => handleWorkerMessage(message, state, resolve, reject));
     worker.once('error', (error) => rejectIfPending(state, reject, error));
     worker.once('exit', (code) => handleWorkerExit(code, state, reject));
   });
@@ -123,11 +178,22 @@ function handleWorkerMessage(message, state, resolve, reject) {
   if (state.settled) {
     return;
   }
+  if (message?.type === 'partial') {
+    emitWorkerUpdate(state, createBrowseInitialView(message.view));
+    return;
+  }
+
   state.settled = true;
   if (message?.type === 'loaded') {
     resolve(createBrowseInitialView(message.view));
   } else {
     reject(deserializeWorkerError(message?.error));
+  }
+}
+
+function emitWorkerUpdate(state, view) {
+  for (const listener of state.listeners) {
+    listener(view);
   }
 }
 
@@ -172,6 +238,21 @@ function createHistoryWindowFromBrowseBootstrap(bootstrap) {
   }
 
   return createHistoryReadyWindow(bootstrap);
+}
+
+function createCheckpointFallbackWindow(checkpointWindow, error) {
+  return createHistoryReadyWindow({
+    ...checkpointWindow,
+    stale: true,
+    reason: 'live_load_failed',
+    message: `Showing checkpoint while live History failed: ${formatErrorMessage(error)}`,
+  });
+}
+
+function formatErrorMessage(error) {
+  return error instanceof Error && error.message
+    ? error.message
+    : String(error || 'unknown error');
 }
 
 async function loadCheckpointHistoryWindow(repoDir) {

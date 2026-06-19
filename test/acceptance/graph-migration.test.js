@@ -10,17 +10,17 @@ import {
   parseJsonLines,
 } from '../support/assertions.js';
 
-test('think --migrate-graph is idempotent on current History data', async () => {
+test('think --migrate-history is idempotent and --migrate-graph remains an alias', async () => {
   const context = await createThinkContext();
   captureWithEntryId(context, 'First current History capture.');
   captureWithEntryId(context, 'Second current History capture.');
 
-  const first = runThink(context, ['--migrate-graph']);
+  const first = runThink(context, ['--migrate-history']);
   const second = runThink(context, ['--migrate-graph']);
 
   assertSuccess(first, 'Expected explicit migration to succeed on current History data.');
   assertSuccess(second, 'Expected repeated migration to remain safe.');
-  assertContains(second, 'No graph migration changes were needed',
+  assertContains(second, 'No History migration changes were needed',
     'Expected repeated migration to report an idempotent no-op.');
 });
 

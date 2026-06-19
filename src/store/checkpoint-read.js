@@ -29,7 +29,7 @@ class CheckpointReadModel {
   }
 
   graphModelStatus() {
-    if (this._latestCaptureId() === null) {
+    if (!this._hasCaptures()) {
       return {
         currentGraphModelVersion: 1,
         requiredGraphModelVersion: GRAPH_MODEL_VERSION,
@@ -74,13 +74,8 @@ class CheckpointReadModel {
     return this._reader.project().nodes.filter((nodeId) => nodeId.startsWith(ENTRY_PREFIX));
   }
 
-  _latestCaptureId() {
-    return this._singleOutgoingNodeId(GRAPH_META_ID, 'latest_capture');
-  }
-
-  _singleOutgoingNodeId(nodeId, label) {
-    const neighbors = this._reader.neighbors(nodeId, 'outgoing', label);
-    return neighbors[0]?.nodeId ?? null;
+  _hasCaptures() {
+    return this._entryNodeIds().some((nodeId) => this._entryCandidate(nodeId, 'capture'));
   }
 
   _entryCandidate(nodeId, kind) {

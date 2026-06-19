@@ -1,5 +1,6 @@
 import WarpApp, { GitGraphAdapter, openWarpGraph, openWarpWorldline } from '@git-stunts/git-warp';
 
+import { resolveHistorySessionEntries } from '../history/session.js';
 import { createThinkPlumbing } from '../git.js';
 import { createAppContentReader } from './content-reader.js';
 import { openCheckpointProductRead } from './checkpoint-product-read.js';
@@ -20,7 +21,6 @@ import {
 } from './constants.js';
 import {
   compareEntriesNewestFirst,
-  compareEntriesOldestFirst,
   createWriterId,
   storesTextContent,
 } from './model.js';
@@ -438,15 +438,6 @@ function createRuntimeBlobStorage(persistence) {
 }
 
 export async function getGraphModelStatusForRead(read) {
-  const latestCaptureId = await getLatestCaptureId(read);
-  if (!latestCaptureId) {
-    return {
-      currentGraphModelVersion: 1,
-      requiredGraphModelVersion: GRAPH_MODEL_VERSION,
-      migrationRequired: true,
-    };
-  }
-
   const props = await read.view.getNodeProps(GRAPH_META_ID);
   const currentGraphModelVersion = Number(props?.graphModelVersion ?? 1);
 
@@ -546,36 +537,10 @@ function getMatchPatternsForKind(kind) {
 }
 
 export async function listChronologyEntries(read) {
-  const latestCaptureId = await getLatestCaptureId(read);
-  if (!latestCaptureId) {
-    const captures = await listEntriesByKind(read, 'capture');
-    return captures
-      .map((entry) => ({
-        id: entry.id,
-        text: entry.text,
-        sortKey: entry.sortKey,
-        createdAt: entry.createdAt,
-        sessionId: entry.sessionId ?? null,
-      }))
-      .sort(compareEntriesNewestFirst);
-  }
-
-  const chronologyIds = await read.view.traverse.bfs(latestCaptureId, {
-    dir: 'out',
-    labelFilter: 'older',
-  });
-  const entries = [];
-  for (const currentId of chronologyIds) {
-    // eslint-disable-next-line no-await-in-loop -- sequential graph traversal following 'older' edges
-    const entry = await getStoredEntry(read, currentId);
-    if (!entry || entry.kind !== 'capture') {
-      continue;
-    }
-
-    entries.push(toBrowseEntry(entry));
-  }
-
-  return entries;
+  const captures = await listEntriesByKind(read, 'capture');
+  return captures
+    .map(toBrowseEntry)
+    .sort(compareEntriesNewestFirst);
 }
 
 export async function getSingleNeighborId(read, nodeId, direction, label) {
@@ -586,8 +551,8 @@ export async function getSingleNeighborId(read, nodeId, direction, label) {
   return result.nodes?.[0]?.id ?? null;
 }
 
-export async function getLatestStoredEntry(read, kind = 'capture') {
-  const latestId = await getLatestIdByKind(read, kind);
+export async function getLatestStoredEntry(read, kind = 'capture', options = {}) {
+  const latestId = await getLatestIdByKind(read, kind, options);
   return latestId ? await getStoredEntry(read, latestId) : null;
 }
 
@@ -615,14 +580,12 @@ export async function* iterateRecentStoredEntries(read, { kind = 'capture', limi
   }
 }
 
-async function getLatestIdByKind(read, kind) {
+async function getLatestIdByKind(read, kind, options = {}) {
   if (kind !== 'capture') {
-    // For now, only capture has a latest pointer.
-    // Future: generic latest_by_kind metadata.
     return null;
   }
 
-  return await getLatestCaptureId(read);
+  return await getLatestCaptureId(read, options);
 }
 
 export async function readNodeText(read, nodeId, props = null) {
@@ -651,16 +614,18 @@ async function readNodeContentOid(read, nodeId) {
   return typeof contentMeta?.oid === 'string' ? contentMeta.oid : null;
 }
 
-export async function getLatestCaptureId(read) {
+export async function getLatestCaptureId(read, { excludeIds = [] } = {}) {
   const result = await read.view.query()
-    .match(GRAPH_META_ID)
-    .outgoing('latest_capture')
+    .match(getMatchPatternsForKind('capture'))
+    .where({ kind: 'capture' })
     .run();
-  return latestCaptureNodeId(result.nodes ?? []);
+  return latestCaptureNodeId(result.nodes ?? [], { excludeIds });
 }
 
-function latestCaptureNodeId(nodes) {
+function latestCaptureNodeId(nodes, { excludeIds = [] } = {}) {
+  const excludedIds = new Set(excludeIds);
   const [latest] = nodes
+    .filter((node) => !excludedIds.has(node.id))
     .map((node) => ({
       id: node.id,
       sortKey: String(node.props?.sortKey ?? ''),
@@ -682,33 +647,12 @@ export async function hasNode(read, nodeId) {
   return read.view.hasNode(nodeId);
 }
 
-export async function resolveGraphSessionTraversal(read, entry) {
-  if (!entry?.sessionId) {
-    return {
-      entries: [],
-      sessionCount: 0,
-      sessionPosition: null,
-      previous: null,
-      next: null,
-    };
+export async function resolveHistorySessionTraversal(read, entry) {
+  if (!entry) {
+    return emptySessionTraversal();
   }
 
-  const neighbors = await read.view.query()
-    .match(entry.sessionId)
-    .incoming('captured_in')
-    .run();
-  const sessionEntries = [];
-
-  for (const neighbor of neighbors.nodes ?? []) {
-    // eslint-disable-next-line no-await-in-loop -- sequential graph reads for session neighbor traversal
-    const capture = await getStoredEntry(read, neighbor.id, neighbor.props ?? null);
-    if (!capture || capture.kind !== 'capture') {
-      continue;
-    }
-    sessionEntries.push(toBrowseEntry(capture));
-  }
-
-  sessionEntries.sort(compareEntriesOldestFirst);
+  const sessionEntries = await listHistorySessionBrowseEntries(read, entry);
   const sessionIndex = sessionEntries.findIndex((candidate) => candidate.id === entry.id);
 
   if (sessionIndex === -1) {
@@ -727,5 +671,42 @@ export async function resolveGraphSessionTraversal(read, entry) {
     sessionPosition: sessionIndex + 1,
     previous: sessionIndex > 0 ? sessionEntries[sessionIndex - 1] : null,
     next: sessionIndex + 1 < sessionEntries.length ? sessionEntries[sessionIndex + 1] : null,
+  };
+}
+
+export const resolveGraphSessionTraversal = resolveHistorySessionTraversal;
+
+async function listHistorySessionBrowseEntries(read, entry) {
+  const captureProps = await listEntryPropsByKind(read, 'capture');
+  const sessionEntryProps = resolveHistorySessionEntries(captureProps, entry);
+  const sessionEntries = [];
+
+  for (const props of sessionEntryProps) {
+    // eslint-disable-next-line no-await-in-loop -- bounded hydration of entries in the visible session
+    const sessionEntry = await readHistorySessionBrowseEntry(read, entry, props);
+    if (sessionEntry) {
+      sessionEntries.push(sessionEntry);
+    }
+  }
+
+  return sessionEntries;
+}
+
+async function readHistorySessionBrowseEntry(read, currentEntry, props) {
+  if (props.id === currentEntry.id) {
+    return toBrowseEntry(currentEntry);
+  }
+
+  const capture = await getStoredEntry(read, props.id, props);
+  return capture?.kind === 'capture' ? toBrowseEntry(capture) : null;
+}
+
+function emptySessionTraversal() {
+  return {
+    entries: [],
+    sessionCount: 0,
+    sessionPosition: null,
+    previous: null,
+    next: null,
   };
 }

@@ -172,17 +172,17 @@ export async function runMigrateGraph(output, reporter) {
   }
 
   if (!result.changed) {
-    output.out('No graph migration changes were needed.');
+    output.out('No History migration changes were needed.');
     return 0;
   }
 
   const lines = [
-    'Graph migration complete',
-    `Repo is now graph model version ${result.graphModelVersion}`,
-    `Edges added: ${result.edgesAdded}`,
+    'History migration complete',
+    `Repo is now History model version ${result.graphModelVersion}`,
+    `Links added: ${result.edgesAdded}`,
   ];
   if (result.metadataUpdated) {
-    lines.push('Graph metadata updated.');
+    lines.push('History metadata updated.');
   }
   output.out(lines.join('\n'));
   return 0;

@@ -52,5 +52,10 @@
     "@git-stunts/git-cas": "6.0.0",
     "eslint": "^10.1.0",
     "globals": "^17.4.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "ip-address": "10.2.0"
+    }
   }
 }

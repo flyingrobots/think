@@ -169,33 +169,50 @@ function loadInitialViewCommand(dataPort) {
   return (emit) => {
     let disposed = false;
     const task = createInitialViewTask(dataPort);
+    const unsubscribe = subscribeInitialViewTask(task, emit, () => disposed);
 
     task.promise.then(
-      (view) => {
-        if (!disposed) {
-          emit({
-            type: 'browse_initial_view_loaded',
-            view,
-          });
-        }
-      },
-      (error) => {
-        if (!disposed) {
-          emit({
-            type: 'browse_initial_view_failed',
-            error,
-          });
-        }
-      }
+      (view) => emitInitialViewLoaded(emit, view, () => disposed),
+      (error) => emitInitialViewFailed(emit, error, () => disposed)
     );
 
     return {
       dispose() {
         disposed = true;
+        unsubscribe();
         task.dispose();
       },
     };
   };
+}
+
+function subscribeInitialViewTask(task, emit, isDisposed) {
+  if (typeof task.subscribe !== 'function') {
+    return () => {};
+  }
+
+  const subscription = task.subscribe((view) => {
+    emitInitialViewLoaded(emit, view, isDisposed);
+  });
+  return typeof subscription === 'function' ? subscription : () => {};
+}
+
+function emitInitialViewLoaded(emit, view, isDisposed) {
+  if (!isDisposed()) {
+    emit({
+      type: 'browse_initial_view_loaded',
+      view,
+    });
+  }
+}
+
+function emitInitialViewFailed(emit, error, isDisposed) {
+  if (!isDisposed()) {
+    emit({
+      type: 'browse_initial_view_failed',
+      error,
+    });
+  }
 }
 
 function createInitialViewTask(dataPort) {

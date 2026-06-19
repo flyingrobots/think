@@ -8,7 +8,6 @@ import {
   finalizeCapturedThought,
   getBrowseWindow,
   getGraphModelStatus,
-  getGraphModelStatusForRead,
   getPromptMetrics,
   getStats,
   getStatsForRead,
@@ -16,11 +15,14 @@ import {
   inspectRawEntry,
   listRecent,
   migrateGraphModel,
-  openProductReadHandle,
-  prepareBrowseBootstrap,
   rememberThoughts,
   saveRawCapture,
 } from '../store.js';
+import {
+  getHistoryModelStatusForRead,
+  openHistoryReadHandle,
+  prepareHistoryBrowseBootstrapForRead,
+} from '../history/read.js';
 import {
   buildAmbientRememberScope,
   buildExplicitRememberScope,
@@ -225,7 +227,8 @@ export async function browseThought({ entryId = null } = {}) {
       throw new NotFoundError('Browse entry not found');
     }
   } else {
-    const bootstrap = await prepareBrowseBootstrap(repoDir);
+    const read = await openHistoryReadHandle(repoDir);
+    const bootstrap = await prepareHistoryBrowseBootstrapForRead(read);
     if (!bootstrap.ok) {
       throw new NotFoundError('No raw captures available to browse');
     }
@@ -299,7 +302,7 @@ export async function checkThinkHealthForMcp() {
   const repoPresent = hasGitRepo(repoDir);
   let readPromise = null;
   const getRead = () => {
-    readPromise ??= openProductReadHandle(repoDir);
+    readPromise ??= openHistoryReadHandle(repoDir);
     return readPromise;
   };
   const diagnostics = await runDiagnostics({
@@ -307,7 +310,7 @@ export async function checkThinkHealthForMcp() {
     repoDir,
     upstreamUrl,
     getGraphModelStatus: repoPresent
-      ? async () => getGraphModelStatusForRead(await getRead())
+      ? async () => getHistoryModelStatusForRead(await getRead())
       : null,
     getEntryCount: repoPresent
       ? async () => (await getStatsForRead(await getRead(), {})).total
@@ -357,10 +360,11 @@ async function assertGraphReady(command) {
     return;
   }
 
-  const error = new GraphError('Graph migration required. Run think --migrate-graph.');
+  const error = new GraphError('History migration required. Run think --migrate-history.');
   error.code = 'graph_migration_required';
   error.command = command;
-  error.remediation = 'think --migrate-graph';
+  error.remediation = 'think --migrate-history';
+  error.legacyRemediation = 'think --migrate-graph';
   error.status = status;
   throw error;
 }

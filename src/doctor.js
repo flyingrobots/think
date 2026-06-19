@@ -219,10 +219,10 @@ async function checkGitFsmonitor(repoOk, repoDir, getFsmonitorStatus) {
 
 async function checkGraphModel(repoOk, getGraphModelStatus) {
   if (!repoOk) {
-    return { name: 'graph_model', status: 'skip', message: 'Graph model check skipped (no repo)' };
+    return { name: 'graph_model', status: 'skip', message: 'History model check skipped (no repo)' };
   }
   if (!getGraphModelStatus) {
-    return { name: 'graph_model', status: 'skip', message: 'Graph model check skipped (no fast checker)' };
+    return { name: 'graph_model', status: 'skip', message: 'History model check skipped (no fast checker)' };
   }
 
   try {
@@ -231,16 +231,16 @@ async function checkGraphModel(repoOk, getGraphModelStatus) {
       return {
         name: 'graph_model',
         status: 'warn',
-        message: `Graph model needs migration (v${status.currentGraphModelVersion} → v${status.requiredGraphModelVersion})`,
+        message: `History model needs migration (v${status.currentGraphModelVersion} → v${status.requiredGraphModelVersion})`,
       };
     }
     return {
       name: 'graph_model',
       status: 'ok',
-      message: `Graph model is current (v${status.currentGraphModelVersion})`,
+      message: `History model is current (v${status.currentGraphModelVersion})`,
     };
   } catch {
-    return { name: 'graph_model', status: 'fail', message: 'Graph model check failed' };
+    return { name: 'graph_model', status: 'fail', message: 'History model check failed' };
   }
 }
 

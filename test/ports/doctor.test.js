@@ -131,7 +131,7 @@ test('runDiagnostics skips graph and entry checks when no fast checker is provid
   assert.match(countCheck.message, /no fast checker/, 'Expected count skip reason to mention missing checker.');
 });
 
-test('runDiagnostics reports graph model version when available', async () => {
+test('runDiagnostics reports History model version when available', async () => {
   const context = await createDoctorContext({ withRepo: true });
   const result = await runDiagnostics({
     thinkDir: context.thinkDir,
@@ -148,7 +148,7 @@ test('runDiagnostics reports graph model version when available', async () => {
   assert.match(graphCheck.message, /v3/, 'Expected version number in message.');
 });
 
-test('runDiagnostics warns when graph model needs migration', async () => {
+test('runDiagnostics warns when History model needs migration', async () => {
   const context = await createDoctorContext({ withRepo: true });
   const result = await runDiagnostics({
     thinkDir: context.thinkDir,

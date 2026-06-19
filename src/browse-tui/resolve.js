@@ -2,6 +2,7 @@ import {
   createCommandPaletteState,
   helpShort,
 } from '@flyingrobots/bijou-tui';
+import { resolveHistorySessionEntries } from '../history/session.js';
 import { formatCompactWhen, normalizeWhitespace, clamp, compareEntriesOldestFirst } from './format.js';
 import { browseKeymap } from './keymap.js';
 
@@ -51,7 +52,7 @@ export function resolveSessionTraversal(model) {
     };
   }
 
-  if (!entry?.sessionId) {
+  if (!entry) {
     return {
       entries: [],
       count: 0,
@@ -61,9 +62,7 @@ export function resolveSessionTraversal(model) {
     };
   }
 
-  const sessionEntries = model.entries
-    .filter((candidate) => candidate.sessionId === entry.sessionId)
-    .sort(compareEntriesOldestFirst);
+  const sessionEntries = resolveHistorySessionEntries(model.entries, entry);
   const sessionIndex = sessionEntries.findIndex((candidate) => candidate.id === entry.id);
 
   if (sessionIndex === -1) {
@@ -202,4 +201,3 @@ export function computeLogScroll(model, height) {
   const maxY = Math.max(0, model.entries.length + 2 - visibleHeight);
   return clamp(target, 0, maxY);
 }
-
