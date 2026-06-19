@@ -48,9 +48,9 @@ This design is primarily:
 ## Decision Summary
 
 Think will define an agent-native memory API across MCP and JSON CLI surfaces.
-The API will advertise capabilities, return typed History facts, include basis
-and provenance metadata, and avoid forcing agents to infer state from terminal
-text, visual Browse layouts, or private runtime details.
+The first slice standardizes one response envelope, adds runtime-generated
+capability discovery, and proves one read operation using typed memory facts,
+opaque basis metadata, warnings, redactions, and partial-result semantics.
 
 ## Sponsored Human
 
@@ -66,9 +66,9 @@ turns, without scraping prose or depending on undocumented command behavior.
 
 ## Hill
 
-By the end of this cycle, an agent can call one capability-discovery surface,
-read typed memory facts with causal basis metadata, write a raw capture, inspect
-followthrough status if available, and receive deterministic errors, and the
+By the end of this cycle, an agent can call one capability-discovery surface and
+one read operation that both return the shared envelope, including causal basis
+metadata when available, warnings, redactions, and deterministic errors, and the
 repo proves that contract through MCP tests and JSON CLI witnesses.
 
 ## Current Truth
@@ -91,17 +91,20 @@ Evidence:
 ## Problem
 
 Think has agent-usable tools, but not yet an agent-native contract. The current
-surface is useful but piecemeal: agents can list MCP tools, but they cannot ask
-Think what memory model version, History adapter capabilities, basis fields,
-followthrough status, redaction rules, or lower-mode guarantees are available.
+surface is useful but piecemeal: agents can list MCP tools, but read outputs do
+not share one envelope for `data`, `basis`, `warnings`, `redactions`, and
+`partial`, and capability discovery is not generated from the actual runtime
+composition.
 
 ## Scope
 
 This cycle includes:
 
-- Add a capability-discovery tool or JSON command.
-- Add versioned schemas for common memory facts.
-- Include basis/provenance metadata in agent read results where available.
+- Add the mandatory agent response envelope.
+- Add a capability-discovery tool or JSON command generated from runtime
+  composition.
+- Add versioned schemas for one common memory read fact.
+- Include opaque basis metadata in that read result when available.
 - Preserve existing MCP tool names and output compatibility unless explicitly
   versioned.
 - Add test witnesses for MCP and CLI JSON.
@@ -115,30 +118,57 @@ This cycle does not include:
 - Making Browse a machine API.
 - Adding remote sync, authentication, or shared minds.
 - Exposing git-warp internals.
+- Returning adapter names in normal responses. Implementation details require an
+  explicit diagnostics request.
 - Giving agents permission to mutate existing memories beyond explicit capture
   or future reviewed mutation tools.
 
 ## Runtime / API Contract
 
-The API adds one capability surface:
+All agent-facing JSON and MCP responses use this envelope:
 
 ```json
 {
-  "tool": "capabilities",
-  "version": "1",
-  "history": {
-    "read": true,
-    "writeCapture": true,
-    "streaming": true,
-    "basis": true
-  },
-  "surfaces": {
-    "mcp": true,
-    "cliJson": true,
-    "tui": false
-  }
+  "schemaVersion": "1",
+  "data": {},
+  "basis": null,
+  "warnings": [],
+  "redactions": [],
+  "partial": false
 }
 ```
+
+The API adds one capability surface that also uses the envelope:
+
+```json
+{
+  "schemaVersion": "1",
+  "data": {
+    "capabilities": {
+      "history": {
+        "read": true,
+        "writeCapture": true,
+        "basis": true
+      },
+      "followthrough": {
+        "status": false
+      },
+      "surfaces": {
+        "mcp": true,
+        "cliJson": true,
+        "tui": false
+      }
+    }
+  },
+  "basis": null,
+  "warnings": [],
+  "redactions": [],
+  "partial": false
+}
+```
+
+Capability reports must be generated from the actual `openThinkRuntime()`
+composition. Handwritten capability JSON is not acceptable release evidence.
 
 Existing tools remain:
 
@@ -155,12 +185,14 @@ Existing tools remain:
 New or extended fields must be additive:
 
 - `basis`
-- `adapter`
 - `modelVersion`
 - `capabilities`
 - `warnings`
 - `redactions`
 - `followthrough`
+
+Normal responses must not include adapter names. Diagnostics may include
+implementation fields only behind an explicit diagnostics request.
 
 ## User Experience / Product Shape
 
@@ -181,7 +213,7 @@ flowchart TD
 
 | State | Source of truth | Derived state | Invalid states | Reset behavior | Serialization | Determinism assumptions |
 | --- | --- | --- | --- | --- | --- | --- |
-| Capability report | Runtime composition root | Agent planning state | Capability without version | Re-read on session start | JSON object | Same runtime reports same schema |
+| Capability report | Runtime composition root | Agent planning state | Capability without envelope version | Re-read on session start | Envelope JSON | Same runtime reports same schema |
 | Memory fact | History port | MCP/CLI output | Fact without ID or kind | Re-read with basis | JSON object | Fact fields are stable by version |
 | Warning | Runtime/adapter | Agent risk model | Warning without code | Re-check after repair | JSON object | Codes are stable |
 | Redaction notice | Output formatter | Agent disclosure state | Redaction without field path | Re-read with explicit inspect if allowed | JSON object | Redactions are explicit |
@@ -192,9 +224,9 @@ flowchart TD
 | --- | --- |
 | Domain changes | None beyond shared memory fact schemas. |
 | Port changes | Agent API consumes History and followthrough ports, not adapters. |
-| Adapter changes | No adapter-specific facts without namespaced diagnostics. |
-| Boundary validation | MCP and CLI JSON share schemas where possible. |
-| Runtime-backed nouns introduced | `MemoryCapabilityReport`, `MemoryFact`, `MemoryWarning`, `MemoryBasis`. |
+| Adapter changes | No adapter-specific facts without explicit diagnostics. |
+| Boundary validation | MCP and CLI JSON share the response envelope and first read schema. |
+| Runtime-backed nouns introduced | `AgentResponseEnvelope`, `MemoryCapabilityReport`, `MemoryFact`, `MemoryWarning`, `MemoryBasis`. |
 | Expected failure representation | Typed JSON errors and warnings. |
 | Banned shortcuts avoided | No pixel scraping, no prose-only facts, no graph internals. |
 | Quarantine impact | Creates a migration target for older ad hoc JSON shapes. |
@@ -224,11 +256,11 @@ flowchart TD
 
 | Failure | Error/result | Caller recovery | Test |
 | --- | --- | --- | --- |
-| Repo missing | `repoPresent: false` plus warning | Bootstrap or capture | MCP capability test |
-| Capability absent | `capabilities.<name>: false` | Avoid feature | Capability matrix test |
-| Read degraded | Result with `warnings` and `partial: true` | Use available facts, cite warning | Partial read test |
-| Redacted field | `redactions[]` with path/reason | Do not infer hidden value | Redaction test |
-| Unsupported version | Typed error | Fall back or ask human | Version negotiation test |
+| Repo missing | Envelope with `data.repoPresent: false` and warning | Bootstrap or capture | MCP capability test |
+| Capability absent | Envelope with `data.capabilities.<name>: false` | Avoid feature | Capability test |
+| Read degraded | Envelope with `warnings` and `partial: true` | Use available facts, cite warning | Partial read test |
+| Redacted field | Envelope with `redactions[]` path/reason | Do not infer hidden value | Redaction test |
+| Unsupported version | Envelope error data plus warning | Fall back or ask human | Version negotiation test |
 
 ## Security / Trust / Redaction Posture
 
@@ -274,7 +306,7 @@ Agents can inspect:
 - capability version
 - memory model version
 - available read/write tools
-- adapter health without adapter internals
+- runtime health without adapter internals
 - basis fields
 - warning codes
 - redaction paths
@@ -337,7 +369,8 @@ Cons:
 
 ## Decision
 
-Choose Option C. Agent-native means shared versioned facts and capability
+Choose Option C, reduced to the envelope plus one generated capability report
+and one read operation. Agent-native means shared versioned facts and capability
 discovery across MCP and CLI JSON, not a separate private protocol.
 
 ## Proof Surface
@@ -345,26 +378,31 @@ discovery across MCP and CLI JSON, not a separate private protocol.
 The implementation must be proven through:
 
 - actual surface under test: MCP client calls and CLI JSON command output
-- first RED test: agent can call capabilities and see versioned History support
+- first RED test: capabilities returns the shared envelope and is generated from
+  runtime composition
 - required witness command: MCP acceptance test plus CLI JSON smoke
 - non-acceptable proof: README examples without executable tests
 
 ## Implementation Slices
 
-- Define shared memory fact schemas.
-- Add capability report for MCP.
+- Define the shared response envelope.
+- Define the first shared memory read fact schema.
+- Add runtime-generated capability report for MCP.
 - Add matching CLI JSON capability command or flag.
-- Add basis/warning/redaction fields to one read tool.
-- Extend remaining read tools additively.
-- Generate or update docs from the runtime registry.
+- Convert one read tool to the envelope with basis, warnings, redactions, and
+  `partial`.
+- Defer conversion of remaining tools until the first read proves the contract.
+- Generate or update docs from the runtime registry if the registry exists in
+  the slice.
 
 ## Tests To Write First
 
 Behavior tests required:
 
-- [ ] MCP capabilities tool returns version, surfaces, and History support.
-- [ ] CLI JSON capability output matches MCP capability schema.
-- [ ] Browse or inspect result includes basis when History provides one.
+- [ ] MCP capabilities tool returns the response envelope.
+- [ ] Capability data is generated from runtime composition, not handwritten.
+- [ ] CLI JSON capability output matches MCP envelope and data schema.
+- [ ] One read result uses the envelope and includes basis when History provides one.
 - [ ] Redaction metadata appears for intentionally omitted fields.
 - [ ] Unsupported capability version returns a typed error.
 
@@ -377,8 +415,10 @@ Documentation/process tests, only if relevant:
 The work is done when:
 
 - [ ] Agents can discover capabilities before using memory.
-- [ ] MCP and CLI JSON share schema-backed memory facts.
+- [ ] MCP and CLI JSON share the response envelope.
+- [ ] One read operation returns schema-backed memory facts through that envelope.
 - [ ] Existing MCP tools stay compatible.
+- [ ] Normal responses do not expose adapter names.
 - [ ] New fields are additive or versioned.
 - [ ] Capability and read witnesses pass.
 - [ ] CI and local validation are green.

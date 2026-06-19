@@ -45,10 +45,12 @@ This design is primarily:
 
 ## Decision Summary
 
-Think will promote `History` into the product-owned read/write boundary for
-memory operations. `git-warp` remains one adapter, Echo can become another, and
+Think will promote `History` into the product-owned causal read and raw-capture
+boundary. `git-warp` remains one adapter, Echo can become another, and
 TUI/CLI/MCP callers consume causal memory facts instead of graph implementation
-details.
+details. Followthrough jobs, enrichment writes, and capability reports are
+sibling product ports behind the same runtime composition root, not extra
+methods on History.
 
 ## Sponsored Human
 
@@ -65,10 +67,10 @@ inferring private git-warp state or scraping human-oriented output.
 
 ## Hill
 
-By the end of this cycle, product surfaces can open a `History` handle, read a
-bounded capture window, inspect an entry, stream startup progress, and write a
-raw capture through History-owned contracts, and the repo proves it with fake
-History port tests plus one real git-warp adapter witness.
+By the end of this cycle, product surfaces can open a Think runtime, save a raw
+capture, open an opaque replayable History view, read the latest bounded capture
+window, inspect an entry through the same view basis, and prove the first
+vertical slice with fake History tests plus one real git-warp adapter witness.
 
 ## Current Truth
 
@@ -101,13 +103,14 @@ by materializing storage internals instead of asking for bounded causal history.
 
 This cycle includes:
 
-- Define a `History` port for raw capture, bounded reads, inspect, status, and
-  streamed startup updates.
-- Move product code to History contracts before reaching git-warp adapters.
+- Define the first `History` capability group for raw capture and bounded
+  causal reads.
+- Add an opaque replayable `HistoryBasis` and `HistoryView` contract.
+- Move one product read path to History before reaching git-warp adapters.
 - Preserve the existing git-warp-backed implementation behind the adapter.
 - Add fake-port tests that prove product code does not need git-warp.
-- Add one adapter integration test that proves the port works against the
-  current runtime.
+- Add one adapter integration test that proves the reduced port works against
+  the current runtime.
 
 ## Non-Goals
 
@@ -118,30 +121,40 @@ This cycle does not include:
 - Changing raw capture IDs or stored content semantics.
 - Teaching product code to read refs, patch chains, graph snapshots, or
   worldline internals.
+- Job persistence, atomic claims, and enrichment receipt writes. Those belong to
+  sibling ports introduced by `CORE-0072` and `REFLECT-0074`.
 - Building new browse UI features. That is `SURFACE-0071`.
 
 ## Runtime / API Contract
 
-The product contract is a `History` handle opened from a composition root:
+The product contract is a Think runtime opened from a composition root:
 
 ```js
-const history = await openHistory({
+const think = await openThinkRuntime({
   repoDir,
   mindName: 'default',
   writerId: 'think',
 });
 ```
 
-The first implementation must expose these capabilities:
+The first implementation exposes grouped History capabilities:
 
-- `history.captureRawThought({ text, provenance, ambientContext })`
-- `history.readLatestCaptureWindow({ signal })`
-- `history.readCaptureWindow({ entryId, signal })`
-- `history.inspectEntry({ entryId, signal })`
-- `history.readChronology({ cursor, limit, signal })`
-- `history.observeLatestCaptureWindow({ signal })`
-- `history.status({ signal })`
-- `history.close()`
+- `think.history.capture.captureRawThought({ text, provenance, ambientContext })`
+- `think.history.read.openView({ basis: 'latest' | HistoryBasis, signal })`
+- `view.latestCaptureWindow({ signal })`
+- `view.captureWindow({ entryId, signal })`
+- `view.inspectEntry({ entryId, signal })`
+- `view.basis`
+- `view.close()`
+
+The runtime may also expose sibling product ports:
+
+- `think.followthrough`
+- `think.enrichment`
+- `think.capabilities`
+
+Those ports may share an adapter internally. They must not collapse into generic
+`history.appendFact()` or `history.queryAnything()` escape hatches.
 
 Returned facts must be Think domain facts:
 
@@ -150,12 +163,23 @@ Returned facts must be Think domain facts:
 - `HistoryChronologyPage`
 - `HistoryInspection`
 - `HistoryBasis`
-- `HistoryProgress`
 - `HistoryError`
 
 The contract must not expose git-warp classes, refs, patch IDs, graph snapshots,
-or materialization handles. Adapter diagnostics may include implementation
-metadata under a namespaced debug field only when explicitly requested.
+materialization handles, or storage-specific comparison rules. `HistoryBasis`
+and cursors are opaque: product code may store them, pass them back, and include
+them in lower-mode output, but must not parse, sort, or compare them. Returning a
+basis is not enough; the same basis must be accepted by `openView()` so a screen
+can read the selected thought and receipts from one causal state.
+
+Error model:
+
+- throw for programmer errors and runtime initialization failures;
+- return typed result envelopes for expected operational outcomes;
+- include partial data plus warnings for recoverable degradation.
+
+One History method must not sometimes throw a `HistoryError` and sometimes
+return it.
 
 ## User Experience / Product Shape
 
@@ -172,7 +196,7 @@ sequenceDiagram
     Surface->>History: product request
     History->>Adapter: adapter request
     Adapter-->>History: causal memory facts
-    History-->>Surface: bounded result or progress update
+    History-->>Surface: bounded result with opaque basis
     Surface-->>Human: existing output
 ```
 
@@ -181,20 +205,20 @@ sequenceDiagram
 | State | Source of truth | Derived state | Invalid states | Reset behavior | Serialization | Determinism assumptions |
 | --- | --- | --- | --- | --- | --- | --- |
 | Raw capture | Current persistence adapter | `HistoryEntry` | Entry with missing text/content basis | Not reset by this cycle | Existing stored content | ID and content are stable |
-| Window | History read basis | Current/older/newer/session facts | Window without current entry on success | Re-read with same basis if supported | JSON-compatible object | Ordering uses committed sort keys |
-| Progress | Adapter read operation | TUI/CLI loading state | Final update followed by non-final update | Dispose signal cancels updates | JSON-compatible events | Event order is adapter-defined but monotonic |
-| Status | Adapter capability probe | Health summary | Unknown adapter reported as ok | Re-probe | JSON-compatible object | Capability checks are explicit |
+| View | Opaque History basis | Consistent read session | View without basis | Close and re-open | JSON-compatible basis reference | Same basis reads one causal state |
+| Window | History view basis | Current/older/newer facts | Window without current entry on success | Re-read with same basis | JSON-compatible object | Ordering uses committed sort keys |
+| Inspection | History view basis | Entry plus available receipts | Inspection from a different basis than window | Re-read in same view | JSON-compatible object | Facts are basis-qualified |
 
 ## Architecture / Anti-SLUDGE Posture
 
 | Concern | Decision |
 | --- | --- |
-| Domain changes | Introduce History-owned nouns for product memory reads and writes. |
-| Port changes | Add a read/write History port and make product surfaces depend on it. |
+| Domain changes | Introduce History-owned nouns for raw capture and causal memory reads. |
+| Port changes | Add grouped History capabilities under `think.history`; keep jobs, enrichment, and capabilities as sibling ports. |
 | Adapter changes | Keep git-warp code in the git-warp adapter only. |
 | Boundary validation | Validate returned facts at adapter boundaries before UI/MCP code sees them. |
-| Runtime-backed nouns introduced | `HistoryEntry`, `HistoryWindow`, `HistoryBasis`, `HistoryProgress`. |
-| Expected failure representation | Use typed `HistoryError` results or thrown `HistoryPortError` only at port open. |
+| Runtime-backed nouns introduced | `HistoryEntry`, `HistoryWindow`, `HistoryBasis`, `HistoryView`. |
+| Expected failure representation | Throws only for programmer/init failures; expected operational outcomes use result envelopes. |
 | Banned shortcuts avoided | No direct graph materialization in product surfaces. |
 | Quarantine impact | Enables retiring graph-named compatibility paths incrementally. |
 
@@ -202,16 +226,16 @@ sequenceDiagram
 
 | Surface | Current cost | Target cost | Limit/budget | Failure mode |
 | --- | --- | --- | --- | --- |
-| Latest capture window | Transitional | Bounded | Hydrate current plus adjacent entries | Return partial/progress or typed timeout |
-| Chronology page | Transitional | Cursor | Caller-provided limit | Return page error with basis |
+| Open view | Transitional | Bounded | Resolve one opaque basis | Result error with warning |
+| Latest capture window | Transitional | Bounded | Hydrate current plus adjacent entries | Return partial result or typed timeout |
 | Inspect entry | Transitional | Bounded | One entry plus receipts | Return not-found or partial receipts |
-| Status | Diagnostic | Bounded | No content hydration | Return degraded status |
 
 ## Determinism / Replay / Causality
 
-This design preserves deterministic replay by naming the read basis returned
-with every History result. The basis is product metadata; it is not permission
-for product code to inspect graph internals.
+This design preserves deterministic replay by making `HistoryBasis` both
+returned and accepted. A basis that cannot be used for another read is only
+provenance; this proposal requires replayable read views. The basis is product
+metadata, not permission for product code to inspect graph internals.
 
 Causal inputs:
 
@@ -223,8 +247,9 @@ Causal inputs:
 
 Replay/convergence tests:
 
-- Read the same fixture through a fake History port and the git-warp adapter.
-- Assert equivalent product facts for the same capture window.
+- Read the same fixture through a fake History port and the git-warp adapter at
+  one opaque basis.
+- Assert equivalent product facts for the same capture window and inspection.
 - Assert product code can run without importing git-warp modules.
 
 ## Compatibility / Migration Posture
@@ -243,11 +268,12 @@ Replay/convergence tests:
 
 | Failure | Error/result | Caller recovery | Test |
 | --- | --- | --- | --- |
-| Missing repo | `HistoryError { code: "repo_missing" }` | Show no-repo state or bootstrap prompt | Fake-port browse test |
-| Unsupported adapter capability | `HistoryError { code: "capability_missing" }` | Fall back to one-shot read or disable feature | Adapter status test |
-| Read timeout | `HistoryError { code: "read_timeout", partial }` | Render partial state and retry affordance | Streaming task test |
-| Entry not found | `HistoryError { code: "entry_not_found" }` | Show not-found output | Inspect test |
-| Adapter invariant failure | `HistoryError { code: "adapter_invariant" }` | Show doctor guidance | Integration test |
+| Missing repo | Result envelope `{ ok: false, error: { code: "repo_missing" } }` | Show no-repo state or bootstrap prompt | Fake-port browse test |
+| Unsupported adapter capability | Result envelope `{ ok: false, error: { code: "capability_missing" } }` | Avoid the feature or fall back | Capability test |
+| Read timeout | Result envelope `{ ok: false, error: { code: "read_timeout" }, partial }` | Render partial state and retry affordance | Read timeout test |
+| Entry not found | Result envelope `{ ok: false, error: { code: "entry_not_found" } }` | Show not-found output | Inspect test |
+| Adapter invariant failure | Result envelope `{ ok: false, error: { code: "adapter_invariant" } }` | Show doctor guidance | Integration test |
+| Runtime cannot initialize | thrown `HistoryInitError` | Abort command with setup guidance | Init failure test |
 
 ## Lower Modes
 
@@ -305,7 +331,7 @@ Cons:
 
 - Preserves the exact leak this design is meant to remove.
 - Makes Echo and other adapters inherit git-warp-shaped assumptions.
-- Does not give the TUI a stronger progress or cancellation contract.
+- Does not make bases replayable or opaque.
 
 ### Option B: Expose git-warp Worldlines Directly
 
@@ -326,7 +352,8 @@ Pros:
 
 - Matches the product language users already understand.
 - Lets git-warp, Echo, and test fakes share one product contract.
-- Creates a place for bounded reads, progress, and typed errors.
+- Creates a place for bounded reads, replayable bases, and typed result
+  envelopes.
 
 Cons:
 
@@ -335,8 +362,10 @@ Cons:
 
 ## Decision
 
-Choose Option C. History is the product boundary. git-warp is an adapter behind
-that boundary, not the vocabulary for Think features.
+Choose Option C, reduced to the first live vertical slice. History is the
+product boundary for raw capture and causal reads. git-warp is an adapter behind
+that boundary, not the vocabulary for Think features, and sibling product ports
+own jobs, enrichment, and capability reporting.
 
 ## Proof Surface
 

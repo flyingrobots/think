@@ -50,8 +50,8 @@ This design is primarily:
 Think will make enrichment composable but evidence-bound. Deterministic
 derivers, optional LLM-assisted reflections, summaries, tags, and future
 evolution steps all produce receipts that name inputs, methods, versions, basis,
-and confidence. Enrichment never rewrites raw capture and never becomes product
-truth without an inspectable receipt.
+epistemic status, limitations, and evidence anchors. Enrichment never rewrites
+raw capture and never becomes product truth without an inspectable receipt.
 
 ## Sponsored Human
 
@@ -69,8 +69,8 @@ memory.
 
 By the end of this cycle, Think can register and run one deterministic
 enrichment deriver through followthrough, persist a receipt with explicit input
-and method metadata, expose the receipt through inspect, and prove replay
-stability with tests.
+method metadata and evidence anchors, expose the receipt through inspect, and
+prove replay stability with tests.
 
 ## Current Truth
 
@@ -104,7 +104,8 @@ This cycle includes:
 
 - Define a `DeriverRegistry` and `Deriver` contract.
 - Run one deterministic enrichment through the followthrough queue.
-- Persist an enrichment receipt with input, method, version, basis, and output.
+- Persist an enrichment receipt with input, method, version, basis, output,
+  epistemic status, limitations, and evidence anchors.
 - Expose enrichment receipts through inspect and agent read surfaces.
 - Define policy for optional LLM enrichment without enabling it by default.
 - Prove deterministic replay for the first enrichment.
@@ -131,7 +132,7 @@ registerDeriver({
   version: '1.0.0',
   input: ['capture'],
   output: 'enrichment_receipt',
-  run: async ({ history, entry, basis }) => receipt,
+  run: async ({ history, entry, basis, enrichment }) => receipt,
 });
 ```
 
@@ -148,8 +149,30 @@ Required receipt fields:
 - `schemaVersion`
 - `createdAt`
 - `output`
-- `confidence`
+- `epistemicStatus`
+- `supports`
 - `limitations`
+- `evaluation`
+
+Evidence anchors use entry IDs and character spans when the output makes a
+claim about captured text:
+
+```json
+{
+  "supports": [
+    {
+      "entryId": "entry:...",
+      "spans": [{ "start": 12, "end": 48 }]
+    }
+  ]
+}
+```
+
+`confidence` is deliberately not part of the first contract. A deterministic
+algorithm can be repeatable and still produce a weak conclusion, while an LLM's
+self-reported confidence is mostly decorative. Callers get `epistemicStatus`,
+`method`, `limitations`, `supports`, and optional externally computed
+`evaluation` instead.
 
 Optional LLM receipt fields, when a later cycle enables them:
 
@@ -181,7 +204,7 @@ flowchart TD
 | --- | --- | --- | --- | --- | --- | --- |
 | Deriver registry | Runtime composition | Capability report | Deriver without version | Process restart rebuilds registry | JSON manifest | Same build has same registry |
 | Enrichment job | Followthrough queue | Worker plan | Job without deriver ID | Retry via queue | JSON fact | Job ID includes deriver version |
-| Receipt | History | Inspect/agent output | Receipt without input basis | Append new version; do not mutate raw | JSON fact | Deterministic deriver output is stable |
+| Receipt | Enrichment port | Inspect/agent output | Receipt without input basis or supports | Append new version; do not mutate raw | JSON fact | Deterministic deriver output is stable |
 | LLM receipt | Future explicit deriver | Reflection output | Output without prompt/model evidence | Append correction/supersession | JSON fact | Non-determinism is disclosed |
 
 ## Architecture / Anti-SLUDGE Posture
@@ -189,7 +212,7 @@ flowchart TD
 | Concern | Decision |
 | --- | --- |
 | Domain changes | Add enrichment receipts as derived facts. |
-| Port changes | Derivers consume History and followthrough, not storage internals. |
+| Port changes | Derivers read through History, execute through Followthrough, and write governed receipts through `think.enrichment`. |
 | Adapter changes | No direct adapter reads inside derivers. |
 | Boundary validation | Registry validates input/output schemas. |
 | Runtime-backed nouns introduced | `Deriver`, `DeriverRegistry`, `EnrichmentReceipt`. |
@@ -219,7 +242,7 @@ Causal inputs:
 - basis: History basis used to read the input
 - frontier: adapter-owned optional debug metadata
 - writer id: followthrough worker ID
-- patch/order source: History adapter
+- patch/order source: runtime adapter
 - checkpoint or coordinate identity: adapter-owned optional debug metadata
 
 Replay/convergence tests:
@@ -278,8 +301,15 @@ Inspect and agent APIs must expose enrichment as JSON:
       "method": "local",
       "deriver": "summary.seed.v1",
       "deriverVersion": "1.0.0",
-      "confidence": "bounded",
-      "limitations": ["no semantic model"]
+      "epistemicStatus": "derived",
+      "supports": [
+        {
+          "entryId": "entry:...",
+          "spans": [{ "start": 12, "end": 48 }]
+        }
+      ],
+      "limitations": ["no semantic model"],
+      "evaluation": null
     }
   ]
 }
@@ -300,7 +330,7 @@ Inspect and agent APIs must expose enrichment as JSON:
 - new or changed visible strings:
   - `Enrichment`
   - `derived by`
-  - `confidence`
+  - `epistemic status`
   - `limitations`
   - `not configured`
 - where the wording appears: inspect output and docs.
@@ -318,7 +348,8 @@ Agents can inspect:
 - deriver ID/version
 - schema version
 - output
-- confidence
+- epistemic status
+- evidence supports
 - limitations
 - redaction metadata
 
@@ -387,13 +418,13 @@ The implementation must be proven through:
 
 - actual surface under test: followthrough deriver execution and inspect output
 - first RED test: deterministic deriver writes one idempotent receipt with input
-  basis and version metadata
+  basis, version metadata, epistemic status, limitations, and evidence supports
 - required witness command: focused enrichment tests plus inspect JSON witness
 - non-acceptable proof: prose-only examples or untested LLM output
 
 ## Implementation Slices
 
-- Define the deriver registry and receipt schema.
+- Define the deriver registry, enrichment port, and receipt schema.
 - Register one deterministic enrichment deriver.
 - Run it through followthrough.
 - Expose receipts through inspect.
@@ -407,7 +438,8 @@ Behavior tests required:
 - [ ] Registry rejects derivers without IDs, versions, inputs, and output schema.
 - [ ] Deterministic deriver creates one receipt for one capture.
 - [ ] Running the same deriver twice is idempotent.
-- [ ] Inspect returns enrichment receipts with input basis and limitations.
+- [ ] Inspect returns enrichment receipts with input basis, epistemic status,
+  supports, and limitations.
 - [ ] LLM deriver path is disabled/skipped without explicit configuration.
 
 Documentation/process tests, only if relevant:
@@ -420,7 +452,8 @@ The work is done when:
 
 - [ ] At least one deterministic enrichment deriver runs through followthrough.
 - [ ] Receipts are persisted and inspectable.
-- [ ] Receipts name inputs, methods, versions, basis, confidence, and limitations.
+- [ ] Receipts name inputs, methods, versions, basis, epistemic status,
+  supports, limitations, and optional evaluation.
 - [ ] Raw captures remain unchanged.
 - [ ] Replay/idempotency tests pass.
 - [ ] CI and local validation are green.
@@ -448,7 +481,7 @@ npm run test:fast
 ```
 
 The inspect witness must show a receipt with input ID, deriver ID/version, basis,
-confidence, and limitations.
+epistemic status, supports, limitations, and optional evaluation.
 
 ## Risks
 

@@ -46,10 +46,11 @@ This design is primarily:
 
 ## Decision Summary
 
-Think will add a durable followthrough queue for post-capture work. Raw capture
-remains immediate and sacred; derivation, read-edge repair, backup checks,
-enrichment, and migration followthrough become explicit jobs with visible
-status, retry behavior, and deterministic receipts.
+Think will add `think.followthrough`, a sibling product port for durable
+post-capture work. Raw capture remains immediate and sacred; the first queue
+slice supports one job kind, `derive_first_artifacts`, with visible status,
+bounded claiming, lease-based recovery, retry behavior, and deterministic
+receipts.
 
 ## Sponsored Human
 
@@ -65,10 +66,11 @@ logs.
 
 ## Hill
 
-By the end of this cycle, capture can save raw content and enqueue followthrough
-jobs, `doctor` or a new status surface can report pending/failed jobs, and tests
-prove that a failed followthrough worker does not roll back or hide the raw
-capture.
+By the end of this cycle, capture can save raw content and enqueue a
+`derive_first_artifacts` job, an explicit opportunistic runner can claim that
+job with a lease token, `doctor` or a status surface can report pending/failed
+jobs, and tests prove that a failed followthrough worker does not roll back or
+hide the raw capture.
 
 ## Current Truth
 
@@ -99,9 +101,14 @@ failed. Think needs a first-class followthrough model.
 
 This cycle includes:
 
-- Define durable `FollowthroughJob` and `FollowthroughReceipt` facts.
-- Enqueue required jobs after raw capture saves.
-- Add a worker entry point that can claim and complete jobs.
+- Define durable `FollowthroughJob`, `FollowthroughClaim`, and
+  `FollowthroughReceipt` facts.
+- Enqueue one required job kind, `derive_first_artifacts`, after raw capture
+  saves.
+- Add an explicit opportunistic runner that can claim and complete jobs within a
+  caller-provided limit.
+- Add claim tokens, lease expiry, and stale-claim recovery.
+- Keep queue scans bounded by status, priority, and limit.
 - Report pending and failed jobs through doctor or a dedicated status surface.
 - Prove raw capture persists even when followthrough fails.
 - Keep job effects idempotent.
@@ -115,23 +122,39 @@ This cycle does not include:
 - LLM enrichment by default.
 - Arbitrary user-authored job plugins.
 - Changing the capture ID, content, or provenance contract.
+- Launching four job kinds at once. `ensure_read_edges`, `backup_probe`, and
+  `migration_probe` are future job kinds after the first job proves the queue.
 
 ## Runtime / API Contract
 
-The port contract:
+The port contract hangs off the Think runtime as a sibling of History:
 
 ```js
-const queue = await openFollowthroughQueue({ history, workerId: 'think' });
+const think = await openThinkRuntime({ repoDir, mindName: 'default' });
+const queue = think.followthrough;
 ```
 
 Required operations:
 
 - `enqueue({ entryId, kind, inputBasis, priority })`
-- `list({ status, limit })`
-- `claimNext({ workerId, now })`
-- `complete({ jobId, receipt })`
-- `fail({ jobId, error, retryAfter })`
-- `observe({ status })`
+- `list({ status, limit, cursor })`
+- `claimNext({ workerId, leaseMs, now, limit })`
+- `complete({ jobId, claimToken, receipt })`
+- `fail({ jobId, claimToken, error, retryAfter })`
+- `releaseExpiredClaims({ now, limit })`
+
+`claimNext()` returns:
+
+```json
+{
+  "job": { "jobId": "job:...", "kind": "derive_first_artifacts" },
+  "claimToken": "claim:opaque",
+  "leaseUntil": "2026-06-19T18:00:00.000Z"
+}
+```
+
+`claimToken` is opaque and required for `complete()` and `fail()`. A stale worker
+cannot complete an expired claim; it must claim again and receive a fresh token.
 
 Required job states:
 
@@ -144,6 +167,9 @@ Required job states:
 Required initial job kinds:
 
 - `derive_first_artifacts`
+
+Future job kinds:
+
 - `ensure_read_edges`
 - `backup_probe`
 - `migration_probe`
@@ -164,10 +190,19 @@ sequenceDiagram
     History-->>Capture: entry saved
     Capture->>Queue: enqueue followthrough jobs
     Capture-->>User: saved locally
-    Worker->>Queue: claim job
-    Worker->>History: write derived facts
-    Worker->>Queue: complete or fail
+    Worker->>Queue: claim job with lease
+    Worker->>Queue: complete or fail with claim token
 ```
+
+Execution policy:
+
+- No daemon is required in the first slice.
+- Capture may trigger an opportunistic runner with a hard time and job limit,
+  after raw save and enqueue have completed.
+- A dedicated maintenance entry point may run the same runner explicitly.
+- Runner scans must be bounded by `limit` and should prefer queued jobs before
+  releasing expired claims.
+- Abandoned claims become claimable again only after `leaseUntil`.
 
 Operator-visible surfaces:
 
@@ -180,8 +215,8 @@ Operator-visible surfaces:
 
 | State | Source of truth | Derived state | Invalid states | Reset behavior | Serialization | Determinism assumptions |
 | --- | --- | --- | --- | --- | --- | --- |
-| Job | History queue facts | Status summary | Running without claim owner | Timed-out claim can be released | JSON-compatible fact | Job ID derived from entry, kind, version |
-| Claim | Worker write | Active worker status | Claim by two workers at same basis | CAS conflict or retry | JSON-compatible fact | Claim winner is persistence-determined |
+| Job | Followthrough port | Status summary | Running without claim owner | Timed-out claim can be released | JSON-compatible fact | Job ID derived from entry, kind, version |
+| Claim | Followthrough port | Active worker status | Completion with expired token | Lease expiry and re-claim | JSON-compatible fact | Claim token selects valid attempt |
 | Receipt | Worker result | Inspect/doctor summary | Receipt without job ID | Never reset; new receipt supersedes | JSON-compatible fact | Receipt includes input basis |
 | Failure | Worker result | Retry schedule | Failure without code | Retry by appending attempt | JSON-compatible fact | Retry count is append-only |
 
@@ -190,10 +225,10 @@ Operator-visible surfaces:
 | Concern | Decision |
 | --- | --- |
 | Domain changes | Add Followthrough as Think infrastructure, not storage internals. |
-| Port changes | Add queue port over History. |
-| Adapter changes | git-warp adapter persists job facts through History operations. |
+| Port changes | Add `think.followthrough` beside `think.history`. |
+| Adapter changes | The git-warp-backed runtime may share storage internally, but product code sees a Followthrough adapter. |
 | Boundary validation | Job kind, status, attempts, and receipts are schema validated. |
-| Runtime-backed nouns introduced | `FollowthroughJob`, `FollowthroughReceipt`, `FollowthroughAttempt`. |
+| Runtime-backed nouns introduced | `FollowthroughJob`, `FollowthroughClaim`, `FollowthroughReceipt`, `FollowthroughAttempt`. |
 | Expected failure representation | Failed jobs are data, not swallowed logs. |
 | Banned shortcuts avoided | No hidden in-memory queue as the only truth; no blocking capture on enrichment. |
 | Quarantine impact | Provides a path to retire synchronous finalization coupling. |
@@ -203,7 +238,8 @@ Operator-visible surfaces:
 | Surface | Current cost | Target cost | Limit/budget | Failure mode |
 | --- | --- | --- | --- | --- |
 | Capture | Transitional synchronous followthrough | Save plus enqueue | Raw save should not wait on expensive reads | Capture saved, job failed/queued |
-| Worker claim | None | Bounded queue page | Claim one job | No job available |
+| Worker claim | None | Bounded queue page | Claim at most one job per call | No job available |
+| Lease expiry | None | Bounded stale-claim scan | Release up to caller limit | Leave claim until next runner |
 | Doctor status | Diagnostic | Bounded summary | Count failed/pending; no content hydration | Warn with unknown count |
 | Retry | None | One job | Attempt limit per kind | Mark failed with retry exhausted |
 
@@ -215,10 +251,10 @@ job, input entry, kind, deriver/worker version, and basis used.
 
 Causal inputs:
 
-- basis: History basis at enqueue and claim time
+- basis: History basis at enqueue time
 - frontier: adapter-owned optional debug metadata
 - writer id: worker ID in claim/receipt
-- patch/order source: History adapter
+- patch/order source: runtime adapter
 - checkpoint or coordinate identity: adapter-owned optional debug metadata
 
 Replay/convergence tests:
@@ -233,7 +269,7 @@ Replay/convergence tests:
 | Substrate area | Impact |
 | --- | --- |
 | refs | No product code may create refs directly. |
-| commits | Job facts are persisted through the active History adapter. |
+| commits | Job facts are persisted through the active runtime adapter. |
 | trees/blobs | No direct product impact. |
 | empty-tree graph commits | No product impact. |
 | object ids | No product code depends on object IDs. |
@@ -260,6 +296,8 @@ Replay/convergence tests:
 | Worker throws | Job status `failed` with code/message | Retry or inspect doctor | Worker failure test |
 | Duplicate job | Existing job returned | Do not duplicate | Idempotent enqueue test |
 | Claim conflict | Claim returns conflict/no job | Retry later | Concurrent claim test |
+| Claim lease expires | Complete/fail rejects stale `claimToken` | Claim again and retry idempotently | Expired claim test |
+| Stale claim scan hits limit | Partial maintenance result with cursor/warning | Run again | Bounded maintenance test |
 | Retry exhausted | Job status `failed` with retry exhausted | Human intervention | Retry policy test |
 
 ## Security / Trust / Redaction Posture
@@ -285,7 +323,7 @@ Queue state must be available as JSON:
   "failed": 1,
   "complete": 19,
   "failures": [
-    { "jobId": "job:...", "kind": "ensure_read_edges", "code": "read_failed" }
+    { "jobId": "job:...", "kind": "derive_first_artifacts", "code": "read_failed" }
   ]
 }
 ```
@@ -319,6 +357,7 @@ Agents can inspect:
 - job kinds
 - input entry IDs
 - statuses
+- claim lease metadata
 - attempts
 - receipts
 - failure codes
@@ -363,23 +402,26 @@ Cons:
 - Agents cannot inspect durable status.
 - Does not satisfy local-first memory expectations.
 
-### Option C: Persist Followthrough Jobs In History
+### Option C: Persist Followthrough Jobs Through A Sibling Runtime Port
 
 Pros:
 
 - Durable and inspectable.
 - Aligns with causal memory.
 - Supports retries and later workers.
+- Prevents History from becoming a generic database client.
 
 Cons:
 
 - Requires careful idempotency tests.
 - Adds new state to existing minds.
+- Requires a real claim/lease policy.
 
 ## Decision
 
-Choose Option C. Followthrough is durable History data with explicit job and
-receipt facts. Capture saves first; followthrough reports its own state.
+Choose Option C, reduced to one job kind. Followthrough is durable runtime data
+behind a sibling product port with explicit job, claim, lease, and receipt
+facts. Capture saves first; followthrough reports its own state.
 
 ## Proof Surface
 
@@ -387,17 +429,18 @@ The implementation must be proven through:
 
 - actual surface under test: capture plus followthrough worker/status APIs
 - first RED test: raw capture persists when a followthrough job fails
+- required lease proof: stale workers cannot complete expired claims
 - required witness command: focused queue tests plus `npm run test:fast`
 - non-acceptable proof: background logs or manually observed latency
 
 ## Implementation Slices
 
-- Define job schema and deterministic job ID rules.
-- Enqueue followthrough jobs after raw capture.
-- Add worker claim/complete/fail operations.
-- Move one existing finalization task behind a job.
+- Define job, claim, lease, and deterministic job ID rules.
+- Enqueue the `derive_first_artifacts` job after raw capture.
+- Add bounded runner entry point with claim/complete/fail operations.
+- Move `derive_first_artifacts` behind the job.
 - Add status summary to doctor or a dedicated command.
-- Backfill missing jobs for existing captures as a repair path.
+- Defer other job kinds and backfill strategy to follow-on issues.
 
 ## Tests To Write First
 
@@ -407,7 +450,10 @@ Behavior tests required:
 - [ ] Capture remains saved when followthrough worker fails.
 - [ ] Duplicate enqueue is idempotent.
 - [ ] Worker claim conflict does not double-run a job.
-- [ ] Complete receipt includes job ID, input basis, worker ID, and version.
+- [ ] `claimNext()` returns `claimToken` and `leaseUntil`.
+- [ ] `complete()` and `fail()` reject expired or mismatched claim tokens.
+- [ ] Bounded maintenance releases only up to the caller-provided limit.
+- [ ] Complete receipt includes job ID, input basis, worker ID, claim token, and version.
 - [ ] Doctor/status reports failed jobs without full capture text.
 
 Documentation/process tests, only if relevant:
@@ -419,8 +465,9 @@ Documentation/process tests, only if relevant:
 The work is done when:
 
 - [ ] Raw capture no longer depends on all followthrough work completing.
-- [ ] Queue state is durable and inspectable.
-- [ ] At least one existing finalization task runs through the queue.
+- [ ] Queue state is durable and inspectable through `think.followthrough`.
+- [ ] `derive_first_artifacts` runs through the queue.
+- [ ] Claim leases prevent stale workers from completing expired work.
 - [ ] Failed jobs surface in doctor/status.
 - [ ] Retry/idempotency tests pass.
 - [ ] CI and local validation are green.
@@ -435,7 +482,8 @@ npm run lint
 npm run test:fast
 ```
 
-Add focused queue tests for capture isolation, idempotency, failure, and status.
+Add focused queue tests for capture isolation, idempotency, claims, leases,
+failure, and status.
 
 ## Playback / Witness
 
@@ -473,6 +521,8 @@ Create GitHub issues for:
 
 - A dedicated followthrough status command if doctor becomes too crowded.
 - A background worker strategy.
+- `ensure_read_edges`, `backup_probe`, and `migration_probe` job kinds.
+- Backfill jobs for existing captures as a repair path.
 - MCP followthrough status after `SURFACE-0073`.
 - Queue compaction or summary views if job history grows.
 
