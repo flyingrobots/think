@@ -37,6 +37,11 @@ This review is meant to answer five questions:
 - [`0067-think-echo-contract-proof/think-echo-contract-proof.md`](./0067-think-echo-contract-proof/think-echo-contract-proof.md): Think-on-Echo ownership split and proof boundary.
 - [`0068-think-memory-data-model/think-memory-data-model.md`](./0068-think-memory-data-model/think-memory-data-model.md): source-of-truth memory data model that GraphQL must express before the Echo round trip.
 - [`0069-think-echo-integration-plan/think-echo-integration-plan.md`](./0069-think-echo-integration-plan/think-echo-integration-plan.md): integration path for putting Echo behind a Think-owned memory runtime port.
+- [`0070-history-product-boundary/history-product-boundary.md`](./0070-history-product-boundary/history-product-boundary.md): draft proposal to make History the product-owned read/write boundary while keeping git-warp as one adapter.
+- [`0071-browse-memory-workbench/browse-memory-workbench.md`](./0071-browse-memory-workbench/browse-memory-workbench.md): draft proposal for rebuilding `think --browse` as a real Bijou AppShell memory workbench with lower-mode proof.
+- [`0072-followthrough-job-queue/followthrough-job-queue.md`](./0072-followthrough-job-queue/followthrough-job-queue.md): draft proposal for durable, visible post-capture followthrough jobs that keep raw capture immediate.
+- [`0073-agent-native-memory-api/agent-native-memory-api.md`](./0073-agent-native-memory-api/agent-native-memory-api.md): draft proposal for capability-discovered MCP and JSON memory contracts for agents.
+- [`0074-evidence-bound-enrichment/evidence-bound-enrichment.md`](./0074-evidence-bound-enrichment/evidence-bound-enrichment.md): draft proposal for composable enrichment receipts that keep derived facts evidence-bound.
 - [`ROADMAP.md`](./ROADMAP.md): milestone sequence, hill mapping, exit criteria, and review checkpoints.
 
 ## Archived Slice History
@@ -103,6 +108,14 @@ flowchart TD
     R --> P27["0027 M5 Additional Ingress Surfaces"]
     R --> P28["0028 M5 Shortcuts And URL Capture"]
     R --> P29["0029 M5 Selected-Text And Share Capture"]
+    R --> P67["0067 Think Echo Contract Proof"]
+    R --> P68["0068 Think Memory Data Model"]
+    R --> P69["0069 Think Echo Integration Plan"]
+    R --> P70["0070 History Product Boundary"]
+    R --> P71["0071 Browse Memory Workbench"]
+    R --> P72["0072 Followthrough Job Queue"]
+    R --> P73["0073 Agent-Native Memory API"]
+    R --> P74["0074 Evidence-Bound Enrichment"]
     R --> RD["Roadmap and Milestones"]
     R --> BL["Backlog (deferred ideas)"]
     P --> A
@@ -187,6 +200,20 @@ flowchart TD
     P22 --> RD
     P23 --> RD
     P24 --> RD
+    P67 --> P68
+    P68 --> P69["0069 Think Echo Integration Plan"]
+    P68 --> P70
+    P69 --> P70
+    P70 --> P71
+    P70 --> P72
+    P70 --> P73
+    P72 --> P74
+    P73 --> P74
+    P70 --> RD
+    P71 --> RD
+    P72 --> RD
+    P73 --> RD
+    P74 --> RD
 ```
 
 ## Review Standard
