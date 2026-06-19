@@ -241,7 +241,9 @@ export function deriveSeedQuality(thoughtId, text) {
 }
 
 export async function deriveSessionAttribution(read, entry) {
-  const latestEntry = await getLatestStoredEntry(read);
+  const latestEntry = await getLatestStoredEntry(read, 'capture', {
+    excludeIds: [entry.id],
+  });
 
   if (latestEntry && latestEntry.id !== entry.id) {
     const gapMs = Date.parse(entry.createdAt) - Date.parse(latestEntry.createdAt);

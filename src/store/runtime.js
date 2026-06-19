@@ -551,8 +551,8 @@ export async function getSingleNeighborId(read, nodeId, direction, label) {
   return result.nodes?.[0]?.id ?? null;
 }
 
-export async function getLatestStoredEntry(read, kind = 'capture') {
-  const latestId = await getLatestIdByKind(read, kind);
+export async function getLatestStoredEntry(read, kind = 'capture', options = {}) {
+  const latestId = await getLatestIdByKind(read, kind, options);
   return latestId ? await getStoredEntry(read, latestId) : null;
 }
 
@@ -580,12 +580,12 @@ export async function* iterateRecentStoredEntries(read, { kind = 'capture', limi
   }
 }
 
-async function getLatestIdByKind(read, kind) {
+async function getLatestIdByKind(read, kind, options = {}) {
   if (kind !== 'capture') {
     return null;
   }
 
-  return await getLatestCaptureId(read);
+  return await getLatestCaptureId(read, options);
 }
 
 export async function readNodeText(read, nodeId, props = null) {
@@ -614,16 +614,18 @@ async function readNodeContentOid(read, nodeId) {
   return typeof contentMeta?.oid === 'string' ? contentMeta.oid : null;
 }
 
-export async function getLatestCaptureId(read) {
+export async function getLatestCaptureId(read, { excludeIds = [] } = {}) {
   const result = await read.view.query()
     .match(getMatchPatternsForKind('capture'))
     .where({ kind: 'capture' })
     .run();
-  return latestCaptureNodeId(result.nodes ?? []);
+  return latestCaptureNodeId(result.nodes ?? [], { excludeIds });
 }
 
-function latestCaptureNodeId(nodes) {
+function latestCaptureNodeId(nodes, { excludeIds = [] } = {}) {
+  const excludedIds = new Set(excludeIds);
   const [latest] = nodes
+    .filter((node) => !excludedIds.has(node.id))
     .map((node) => ({
       id: node.id,
       sortKey: String(node.props?.sortKey ?? ''),
