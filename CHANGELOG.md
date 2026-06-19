@@ -12,6 +12,8 @@ Release discipline:
 
 ## Unreleased
 
+## [0.7.1] - 2026-06-19
+
 - added a Runtime Truth ratchet to `npm run lint`, including strict-limit baseline enforcement and a generic source-error guard
 - added the Think-on-Echo proof seam with a model-derived GraphQL memory contract, Echo/Wesley capability probe, and pinned Think memory data model
 - fixed MCP capture to return after the raw local save when post-save graph follow-through is slow, matching the CLI trapdoor behavior
