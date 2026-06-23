@@ -102,16 +102,29 @@ export async function main(argv, { stdout, stderr, stdin }) {
     return exitCode;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    const hint = resolveUnexpectedErrorHint(message);
+    const renderedMessage = hint ? `${message}\nHint: ${hint}` : message;
     const code = error instanceof ThinkError ? error.code : 'UNEXPECTED_ERROR';
-    reporter.event('cli.error', { command, message, code });
+    reporter.event('cli.error', { command, message, code, ...(hint ? { hint } : {}) });
 
     if (error instanceof ThinkError) {
       output.error(message, `cli.${code.toLowerCase()}`, { command });
     } else if (options.json) {
-      output.error(message, 'cli.unexpected_error', { command });
+      output.error(renderedMessage, 'cli.unexpected_error', { command, ...(hint ? { hint } : {}) });
     } else {
-      output.error(`Something went wrong: ${message}`);
+      output.error(`Something went wrong: ${renderedMessage}`);
     }
     return 1;
   }
+}
+
+function resolveUnexpectedErrorHint(message) {
+  if (
+    message.includes('Git write failed') &&
+    message.includes('Git command failed with code 128')
+  ) {
+    return 'Think could not write to its git-backed mind repository. If this command is running inside a sandboxed agent, grant full filesystem access or allow writes to the relevant ~/.think/<agent> directory, then retry.';
+  }
+
+  return null;
 }
