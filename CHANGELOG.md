@@ -12,6 +12,12 @@ Release discipline:
 
 ## Unreleased
 
+## [0.7.2] - 2026-06-23
+
+- added feature proposal packets for History product boundaries, Browse memory workbench, followthrough job queue, agent-native memory API, and evidence-bound enrichment
+- improved unexpected git write failures with a permission-oriented hint for sandboxed agents that cannot write to their `~/.think/<agent>` mind repository
+- marked the `think-mcp` package binary executable so local installs preserve the expected CLI entrypoint mode
+
 ## [0.7.1] - 2026-06-19
 
 - added a Runtime Truth ratchet to `npm run lint`, including strict-limit baseline enforcement and a generic source-error guard

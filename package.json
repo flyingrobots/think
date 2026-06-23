@@ -1,7 +1,7 @@
 {
   "name": "think",
   "private": true,
-  "version": "0.7.1",
+  "version": "0.7.2",
   "type": "module",
   "description": "Capture raw thoughts instantly. Revisit them later.",
   "license": "Apache-2.0",
