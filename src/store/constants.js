@@ -21,7 +21,9 @@ export const ANNOTATION_PREFIX = 'annotation:';
 export const LINK_PREFIX = 'link:';
 export const EVOLUTION_PREFIX = 'evolution:';
 export const PIPELINE_RUN_PREFIX = 'pipeline_run:';
+export const READ_MODEL_PREFIX = 'read_model:';
 export const GRAPH_META_ID = 'meta:graph';
+export const CAPTURE_READ_MODEL_ID = `${READ_MODEL_PREFIX}capture:index`;
 
 // Standing classification node IDs
 export const CLASSIFICATIONS = Object.freeze([
@@ -58,6 +60,7 @@ export const PRODUCT_READ_LENS = {
     `${LINK_PREFIX}*`,
     `${EVOLUTION_PREFIX}*`,
     `${PIPELINE_RUN_PREFIX}*`,
+    `${READ_MODEL_PREFIX}*`,
   ],
 };
 export const CHALLENGE_PROMPTS = [

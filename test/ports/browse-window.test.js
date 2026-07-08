@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { stringifyJson } from '../../src/json.js';
+import { CAPTURE_READ_MODEL_ID } from '../../src/store/constants.js';
 import { getBrowseWindowForRead } from '../../src/store.js';
 
 const ENCODER = new TextEncoder();
@@ -53,10 +55,22 @@ function createCaptureRead(entries) {
     repoDir: '/tmp/think-fake-read',
     view: {
       getNodeProps(nodeId) {
+        if (nodeId === CAPTURE_READ_MODEL_ID) {
+          return {
+            kind: 'capture_read_model',
+            latestCaptureId: entries[0]?.id ?? null,
+            totalCaptures: entries.length,
+            recentCaptureRefsJson: stringifyJson(entries.map((entry) => ({
+              id: entry.id,
+              createdAt: entry.props.createdAt,
+              sortKey: entry.props.sortKey,
+            }))),
+          };
+        }
         return propsById.get(nodeId) ?? null;
       },
       query() {
-        return createCaptureQuery(entries);
+        throw new Error('Expected browse window to use bounded read-model refs, not graph queries.');
       },
     },
     readContent(nodeId) {
@@ -64,30 +78,4 @@ function createCaptureRead(entries) {
       return ENCODER.encode(textById.get(nodeId) ?? '');
     },
   };
-}
-
-function createCaptureQuery(entries) {
-  const query = {
-    incoming() {
-      return query;
-    },
-    match() {
-      return query;
-    },
-    outgoing() {
-      return query;
-    },
-    run() {
-      return {
-        nodes: entries.map((entry) => ({
-          id: entry.id,
-          props: entry.props,
-        })),
-      };
-    },
-    where() {
-      return query;
-    },
-  };
-  return query;
 }

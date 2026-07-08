@@ -10,6 +10,7 @@ import {
 } from './runtime.js';
 import { ensureCaptureReadEdges, ensureFirstDerivedArtifacts } from './derivation.js';
 import { migrateGraphModel } from './migrations.js';
+import { applyCaptureReadModelPatch } from './read-model.js';
 
 export async function saveRawCapture(repoDir, thought, {
   provenance = null,
@@ -28,34 +29,64 @@ async function writeRawCapture(repoDir, thought, {
   const worldline = await openThinkWorldline(repoDir);
   const entry = createEntry(thought, worldline.writerId, { kind: 'capture', source: 'capture' });
   const captureProvenance = normalizeCaptureProvenance(provenance);
-
-  const patcher = async (patch) => {
-    patch
-      .addNode(entry.id)
-      .setProperty(entry.id, 'kind', entry.kind)
-      .setProperty(entry.id, 'source', entry.source)
-      .setProperty(entry.id, 'channel', entry.channel)
-      .setProperty(entry.id, 'writerId', entry.writerId)
-      .setProperty(entry.id, 'createdAt', entry.createdAt)
-      .setProperty(entry.id, 'sortKey', entry.sortKey);
-
-    applyAmbientContextPatch(patch, entry.id, ambientContext);
-    if (captureProvenance?.ingress) {
-      patch.setProperty(entry.id, 'captureIngress', captureProvenance.ingress);
-    }
-    if (captureProvenance?.sourceApp) {
-      patch.setProperty(entry.id, 'captureSourceApp', captureProvenance.sourceApp);
-    }
-    if (captureProvenance?.sourceURL) {
-      patch.setProperty(entry.id, 'captureSourceURL', captureProvenance.sourceURL);
-    }
-
-    await patch.attachContent(entry.id, encodeTextContent(thought), { mime: TEXT_MIME });
-  };
+  const patcher = createRawCapturePatcher(repoDir, entry, thought, {
+    ambientContext,
+    captureProvenance,
+  });
 
   await commitThinkWorldline(repoDir, patcher);
 
   return entry;
+}
+
+function createRawCapturePatcher(repoDir, entry, thought, { ambientContext, captureProvenance }) {
+  return async (patch) => {
+    const read = await openProductReadHandle(repoDir);
+    const { previousLatestRef } = await applyCaptureReadModelPatch(patch, read, entry, { ambientContext });
+
+    applyRawCapturePatch(patch, entry, {
+      ambientContext,
+      captureProvenance,
+      previousLatestRef,
+    });
+    await patch.attachContent(entry.id, encodeTextContent(thought), { mime: TEXT_MIME });
+  };
+}
+
+function applyRawCapturePatch(patch, entry, { ambientContext, captureProvenance, previousLatestRef }) {
+  patch
+    .addNode(entry.id)
+    .setProperty(entry.id, 'kind', entry.kind)
+    .setProperty(entry.id, 'source', entry.source)
+    .setProperty(entry.id, 'channel', entry.channel)
+    .setProperty(entry.id, 'writerId', entry.writerId)
+    .setProperty(entry.id, 'createdAt', entry.createdAt)
+    .setProperty(entry.id, 'sortKey', entry.sortKey);
+
+  applyAmbientContextPatch(patch, entry.id, ambientContext);
+  applyCaptureProvenancePatch(patch, entry.id, captureProvenance);
+  applyChronologyPatch(patch, entry.id, previousLatestRef);
+}
+
+function applyCaptureProvenancePatch(patch, entryId, captureProvenance) {
+  if (captureProvenance?.ingress) {
+    patch.setProperty(entryId, 'captureIngress', captureProvenance.ingress);
+  }
+  if (captureProvenance?.sourceApp) {
+    patch.setProperty(entryId, 'captureSourceApp', captureProvenance.sourceApp);
+  }
+  if (captureProvenance?.sourceURL) {
+    patch.setProperty(entryId, 'captureSourceURL', captureProvenance.sourceURL);
+  }
+}
+
+function applyChronologyPatch(patch, entryId, previousLatestRef) {
+  if (!previousLatestRef) {
+    return;
+  }
+
+  patch.addEdge(entryId, previousLatestRef.id, 'older');
+  patch.addEdge(previousLatestRef.id, entryId, 'newer');
 }
 
 export async function finalizeCapturedThought(repoDir, entryId, {
@@ -119,7 +150,14 @@ function applyAmbientContextPatch(patch, entryId, ambientContext) {
 }
 
 async function patchAmbientContext(repoDir, entryId, ambientContext) {
-  const patcher = (patch) => {
+  const patcher = async (patch) => {
+    const read = await openProductReadHandle(repoDir);
+    const props = await read.view.getNodeProps(entryId);
+    await applyCaptureReadModelPatch(patch, read, {
+      id: entryId,
+      ...(props ?? {}),
+    }, { ambientContext });
+
     applyAmbientContextPatch(patch, entryId, ambientContext);
   };
 

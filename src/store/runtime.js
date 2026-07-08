@@ -20,6 +20,7 @@ import {
   createWriterId,
   storesTextContent,
 } from './model.js';
+import { readCaptureReadModel } from './read-model.js';
 
 export class GenericEntry {
   constructor(nodeId, resolvedProps, text) {
@@ -337,7 +338,10 @@ function getMatchPatternsForKind(kind) {
 }
 
 export async function listChronologyEntries(read) {
-  const captures = await listEntriesByKind(read, 'capture');
+  const captures = await listRecentStoredEntries(read, {
+    kind: 'capture',
+    limit: Number.MAX_SAFE_INTEGER,
+  });
   return captures
     .map(toBrowseEntry)
     .sort(compareEntriesNewestFirst);
@@ -370,13 +374,8 @@ export async function* iterateRecentStoredEntries(read, { kind = 'capture', limi
     return;
   }
 
-  const candidates = await listEntryPropsByKind(read, kind);
-  for (const candidate of candidates.sort(compareEntriesNewestFirst).slice(0, maxEntries)) {
-    // eslint-disable-next-line no-await-in-loop -- bounded retrieval of selected recent entries
-    const entry = await getStoredEntry(read, candidate.id, candidate);
-    if (entry && entry.kind === kind) {
-      yield entry;
-    }
+  for (const entry of await listRecentCandidateEntries(read, { kind, limit: maxEntries })) {
+    yield entry;
   }
 }
 
@@ -415,23 +414,9 @@ async function readNodeContentOid(read, nodeId) {
 }
 
 export async function getLatestCaptureId(read, { excludeIds = [] } = {}) {
-  const result = await read.view.query()
-    .match(getMatchPatternsForKind('capture'))
-    .where({ kind: 'capture' })
-    .run();
-  return latestCaptureNodeId(result.nodes ?? [], { excludeIds });
-}
-
-function latestCaptureNodeId(nodes, { excludeIds = [] } = {}) {
+  const index = await readCaptureReadModel(read);
   const excludedIds = new Set(excludeIds);
-  const [latest] = nodes
-    .filter((node) => !excludedIds.has(node.id))
-    .map((node) => ({
-      id: node.id,
-      sortKey: String(node.props?.sortKey ?? ''),
-    }))
-    .sort(compareEntriesNewestFirst);
-  return latest?.id ?? null;
+  return index.refs.find((ref) => !excludedIds.has(ref.id))?.id ?? null;
 }
 
 export async function getProducedInSessionId(read, entry) {
@@ -477,7 +462,13 @@ export async function resolveHistorySessionTraversal(read, entry) {
 export const resolveGraphSessionTraversal = resolveHistorySessionTraversal;
 
 async function listHistorySessionBrowseEntries(read, entry) {
-  const captureProps = await listEntryPropsByKind(read, 'capture');
+  if (!entry.sessionId) {
+    return [];
+  }
+
+  const captureProps = await listIndexedCaptureProps(read, {
+    limit: Number.MAX_SAFE_INTEGER,
+  });
   const sessionEntryProps = resolveHistorySessionEntries(captureProps, entry);
   const sessionEntries = [];
 
@@ -509,4 +500,112 @@ function emptySessionTraversal() {
     previous: null,
     next: null,
   };
+}
+
+export async function listIndexedCaptureProps(read, { limit = 50 } = {}) {
+  const index = await readCaptureReadModel(read);
+  const maxEntries = Number.isInteger(limit) ? Math.max(0, limit) : 50;
+  const props = [];
+
+  for (const ref of index.refs.slice(0, maxEntries)) {
+    // eslint-disable-next-line no-await-in-loop -- exact bounded read per indexed capture
+    const captureProps = await read.view.getNodeProps(ref.id);
+    if (captureProps?.kind === 'capture') {
+      props.push(Object.freeze({
+        id: ref.id,
+        ...captureProps,
+      }));
+    }
+  }
+
+  return props.sort(compareEntriesNewestFirst);
+}
+
+export async function listStoredEntriesByRefs(read, refs, { limit = 50, kind = 'capture' } = {}) {
+  const maxEntries = Number.isInteger(limit) ? Math.max(0, limit) : 50;
+  const entries = await hydrateStoredEntriesByRefs(read, refs.slice(0, maxEntries), kind);
+  return entries.sort(compareEntriesNewestFirst);
+}
+
+async function listRecentCandidateEntries(read, { kind, limit }) {
+  const candidates = await listRecentCandidateProps(read, { kind, limit });
+  const entries = [];
+
+  for (const candidate of candidates.sort(compareEntriesNewestFirst).slice(0, limit)) {
+    // eslint-disable-next-line no-await-in-loop -- exact bounded read per indexed capture
+    const entry = await getStoredEntry(read, candidate.id, candidate);
+    if (entry && entry.kind === kind) {
+      entries.push(entry);
+    }
+  }
+
+  return entries;
+}
+
+async function listRecentCandidateProps(read, { kind, limit }) {
+  if (kind === 'capture') {
+    return await listIndexedCaptureProps(read, { limit });
+  }
+
+  return await listEntryPropsByKind(read, kind);
+}
+
+async function hydrateStoredEntriesByRefs(read, refs, kind) {
+  const entries = [];
+
+  for (const ref of refs) {
+    // eslint-disable-next-line no-await-in-loop -- exact bounded read per indexed capture
+    const entry = await getStoredEntry(read, ref.id);
+    if (isRequestedEntryKind(entry, kind)) {
+      entries.push(entry);
+    }
+  }
+
+  return entries;
+}
+
+function isRequestedEntryKind(entry, kind) {
+  return Boolean(entry) && (!kind || entry.kind === kind);
+}
+
+export async function getChronologyNeighborEntries(read, currentEntry) {
+  const indexedNeighbors = await getIndexedChronologyNeighborEntries(read, currentEntry);
+  if (indexedNeighbors.found) {
+    return Object.freeze({
+      newer: indexedNeighbors.newer,
+      older: indexedNeighbors.older,
+    });
+  }
+
+  return Object.freeze({
+    newer: await hydrateChronologyNeighborByEdge(read, currentEntry.id, 'newer'),
+    older: await hydrateChronologyNeighborByEdge(read, currentEntry.id, 'older'),
+  });
+}
+
+async function getIndexedChronologyNeighborEntries(read, currentEntry) {
+  const index = await readCaptureReadModel(read);
+  const currentIndex = index.refs.findIndex((ref) => ref.id === currentEntry.id);
+  if (currentIndex < 0) {
+    return Object.freeze({ found: false, newer: null, older: null });
+  }
+
+  return Object.freeze({
+    found: true,
+    newer: await hydrateChronologyNeighbor(read, index.refs[currentIndex - 1] ?? null),
+    older: await hydrateChronologyNeighbor(read, index.refs[currentIndex + 1] ?? null),
+  });
+}
+
+async function hydrateChronologyNeighbor(read, ref) {
+  return ref ? await getStoredEntry(read, ref.id) : null;
+}
+
+async function hydrateChronologyNeighborByEdge(read, entryId, label) {
+  const result = await read.view.query()
+    .match(entryId)
+    .outgoing(label)
+    .run();
+  const neighborId = result.nodes?.[0]?.id ?? null;
+  return neighborId ? await getStoredEntry(read, neighborId) : null;
 }

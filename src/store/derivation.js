@@ -146,25 +146,17 @@ export async function ensureCaptureReadEdges(repoDir, read, entryId) {
     return;
   }
 
-  const captures = (await listEntriesByKind(read, 'capture')).sort(compareEntriesNewestFirst);
-  const entryIndex = captures.findIndex((capture) => capture.id === entry.id);
-  const newerEntry = entryIndex > 0 ? captures[entryIndex - 1] : null;
-  const olderEntry = entryIndex >= 0 ? captures[entryIndex + 1] ?? null : null;
+  const olderEntry = await getLatestStoredEntry(read, 'capture', {
+    excludeIds: [entry.id],
+  });
 
-  if (!newerEntry && !olderEntry) {
+  if (!olderEntry) {
     return;
   }
 
   await commitThinkWorldline(repoDir, (patch) => {
-    if (newerEntry) {
-      patch.addEdge(newerEntry.id, entry.id, 'older');
-      patch.addEdge(entry.id, newerEntry.id, 'newer');
-    }
-
-    if (olderEntry) {
-      patch.addEdge(entry.id, olderEntry.id, 'older');
-      patch.addEdge(olderEntry.id, entry.id, 'newer');
-    }
+    patch.addEdge(entry.id, olderEntry.id, 'older');
+    patch.addEdge(olderEntry.id, entry.id, 'newer');
   });
 }
 

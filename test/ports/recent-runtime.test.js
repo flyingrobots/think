@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { stringifyJson } from '../../src/json.js';
+import { CAPTURE_READ_MODEL_ID } from '../../src/store/constants.js';
 import { listRecentStoredEntries } from '../../src/store/runtime.js';
 
 test('listRecentStoredEntries does not traverse older edges beyond the requested limit', async () => {
@@ -10,6 +12,7 @@ test('listRecentStoredEntries does not traverse older edges beyond the requested
 
   assert.deepEqual(entries.map((entry) => entry.id), ['entry:newest']);
   assert.equal(read.olderLookups, 0, 'Expected limit=1 not to traverse the older chain.');
+  assert.equal(read.queryCalls, 0, 'Expected recent reads to avoid graph queries entirely.');
 });
 
 test('listRecentStoredEntries hydrates only the requested sorted capture window', async () => {
@@ -19,12 +22,13 @@ test('listRecentStoredEntries hydrates only the requested sorted capture window'
 
   assert.deepEqual(entries.map((entry) => entry.id), ['entry:newest', 'entry:middle']);
   assert.equal(read.olderLookups, 0, 'Expected recent reads to sort capture props without traversing older edges.');
+  assert.equal(read.queryCalls, 0, 'Expected recent reads to hydrate exact indexed capture IDs.');
 });
 
 function createFakeChronologyRead(ids) {
   const propsById = createFakePropsById(ids);
   const textById = new Map(ids.map((id) => [id, `text for ${id}`]));
-  const read = { olderLookups: 0 };
+  const read = { olderLookups: 0, queryCalls: 0 };
 
   read.view = createFakeChronologyView(ids, propsById, read);
   read.readContent = (nodeId) => new TextEncoder().encode(textById.get(nodeId) ?? '');
@@ -43,9 +47,22 @@ function createFakePropsById(ids) {
 function createFakeChronologyView(ids, propsById, read) {
   return {
     query() {
+      read.queryCalls += 1;
       return createFakeChronologyQuery(ids, propsById, read);
     },
     getNodeProps(nodeId) {
+      if (nodeId === CAPTURE_READ_MODEL_ID) {
+        return {
+          kind: 'capture_read_model',
+          latestCaptureId: ids[0] ?? null,
+          totalCaptures: ids.length,
+          recentCaptureRefsJson: stringifyJson(ids.map((id) => ({
+            id,
+            createdAt: propsById.get(id).createdAt,
+            sortKey: propsById.get(id).sortKey,
+          }))),
+        };
+      }
       return propsById.get(nodeId) ?? null;
     },
   };

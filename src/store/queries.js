@@ -1,8 +1,5 @@
 import { getPromptMetricsFile } from '../paths.js';
-import {
-  ENTRY_PREFIX,
-  KEYWORD_PREFIX,
-} from './constants.js';
+import { KEYWORD_PREFIX } from './constants.js';
 import {
   compareEntriesNewestFirst,
   formatBucketKey,
@@ -28,15 +25,20 @@ import {
 import {
   getLatestCaptureId,
   getStoredEntry,
-  iterateRecentStoredEntries,
+  getChronologyNeighborEntries,
+  listIndexedCaptureProps,
   listChronologyEntries,
-  listEntryPropsByKind,
-  listEntriesByKind,
   listRecentStoredEntries,
+  listStoredEntriesByRefs,
   openProductReadHandle,
   resolveHistorySessionTraversal,
   toBrowseEntry,
 } from './runtime.js';
+import {
+  CAPTURE_READ_MODEL_LIMIT,
+  readAmbientCaptureRefs,
+  readCaptureReadModel,
+} from './read-model.js';
 import {
   assessReflectability,
   ensureFirstDerivedArtifacts,
@@ -112,73 +114,12 @@ export async function rememberThoughtsForRead(
 ) {
   const limitValue = limit ?? DEFAULT_RECENT_LIMIT;
 
-  // 1. If there's an explicit query, try the graph-native inverted index first (O(1))
+  // 1. If there's an explicit query, filter the bounded recent read model.
   if (query && String(query).trim() !== '') {
     const explicitScope = buildExplicitRememberScope(query);
-    const queryTerms = query.toLowerCase().split(/\s+/).filter(Boolean);
     const indexMatches = new Map();
-
-    // Use Trie for prefix matching on query terms
-    const trie = await loadSearchIndex(read.repoDir);
-    const expandedKeywords = new Map(); // keyword -> distance
-
-    for (const term of queryTerms) {
-      const prefixMatches = trie.search(term);
-      for (const m of prefixMatches) {
-        expandedKeywords.set(m, 0); // Exact or prefix match has distance 0
-      }
-
-      // If we don't have many matches, try fuzzy (edit distance)
-      if (prefixMatches.length < 10) {
-        const fuzzyMatches = trie.searchFuzzy(term, term.length > 4 ? 2 : 1);
-        for (const { keyword, distance } of fuzzyMatches) {
-          if (!expandedKeywords.has(keyword) || distance < expandedKeywords.get(keyword)) {
-            expandedKeywords.set(keyword, distance);
-          }
-        }
-      }
-    }
-
-    for (const [keyword, distance] of expandedKeywords) {
-      const keywordNodeId = `${KEYWORD_PREFIX}${keyword}`;
-      // eslint-disable-next-line no-await-in-loop -- sequential keyword index lookup
-      const traversal = await read.view.query().match(keywordNodeId).incoming('mentions').run();
-
-      for (const node of traversal.nodes ?? []) {
-        if (!indexMatches.has(node.id)) {
-          // eslint-disable-next-line no-await-in-loop -- sequential retrieval of indexed thoughts
-          const entry = await getStoredEntry(read, node.id);
-          if (entry) {
-            const match = buildExplicitRememberMatch({
-              ...entry,
-              ambientCwd: entry.ambientCwd ?? null,
-              ambientGitRoot: entry.ambientGitRoot ?? null,
-              ambientGitRemote: entry.ambientGitRemote ?? null,
-              ambientGitBranch: entry.ambientGitBranch ?? null,
-            }, explicitScope);
-
-            if (match) {
-              // Adjust score based on fuzzy distance
-              const fuzzyAdjustedMatch = {
-                ...match,
-                score: match.score - (distance * 0.1), // Typos rank slightly lower
-              };
-              indexMatches.set(node.id, fuzzyAdjustedMatch);
-            }
-          }
-        }
-      }
-    }
-
-    // Merge the graph-native index with a recent text scan. The keyword index
-    // can be partial when recent captures have not been enriched yet, so any
-    // indexed hit is useful but not authoritative.
-    const chronologyList = await listRecentStoredEntries(read, { limit: 2000 });
+    const chronologyList = await listRecentStoredEntries(read, { limit: CAPTURE_READ_MODEL_LIMIT });
     for (const entry of chronologyList) {
-      if (indexMatches.has(entry.id)) {
-        continue;
-      }
-
       const match = buildExplicitRememberMatch({
         ...entry,
         ambientCwd: entry.ambientCwd ?? null,
@@ -203,7 +144,9 @@ export async function rememberThoughtsForRead(
   // 2. Ambient remember (cwd-based)
   const ambientScope = buildAmbientRememberScope(cwd);
   const indexedAmbient = await listIndexedAmbientMatches(read, ambientScope, {
-    limit: Number.isInteger(limitValue) ? limitValue : DEFAULT_RECENT_LIMIT,
+    limit: Number.isInteger(limitValue)
+      ? Math.max(limitValue, DEFAULT_RECENT_LIMIT)
+      : DEFAULT_RECENT_LIMIT,
   });
   const ambientMatches = [...indexedAmbient.matches];
   const seenAmbientIds = new Set(indexedAmbient.seenIds);
@@ -217,7 +160,8 @@ export async function rememberThoughtsForRead(
     });
   }
 
-  for await (const entry of iterateRecentStoredEntries(read, { limit: 2000 })) {
+  const recentFallback = await listRecentStoredEntries(read, { limit: CAPTURE_READ_MODEL_LIMIT });
+  for (const entry of recentFallback) {
     if (seenAmbientIds.has(entry.id)) {
       continue;
     }
@@ -253,30 +197,21 @@ export async function rememberThoughtsForRead(
 }
 
 async function listIndexedAmbientMatches(read, scope, { limit }) {
-  const candidates = new Map();
-  await collectAmbientCandidates(read, candidates, 'ambientGitRemote', scope.gitRemote);
-  await collectAmbientCandidates(read, candidates, 'ambientGitRoot', scope.gitRoot);
-  await collectAmbientCandidates(read, candidates, 'ambientCwd', scope.cwd);
-
-  const sortedCandidates = [...candidates.values()]
-    .sort(compareEntriesNewestFirst)
-    .slice(0, limit);
+  const sortedCandidateRefs = await readAmbientCaptureRefs(read, scope, { limit });
+  const sortedCandidates = await listStoredEntriesByRefs(read, sortedCandidateRefs, {
+    limit,
+    kind: 'capture',
+  });
   const matches = [];
-  const seenIds = new Set(candidates.keys());
+  const seenIds = new Set(sortedCandidateRefs.map((ref) => ref.id));
 
   for (const candidate of sortedCandidates) {
-    // eslint-disable-next-line no-await-in-loop -- bounded retrieval of selected ambient candidates
-    const entry = await getStoredEntry(read, candidate.id, candidate);
-    if (!entry) {
-      continue;
-    }
-
     const match = buildAmbientRememberMatch({
-      ...entry,
-      ambientCwd: entry.ambientCwd ?? null,
-      ambientGitRoot: entry.ambientGitRoot ?? null,
-      ambientGitRemote: entry.ambientGitRemote ?? null,
-      ambientGitBranch: entry.ambientGitBranch ?? null,
+      ...candidate,
+      ambientCwd: candidate.ambientCwd ?? null,
+      ambientGitRoot: candidate.ambientGitRoot ?? null,
+      ambientGitRemote: candidate.ambientGitRemote ?? null,
+      ambientGitBranch: candidate.ambientGitBranch ?? null,
     }, scope);
     if (match) {
       matches.push(match);
@@ -289,33 +224,13 @@ async function listIndexedAmbientMatches(read, scope, { limit }) {
   });
 }
 
-async function collectAmbientCandidates(read, candidates, key, value) {
-  if (!value) {
-    return;
-  }
-
-  const result = await read.view.query()
-    .match(`${ENTRY_PREFIX}*`)
-    .where({ kind: 'capture', [key]: value })
-    .run();
-
-  for (const node of result.nodes ?? []) {
-    if (!candidates.has(node.id)) {
-      candidates.set(node.id, Object.freeze({
-        id: node.id,
-        ...(node.props ?? {}),
-      }));
-    }
-  }
-}
-
 export async function getStats(repoDir, { from, to, since, bucket } = {}) {
   const read = await openProductReadHandle(repoDir);
   return await getStatsForRead(read, { from, to, since, bucket });
 }
 
 export async function getStatsForRead(read, { from, to, since, bucket } = {}) {
-  const captures = await listEntryPropsByKind(read, 'capture');
+  const captures = await listIndexedCaptureProps(read, { limit: CAPTURE_READ_MODEL_LIMIT });
   return statsFromCaptures(captures, { from, to, since, bucket });
 }
 
@@ -392,22 +307,18 @@ export async function getPromptMetrics({ from, to, since, bucket } = {}) {
 export async function listRecent(repoDir, { count = null, query = null } = {}) {
   const limit = count ?? DEFAULT_RECENT_LIMIT;
   const read = await openProductReadHandle(repoDir);
+  const index = await readCaptureReadModel(read);
 
-  // Recent output reports the total capture count, so use the authoritative
-  // capture set instead of derived chronology edges.
   if (!query) {
-    const unfilteredRecent = (await listEntriesByKind(read, 'capture'))
-      .map(toBrowseEntry)
-      .sort(compareEntriesNewestFirst);
+    const unfilteredRecent = (await listRecentStoredEntries(read, { limit }))
+      .map(toBrowseEntry);
     return Object.freeze({
-      entries: unfilteredRecent.slice(0, limit),
-      total: unfilteredRecent.length,
+      entries: unfilteredRecent,
+      total: index.totalCaptures,
     });
   }
 
-  // If there is a query, we still need to filter.
-  // Future optimization: windowed search traversal.
-  const captures = await listEntriesByKind(read, 'capture');
+  const captures = await listRecentStoredEntries(read, { limit: CAPTURE_READ_MODEL_LIMIT });
   const recent = captures
     .map(entry => ({
       id: entry.id,
@@ -599,19 +510,6 @@ async function buildBrowseWindow(read, entryId) {
   });
 }
 
-async function resolveChronologyNeighbors(read, currentEntry) {
-  const entries = (await listEntryPropsByKind(read, 'capture')).sort(compareEntriesNewestFirst);
-  const index = entries.findIndex((entry) => entry.id === currentEntry.id);
-  if (index < 0) {
-    return Object.freeze({ older: null, newer: null });
-  }
-
-  return Object.freeze({
-    newer: await hydrateChronologyNeighbor(read, entries[index - 1] ?? null),
-    older: await hydrateChronologyNeighbor(read, entries[index + 1] ?? null),
-  });
-}
-
-async function hydrateChronologyNeighbor(read, props) {
-  return props ? await getStoredEntry(read, props.id, props) : null;
+function resolveChronologyNeighbors(read, currentEntry) {
+  return getChronologyNeighborEntries(read, currentEntry);
 }
