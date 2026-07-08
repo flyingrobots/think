@@ -29,14 +29,12 @@ import {
   listIndexedCaptureProps,
   listChronologyEntries,
   listRecentStoredEntries,
-  listStoredEntriesByRefs,
   openProductReadHandle,
   resolveHistorySessionTraversal,
   toBrowseEntry,
 } from './runtime.js';
 import {
   CAPTURE_READ_MODEL_LIMIT,
-  readAmbientCaptureRefs,
   readCaptureReadModel,
 } from './read-model.js';
 import {
@@ -143,29 +141,11 @@ export async function rememberThoughtsForRead(
 
   // 2. Ambient remember (cwd-based)
   const ambientScope = buildAmbientRememberScope(cwd);
-  const indexedAmbient = await listIndexedAmbientMatches(read, ambientScope, {
-    limit: Number.isInteger(limitValue)
-      ? Math.max(limitValue, DEFAULT_RECENT_LIMIT)
-      : DEFAULT_RECENT_LIMIT,
-  });
-  const ambientMatches = [...indexedAmbient.matches];
-  const seenAmbientIds = new Set(indexedAmbient.seenIds);
-  let topTierMatches = ambientMatches.filter((match) => match.tier === 3).length;
+  const ambientMatches = [];
+  const recentCaptures = await listRecentStoredEntries(read, { limit: CAPTURE_READ_MODEL_LIMIT });
+  let topTierMatches = 0;
 
-  if (Number.isInteger(limitValue) && topTierMatches >= limitValue) {
-    ambientMatches.sort(compareRememberMatches);
-    return Object.freeze({
-      scope: Object.freeze({ ...ambientScope, brief, limit: limitValue }),
-      matches: finalizeRememberMatches(ambientMatches, { brief, limit: limitValue }),
-    });
-  }
-
-  const recentFallback = await listRecentStoredEntries(read, { limit: CAPTURE_READ_MODEL_LIMIT });
-  for (const entry of recentFallback) {
-    if (seenAmbientIds.has(entry.id)) {
-      continue;
-    }
-
+  for (const entry of recentCaptures) {
     const match = buildAmbientRememberMatch({
       ...entry,
       ambientCwd: entry.ambientCwd ?? null,
@@ -193,34 +173,6 @@ export async function rememberThoughtsForRead(
   return Object.freeze({
     scope: Object.freeze({ ...ambientScope, brief, limit: limitValue }),
     matches: finalizeRememberMatches(ambientMatches, { brief, limit: limitValue }),
-  });
-}
-
-async function listIndexedAmbientMatches(read, scope, { limit }) {
-  const sortedCandidateRefs = await readAmbientCaptureRefs(read, scope, { limit });
-  const sortedCandidates = await listStoredEntriesByRefs(read, sortedCandidateRefs, {
-    limit,
-    kind: 'capture',
-  });
-  const matches = [];
-  const seenIds = new Set(sortedCandidateRefs.map((ref) => ref.id));
-
-  for (const candidate of sortedCandidates) {
-    const match = buildAmbientRememberMatch({
-      ...candidate,
-      ambientCwd: candidate.ambientCwd ?? null,
-      ambientGitRoot: candidate.ambientGitRoot ?? null,
-      ambientGitRemote: candidate.ambientGitRemote ?? null,
-      ambientGitBranch: candidate.ambientGitBranch ?? null,
-    }, scope);
-    if (match) {
-      matches.push(match);
-    }
-  }
-
-  return Object.freeze({
-    matches,
-    seenIds,
   });
 }
 

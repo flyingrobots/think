@@ -51,7 +51,7 @@ test('no source file calls getNodes() or getEdges() for full graph materializati
   );
 });
 
-test('default ambient remember reads bounded manifests instead of graph queries', async () => {
+test('default ambient remember filters bounded recent captures instead of graph queries', async () => {
   const cwd = '/tmp/think-alpha-project';
   const matching = capture('entry:1780000002000-alpha', 'alpha project should stay fast', {
     ambientCwd: cwd,
@@ -66,9 +66,35 @@ test('default ambient remember reads bounded manifests instead of graph queries'
   assert.deepEqual(
     remembered.matches.map((match) => match.entryId),
     [matching.id],
-    'Expected ambient remember to exact-read the ambient read model and avoid graph-wide capture scans.'
+    'Expected ambient remember to score bounded recent captures and avoid graph-wide capture scans.'
   );
   assert.equal(read.queryCalls, 0, 'Expected default ambient remember not to call read.view.query().');
+});
+
+test('default ambient remember uses one fast capture record property when available', async () => {
+  const cwd = '/tmp/think-fast-project';
+  const matching = capture('entry:1780000002000-fast', 'fast project record should be enough', {
+    ambientCwd: cwd,
+  });
+  const other = capture('entry:1780000001000-other', 'unrelated lunch note should not rank', {
+    ambientCwd: '/tmp/think-other-project',
+  });
+  const read = createFastRecordRead([matching, other]);
+
+  const remembered = await rememberThoughtsForRead(read, { cwd, limit: 5 });
+
+  assert.deepEqual(
+    remembered.matches.map((match) => match.entryId),
+    [matching.id],
+    'Expected ambient remember to filter self-contained fast capture records.'
+  );
+  assert.deepEqual(
+    read.propReads,
+    [{ nodeId: CAPTURE_READ_MODEL_ID, key: 'fastCaptureRecordsJson' }],
+    'Expected default remember to read only the fast capture record property.'
+  );
+  assert.equal(read.nodePropCalls, 0, 'Expected fast record recall not to hydrate capture nodes.');
+  assert.equal(read.queryCalls, 0, 'Expected fast record recall not to call read.view.query().');
 });
 
 test('explicit remember filters bounded recent refs instead of bootstrapping keyword scans', async () => {
@@ -128,6 +154,34 @@ function createBoundedRead(entries, { ambientIndexes = [] } = {}) {
   return read;
 }
 
+function createFastRecordRead(entries) {
+  const read = {
+    nodePropCalls: 0,
+    propReads: [],
+    queryCalls: 0,
+    repoDir: '/tmp/think-fast-read',
+  };
+
+  read.readNodeProp = (nodeId, key) => {
+    read.propReads.push({ nodeId, key });
+    if (nodeId === CAPTURE_READ_MODEL_ID && key === 'fastCaptureRecordsJson') {
+      return stringifyJson(entries.map(entryRecord));
+    }
+    return undefined;
+  };
+  read.view = {
+    getNodeProps() {
+      read.nodePropCalls += 1;
+      throw new Error('Expected fast record recall not to hydrate graph nodes.');
+    },
+    query() {
+      read.queryCalls += 1;
+      throw new Error('Expected bounded recall to avoid read.view.query().');
+    },
+  };
+  return read;
+}
+
 function readModelProps(entries) {
   return {
     kind: 'capture_read_model',
@@ -151,5 +205,13 @@ function entryRef(entry) {
     id: entry.id,
     createdAt: entry.props.createdAt,
     sortKey: entry.props.sortKey,
+  };
+}
+
+function entryRecord(entry) {
+  return {
+    ...entryRef(entry),
+    ...entry.props,
+    text: entry.text,
   };
 }

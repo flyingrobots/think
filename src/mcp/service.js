@@ -39,7 +39,7 @@ import {
   StatsOutcome,
 } from './result.js';
 
-const CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS = 3_000;
+const CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS = 5_000;
 const CAPTURE_FOLLOWTHROUGH_DEFERRED = Object.freeze({ status: 'deferred' });
 const CAPTURE_FOLLOWTHROUGH_DEFERRED_WARNING =
   'Capture followthrough deferred; raw thought saved locally before derived graph updates completed.';
@@ -194,8 +194,6 @@ export async function rememberThoughtsForMcp({
       scope: buildRememberScope({ cwd, query, limit, brief }),
     });
   }
-
-  await assertGraphReady('remember');
 
   const remember = await rememberThoughts(repoDir, {
     cwd,

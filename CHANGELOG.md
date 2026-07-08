@@ -12,11 +12,12 @@ Release discipline:
 
 ## Unreleased
 
-- added bounded Think read-model facts for latest/recent captures and ambient
-  recall scopes so default `--remember`, `--recent`, and browse bootstrap hydrate
-  exact capture IDs instead of scanning `entry:*`
+- added bounded Think read-model facts for latest/recent captures plus
+  self-contained fast capture records so default `--remember`, `--recent`, and
+  browse bootstrap avoid scanning `entry:*`
 - added ratchet tests proving default ambient recall and explicit recall avoid
-  graph queries and keyword wildcard scans
+  graph queries, keyword wildcard scans, and capture-node hydration when fast
+  capture records are available
 - added a Hexagonal Boundary lint ratchet so product code cannot increase
   direct substrate-layout or `git-warp` runtime leakage
 - removed Think-managed `git-warp` cache/checkpoint reads, doctor checks, and

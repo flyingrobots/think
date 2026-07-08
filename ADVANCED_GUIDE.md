@@ -8,8 +8,8 @@ For orientation and the productive-fast path, use the [GUIDE.md](./GUIDE.md).
 
 Think uses bounded product read models to ensure recall and browse remain responsive as your archive grows.
 
-- **No Whole-Graph Materialization**: Default `browse`, `recent`, and `remember` paths read Think-owned latest/recent/ambient read-model facts, then hydrate exact capture IDs.
-- **Runtime-Owned Acceleration**: `git-warp` owns checkpoints, state-cache, snapshots, and materialization; Think stores domain facts such as "latest capture" and "recent captures for this ambient scope."
+- **No Whole-Graph Materialization**: Default `browse`, `recent`, and `remember` paths read Think-owned latest/recent read-model facts. Recall uses self-contained fast capture records so it does not hydrate capture nodes just to score ambient project matches.
+- **Runtime-Owned Acceleration**: `git-warp` owns checkpoints, state-cache, snapshots, and materialization; Think stores domain facts such as "latest capture" and "recent capture records."
 - **Immutable Raw Layer**: The core Git repository is the system of record. Raw thoughts are never modified after capture.
 
 ## Derivation Pipeline

@@ -53,7 +53,7 @@ function createRawCapturePatcher(entry, thought, { ambientContext, captureProven
 }
 
 function applyRawCapturePatch(patch, entry, { ambientContext, captureProvenance }) {
-  applyPendingCaptureReadModelPatch(patch, entry);
+  applyPendingCaptureReadModelPatch(patch, entry, { ambientContext });
   patch
     .addNode(entry.id)
     .setProperty(entry.id, 'kind', entry.kind)

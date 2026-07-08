@@ -20,7 +20,11 @@ import {
   createWriterId,
   storesTextContent,
 } from './model.js';
-import { readCaptureReadModel } from './read-model.js';
+import {
+  captureRecordToProps,
+  readCaptureReadModel,
+  readCaptureRecords,
+} from './read-model.js';
 
 export class GenericEntry {
   constructor(nodeId, resolvedProps, text) {
@@ -110,8 +114,10 @@ export class BaseEntry {
 
 const WRITER_CAS_CONFLICT_TEXT = 'writer ref was updated by another process';
 const DEFAULT_PATCH_MAX_ATTEMPTS = 3;
+const EXACT_READ_UNAVAILABLE = Symbol.for('think.exactReadUnavailable');
 const warpWorldlineCache = new Map();
 const runtimeBlobStorageCache = new Map();
+const opticBasisCache = new WeakMap();
 
 export async function openThinkWorldline(repoDir) {
   const cached = warpWorldlineCache.get(repoDir);
@@ -214,8 +220,61 @@ async function createWorldlineProductReadHandle({
     contentCore: null,
     blobStorage,
     readContent: null,
+    readNodeProp: createWorldlineExactPropReader(worldline),
     writerId: worldline.writerId,
   };
+}
+
+function createWorldlineExactPropReader(worldline) {
+  let basisPromise = null;
+
+  return async (nodeId, key) => {
+    if (opticBasisCache.get(worldline) === false) {
+      return EXACT_READ_UNAVAILABLE;
+    }
+
+    try {
+      basisPromise ??= prepareCachedOpticBasis(worldline);
+      await basisPromise;
+
+      const result = await worldline.optic().node(nodeId).prop(key).read();
+      return result.exists ? result.value : undefined;
+    } catch (error) {
+      if (isMissingBoundedOpticBasis(error)) {
+        return EXACT_READ_UNAVAILABLE;
+      }
+      throw error;
+    }
+  };
+}
+
+async function prepareCachedOpticBasis(worldline) {
+  const cached = opticBasisCache.get(worldline);
+  if (cached) {
+    return cached;
+  }
+
+  const basisPromise = worldline.prepareOpticBasis();
+  opticBasisCache.set(worldline, basisPromise);
+
+  try {
+    await basisPromise;
+    return basisPromise;
+  } catch (error) {
+    if (isMissingBoundedOpticBasis(error)) {
+      opticBasisCache.set(worldline, false);
+    } else {
+      opticBasisCache.delete(worldline);
+    }
+    throw error;
+  }
+}
+
+function isMissingBoundedOpticBasis(error) {
+  return error instanceof Error && (
+    error.code === 'E_OPTIC_NO_BOUNDED_BASIS' ||
+    error.message.includes('E_OPTIC_NO_BOUNDED_BASIS')
+  );
 }
 
 async function getRuntimeBlobStorage(repoDir) {
@@ -503,6 +562,19 @@ function emptySessionTraversal() {
 }
 
 export async function listIndexedCaptureProps(read, { limit = 50 } = {}) {
+  const records = await readCaptureRecords(read, { limit });
+  if (records.length > 0) {
+    return records
+      .map((record) => Object.freeze({
+        id: record.id,
+        ...captureRecordToProps(record),
+      }))
+      .sort(compareEntriesNewestFirst);
+  }
+  if (typeof read.readNodeProp === 'function') {
+    return [];
+  }
+
   const index = await readCaptureReadModel(read);
   const maxEntries = Number.isInteger(limit) ? Math.max(0, limit) : 50;
   const props = [];
@@ -528,6 +600,16 @@ export async function listStoredEntriesByRefs(read, refs, { limit = 50, kind = '
 }
 
 async function listRecentCandidateEntries(read, { kind, limit }) {
+  if (kind === 'capture') {
+    const recordEntries = await listRecentCaptureRecordEntries(read, { limit });
+    if (recordEntries.length > 0) {
+      return recordEntries;
+    }
+    if (typeof read.readNodeProp === 'function') {
+      return [];
+    }
+  }
+
   const candidates = await listRecentCandidateProps(read, { kind, limit });
   const entries = [];
 
@@ -540,6 +622,17 @@ async function listRecentCandidateEntries(read, { kind, limit }) {
   }
 
   return entries;
+}
+
+async function listRecentCaptureRecordEntries(read, { limit }) {
+  const records = await readCaptureRecords(read, { limit });
+  return records
+    .map(captureRecordToEntry)
+    .sort(compareEntriesNewestFirst);
+}
+
+function captureRecordToEntry(record) {
+  return new CaptureEntry(record.id, captureRecordToProps(record), record.text);
 }
 
 async function listRecentCandidateProps(read, { kind, limit }) {
