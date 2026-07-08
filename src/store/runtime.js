@@ -1,13 +1,9 @@
-import WarpApp, { GitGraphAdapter, openWarpGraph, openWarpWorldline } from '@git-stunts/git-warp';
+import { GitGraphAdapter, openWarpWorldline } from '@git-stunts/git-warp';
 
 import { resolveHistorySessionEntries } from '../history/session.js';
 import { createThinkPlumbing } from '../git.js';
-import { createAppContentReader } from './content-reader.js';
-import { openCheckpointProductRead } from './checkpoint-product-read.js';
-import { deleteCheckpointRef, isUnsupportedCheckpointSchemaError } from './checkpoint-state.js';
 import {
   ARTIFACT_PREFIX,
-  CHECKPOINT_POLICY,
   ENTRY_PREFIX,
   GRAPH_META_ID,
   GRAPH_MODEL_VERSION,
@@ -113,24 +109,8 @@ export class BaseEntry {
 
 const WRITER_CAS_CONFLICT_TEXT = 'writer ref was updated by another process';
 const DEFAULT_PATCH_MAX_ATTEMPTS = 3;
-const warpAppCache = new Map();
 const warpWorldlineCache = new Map();
 const runtimeBlobStorageCache = new Map();
-
-export async function openWarpApp(repoDir) {
-  const cached = warpAppCache.get(repoDir);
-  if (cached) {
-    return cached;
-  }
-
-  const app = await openWarpAppWithCheckpointRepair(repoDir, createWriterId());
-  warpAppCache.set(repoDir, app);
-  return app;
-}
-
-export async function openWarpGraphHandle(repoDir, writerId = createWriterId()) {
-  return await openWarpGraphWithCheckpointRepair(repoDir, writerId);
-}
 
 export async function openThinkWorldline(repoDir) {
   const cached = warpWorldlineCache.get(repoDir);
@@ -138,70 +118,9 @@ export async function openThinkWorldline(repoDir) {
     return cached;
   }
 
-  const worldline = await openThinkWorldlineWithCheckpointRepair(repoDir, createWriterId());
+  const worldline = await openThinkWorldlineOnce(repoDir, createWriterId());
   warpWorldlineCache.set(repoDir, worldline);
   return worldline;
-}
-
-async function openWarpAppWithCheckpointRepair(repoDir, writerId) {
-  try {
-    return await openWarpAppOnce(repoDir, writerId);
-  } catch (error) {
-    if (!isUnsupportedCheckpointSchemaError(error)) {
-      throw error;
-    }
-
-    await deleteCheckpointRef(repoDir);
-    return await openWarpAppOnce(repoDir, writerId);
-  }
-}
-
-async function openWarpGraphWithCheckpointRepair(repoDir, writerId) {
-  try {
-    return await openWarpGraphOnce(repoDir, writerId);
-  } catch (error) {
-    if (!isUnsupportedCheckpointSchemaError(error)) {
-      throw error;
-    }
-
-    await deleteCheckpointRef(repoDir);
-    return await openWarpGraphOnce(repoDir, writerId);
-  }
-}
-
-async function openThinkWorldlineWithCheckpointRepair(repoDir, writerId) {
-  try {
-    return await openThinkWorldlineOnce(repoDir, writerId);
-  } catch (error) {
-    if (!isUnsupportedCheckpointSchemaError(error)) {
-      throw error;
-    }
-
-    await deleteCheckpointRef(repoDir);
-    return await openThinkWorldlineOnce(repoDir, writerId);
-  }
-}
-
-async function openWarpAppOnce(repoDir, writerId) {
-  const persistence = createThinkWarpPersistence(repoDir);
-
-  return await WarpApp.open({
-    persistence,
-    graphName: GRAPH_NAME,
-    writerId,
-    checkpointPolicy: CHECKPOINT_POLICY,
-  });
-}
-
-async function openWarpGraphOnce(repoDir, writerId) {
-  const persistence = createThinkWarpPersistence(repoDir);
-
-  return await openWarpGraph({
-    persistence,
-    graphName: GRAPH_NAME,
-    writerId,
-    checkpointPolicy: CHECKPOINT_POLICY,
-  });
 }
 
 async function openThinkWorldlineOnce(repoDir, writerId) {
@@ -211,7 +130,6 @@ async function openThinkWorldlineOnce(repoDir, writerId) {
     persistence,
     worldlineName: GRAPH_NAME,
     writerId,
-    checkpointPolicy: CHECKPOINT_POLICY,
   });
 }
 
@@ -221,47 +139,9 @@ function createThinkWarpPersistence(repoDir) {
   });
 }
 
-export function clearWarpAppCache(repoDir) {
-  warpAppCache.delete(repoDir);
+export function clearWarpRuntimeCache(repoDir) {
   warpWorldlineCache.delete(repoDir);
-}
-
-export async function patchWarpApp(repoDir, patcher, {
-  genesisOnNoState = false,
-  maxAttempts = DEFAULT_PATCH_MAX_ATTEMPTS,
-  syncAfterPatch = true,
-} = {}) {
-  let attempt = 1;
-
-  /* eslint-disable no-await-in-loop -- retry attempts must run sequentially against a refreshed cached app */
-  while (true) {
-    const app = await openWarpApp(repoDir);
-
-    try {
-      try {
-        await app.patch(patcher);
-      } catch (error) {
-        if (!genesisOnNoState || error?.code !== 'E_NO_STATE') {
-          throw error;
-        }
-        await app.patch(patcher, { genesis: true });
-      }
-
-      if (syncAfterPatch) {
-        await app.syncWith(app.core());
-      }
-
-      return app;
-    } catch (error) {
-      if (!isWriterCasConflict(error) || attempt >= maxAttempts) {
-        throw error;
-      }
-
-      clearWarpAppCache(repoDir);
-      attempt += 1;
-    }
-  }
-  /* eslint-enable no-await-in-loop */
+  runtimeBlobStorageCache.delete(repoDir);
 }
 
 export async function commitThinkWorldline(repoDir, patcher, {
@@ -281,39 +161,25 @@ export async function commitThinkWorldline(repoDir, patcher, {
         throw error;
       }
 
-      clearWarpAppCache(repoDir);
+      clearWarpRuntimeCache(repoDir);
       attempt += 1;
     }
   }
   /* eslint-enable no-await-in-loop */
 }
 
-export async function patchWarpAppWithWriter(repoDir, writerId, patcher, {
-  genesisOnNoState = false,
+export async function commitThinkWorldlineWithWriter(repoDir, writerId, patcher, {
   maxAttempts = DEFAULT_PATCH_MAX_ATTEMPTS,
-  syncAfterPatch = true,
 } = {}) {
   let attempt = 1;
 
-  /* eslint-disable no-await-in-loop -- retry attempts must run sequentially against a refreshed app */
+  /* eslint-disable no-await-in-loop -- retry attempts must run sequentially against a refreshed worldline */
   while (true) {
-    const app = await openWarpAppUncached(repoDir, writerId);
+    const worldline = await openThinkWorldlineOnce(repoDir, writerId);
 
     try {
-      try {
-        await app.patch(patcher);
-      } catch (error) {
-        if (!genesisOnNoState || error?.code !== 'E_NO_STATE') {
-          throw error;
-        }
-        await app.patch(patcher, { genesis: true });
-      }
-
-      if (syncAfterPatch) {
-        await app.syncWith(app.core());
-      }
-
-      return app;
+      await worldline.commit(patcher);
+      return worldline;
     } catch (error) {
       if (!isWriterCasConflict(error) || attempt >= maxAttempts) {
         throw error;
@@ -325,96 +191,30 @@ export async function patchWarpAppWithWriter(repoDir, writerId, patcher, {
   /* eslint-enable no-await-in-loop */
 }
 
-async function openWarpAppUncached(repoDir, writerId) {
-  return await openWarpAppWithCheckpointRepair(repoDir, writerId);
-}
-
 export function isWriterCasConflict(error) {
   return error instanceof Error && error.message.includes(WRITER_CAS_CONFLICT_TEXT);
 }
 
-export async function createProductReadHandle(app, repoDir = null) {
-  if (repoDir) {
-    const checkpointRead = await tryOpenCheckpointProductRead(repoDir, app);
-    return await createWorldlineProductReadHandle({
-      app,
-      repoDir,
-      checkpointRead,
-    });
-  }
-
-  return await createCompatProductReadHandle(app);
-}
-
-async function createCompatProductReadHandle(app) {
-  const worldline = app.worldline();
-
-  return {
-    app,
-    repoDir: null,
-    worldline,
-    view: await worldline.observer('think-product', PRODUCT_READ_LENS),
-    contentCore: app.core(),
-    blobStorage: null,
-    readContent: createAppContentReader(app),
-    writerId: app.writerId,
-  };
-}
-
 export async function openProductReadHandle(repoDir) {
-  const checkpointRead = await tryOpenCheckpointProductRead(repoDir);
-  return await createWorldlineProductReadHandle({
-    repoDir,
-    checkpointRead,
-  });
+  return await createWorldlineProductReadHandle({ repoDir });
 }
 
 async function createWorldlineProductReadHandle({
-  app = null,
   repoDir,
-  checkpointRead = null,
 }) {
   const worldline = await openThinkWorldline(repoDir);
-  const blobStorage = await resolveProductBlobStorage(repoDir, checkpointRead);
+  const blobStorage = await getRuntimeBlobStorage(repoDir);
 
   return {
-    app,
+    app: null,
     repoDir,
     worldline,
-    view: resolveProductView(checkpointRead, worldline),
-    contentCore: resolveProductContentCore(app),
+    view: worldline.live(),
+    contentCore: null,
     blobStorage,
-    readContent: resolveProductContentReader(checkpointRead, app),
+    readContent: null,
     writerId: worldline.writerId,
   };
-}
-
-function resolveProductView(checkpointRead, worldline) {
-  return checkpointRead?.view ?? worldline.live();
-}
-
-function resolveProductContentCore(app) {
-  return app?.core?.() ?? null;
-}
-
-async function resolveProductBlobStorage(repoDir, checkpointRead) {
-  return checkpointRead?.blobStorage ?? await getRuntimeBlobStorage(repoDir);
-}
-
-function resolveProductContentReader(checkpointRead, app) {
-  return checkpointRead?.readContent ?? resolveAppContentReader(app);
-}
-
-function resolveAppContentReader(app) {
-  return app ? createAppContentReader(app) : null;
-}
-
-async function tryOpenCheckpointProductRead(repoDir, app = null) {
-  try {
-    return await openCheckpointProductRead(repoDir, app);
-  } catch {
-    return null;
-  }
 }
 
 async function getRuntimeBlobStorage(repoDir) {

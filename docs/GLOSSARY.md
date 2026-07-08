@@ -118,25 +118,27 @@ The normal product read handle in `git-warp`.
 
 A narrower read aperture derived from a `worldline`.
 
-In `think`, product reads use `WarpApp -> worldline() -> observer(...)` where that helps keep read scope honest.
+In `think`, product reads open a public `git-warp` worldline and read through
+that worldline. Think does not open `WarpApp` as a product read facade.
 
 ### core
 
 The whole-state inspection and admin-style `git-warp` surface.
 
-In `think`, `core()` is reserved for:
+In `think`, `core()` is reserved for explicit operator tooling such as:
 
 - migration
 - admin-style full-state inspection
-- narrow content-attachment reads not available on `worldline` / `observer`
 
 It should not be the default product read path.
 
 ### checkpoint
 
-`git-warp` recovery state that makes reopening read handles much faster.
+`git-warp` recovery state that can accelerate reopened read handles.
 
-Enabling checkpoints was one of the major browse-performance fixes in M4.
+Think product code does not inspect, delete, or repair checkpoint/state-cache
+refs. Routine reads let `git-warp` own cache decisions; the only Think code that
+names legacy checkpoint refs is the explicit v17 repair lane for old minds.
 
 ### history model version
 

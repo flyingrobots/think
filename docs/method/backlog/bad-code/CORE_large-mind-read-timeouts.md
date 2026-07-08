@@ -18,7 +18,7 @@ unavailable even when the underlying mind is intact.
 - [ ] Add a deterministic large-mind fixture or synthetic benchmark for MCP read
       timeout budgets.
 - [ ] Establish target budgets for `recent`, `stats`, `doctor`, and `remember`
-      against repaired checkpoint-backed minds.
+      against large repaired minds.
 - [ ] Document and automate safe maintenance for high-loose-object minds.
-- [ ] Prefer checkpoint-backed bounded reads where whole-graph observer startup is
-      not required.
+- [ ] Prefer public worldline/optic bounded reads where broad transitional
+      queries are not required.

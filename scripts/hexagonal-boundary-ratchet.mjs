@@ -7,15 +7,16 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const baselinePath = path.join(repoRoot, 'docs', 'audit', 'hexagonal-boundary-ratchet-baseline.json');
-const sourcePrefixes = Object.freeze(['src/', 'bin/']);
+const sourcePrefixes = Object.freeze(['src/', 'bin/', 'scripts/']);
 const allowedBoundaryFiles = Object.freeze([
+  'scripts/hexagonal-boundary-ratchet.mjs',
+  'scripts/repair-v17-mind.mjs',
   'src/browse-benchmark.js',
   'src/browse/adapters/git-warp-worker.js',
   'src/browse/adapters/git-warp.js',
   'src/cli/commands/doctor.js',
   'src/doctor.js',
   'src/history/git-warp-read.js',
-  'src/store/checkpoint-state.js',
 ]);
 const substrateTerms = Object.freeze([
   {
@@ -24,7 +25,7 @@ const substrateTerms = Object.freeze([
   },
   {
     id: 'git-warp-runtime-symbol',
-    pattern: /\b(?:GitGraphAdapter|WarpApp|WarpCore|openWarpGraph|openWarpWorldline|openWarpApp|patchWarpApp|patchWarpAppWithWriter|openThinkWorldline|commitThinkWorldline|openWarpGraphHandle)\b/gu,
+    pattern: /\b(?:GitGraphAdapter|WarpApp|WarpCore|openWarpGraph|openWarpWorldline|openThinkWorldline|commitThinkWorldline|commitThinkWorldlineWithWriter)\b/gu,
   },
   {
     id: 'checkpoint-mechanic',
@@ -86,6 +87,7 @@ function trackedCodeFiles() {
 function scannedFiles() {
   return trackedCodeFiles()
     .filter(file => sourcePrefixes.some(prefix => file.startsWith(prefix)))
+    .filter(file => existsSync(path.join(repoRoot, file)))
     .filter(file => !allowedBoundaryFiles.includes(file));
 }
 

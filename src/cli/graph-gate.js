@@ -29,7 +29,7 @@ export async function ensureGraphModelReadyFromStatus(repoDir, command, status, 
       const result = await migrateGraphModel(repoDir);
       writeShellBlock(renderGraphMigrationProgress({
         command,
-        phase: 'Writing checkpoint / finishing',
+        phase: 'Finishing History migration',
         progress: 1,
       }), output);
       reporter.event('graph.migration.done', {

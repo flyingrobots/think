@@ -35,4 +35,6 @@ on injected ports and runtime domain objects, not on concrete host APIs.
 ## Progress
 
 - [x] Hexagonal Boundary ratchet added to `npm run lint`.
+- [x] Product runtime paths stopped inspecting, deleting, or reading through
+      `git-warp` checkpoint/state-cache refs.
 - [ ] Existing substrate leaks moved behind product ports or adapters.

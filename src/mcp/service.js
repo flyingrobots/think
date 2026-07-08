@@ -27,7 +27,6 @@ import {
   buildAmbientRememberScope,
   buildExplicitRememberScope,
 } from '../store/remember.js';
-import { getCheckpointRefStatus } from '../store/checkpoint-state.js';
 import {
   BrowseOutcome,
   CaptureOutcome,
@@ -317,9 +316,6 @@ export async function checkThinkHealthForMcp() {
       : null,
     getFsmonitorStatus: repoPresent
       ? () => getFsmonitorStatus(repoDir)
-      : null,
-    getCheckpointStatus: repoPresent
-      ? () => getCheckpointRefStatus(repoDir)
       : null,
     checkUpstreamReachable: upstreamUrl ? () => lsRemote(upstreamUrl) : null,
   });

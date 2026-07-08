@@ -2,11 +2,6 @@ import { Worker } from 'node:worker_threads';
 
 import { hasGitRepo } from '../../git.js';
 import {
-  getCheckpointGraphModelStatus,
-  listCheckpointEntriesByKind,
-} from '../../store/checkpoint-read.js';
-import { compareEntriesNewestFirst } from '../../store/model.js';
-import {
   getHistoryModelStatusForRead,
   openHistoryReadHandle,
   prepareHistoryBrowseBootstrapForRead,
@@ -91,26 +86,7 @@ async function* loadGitWarpHistoryWindowUpdates({ repoDir }) {
     return;
   }
 
-  const checkpointWindow = await loadCheckpointHistoryWindow(repoDir);
-  if (checkpointWindow) {
-    if (!checkpointWindow.ok) {
-      yield finalHistoryUpdate(checkpointWindow);
-      return;
-    }
-    yield {
-      final: false,
-      historyWindow: checkpointWindow,
-    };
-  }
-
-  try {
-    yield finalHistoryUpdate(await loadLiveHistoryWindow(repoDir));
-  } catch (error) {
-    if (!checkpointWindow?.ok) {
-      throw error;
-    }
-    yield finalHistoryUpdate(createCheckpointFallbackWindow(checkpointWindow, error));
-  }
+  yield finalHistoryUpdate(await loadLiveHistoryWindow(repoDir));
 }
 
 async function loadLiveHistoryWindow(repoDir) {
@@ -238,54 +214,4 @@ function createHistoryWindowFromBrowseBootstrap(bootstrap) {
   }
 
   return createHistoryReadyWindow(bootstrap);
-}
-
-function createCheckpointFallbackWindow(checkpointWindow, error) {
-  return createHistoryReadyWindow({
-    ...checkpointWindow,
-    stale: true,
-    reason: 'live_load_failed',
-    message: `Showing checkpoint while live History failed: ${formatErrorMessage(error)}`,
-  });
-}
-
-function formatErrorMessage(error) {
-  return error instanceof Error && error.message
-    ? error.message
-    : String(error || 'unknown error');
-}
-
-async function loadCheckpointHistoryWindow(repoDir) {
-  const graphStatus = await getCheckpointGraphModelStatus(repoDir);
-  if (graphStatus === null) {
-    return null;
-  }
-
-  if (graphStatus.migrationRequired) {
-    return createHistoryUnavailable({
-      reason: 'migration_required',
-      graphStatus,
-    });
-  }
-
-  const entries = await listCheckpointEntriesByKind(repoDir, 'capture');
-  if (entries === null) {
-    return null;
-  }
-
-  return createCheckpointHistoryWindow(entries);
-}
-
-function createCheckpointHistoryWindow(entries) {
-  const sortedEntries = entries.filter(Boolean).sort(compareEntriesNewestFirst);
-  if (sortedEntries.length === 0) {
-    return createHistoryUnavailable({
-      reason: 'no_entries',
-    });
-  }
-
-  return createHistoryReadyWindow({
-    current: sortedEntries[0],
-    older: sortedEntries[1] ?? null,
-  });
 }

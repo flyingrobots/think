@@ -37,7 +37,6 @@ import {
   resolveHistorySessionTraversal,
   toBrowseEntry,
 } from './runtime.js';
-import { listCheckpointEntryPropsByKind } from './checkpoint-read.js';
 import {
   assessReflectability,
   ensureFirstDerivedArtifacts,
@@ -311,11 +310,6 @@ async function collectAmbientCandidates(read, candidates, key, value) {
 }
 
 export async function getStats(repoDir, { from, to, since, bucket } = {}) {
-  const checkpointCaptures = await listCheckpointEntryPropsByKind(repoDir, 'capture');
-  if (checkpointCaptures !== null) {
-    return statsFromCaptures(checkpointCaptures, { from, to, since, bucket });
-  }
-
   const read = await openProductReadHandle(repoDir);
   return await getStatsForRead(read, { from, to, since, bucket });
 }

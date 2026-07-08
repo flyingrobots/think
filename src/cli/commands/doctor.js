@@ -1,7 +1,6 @@
 import { runDiagnostics } from '../../doctor.js';
 import { getFsmonitorStatus, hasGitRepo, lsRemote, setFsmonitorDisabled } from '../../git.js';
 import { getLocalRepoDir, getThinkDir } from '../../paths.js';
-import { deleteCheckpointRef, getCheckpointRefStatus } from '../../store/checkpoint-state.js';
 
 const DOCTOR_SYMBOLS = { ok: '✓', warn: '!', fail: '✗', skip: '○' };
 
@@ -46,8 +45,6 @@ function createRepoDiagnostics(context) {
     getEntryCount: null,
     getFsmonitorStatus: null,
     fixFsmonitor: null,
-    getCheckpointStatus: null,
-    fixCheckpoint: null,
   };
 }
 
@@ -57,8 +54,6 @@ function createPresentRepoDiagnostics(context) {
     getEntryCount: null,
     getFsmonitorStatus: () => getFsmonitorStatus(context.repoDir),
     fixFsmonitor: () => setFsmonitorDisabled(context.repoDir),
-    getCheckpointStatus: () => getCheckpointRefStatus(context.repoDir),
-    fixCheckpoint: () => deleteCheckpointRef(context.repoDir),
   };
 }
 

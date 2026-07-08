@@ -79,19 +79,19 @@ test('Browse data port preserves ready History metadata', () => {
     ok: true,
     current: {
       id: 'entry:1780000000000-abcdef12-3456-7890-abcd-ef1234567890',
-      text: 'Checkpoint data can stay visible while live History catches up.',
+      text: 'Prepared History data can stay visible while final loading catches up.',
       createdAt: '2026-06-17T13:00:00.000Z',
     },
     older: null,
     newer: null,
     sessionContext: null,
-    message: 'Showing checkpoint while live History failed: fixture failure',
+    message: 'Showing prepared History while final load failed: fixture failure',
     reason: 'live_load_failed',
     graphStatus,
   }, { mindName: 'codex' });
 
   assert.equal(view.status, 'ready');
-  assert.equal(view.message, 'Showing checkpoint while live History failed: fixture failure');
+  assert.equal(view.message, 'Showing prepared History while final load failed: fixture failure');
   assert.equal(view.reason, 'live_load_failed');
   assert.equal(view.graphStatus, graphStatus);
 });
@@ -143,7 +143,7 @@ test('Browse data port streams History capture window updates', async () => {
   task.dispose();
 
   assert.equal(partialViews.length, 1);
-  assert.equal(partialViews[0].current.text, 'Checkpoint History view.');
+  assert.equal(partialViews[0].current.text, 'Prepared History view.');
   assert.equal(finalView.current.text, 'Final live History view.');
 });
 
@@ -187,7 +187,7 @@ test('Browse page applies streamed initial History updates before the final load
   });
   assert.equal(emitted.length, 1);
   const [partialModel] = fixture.page.update(emitted[0], initialModel);
-  assert.equal(partialModel.view.current.text, 'Checkpoint snapshot is already usable.');
+  assert.equal(partialModel.view.current.text, 'Prepared History is already usable.');
 
   fixture.resolveFinal();
   await new Promise((resolve) => {
@@ -369,7 +369,7 @@ function createStreamingHistoryDataPort() {
         'Final live History view.'
       )),
       loadLatestCaptureWindowUpdates: async function* loadUpdates() {
-        yield historyWindowUpdate(false, 'entry:1780000000000-partial', 'Checkpoint History view.');
+        yield historyWindowUpdate(false, 'entry:1780000000000-partial', 'Prepared History view.');
         yield historyWindowUpdate(true, 'entry:1780000001000-final', 'Final live History view.');
       },
     },
@@ -380,7 +380,7 @@ function createStreamedInitialViewPage() {
   const partialView = createBrowseInitialView({
     status: 'ready',
     mindName: 'codex',
-    current: createBrowseEntry('entry:1780000000000-partial', 'Checkpoint snapshot is already usable.'),
+    current: createBrowseEntry('entry:1780000000000-partial', 'Prepared History is already usable.'),
   });
   const finalView = createBrowseInitialView({
     status: 'ready',

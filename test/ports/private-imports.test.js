@@ -5,24 +5,19 @@ import test from 'node:test';
 
 import { repoRoot } from '../fixtures/runtime.js';
 
-const CHECKPOINT_SOURCE_FILES = Object.freeze([
-  'src/store/checkpoint-read.js',
-  'src/store/checkpoint-state.js',
-  'src/store/checkpoint-product-read.js',
-]);
-
 const RUNTIME_READ_SOURCE_FILES = Object.freeze([
   'src/store/runtime.js',
-  'src/store/checkpoint-state.js',
+  'src/store/queries.js',
+  'src/browse/adapters/git-warp.js',
 ]);
 
-test('checkpoint read fast paths do not import git-warp internals from node_modules', async () => {
+test('runtime read paths do not import Think-managed git-warp cache modules', async () => {
   const offenders = [];
 
-  for (const relativePath of CHECKPOINT_SOURCE_FILES) {
+  for (const relativePath of RUNTIME_READ_SOURCE_FILES) {
     // eslint-disable-next-line no-await-in-loop -- this guard reports deterministic file-level evidence
     const source = await readFile(join(repoRoot, relativePath), 'utf8');
-    if (source.includes('node_modules/@git-stunts/git-warp/src')) {
+    if (source.includes('checkpoint-state.js') || source.includes('checkpoint-read.js')) {
       offenders.push(relativePath);
     }
   }
@@ -30,7 +25,7 @@ test('checkpoint read fast paths do not import git-warp internals from node_modu
   assert.deepEqual(
     offenders,
     [],
-    'Expected production checkpoint code to use only public git-warp package exports.'
+    'Expected product read paths not to manage git-warp cache/checkpoint modules.'
   );
 });
 

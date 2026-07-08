@@ -41,7 +41,6 @@ export const DERIVER_NAME = 'think';
 export const DERIVER_VERSION = '1';
 export const SCHEMA_VERSION = '1';
 export const GRAPH_MODEL_VERSION = 4;
-export const CHECKPOINT_POLICY = { every: 20 };
 export const PRODUCT_READ_LENS = {
   match: [
     GRAPH_META_ID,

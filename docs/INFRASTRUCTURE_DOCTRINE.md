@@ -63,9 +63,11 @@ Examples of capabilities that require ports:
 Product code must not know substrate layout. References to concrete
 storage engines, `git-warp` runtime classes, WARP ref paths,
 checkpoint/state-cache mechanics, materialization strategies, or repair
-commands belong only in adapters, diagnostics, repair scripts, or
-benchmarks. CLI, MCP, Browse, Remember, Stats, and domain modules consume
-product ports and runtime-backed domain facts, not storage internals.
+commands belong only in explicit adapter, repair, or benchmark boundaries.
+Think diagnostics must not inspect or mutate `git-warp` cache refs; operators
+should use `git-warp` diagnostics for that substrate. CLI, MCP, Browse,
+Remember, Stats, and domain modules consume product ports and runtime-backed
+domain facts, not storage internals.
 
 This boundary is enforced by `npm run hexagonal-boundary:ratchet`, which
 runs from `npm run lint`. Existing leaks are debt in the ratchet baseline;

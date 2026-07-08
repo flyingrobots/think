@@ -6,7 +6,7 @@ import {
   GRAPH_MODEL_VERSION,
 } from './constants.js';
 import { compareEntriesNewestFirst, getCurrentTime } from './model.js';
-import { commitThinkWorldline, openThinkWorldline, patchWarpAppWithWriter } from './runtime.js';
+import { commitThinkWorldline, commitThinkWorldlineWithWriter, openThinkWorldline } from './runtime.js';
 
 export async function migrateGraphModel(repoDir) {
   const worldline = await openThinkWorldline(repoDir);
@@ -168,7 +168,7 @@ export async function migrateGraphModel(repoDir) {
 
   if (missingEdges.length > 0) {
     const migrationWriterId = `${worldline.writerId}.migration`;
-    await patchWarpAppWithWriter(repoDir, migrationWriterId, (patch) => {
+    await commitThinkWorldlineWithWriter(repoDir, migrationWriterId, (patch) => {
       for (const edge of missingEdges) {
         patch.addEdge(edge.from, edge.to, edge.label);
       }

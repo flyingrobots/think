@@ -14,6 +14,8 @@ Release discipline:
 
 - added a Hexagonal Boundary lint ratchet so product code cannot increase
   direct substrate-layout or `git-warp` runtime leakage
+- removed Think-managed `git-warp` cache/checkpoint reads, doctor checks, and
+  ref deletion from product runtime paths
 - upgraded `@git-stunts/git-warp` to 18.2.1
 
 ## [0.7.2] - 2026-06-23

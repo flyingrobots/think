@@ -5,16 +5,13 @@ blocked_by:
   - CORE_repair-v17-git-warp-minds
 ---
 
-# git-warp dependency truth is split between package metadata and local v17 links
+# git-warp dependency truth must stay anchored to package metadata
 
-Think currently declares `@git-stunts/git-warp` as `15.0.0`, while local
-development can resolve to a linked `17.0.0` checkout. That makes
-`npm ls @git-stunts/git-warp` fail with `ELSPROBLEMS` and leaves runtime
-compatibility depending on local workspace state rather than package truth.
-
-The checkpoint read path now includes a public-reader compatibility bridge for
-`createStateReader` vs `createStateReaderV5`. That bridge is acceptable as a
-short-term guard, but it should not become permanent dependency sludge.
+Think runtime compatibility must be proven against the published
+`@git-stunts/git-warp` package declared in `package.json`, not against a linked
+local checkout or private package internals. The current product runtime targets
+the public worldline API in `@git-stunts/git-warp@18.2.1`; legacy checkpoint
+repair remains quarantined in the v17 repair lane.
 
 ## Acceptance Criteria
 
@@ -22,9 +19,9 @@ short-term guard, but it should not become permanent dependency sludge.
 - `package.json` and `package-lock.json` match the intended git-warp version.
 - The intended version is published or resolved through an explicit,
   documented local/workspace dependency path.
-- Checkpoint read tests pass from a clean install, not only from a local
+- Product read/write tests pass from a clean install, not only from a local
   linked git-warp checkout.
 - The archived v17 repair acceptance fixture runs its full repair assertion in
   clean CI instead of skipping when the v17 migration package is unavailable.
-- The state-reader compatibility bridge is either documented as intentional
-  version support or removed after the dependency cutover.
+- No production module imports private `node_modules/@git-stunts/git-warp/src`
+  paths or git-warp cache/checkpoint compatibility helpers.

@@ -13,17 +13,17 @@ import {
   stableHash,
 } from './model.js';
 import {
-  createProductReadHandle,
+  commitThinkWorldline,
   getReflectSession,
   getStoredEntry,
-  openWarpApp,
-  patchWarpApp,
+  openProductReadHandle,
+  openThinkWorldline,
 } from './runtime.js';
 import { assessReflectability } from './derivation.js';
 
 export async function startReflect(repoDir, seedEntryId, { promptType = null } = {}) {
-  const app = await openWarpApp(repoDir);
-  const read = await createProductReadHandle(app, repoDir);
+  const worldline = await openThinkWorldline(repoDir);
+  const read = await openProductReadHandle(repoDir);
   const planned = await planReflect(read, seedEntryId, { promptType });
 
   if (!planned.ok) {
@@ -31,7 +31,7 @@ export async function startReflect(repoDir, seedEntryId, { promptType = null } =
   }
 
   const {promptPlan} = planned;
-  const session = createReflectSession(app.writerId, {
+  const session = createReflectSession(worldline.writerId, {
     seedEntryId,
     contrastEntryId: null,
     promptType: promptPlan.promptType,
@@ -40,7 +40,7 @@ export async function startReflect(repoDir, seedEntryId, { promptType = null } =
   });
 
   // eslint-disable-next-line require-await -- git-warp patch callback must be async for the library API
-  await patchWarpApp(repoDir, async patch => {
+  await commitThinkWorldline(repoDir, async patch => {
     patch
       .addNode(session.id)
       .setProperty(session.id, 'kind', session.kind)
@@ -79,8 +79,7 @@ export async function startReflect(repoDir, seedEntryId, { promptType = null } =
 }
 
 export async function previewReflect(repoDir, seedEntryId, { promptType = null } = {}) {
-  const app = await openWarpApp(repoDir);
-  const read = await createProductReadHandle(app, repoDir);
+  const read = await openProductReadHandle(repoDir);
   const planned = await planReflect(read, seedEntryId, { promptType });
 
   if (!planned.ok) {
@@ -101,15 +100,15 @@ export async function previewReflect(repoDir, seedEntryId, { promptType = null }
 }
 
 export async function saveReflectResponse(repoDir, sessionId, response) {
-  const app = await openWarpApp(repoDir);
-  const read = await createProductReadHandle(app, repoDir);
+  const worldline = await openThinkWorldline(repoDir);
+  const read = await openProductReadHandle(repoDir);
   const session = await getReflectSession(read, sessionId);
 
   if (!session) {
     return null;
   }
 
-  const entry = createEntry(response, app.writerId, {
+  const entry = createEntry(response, worldline.writerId, {
     kind: 'reflect',
     source: 'reflect',
     seedEntryId: session.seedEntryId,
@@ -118,7 +117,7 @@ export async function saveReflectResponse(repoDir, sessionId, response) {
     promptType: session.promptType,
   });
 
-  await patchWarpApp(repoDir, async patch => {
+  await commitThinkWorldline(repoDir, async patch => {
     patch
       .addNode(entry.id)
       .setProperty(entry.id, 'kind', entry.kind)

@@ -19,12 +19,12 @@ import {
   normalizeSeed,
 } from './model.js';
 import {
+  commitThinkWorldline,
   getLatestStoredEntry,
   getProducedInSessionId,
   getStoredEntry,
   hasNode,
   listEntriesByKind,
-  patchWarpApp,
 } from './runtime.js';
 
 export function assessReflectability(text) {
@@ -91,7 +91,7 @@ export async function ensureFirstDerivedArtifacts(repoDir, read, entry) {
     };
   }
 
-  await patchWarpApp(repoDir, async (patch) => {
+  await commitThinkWorldline(repoDir, async (patch) => {
     ensureGraphMetadataNode(patch, graphMetaProps);
 
     if (!thoughtNodeExists) {
@@ -155,7 +155,7 @@ export async function ensureCaptureReadEdges(repoDir, read, entryId) {
     return;
   }
 
-  await patchWarpApp(repoDir, (patch) => {
+  await commitThinkWorldline(repoDir, (patch) => {
     if (newerEntry) {
       patch.addEdge(newerEntry.id, entry.id, 'older');
       patch.addEdge(entry.id, newerEntry.id, 'newer');

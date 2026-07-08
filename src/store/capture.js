@@ -4,10 +4,9 @@ import { encodeTextContent } from './content.js';
 import { createEntry } from './model.js';
 import {
   commitThinkWorldline,
-  createProductReadHandle,
   getStoredEntry,
   openThinkWorldline,
-  openWarpApp,
+  openProductReadHandle,
 } from './runtime.js';
 import { ensureCaptureReadEdges, ensureFirstDerivedArtifacts } from './derivation.js';
 import { migrateGraphModel } from './migrations.js';
@@ -63,14 +62,11 @@ export async function finalizeCapturedThought(repoDir, entryId, {
   migrateIfNeeded = false,
   ambientContext = null,
 } = {}) {
-  let app = await openWarpApp(repoDir);
-
   if (ambientContext) {
     await patchAmbientContext(repoDir, entryId, ambientContext);
-    app = await openWarpApp(repoDir);
   }
 
-  let read = await createProductReadHandle(app, repoDir);
+  let read = await openProductReadHandle(repoDir);
   let entry = await getStoredEntry(read, entryId);
 
   if (!entry || entry.kind !== 'capture') {
@@ -81,11 +77,9 @@ export async function finalizeCapturedThought(repoDir, entryId, {
   }
 
   await ensureFirstDerivedArtifacts(repoDir, read, entry);
-  app = await openWarpApp(repoDir);
-  read = await createProductReadHandle(app, repoDir);
+  read = await openProductReadHandle(repoDir);
   await ensureCaptureReadEdges(repoDir, read, entryId);
-  app = await openWarpApp(repoDir);
-  read = await createProductReadHandle(app, repoDir);
+  read = await openProductReadHandle(repoDir);
   entry = await getStoredEntry(read, entryId);
 
   return {
