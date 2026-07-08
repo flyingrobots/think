@@ -10,7 +10,7 @@ import {
   saveRawCapture,
 } from '../../store.js';
 
-const CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS = 3_000;
+const CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS = 6_000;
 const CAPTURE_FOLLOWTHROUGH_DEFERRED = Object.freeze({ status: 'deferred' });
 const NO_GRAPH_MIGRATION_STATUS = Object.freeze({
   currentGraphModelVersion: null,

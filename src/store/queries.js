@@ -417,11 +417,11 @@ async function buildBrowseWindow(read, entryId) {
     return null;
   }
 
-  const current = toBrowseEntry(currentEntry);
+  const sessionAttribution = await getSessionAttributionReceiptIfPresent(read, currentEntry);
+  const current = toBrowseEntryWithSession(currentEntry, sessionAttribution?.sessionId ?? null);
   const neighbors = await resolveChronologyNeighbors(read, currentEntry);
   const older = neighbors.older ? toBrowseEntry(neighbors.older) : null;
   const newer = neighbors.newer ? toBrowseEntry(neighbors.newer) : null;
-  const sessionAttribution = await getSessionAttributionReceiptIfPresent(read, currentEntry);
   const sessionTraversal = await resolveHistorySessionTraversal(read, current);
 
   return Object.freeze({
@@ -464,4 +464,15 @@ async function buildBrowseWindow(read, entryId) {
 
 function resolveChronologyNeighbors(read, currentEntry) {
   return getChronologyNeighborEntries(read, currentEntry);
+}
+
+function toBrowseEntryWithSession(entry, sessionId) {
+  const browseEntry = toBrowseEntry(entry);
+  if (!sessionId || browseEntry.sessionId) {
+    return browseEntry;
+  }
+  return Object.freeze({
+    ...browseEntry,
+    sessionId,
+  });
 }

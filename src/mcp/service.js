@@ -39,7 +39,7 @@ import {
   StatsOutcome,
 } from './result.js';
 
-const CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS = 5_000;
+const CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS = 6_000;
 const CAPTURE_FOLLOWTHROUGH_DEFERRED = Object.freeze({ status: 'deferred' });
 const CAPTURE_FOLLOWTHROUGH_DEFERRED_WARNING =
   'Capture followthrough deferred; raw thought saved locally before derived graph updates completed.';

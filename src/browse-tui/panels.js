@@ -9,6 +9,7 @@ import {
 import {
   currentEntry,
   currentInspectEntry,
+  resolveCurrentSessionId,
   resolveSessionTraversal,
   computeLogScroll,
 } from './resolve.js';
@@ -97,11 +98,11 @@ export function buildInspectContent(model, width, ctx) {
 }
 
 export function buildSessionContent(model, width, ctx) {
-  const entry = currentEntry(model);
   const sessionTraversal = resolveSessionTraversal(model);
   const sessionEntries = sessionTraversal.entries;
+  const sessionId = resolveCurrentSessionId(model, sessionTraversal);
 
-  if (!entry.sessionId) {
+  if (!sessionId) {
     return styleDim(ctx, 'Session context is not available for this thought yet.');
   }
 
@@ -109,6 +110,7 @@ export function buildSessionContent(model, width, ctx) {
     return styleDim(ctx, 'Session entries are not available for this thought yet.');
   }
 
+  const entry = currentEntry(model);
   const currentIndex = sessionEntries.findIndex((candidate) => candidate.id === entry.id);
   const steps = sessionEntries.map((sessionEntry, index) => {
     const timestamp = formatCompactWhen(sessionEntry.createdAt);
@@ -117,7 +119,7 @@ export function buildSessionContent(model, width, ctx) {
   });
 
   const header = [];
-  header.push(`Session ID: ${entry.sessionId}`);
+  header.push(`Session ID: ${sessionId}`);
   if (sessionEntries[0]?.createdAt) {
     header.push(`Started: ${formatWhen(sessionEntries[0].createdAt)}`);
   }
