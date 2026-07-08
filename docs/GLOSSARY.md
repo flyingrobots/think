@@ -106,7 +106,9 @@ Git handles the repository substrate. `git-warp` provides the graph layer on top
 
 The primary application handle exposed by `git-warp`.
 
-In `think`, product read paths begin from `WarpApp`.
+`think` does not use `WarpApp` as a product read facade. Product reads open
+public `git-warp` worldlines and let `git-warp` own internal checkpoint and
+cache state.
 
 ### worldline
 

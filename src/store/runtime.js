@@ -1,5 +1,6 @@
 import { GitGraphAdapter, openWarpWorldline } from '@git-stunts/git-warp';
 
+import { ContentUnavailableError } from '../errors.js';
 import { resolveHistorySessionEntries } from '../history/session.js';
 import { createThinkPlumbing } from '../git.js';
 import {
@@ -447,14 +448,50 @@ async function getLatestIdByKind(read, kind, options = {}) {
 }
 
 export async function readNodeText(read, nodeId, props = null) {
+  const contentOid = await resolveNodeContentOid(read, nodeId, props);
+  const content = await readNodeContent(read, nodeId, contentOid);
+  if (hasReadableContent(content)) {
+    return decodeContent(content);
+  }
+
+  if (contentOid) {
+    throw new ContentUnavailableError(
+      `Content for ${nodeId} is unavailable: the read handle has a content oid but no readable content source.`,
+    );
+  }
+
+  return '';
+}
+
+async function resolveNodeContentOid(read, nodeId, props) {
   const resolvedProps = props ?? await read.view.getNodeProps(nodeId);
-  const contentOid = typeof resolvedProps?._content === 'string'
-    ? resolvedProps._content
-    : await readNodeContentOid(read, nodeId);
-  const content = contentOid && read.blobStorage
-    ? await read.blobStorage.retrieve(contentOid)
-    : await readContent(read, nodeId);
-  return content ? new TextDecoder().decode(content) : '';
+  if (typeof resolvedProps?._content === 'string') {
+    return resolvedProps._content;
+  }
+  return await readNodeContentOid(read, nodeId);
+}
+
+async function readNodeContent(read, nodeId, contentOid) {
+  const attachedContent = await readAttachedContent(read, contentOid);
+  if (hasReadableContent(attachedContent)) {
+    return attachedContent;
+  }
+  return await readContent(read, nodeId);
+}
+
+async function readAttachedContent(read, contentOid) {
+  if (contentOid && read.blobStorage) {
+    return await read.blobStorage.retrieve(contentOid);
+  }
+  return null;
+}
+
+function decodeContent(content) {
+  return new TextDecoder().decode(content);
+}
+
+function hasReadableContent(content) {
+  return content !== null && content !== undefined;
 }
 
 async function readContent(read, nodeId) {
