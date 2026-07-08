@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import { createResolved } from '@flyingrobots/bijou';
 import { createWindowedBrowseModel } from '../../src/browse-tui/model.js';
+import { buildSessionContent } from '../../src/browse-tui/panels.js';
 import { thinkShellThemes, thinkThemes } from '../../src/browse-tui/theme.js';
 import { renderBrowseModel } from '../../src/browse-tui/view.js';
 import * as styleExports from '../../src/browse-tui/style.js';
@@ -49,6 +50,31 @@ test('windowed browse initializes with no drawer open', () => {
     /┌|└|┐|┘/,
     'Expected the initial live browse frame not to render any drawer border before the user opens a panel.'
   );
+});
+
+test('session panel falls back when session context exists without a current entry', () => {
+  const content = buildSessionContent({
+    mode: 'windowed',
+    currentIndex: 0,
+    entries: [],
+    currentWindow: {
+      current: null,
+      sessionContext: {
+        sessionId: 'session:1780000000000-test',
+        sessionPosition: 1,
+        sessionCount: 1,
+      },
+      sessionEntries: [{
+        id: 'entry:1780000000000-test',
+        createdAt: '2026-05-13T00:00:00.000Z',
+        text: 'orphaned session entry',
+        sortKey: '1780000000000',
+      }],
+      sessionSteps: [],
+    },
+  }, 80, null);
+
+  assert.match(content, /Session context is not available for this thought yet/);
 });
 
 test('all browse shell themes resolve with status tokens', () => {

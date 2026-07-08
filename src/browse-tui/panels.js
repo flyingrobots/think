@@ -101,31 +101,16 @@ export function buildSessionContent(model, width, ctx) {
   const sessionTraversal = resolveSessionTraversal(model);
   const sessionEntries = sessionTraversal.entries;
   const sessionId = resolveCurrentSessionId(model, sessionTraversal);
-
-  if (!sessionId) {
-    return styleDim(ctx, 'Session context is not available for this thought yet.');
-  }
-
-  if (sessionEntries.length === 0) {
-    return styleDim(ctx, 'Session entries are not available for this thought yet.');
-  }
-
   const entry = currentEntry(model);
-  const currentIndex = sessionEntries.findIndex((candidate) => candidate.id === entry.id);
-  const steps = sessionEntries.map((sessionEntry, index) => {
-    const timestamp = formatCompactWhen(sessionEntry.createdAt);
-    const label = `${formatSessionEntryLabel(sessionEntry, entry.id, index, currentIndex)} ${formatVisibleEntryId(sessionEntry.id)} ${timestamp}`;
-    return { label };
-  });
+  const unavailableMessage = sessionUnavailableMessage(sessionId, sessionEntries, entry);
 
-  const header = [];
-  header.push(`Session ID: ${sessionId}`);
-  if (sessionEntries[0]?.createdAt) {
-    header.push(`Started: ${formatWhen(sessionEntries[0].createdAt)}`);
+  if (unavailableMessage) {
+    return styleDim(ctx, unavailableMessage);
   }
-  if (sessionTraversal.position && sessionTraversal.count) {
-    header.push(`Position: ${sessionTraversal.position} of ${sessionTraversal.count}`);
-  }
+
+  const currentIndex = sessionEntries.findIndex((candidate) => candidate.id === entry.id);
+  const steps = buildSessionSteps(sessionEntries, entry.id, currentIndex);
+  const header = buildSessionHeader(sessionId, sessionEntries, sessionTraversal);
 
   if (ctx) {
     return `${header.join('\n')}\n\n${stepper(steps, { current: Math.max(0, currentIndex), ctx })}`;
@@ -133,6 +118,37 @@ export function buildSessionContent(model, width, ctx) {
 
   // Fallback for script path (no bijou context)
   return `${header.join('\n')}\n\n${steps.map((s, i) => `${i === currentIndex ? '>' : ' '} ${s.label}`).join('\n')}`;
+}
+
+function sessionUnavailableMessage(sessionId, sessionEntries, entry) {
+  if (!sessionId || !entry) {
+    return 'Session context is not available for this thought yet.';
+  }
+
+  if (sessionEntries.length === 0) {
+    return 'Session entries are not available for this thought yet.';
+  }
+
+  return null;
+}
+
+function buildSessionSteps(sessionEntries, entryId, currentIndex) {
+  return sessionEntries.map((sessionEntry, index) => {
+    const timestamp = formatCompactWhen(sessionEntry.createdAt);
+    const label = `${formatSessionEntryLabel(sessionEntry, entryId, index, currentIndex)} ${formatVisibleEntryId(sessionEntry.id)} ${timestamp}`;
+    return { label };
+  });
+}
+
+function buildSessionHeader(sessionId, sessionEntries, sessionTraversal) {
+  const header = [`Session ID: ${sessionId}`];
+  if (sessionEntries[0]?.createdAt) {
+    header.push(`Started: ${formatWhen(sessionEntries[0].createdAt)}`);
+  }
+  if (sessionTraversal.position && sessionTraversal.count) {
+    header.push(`Position: ${sessionTraversal.position} of ${sessionTraversal.count}`);
+  }
+  return header;
 }
 
 export function buildLogContent(model, width, ctx) {

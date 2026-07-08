@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { parseJson, stringifyJson } from '../json.js';
 import {
   CAPTURE_READ_MODEL_ID,
+  EXACT_READ_UNAVAILABLE,
   READ_MODEL_PREFIX,
   SCHEMA_VERSION,
 } from './constants.js';
@@ -33,7 +34,6 @@ const CAPTURE_RECORD_PROVENANCE_FIELDS = Object.freeze([
   ['captureSourceApp', 'sourceApp'],
   ['captureSourceURL', 'sourceURL'],
 ]);
-const EXACT_READ_UNAVAILABLE = Symbol.for('think.exactReadUnavailable');
 
 export function ambientReadModelId(key, value) {
   const fingerprint = createHash('sha256')

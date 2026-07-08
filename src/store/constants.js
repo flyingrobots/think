@@ -24,6 +24,7 @@ export const PIPELINE_RUN_PREFIX = 'pipeline_run:';
 export const READ_MODEL_PREFIX = 'read_model:';
 export const GRAPH_META_ID = 'meta:graph';
 export const CAPTURE_READ_MODEL_ID = `${READ_MODEL_PREFIX}capture:index`;
+export const EXACT_READ_UNAVAILABLE = Symbol.for('think.exactReadUnavailable');
 
 // Standing classification node IDs
 export const CLASSIFICATIONS = Object.freeze([

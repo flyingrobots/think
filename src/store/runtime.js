@@ -6,6 +6,7 @@ import { createThinkPlumbing } from '../git.js';
 import {
   ARTIFACT_PREFIX,
   ENTRY_PREFIX,
+  EXACT_READ_UNAVAILABLE,
   GRAPH_META_ID,
   GRAPH_MODEL_VERSION,
   GRAPH_NAME,
@@ -115,7 +116,6 @@ export class BaseEntry {
 
 const WRITER_CAS_CONFLICT_TEXT = 'writer ref was updated by another process';
 const DEFAULT_PATCH_MAX_ATTEMPTS = 3;
-const EXACT_READ_UNAVAILABLE = Symbol.for('think.exactReadUnavailable');
 const warpWorldlineCache = new Map();
 const runtimeBlobStorageCache = new Map();
 const opticBasisCache = new WeakMap();
@@ -227,16 +227,13 @@ async function createWorldlineProductReadHandle({
 }
 
 function createWorldlineExactPropReader(worldline) {
-  let basisPromise = null;
-
   return async (nodeId, key) => {
     if (opticBasisCache.get(worldline) === false) {
       return EXACT_READ_UNAVAILABLE;
     }
 
     try {
-      basisPromise ??= prepareCachedOpticBasis(worldline);
-      await basisPromise;
+      await prepareCachedOpticBasis(worldline);
 
       const result = await worldline.optic().node(nodeId).prop(key).read();
       return result.exists ? result.value : undefined;
