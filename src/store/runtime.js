@@ -220,10 +220,17 @@ async function createWorldlineProductReadHandle({
     view: worldline.live(),
     contentCore: null,
     blobStorage,
-    readContent: null,
+    readContent: readUnavailableRuntimeContent,
+    readContentRequiresContentOid: true,
     readNodeProp: createWorldlineExactPropReader(worldline),
     writerId: worldline.writerId,
   };
+}
+
+function readUnavailableRuntimeContent(nodeId) {
+  throw new ContentUnavailableError(
+    `Content for ${nodeId} is unavailable: this git-warp runtime exposes no public content reader fallback.`,
+  );
 }
 
 function createWorldlineExactPropReader(worldline) {
@@ -472,6 +479,9 @@ async function readNodeContent(read, nodeId, contentOid) {
   const attachedContent = await readAttachedContent(read, contentOid);
   if (hasReadableContent(attachedContent)) {
     return attachedContent;
+  }
+  if (!contentOid && read.readContentRequiresContentOid) {
+    return null;
   }
   return await readContent(read, nodeId);
 }

@@ -6,6 +6,7 @@ import { CAPTURE_READ_MODEL_ID } from '../../src/store/constants.js';
 import {
   getStoredEntry,
   listRecentStoredEntries,
+  readNodeText,
 } from '../../src/store/runtime.js';
 
 test('listRecentStoredEntries does not traverse older edges beyond the requested limit', async () => {
@@ -54,6 +55,19 @@ test('getStoredEntry fails when content oid has no readable content source', asy
       return true;
     },
   );
+});
+
+test('readNodeText skips marked content readers for nodes without content oids', async () => {
+  const read = createTextReadHandle({
+    readContentRequiresContentOid: true,
+    readContent() {
+      throw new Error('Expected empty nodes not to read external content.');
+    },
+  });
+
+  const text = await readNodeText(read, 'entry:empty-content', createCaptureProps());
+
+  assert.equal(text, '');
 });
 
 function createFakeChronologyRead(ids) {
