@@ -30,7 +30,6 @@ function createDiagnosticContext(options) {
     getGraphModelStatus: optionalCallback(options.getGraphModelStatus),
     getEntryCount: optionalCallback(options.getEntryCount),
     getFsmonitorStatus: optionalCallback(options.getFsmonitorStatus),
-    getCheckpointStatus: optionalCallback(options.getCheckpointStatus),
     checkUpstreamReachable: optionalCallback(options.checkUpstreamReachable),
   };
 }
@@ -69,13 +68,11 @@ async function collectChecks({
   getGraphModelStatus,
   getEntryCount,
   getFsmonitorStatus,
-  getCheckpointStatus,
   checkUpstreamReachable,
 }) {
   const checks = [];
   checks.push(checkThinkDir(thinkDir));
   checks.push(checkLocalRepo(repoDir));
-  checks.push(await checkCheckpoint(repoOk, repoDir, getCheckpointStatus));
   checks.push(await checkGitFsmonitor(repoOk, repoDir, getFsmonitorStatus));
   checks.push(await checkGraphModel(repoOk, getGraphModelStatus));
   checks.push(await checkEntryCount(repoOk, getEntryCount));
@@ -84,15 +81,8 @@ async function collectChecks({
   return checks;
 }
 
-async function runFixes({ checks, repoDir, fixFsmonitor, fixCheckpoint }) {
+async function runFixes({ checks, repoDir, fixFsmonitor }) {
   return [
-    ...await runSingleFix(checks, {
-      name: 'checkpoint',
-      fixer: fixCheckpoint,
-      skipMessage: 'Checkpoint cache fix skipped (no fixer available)',
-      okMessage: `Deleted unsupported checkpoint cache for local repo (${repoDir})`,
-      failMessage: `Failed to delete unsupported checkpoint cache for local repo (${repoDir})`,
-    }),
     ...await runSingleFix(checks, {
       name: 'git_fsmonitor',
       fixer: fixFsmonitor,
@@ -123,41 +113,6 @@ async function attemptFix(name, fixer, okMessage, failMessage) {
   } catch {
     return [{ name, status: 'fail', message: failMessage }];
   }
-}
-
-async function checkCheckpoint(repoOk, repoDir, getCheckpointStatus) {
-  if (!repoOk) {
-    return { name: 'checkpoint', status: 'skip', message: 'Checkpoint cache check skipped (no repo)' };
-  }
-  if (!getCheckpointStatus) {
-    return { name: 'checkpoint', status: 'skip', message: 'Checkpoint cache check skipped (no checker)' };
-  }
-
-  try {
-    return describeCheckpointStatus(await getCheckpointStatus(), repoDir);
-  } catch {
-    return { name: 'checkpoint', status: 'warn', message: 'Checkpoint cache check failed' };
-  }
-}
-
-function describeCheckpointStatus(status, repoDir) {
-  if (status.exists === false) {
-    return {
-      name: 'checkpoint',
-      status: 'warn',
-      message: 'No checkpoint cache found; reads may be slower until a checkpoint is regenerated',
-    };
-  }
-
-  if (status.supported) {
-    return { name: 'checkpoint', status: 'ok', message: `Checkpoint cache is supported (schema ${status.schema})` };
-  }
-
-  return {
-    name: 'checkpoint',
-    status: 'fail',
-    message: `Checkpoint cache schema ${status.schema ?? 'unknown'} is unsupported by this runtime (expected schema ${status.supportedSchema}). Run: git -C ${repoDir} update-ref -d ${status.ref}`,
-  };
 }
 
 function checkThinkDir(thinkDir) {

@@ -5,10 +5,10 @@ import { ANNOTATION_PREFIX, TEXT_MIME } from './constants.js';
 import { encodeTextContent } from './content.js';
 import { getCurrentTime } from './model.js';
 import {
-  createProductReadHandle,
+  commitThinkWorldline,
   getStoredEntry,
-  openWarpApp,
-  patchWarpApp,
+  openProductReadHandle,
+  openThinkWorldline,
 } from './runtime.js';
 
 export async function saveAnnotation(repoDir, targetEntryId, text, { writerId = null } = {}) {
@@ -16,8 +16,8 @@ export async function saveAnnotation(repoDir, targetEntryId, text, { writerId = 
     throw new ValidationError('Annotation text cannot be empty');
   }
 
-  const app = await openWarpApp(repoDir);
-  const read = await createProductReadHandle(app, repoDir);
+  const worldline = await openThinkWorldline(repoDir);
+  const read = await openProductReadHandle(repoDir);
   const targetEntry = await getStoredEntry(read, targetEntryId);
 
   if (!targetEntry) {
@@ -29,9 +29,9 @@ export async function saveAnnotation(repoDir, targetEntryId, text, { writerId = 
   const createdAt = timestamp.toISOString();
   const sortKey = `${String(timestamp.getTime()).padStart(13, '0')}-${unique}`;
   const annotationId = `${ANNOTATION_PREFIX}${sortKey}`;
-  const resolvedWriterId = writerId ?? app.writerId;
+  const resolvedWriterId = writerId ?? worldline.writerId;
 
-  await patchWarpApp(repoDir, async (patch) => {
+  await commitThinkWorldline(repoDir, async (patch) => {
     patch
       .addNode(annotationId)
       .setProperty(annotationId, 'kind', 'annotation')

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import WarpApp, { GitGraphAdapter } from '@git-stunts/git-warp';
+import { GitGraphAdapter, openWarpWorldline } from '@git-stunts/git-warp';
 
 import { createThinkPlumbing, ensureGitRepo } from '../../src/git.js';
 import { getCaptureAmbientContext, getAmbientProjectContext } from '../../src/project-context.js';
@@ -84,8 +84,8 @@ test('saveRawCapture retries after the cached writer ref is advanced externally'
   await ensureGitRepo(localRepoDir);
 
   await saveRawCapture(localRepoDir, 'seed capture before external writer advance');
-  const externalApp = await openExternalWarpApp(localRepoDir);
-  await externalApp.patch((patch) => {
+  const externalWorldline = await openExternalWorldline(localRepoDir);
+  await externalWorldline.commit((patch) => {
     patch
       .addNode('external:writer-advance')
       .setProperty('external:writer-advance', 'kind', 'external_fixture');
@@ -104,8 +104,8 @@ test('saveAnnotation retries after the cached writer ref is advanced externally'
   await ensureGitRepo(localRepoDir);
 
   const entry = await saveRawCapture(localRepoDir, 'annotation retry seed capture');
-  const externalApp = await openExternalWarpApp(localRepoDir);
-  await externalApp.patch((patch) => {
+  const externalWorldline = await openExternalWorldline(localRepoDir);
+  await externalWorldline.commit((patch) => {
     patch
       .addNode('external:annotation-writer-advance')
       .setProperty('external:annotation-writer-advance', 'kind', 'external_fixture');
@@ -127,10 +127,10 @@ test('reflect writes retry after the cached writer ref is advanced externally', 
 
   const entry = await saveRawCapture(
     localRepoDir,
-    'We should redesign browse startup because checkpoint reads can hide transition latency.'
+    'We should redesign browse startup because transitional reads can hide latency.'
   );
-  const firstExternalApp = await openExternalWarpApp(localRepoDir);
-  await firstExternalApp.patch((patch) => {
+  const firstExternalWorldline = await openExternalWorldline(localRepoDir);
+  await firstExternalWorldline.commit((patch) => {
     patch
       .addNode('external:reflect-start-writer-advance')
       .setProperty('external:reflect-start-writer-advance', 'kind', 'external_fixture');
@@ -139,8 +139,8 @@ test('reflect writes retry after the cached writer ref is advanced externally', 
   const started = await startReflect(localRepoDir, entry.id, { promptType: 'challenge' });
   assert.equal(started.ok, true, 'Expected reflect start to retry and create a session after writer ref conflict.');
 
-  const secondExternalApp = await openExternalWarpApp(localRepoDir);
-  await secondExternalApp.patch((patch) => {
+  const secondExternalWorldline = await openExternalWorldline(localRepoDir);
+  await secondExternalWorldline.commit((patch) => {
     patch
       .addNode('external:reflect-reply-writer-advance')
       .setProperty('external:reflect-reply-writer-advance', 'kind', 'external_fixture');
@@ -156,12 +156,12 @@ test('reflect writes retry after the cached writer ref is advanced externally', 
   assert.equal(saved.sessionId, started.sessionId, 'Expected retried reflect reply to preserve session lineage.');
 });
 
-async function openExternalWarpApp(repoDir) {
-  return await WarpApp.open({
+async function openExternalWorldline(repoDir) {
+  return await openWarpWorldline({
     persistence: new GitGraphAdapter({
       plumbing: createThinkPlumbing(repoDir),
     }),
-    graphName: GRAPH_NAME,
+    worldlineName: GRAPH_NAME,
     writerId: createWriterId(),
   });
 }

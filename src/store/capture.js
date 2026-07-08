@@ -4,13 +4,16 @@ import { encodeTextContent } from './content.js';
 import { createEntry } from './model.js';
 import {
   commitThinkWorldline,
-  createProductReadHandle,
   getStoredEntry,
   openThinkWorldline,
-  openWarpApp,
+  openProductReadHandle,
 } from './runtime.js';
 import { ensureCaptureReadEdges, ensureFirstDerivedArtifacts } from './derivation.js';
 import { migrateGraphModel } from './migrations.js';
+import {
+  applyCaptureReadModelPatch,
+  applyPendingCaptureReadModelPatch,
+} from './read-model.js';
 
 export async function saveRawCapture(repoDir, thought, {
   provenance = null,
@@ -29,48 +32,58 @@ async function writeRawCapture(repoDir, thought, {
   const worldline = await openThinkWorldline(repoDir);
   const entry = createEntry(thought, worldline.writerId, { kind: 'capture', source: 'capture' });
   const captureProvenance = normalizeCaptureProvenance(provenance);
-
-  const patcher = async (patch) => {
-    patch
-      .addNode(entry.id)
-      .setProperty(entry.id, 'kind', entry.kind)
-      .setProperty(entry.id, 'source', entry.source)
-      .setProperty(entry.id, 'channel', entry.channel)
-      .setProperty(entry.id, 'writerId', entry.writerId)
-      .setProperty(entry.id, 'createdAt', entry.createdAt)
-      .setProperty(entry.id, 'sortKey', entry.sortKey);
-
-    applyAmbientContextPatch(patch, entry.id, ambientContext);
-    if (captureProvenance?.ingress) {
-      patch.setProperty(entry.id, 'captureIngress', captureProvenance.ingress);
-    }
-    if (captureProvenance?.sourceApp) {
-      patch.setProperty(entry.id, 'captureSourceApp', captureProvenance.sourceApp);
-    }
-    if (captureProvenance?.sourceURL) {
-      patch.setProperty(entry.id, 'captureSourceURL', captureProvenance.sourceURL);
-    }
-
-    await patch.attachContent(entry.id, encodeTextContent(thought), { mime: TEXT_MIME });
-  };
+  const patcher = createRawCapturePatcher(entry, thought, {
+    ambientContext,
+    captureProvenance,
+  });
 
   await commitThinkWorldline(repoDir, patcher);
 
   return entry;
 }
 
+function createRawCapturePatcher(entry, thought, { ambientContext, captureProvenance }) {
+  return async (patch) => {
+    applyRawCapturePatch(patch, entry, {
+      ambientContext,
+      captureProvenance,
+    });
+    await patch.attachContent(entry.id, encodeTextContent(thought), { mime: TEXT_MIME });
+  };
+}
+
+function applyRawCapturePatch(patch, entry, { ambientContext, captureProvenance }) {
+  applyPendingCaptureReadModelPatch(patch, entry, { ambientContext });
+  patch
+    .addNode(entry.id)
+    .setProperty(entry.id, 'kind', entry.kind)
+    .setProperty(entry.id, 'source', entry.source)
+    .setProperty(entry.id, 'channel', entry.channel)
+    .setProperty(entry.id, 'writerId', entry.writerId)
+    .setProperty(entry.id, 'createdAt', entry.createdAt)
+    .setProperty(entry.id, 'sortKey', entry.sortKey);
+
+  applyAmbientContextPatch(patch, entry.id, ambientContext);
+  applyCaptureProvenancePatch(patch, entry.id, captureProvenance);
+}
+
+function applyCaptureProvenancePatch(patch, entryId, captureProvenance) {
+  if (captureProvenance?.ingress) {
+    patch.setProperty(entryId, 'captureIngress', captureProvenance.ingress);
+  }
+  if (captureProvenance?.sourceApp) {
+    patch.setProperty(entryId, 'captureSourceApp', captureProvenance.sourceApp);
+  }
+  if (captureProvenance?.sourceURL) {
+    patch.setProperty(entryId, 'captureSourceURL', captureProvenance.sourceURL);
+  }
+}
+
 export async function finalizeCapturedThought(repoDir, entryId, {
   migrateIfNeeded = false,
   ambientContext = null,
 } = {}) {
-  let app = await openWarpApp(repoDir);
-
-  if (ambientContext) {
-    await patchAmbientContext(repoDir, entryId, ambientContext);
-    app = await openWarpApp(repoDir);
-  }
-
-  let read = await createProductReadHandle(app, repoDir);
+  let read = await openProductReadHandle(repoDir);
   let entry = await getStoredEntry(read, entryId);
 
   if (!entry || entry.kind !== 'capture') {
@@ -80,12 +93,14 @@ export async function finalizeCapturedThought(repoDir, entryId, {
     };
   }
 
+  await patchCaptureReadModel(repoDir, entry, ambientContext);
+  read = await openProductReadHandle(repoDir);
+  entry = await getStoredEntry(read, entryId);
+
   await ensureFirstDerivedArtifacts(repoDir, read, entry);
-  app = await openWarpApp(repoDir);
-  read = await createProductReadHandle(app, repoDir);
+  read = await openProductReadHandle(repoDir);
   await ensureCaptureReadEdges(repoDir, read, entryId);
-  app = await openWarpApp(repoDir);
-  read = await createProductReadHandle(app, repoDir);
+  read = await openProductReadHandle(repoDir);
   entry = await getStoredEntry(read, entryId);
 
   return {
@@ -124,9 +139,11 @@ function applyAmbientContextPatch(patch, entryId, ambientContext) {
   }
 }
 
-async function patchAmbientContext(repoDir, entryId, ambientContext) {
-  const patcher = (patch) => {
-    applyAmbientContextPatch(patch, entryId, ambientContext);
+async function patchCaptureReadModel(repoDir, entry, ambientContext) {
+  const patcher = async (patch) => {
+    const read = await openProductReadHandle(repoDir);
+    await applyCaptureReadModelPatch(patch, read, entry, { ambientContext });
+    applyAmbientContextPatch(patch, entry.id, ambientContext);
   };
 
   await commitThinkWorldline(repoDir, patcher);

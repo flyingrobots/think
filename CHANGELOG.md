@@ -12,6 +12,18 @@ Release discipline:
 
 ## Unreleased
 
+- added bounded Think read-model facts for latest/recent captures plus
+  self-contained fast capture records so default `--remember`, `--recent`, and
+  browse bootstrap avoid scanning `entry:*`
+- added ratchet tests proving default ambient recall and explicit recall avoid
+  graph queries, keyword wildcard scans, and capture-node hydration when fast
+  capture records are available
+- added a Hexagonal Boundary lint ratchet so product code cannot increase
+  direct substrate-layout or `git-warp` runtime leakage
+- removed Think-managed `git-warp` cache/checkpoint reads, doctor checks, and
+  ref deletion from product runtime paths
+- upgraded `@git-stunts/git-warp` to 18.2.1
+
 ## [0.7.2] - 2026-06-23
 
 - added feature proposal packets for History product boundaries, Browse memory workbench, followthrough job queue, agent-native memory API, and evidence-bound enrichment

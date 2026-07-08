@@ -48,6 +48,13 @@ export class DependencyError extends ThinkError {
   }
 }
 
+export class ContentUnavailableError extends ThinkError {
+  constructor(message) {
+    super(message, 'CONTENT_UNAVAILABLE');
+    this.name = 'ContentUnavailableError';
+  }
+}
+
 export class PortNotImplementedError extends ThinkError {
   constructor(portName, methodName) {
     super(`${portName}.${methodName} is not implemented`, 'PORT_NOT_IMPLEMENTED');

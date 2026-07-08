@@ -1,0 +1,38 @@
+{
+  "allowedBoundaryFiles": [
+    "scripts/hexagonal-boundary-ratchet.mjs",
+    "scripts/repair-v17-mind.mjs",
+    "src/browse-benchmark.js",
+    "src/browse/adapters/git-warp-worker.js",
+    "src/browse/adapters/git-warp.js",
+    "src/cli/commands/doctor.js",
+    "src/doctor.js",
+    "src/history/git-warp-read.js"
+  ],
+  "generatedFrom": "scripts/hexagonal-boundary-ratchet.mjs",
+  "leaks": {
+    "byFile": {
+      "src/git.js": 1,
+      "src/store/annotate.js": 4,
+      "src/store/capture.js": 6,
+      "src/store/derivation.js": 3,
+      "src/store/enrichment/runner.js": 2,
+      "src/store/migrations.js": 6,
+      "src/store/reflect.js": 6,
+      "src/store/runtime.js": 11
+    },
+    "byTerm": {
+      "git-warp-package": 1,
+      "git-warp-runtime-symbol": 37,
+      "warp-ref-layout": 1
+    },
+    "total": 39
+  },
+  "substrateTermIds": [
+    "git-warp-package",
+    "git-warp-runtime-symbol",
+    "checkpoint-mechanic",
+    "warp-ref-layout"
+  ],
+  "version": 1
+}

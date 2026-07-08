@@ -23,6 +23,7 @@ import {
 } from './format.js';
 import {
   currentEntry,
+  resolveCurrentSessionId,
   resolveNeighbors,
   resolveSessionTraversal,
   resolveChronologyPosition,
@@ -274,6 +275,7 @@ export function buildThoughtContent(model, width, ctx = null) {
   const entry = currentEntry(model);
   const neighbors = resolveNeighbors(model);
   const sessionTraversal = resolveSessionTraversal(model);
+  const sessionId = resolveCurrentSessionId(model, sessionTraversal);
   const chronologyPosition = resolveChronologyPosition(model);
 
   const metadata = [
@@ -281,7 +283,7 @@ export function buildThoughtContent(model, width, ctx = null) {
     `Relative: ${formatRelativeTime(entry.createdAt)}`,
     ...(chronologyPosition ? [`Position: ${chronologyPosition}`] : []),
     `Entry ID: ${formatVisibleEntryId(entry.id)}`,
-    `Session: ${entry.sessionId ?? 'pending'}`,
+    `Session: ${sessionId ?? 'pending'}`,
     `Session Position: ${formatSessionPosition(sessionTraversal)}`,
   ].join('\n');
 

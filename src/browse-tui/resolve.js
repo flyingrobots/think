@@ -3,6 +3,7 @@ import {
   helpShort,
 } from '@flyingrobots/bijou-tui';
 import { resolveHistorySessionEntries } from '../history/session.js';
+import { SESSION_PREFIX } from '../store/constants.js';
 import { formatCompactWhen, normalizeWhitespace, clamp, compareEntriesOldestFirst } from './format.js';
 import { browseKeymap } from './keymap.js';
 
@@ -82,6 +83,29 @@ export function resolveSessionTraversal(model) {
     previous: sessionIndex > 0 ? sessionEntries[sessionIndex - 1] : null,
     next: sessionIndex + 1 < sessionEntries.length ? sessionEntries[sessionIndex + 1] : null,
   };
+}
+
+export function resolveCurrentSessionId(model, sessionTraversal = resolveSessionTraversal(model)) {
+  const sessionStart = sessionTraversal.entries[0] ?? null;
+  return firstSessionId([
+    currentEntry(model)?.sessionId,
+    model.currentWindow?.sessionContext?.sessionId,
+    sessionStart?.sessionId,
+    sessionIdFromSortKey(sessionStart?.sortKey),
+  ]);
+}
+
+function firstSessionId(candidates) {
+  for (const candidate of candidates) {
+    if (candidate) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+function sessionIdFromSortKey(sortKey) {
+  return sortKey ? `${SESSION_PREFIX}${sortKey}` : null;
 }
 
 export function resolveChronologyPosition(model) {

@@ -27,7 +27,6 @@ import {
   buildAmbientRememberScope,
   buildExplicitRememberScope,
 } from '../store/remember.js';
-import { getCheckpointRefStatus } from '../store/checkpoint-state.js';
 import {
   BrowseOutcome,
   CaptureOutcome,
@@ -40,7 +39,7 @@ import {
   StatsOutcome,
 } from './result.js';
 
-const CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS = 3_000;
+const CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS = 6_000;
 const CAPTURE_FOLLOWTHROUGH_DEFERRED = Object.freeze({ status: 'deferred' });
 const CAPTURE_FOLLOWTHROUGH_DEFERRED_WARNING =
   'Capture followthrough deferred; raw thought saved locally before derived graph updates completed.';
@@ -196,8 +195,6 @@ export async function rememberThoughtsForMcp({
     });
   }
 
-  await assertGraphReady('remember');
-
   const remember = await rememberThoughts(repoDir, {
     cwd,
     query,
@@ -317,9 +314,6 @@ export async function checkThinkHealthForMcp() {
       : null,
     getFsmonitorStatus: repoPresent
       ? () => getFsmonitorStatus(repoDir)
-      : null,
-    getCheckpointStatus: repoPresent
-      ? () => getCheckpointRefStatus(repoDir)
       : null,
     checkUpstreamReachable: upstreamUrl ? () => lsRemote(upstreamUrl) : null,
   });

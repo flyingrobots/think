@@ -277,10 +277,6 @@ export async function runRemember(output, reporter, options) {
   reporter.event('remember.read_open.start');
   const read = await openHistoryReadHandle(repoDir);
   reporter.event('remember.read_open.done');
-  const graphStatus = await getHistoryModelStatusForRead(read);
-  if (!await ensureGraphModelReadyFromStatus(repoDir, 'remember', graphStatus, output, reporter)) {
-    return 1;
-  }
 
   reporter.event('remember.scan.start');
   const remember = await rememberThoughtsForRead(read, {

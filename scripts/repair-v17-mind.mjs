@@ -388,22 +388,27 @@ export async function runGitWarpUpgrade({ repoDir, graph, dryRun, runner = runCo
 }
 
 async function importGitWarpUpgradeModule(packageRoot) {
-  const upgradePath = path.join(
-    packageRoot,
-    'dist',
+  return await importGitWarpDistModule(packageRoot, [
     'scripts',
     'migrations',
     'v17.0.0',
-    'checkpoint-schema-upgrade.js'
-  );
-  if (!existsSync(upgradePath)) {
-    throw new RepairV17MindError('Installed @git-stunts/git-warp does not expose the v17 checkpoint migration script', {
-      code: 'repair_v17_mind.v17_upgrade_unavailable',
-      details: { upgradePath },
+    'checkpoint-schema-upgrade.js',
+  ], {
+    code: 'repair_v17_mind.v17_upgrade_unavailable',
+    message: 'Installed @git-stunts/git-warp does not expose the v17 checkpoint migration script',
+  });
+}
+
+async function importGitWarpDistModule(packageRoot, relativeParts, { code, message }) {
+  const modulePath = path.join(packageRoot, 'dist', ...relativeParts);
+  if (!existsSync(modulePath)) {
+    throw new RepairV17MindError(message, {
+      code,
+      details: { modulePath },
     });
   }
 
-  return await import(pathToFileURL(upgradePath).href);
+  return await import(pathToFileURL(modulePath).href);
 }
 
 async function createV17Crypto(packageRoot) {
@@ -443,6 +448,7 @@ async function createV17Persistence({ repoDir, runner }) {
 export async function materializeGraph({ repoDir, graph, runner = runCommand }) {
   const gitWarp = await import('@git-stunts/git-warp');
   const { default: DefaultWarpApp, GitGraphAdapter, WarpApp: NamedWarpApp } = gitWarp;
+  const packageRoot = resolveGitWarpPackageRoot();
   const WarpApp = DefaultWarpApp ?? NamedWarpApp;
   const persistence = createContentAnchorAwarePersistence(
     new GitGraphAdapter({
@@ -450,11 +456,13 @@ export async function materializeGraph({ repoDir, graph, runner = runCommand }) 
     }),
     createGitObjectTypeReader({ repoDir, runner })
   );
+  const patchJournal = await createV17PatchJournal({ packageRoot, persistence });
   const app = await WarpApp.open({
     persistence,
     graphName: graph,
     writerId: 'think-repair-v17',
     checkpointPolicy: { every: 100 },
+    patchJournal,
   });
   const state = await app.core().materialize();
   const checkpoint = await app.core().createCheckpoint();
@@ -466,6 +474,94 @@ export async function materializeGraph({ repoDir, graph, runner = runCommand }) 
     nodes: sizeOf(state?.nodeAlive),
     properties: sizeOf(state?.prop),
   });
+}
+
+async function createV17PatchJournal({ packageRoot, persistence }) {
+  const modules = await importV17PatchJournalModules(packageRoot);
+  const journalOptions = await createV17PatchJournalOptions({ modules, persistence });
+  return new modules.CborPatchJournalAdapter(journalOptions);
+}
+
+async function importV17PatchJournalModules(packageRoot) {
+  const [
+    codecModule,
+    journalModule,
+    policyModule,
+  ] = await Promise.all([
+    importV17CborCodecModule(packageRoot),
+    importV17PatchJournalModule(packageRoot),
+    importV17CompatibilityPolicyModule(packageRoot),
+  ]);
+
+  return Object.freeze({
+    CborPatchJournalAdapter: journalModule.CborPatchJournalAdapter,
+    codec: codecModule.default,
+    compatibilityPolicy: policyModule.V17_SUBSTRATE_MIGRATION_COMPATIBILITY_POLICY,
+  });
+}
+
+function importV17CborCodecModule(packageRoot) {
+  return importGitWarpDistModule(packageRoot, [
+    'src',
+    'infrastructure',
+    'codecs',
+    'CborCodec.js',
+  ], {
+    code: 'repair_v17_mind.codec_unavailable',
+    message: 'Installed @git-stunts/git-warp does not expose the CBOR codec',
+  });
+}
+
+function importV17PatchJournalModule(packageRoot) {
+  return importGitWarpDistModule(packageRoot, [
+    'src',
+    'infrastructure',
+    'adapters',
+    'CborPatchJournalAdapter.js',
+  ], {
+    code: 'repair_v17_mind.patch_journal_unavailable',
+    message: 'Installed @git-stunts/git-warp does not expose the CBOR patch journal adapter',
+  });
+}
+
+function importV17CompatibilityPolicyModule(packageRoot) {
+  return importGitWarpDistModule(packageRoot, [
+    'scripts',
+    'migrations',
+    'v17.0.0',
+    'SubstrateMigrationCompatibilityPolicy.js',
+  ], {
+    code: 'repair_v17_mind.compatibility_policy_unavailable',
+    message: 'Installed @git-stunts/git-warp does not expose the v17 substrate compatibility policy',
+  });
+}
+
+async function createV17PatchJournalOptions({ modules, persistence }) {
+  const writeStorage = typeof persistence.defaultPatchWriteStorage === 'function'
+    ? persistence.defaultPatchWriteStorage()
+    : undefined;
+  const blobStorage = await createV17PatchBlobStorage(persistence, writeStorage);
+  const journalOptions = {
+    codec: modules.codec,
+    blobPort: persistence,
+    commitPort: persistence,
+    compatibilityPolicy: modules.compatibilityPolicy,
+  };
+  if (writeStorage !== undefined) {
+    journalOptions.writeStorage = writeStorage;
+  }
+  if (blobStorage !== null) {
+    journalOptions.blobStorage = blobStorage;
+  }
+
+  return journalOptions;
+}
+
+async function createV17PatchBlobStorage(persistence, writeStorage) {
+  if (writeStorage?.strategy === 'git-cas' && typeof persistence.createRuntimeBlobStorage === 'function') {
+    return await persistence.createRuntimeBlobStorage();
+  }
+  return null;
 }
 
 function sizeOf(value) {

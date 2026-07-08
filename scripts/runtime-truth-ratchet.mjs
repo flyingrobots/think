@@ -101,6 +101,10 @@ function sourceCodeFiles(files) {
   return files.filter(file => sourcePrefixes.some(prefix => file.startsWith(prefix)));
 }
 
+function existingCodeFiles(files) {
+  return files.filter(file => existsSync(path.join(repoRoot, file)));
+}
+
 function eslintBinPath() {
   const executable = process.platform === 'win32' ? 'eslint.cmd' : 'eslint';
   return path.join(repoRoot, 'node_modules', '.bin', executable);
@@ -218,7 +222,7 @@ function countBy(values, selectKey) {
 }
 
 function createSnapshot() {
-  const files = trackedCodeFiles();
+  const files = existingCodeFiles(trackedCodeFiles());
   const strictFindings = collectStrictLimitFindings(files);
   const genericThrowFindings = collectGenericThrowFindings(sourceCodeFiles(files));
 

@@ -111,7 +111,6 @@ test('runDiagnostics includes all expected check names', async () => {
   const names = result.checks.map((c) => c.name);
   assert.ok(names.includes('think_dir'), 'Expected think_dir check.');
   assert.ok(names.includes('local_repo'), 'Expected local_repo check.');
-  assert.ok(names.includes('checkpoint'), 'Expected checkpoint check.');
   assert.ok(names.includes('git_fsmonitor'), 'Expected git_fsmonitor check.');
   assert.ok(names.includes('graph_model'), 'Expected graph_model check.');
   assert.ok(names.includes('entry_count'), 'Expected entry_count check.');
@@ -193,67 +192,6 @@ test('runDiagnostics reports ok when fsmonitor is disabled locally', async () =>
   const fsmonitorCheck = findCheck(result, 'git_fsmonitor');
   assert.equal(fsmonitorCheck.status, 'ok', 'Expected fsmonitor to pass when local config disables it.');
   assert.match(fsmonitorCheck.message, /disabled locally/, 'Expected local override to be mentioned.');
-});
-
-test('runDiagnostics fails when checkpoint cache schema is unsupported', async () => {
-  const context = await createDoctorContext({ withRepo: true });
-  const result = await runDiagnostics({
-    thinkDir: context.thinkDir,
-    repoDir: context.repoDir,
-    getCheckpointStatus: () => ({
-      exists: true,
-      ref: 'refs/warp/think/checkpoints/head',
-      checkpointSha: 'abc123',
-      schema: 4,
-      supportedSchema: 5,
-      supported: false,
-    }),
-  });
-
-  const checkpointCheck = findCheck(result, 'checkpoint');
-  assert.equal(checkpointCheck.status, 'fail', 'Expected unsupported checkpoint schema to fail.');
-  assert.match(checkpointCheck.message, /schema 4/, 'Expected current checkpoint schema in message.');
-  assert.match(checkpointCheck.message, /update-ref -d/, 'Expected remediation command.');
-});
-
-test('runDiagnostics fixes unsupported checkpoint cache when requested', async () => {
-  const context = await createDoctorContext({ withRepo: true });
-  let fixed = false;
-
-  const result = await runDiagnostics({
-    thinkDir: context.thinkDir,
-    repoDir: context.repoDir,
-    fix: true,
-    getCheckpointStatus: () => fixed
-      ? {
-          exists: false,
-          ref: 'refs/warp/think/checkpoints/head',
-          checkpointSha: null,
-          schema: null,
-          supportedSchema: 5,
-          supported: true,
-        }
-      : {
-          exists: true,
-          ref: 'refs/warp/think/checkpoints/head',
-          checkpointSha: 'abc123',
-          schema: 4,
-          supportedSchema: 5,
-          supported: false,
-        },
-    fixCheckpoint: () => {
-      fixed = true;
-    },
-  });
-
-  assert.equal(fixed, true, 'Expected checkpoint fixer to run.');
-
-  const fix = result.fixes.find((candidate) => candidate.name === 'checkpoint');
-  assert.ok(fix, 'Expected checkpoint fix result.');
-  assert.equal(fix.status, 'ok', 'Expected checkpoint fix to pass.');
-
-  const checkpointCheck = findCheck(result, 'checkpoint');
-  assert.equal(checkpointCheck.status, 'warn', 'Expected final checkpoint check to warn when cache is absent.');
 });
 
 test('runDiagnostics fails when fsmonitor is effectively enabled', async () => {

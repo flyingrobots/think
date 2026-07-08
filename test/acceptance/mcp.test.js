@@ -161,7 +161,7 @@ test('think MCP remember, stats, and prompt_metrics expose structured read resul
   ]);
 
   runThink(context, ['project notes about warp performance and browse startup']);
-  runThink(context, ['remembering warp checkpoints makes browse startup fast']);
+  runThink(context, ['remembering warp worldlines makes browse startup fast']);
 
   await withThinkMcpClient(
     context,

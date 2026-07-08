@@ -1,11 +1,10 @@
 import { CLASSIFICATION_PREFIX, TOPIC_PREFIX, KEYWORD_PREFIX, GRAPH_META_ID } from '../constants.js';
 import { createArtifactId, getCurrentTime } from '../model.js';
 import {
-  createProductReadHandle,
+  commitThinkWorldline,
   getStoredEntry,
   listEntriesByKind,
-  openWarpApp,
-  patchWarpApp,
+  openProductReadHandle,
 } from '../runtime.js';
 import { invalidateSearchIndex } from '../queries.js';
 import { extractTopics } from './auto-tags.js';
@@ -18,8 +17,7 @@ const TOPIC_PROMOTION_THRESHOLD = 2;
  * Uses worldline query API — no full graph materialization.
  */
 export async function runEnrichmentPipeline(repoDir) {
-  const app = await openWarpApp(repoDir);
-  const read = await createProductReadHandle(app, repoDir);
+  const read = await openProductReadHandle(repoDir);
   const { view } = read;
 
   // 1. Determine the starting point (high-water mark cursor)
@@ -235,7 +233,7 @@ export async function runEnrichmentPipeline(repoDir) {
     existingParseReceipts.add(thoughtId);
   }
 
-  await patchWarpApp(repoDir, (patch) => {
+  await commitThinkWorldline(repoDir, (patch) => {
     // Create keyword nodes and mentions edges (The Inverted Index)
     for (const { keywordNodeId, keyword } of keywordNodesToCreate) {
       patch
@@ -329,8 +327,7 @@ export async function runEnrichmentPipeline(repoDir) {
  * Uses worldline query API — no full graph materialization.
  */
 export async function listTopics(repoDir) {
-  const app = await openWarpApp(repoDir);
-  const read = await createProductReadHandle(app, repoDir);
+  const read = await openProductReadHandle(repoDir);
 
   const topicResult = await read.view.query().match(`${TOPIC_PREFIX}*`).where({ kind: 'topic' }).run();
   const topics = [];

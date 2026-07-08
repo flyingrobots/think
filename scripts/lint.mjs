@@ -12,7 +12,12 @@ if (eslintStatus !== 0) {
   process.exit(eslintStatus);
 }
 
-process.exit(runChecked(process.execPath, ['./scripts/runtime-truth-ratchet.mjs']));
+const runtimeTruthStatus = runChecked(process.execPath, ['./scripts/runtime-truth-ratchet.mjs']);
+if (runtimeTruthStatus !== 0) {
+  process.exit(runtimeTruthStatus);
+}
+
+process.exit(runChecked(process.execPath, ['./scripts/hexagonal-boundary-ratchet.mjs']));
 
 function runChecked(command, args) {
   const result = spawnSync(command, args, {

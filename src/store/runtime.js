@@ -1,14 +1,12 @@
-import WarpApp, { GitGraphAdapter, openWarpGraph, openWarpWorldline } from '@git-stunts/git-warp';
+import { GitGraphAdapter, openWarpWorldline } from '@git-stunts/git-warp';
 
+import { ContentUnavailableError } from '../errors.js';
 import { resolveHistorySessionEntries } from '../history/session.js';
 import { createThinkPlumbing } from '../git.js';
-import { createAppContentReader } from './content-reader.js';
-import { openCheckpointProductRead } from './checkpoint-product-read.js';
-import { deleteCheckpointRef, isUnsupportedCheckpointSchemaError } from './checkpoint-state.js';
 import {
   ARTIFACT_PREFIX,
-  CHECKPOINT_POLICY,
   ENTRY_PREFIX,
+  EXACT_READ_UNAVAILABLE,
   GRAPH_META_ID,
   GRAPH_MODEL_VERSION,
   GRAPH_NAME,
@@ -24,6 +22,11 @@ import {
   createWriterId,
   storesTextContent,
 } from './model.js';
+import {
+  captureRecordToProps,
+  readCaptureReadModel,
+  readCaptureRecords,
+} from './read-model.js';
 
 export class GenericEntry {
   constructor(nodeId, resolvedProps, text) {
@@ -113,24 +116,9 @@ export class BaseEntry {
 
 const WRITER_CAS_CONFLICT_TEXT = 'writer ref was updated by another process';
 const DEFAULT_PATCH_MAX_ATTEMPTS = 3;
-const warpAppCache = new Map();
 const warpWorldlineCache = new Map();
 const runtimeBlobStorageCache = new Map();
-
-export async function openWarpApp(repoDir) {
-  const cached = warpAppCache.get(repoDir);
-  if (cached) {
-    return cached;
-  }
-
-  const app = await openWarpAppWithCheckpointRepair(repoDir, createWriterId());
-  warpAppCache.set(repoDir, app);
-  return app;
-}
-
-export async function openWarpGraphHandle(repoDir, writerId = createWriterId()) {
-  return await openWarpGraphWithCheckpointRepair(repoDir, writerId);
-}
+const opticBasisCache = new WeakMap();
 
 export async function openThinkWorldline(repoDir) {
   const cached = warpWorldlineCache.get(repoDir);
@@ -138,70 +126,9 @@ export async function openThinkWorldline(repoDir) {
     return cached;
   }
 
-  const worldline = await openThinkWorldlineWithCheckpointRepair(repoDir, createWriterId());
+  const worldline = await openThinkWorldlineOnce(repoDir, createWriterId());
   warpWorldlineCache.set(repoDir, worldline);
   return worldline;
-}
-
-async function openWarpAppWithCheckpointRepair(repoDir, writerId) {
-  try {
-    return await openWarpAppOnce(repoDir, writerId);
-  } catch (error) {
-    if (!isUnsupportedCheckpointSchemaError(error)) {
-      throw error;
-    }
-
-    await deleteCheckpointRef(repoDir);
-    return await openWarpAppOnce(repoDir, writerId);
-  }
-}
-
-async function openWarpGraphWithCheckpointRepair(repoDir, writerId) {
-  try {
-    return await openWarpGraphOnce(repoDir, writerId);
-  } catch (error) {
-    if (!isUnsupportedCheckpointSchemaError(error)) {
-      throw error;
-    }
-
-    await deleteCheckpointRef(repoDir);
-    return await openWarpGraphOnce(repoDir, writerId);
-  }
-}
-
-async function openThinkWorldlineWithCheckpointRepair(repoDir, writerId) {
-  try {
-    return await openThinkWorldlineOnce(repoDir, writerId);
-  } catch (error) {
-    if (!isUnsupportedCheckpointSchemaError(error)) {
-      throw error;
-    }
-
-    await deleteCheckpointRef(repoDir);
-    return await openThinkWorldlineOnce(repoDir, writerId);
-  }
-}
-
-async function openWarpAppOnce(repoDir, writerId) {
-  const persistence = createThinkWarpPersistence(repoDir);
-
-  return await WarpApp.open({
-    persistence,
-    graphName: GRAPH_NAME,
-    writerId,
-    checkpointPolicy: CHECKPOINT_POLICY,
-  });
-}
-
-async function openWarpGraphOnce(repoDir, writerId) {
-  const persistence = createThinkWarpPersistence(repoDir);
-
-  return await openWarpGraph({
-    persistence,
-    graphName: GRAPH_NAME,
-    writerId,
-    checkpointPolicy: CHECKPOINT_POLICY,
-  });
 }
 
 async function openThinkWorldlineOnce(repoDir, writerId) {
@@ -211,7 +138,6 @@ async function openThinkWorldlineOnce(repoDir, writerId) {
     persistence,
     worldlineName: GRAPH_NAME,
     writerId,
-    checkpointPolicy: CHECKPOINT_POLICY,
   });
 }
 
@@ -221,47 +147,9 @@ function createThinkWarpPersistence(repoDir) {
   });
 }
 
-export function clearWarpAppCache(repoDir) {
-  warpAppCache.delete(repoDir);
+export function clearWarpRuntimeCache(repoDir) {
   warpWorldlineCache.delete(repoDir);
-}
-
-export async function patchWarpApp(repoDir, patcher, {
-  genesisOnNoState = false,
-  maxAttempts = DEFAULT_PATCH_MAX_ATTEMPTS,
-  syncAfterPatch = true,
-} = {}) {
-  let attempt = 1;
-
-  /* eslint-disable no-await-in-loop -- retry attempts must run sequentially against a refreshed cached app */
-  while (true) {
-    const app = await openWarpApp(repoDir);
-
-    try {
-      try {
-        await app.patch(patcher);
-      } catch (error) {
-        if (!genesisOnNoState || error?.code !== 'E_NO_STATE') {
-          throw error;
-        }
-        await app.patch(patcher, { genesis: true });
-      }
-
-      if (syncAfterPatch) {
-        await app.syncWith(app.core());
-      }
-
-      return app;
-    } catch (error) {
-      if (!isWriterCasConflict(error) || attempt >= maxAttempts) {
-        throw error;
-      }
-
-      clearWarpAppCache(repoDir);
-      attempt += 1;
-    }
-  }
-  /* eslint-enable no-await-in-loop */
+  runtimeBlobStorageCache.delete(repoDir);
 }
 
 export async function commitThinkWorldline(repoDir, patcher, {
@@ -281,39 +169,25 @@ export async function commitThinkWorldline(repoDir, patcher, {
         throw error;
       }
 
-      clearWarpAppCache(repoDir);
+      clearWarpRuntimeCache(repoDir);
       attempt += 1;
     }
   }
   /* eslint-enable no-await-in-loop */
 }
 
-export async function patchWarpAppWithWriter(repoDir, writerId, patcher, {
-  genesisOnNoState = false,
+export async function commitThinkWorldlineWithWriter(repoDir, writerId, patcher, {
   maxAttempts = DEFAULT_PATCH_MAX_ATTEMPTS,
-  syncAfterPatch = true,
 } = {}) {
   let attempt = 1;
 
-  /* eslint-disable no-await-in-loop -- retry attempts must run sequentially against a refreshed app */
+  /* eslint-disable no-await-in-loop -- retry attempts must run sequentially against a refreshed worldline */
   while (true) {
-    const app = await openWarpAppUncached(repoDir, writerId);
+    const worldline = await openThinkWorldlineOnce(repoDir, writerId);
 
     try {
-      try {
-        await app.patch(patcher);
-      } catch (error) {
-        if (!genesisOnNoState || error?.code !== 'E_NO_STATE') {
-          throw error;
-        }
-        await app.patch(patcher, { genesis: true });
-      }
-
-      if (syncAfterPatch) {
-        await app.syncWith(app.core());
-      }
-
-      return app;
+      await worldline.commit(patcher);
+      return worldline;
     } catch (error) {
       if (!isWriterCasConflict(error) || attempt >= maxAttempts) {
         throw error;
@@ -325,96 +199,87 @@ export async function patchWarpAppWithWriter(repoDir, writerId, patcher, {
   /* eslint-enable no-await-in-loop */
 }
 
-async function openWarpAppUncached(repoDir, writerId) {
-  return await openWarpAppWithCheckpointRepair(repoDir, writerId);
-}
-
 export function isWriterCasConflict(error) {
   return error instanceof Error && error.message.includes(WRITER_CAS_CONFLICT_TEXT);
 }
 
-export async function createProductReadHandle(app, repoDir = null) {
-  if (repoDir) {
-    const checkpointRead = await tryOpenCheckpointProductRead(repoDir, app);
-    return await createWorldlineProductReadHandle({
-      app,
-      repoDir,
-      checkpointRead,
-    });
-  }
-
-  return await createCompatProductReadHandle(app);
-}
-
-async function createCompatProductReadHandle(app) {
-  const worldline = app.worldline();
-
-  return {
-    app,
-    repoDir: null,
-    worldline,
-    view: await worldline.observer('think-product', PRODUCT_READ_LENS),
-    contentCore: app.core(),
-    blobStorage: null,
-    readContent: createAppContentReader(app),
-    writerId: app.writerId,
-  };
-}
-
 export async function openProductReadHandle(repoDir) {
-  const checkpointRead = await tryOpenCheckpointProductRead(repoDir);
-  return await createWorldlineProductReadHandle({
-    repoDir,
-    checkpointRead,
-  });
+  return await createWorldlineProductReadHandle({ repoDir });
 }
 
 async function createWorldlineProductReadHandle({
-  app = null,
   repoDir,
-  checkpointRead = null,
 }) {
   const worldline = await openThinkWorldline(repoDir);
-  const blobStorage = await resolveProductBlobStorage(repoDir, checkpointRead);
+  const blobStorage = await getRuntimeBlobStorage(repoDir);
 
   return {
-    app,
+    app: null,
     repoDir,
     worldline,
-    view: resolveProductView(checkpointRead, worldline),
-    contentCore: resolveProductContentCore(app),
+    view: worldline.live(),
+    contentCore: null,
     blobStorage,
-    readContent: resolveProductContentReader(checkpointRead, app),
+    readContent: readUnavailableRuntimeContent,
+    readContentRequiresContentOid: true,
+    readNodeProp: createWorldlineExactPropReader(worldline),
     writerId: worldline.writerId,
   };
 }
 
-function resolveProductView(checkpointRead, worldline) {
-  return checkpointRead?.view ?? worldline.live();
+function readUnavailableRuntimeContent(nodeId) {
+  throw new ContentUnavailableError(
+    `Content for ${nodeId} is unavailable: this git-warp runtime exposes no public content reader fallback.`,
+  );
 }
 
-function resolveProductContentCore(app) {
-  return app?.core?.() ?? null;
+function createWorldlineExactPropReader(worldline) {
+  return async (nodeId, key) => {
+    if (opticBasisCache.get(worldline) === false) {
+      return EXACT_READ_UNAVAILABLE;
+    }
+
+    try {
+      await prepareCachedOpticBasis(worldline);
+
+      const result = await worldline.optic().node(nodeId).prop(key).read();
+      return result.exists ? result.value : undefined;
+    } catch (error) {
+      if (isMissingBoundedOpticBasis(error)) {
+        return EXACT_READ_UNAVAILABLE;
+      }
+      throw error;
+    }
+  };
 }
 
-async function resolveProductBlobStorage(repoDir, checkpointRead) {
-  return checkpointRead?.blobStorage ?? await getRuntimeBlobStorage(repoDir);
-}
-
-function resolveProductContentReader(checkpointRead, app) {
-  return checkpointRead?.readContent ?? resolveAppContentReader(app);
-}
-
-function resolveAppContentReader(app) {
-  return app ? createAppContentReader(app) : null;
-}
-
-async function tryOpenCheckpointProductRead(repoDir, app = null) {
-  try {
-    return await openCheckpointProductRead(repoDir, app);
-  } catch {
-    return null;
+async function prepareCachedOpticBasis(worldline) {
+  const cached = opticBasisCache.get(worldline);
+  if (cached) {
+    return cached;
   }
+
+  const basisPromise = worldline.prepareOpticBasis();
+  opticBasisCache.set(worldline, basisPromise);
+
+  try {
+    await basisPromise;
+    return basisPromise;
+  } catch (error) {
+    if (isMissingBoundedOpticBasis(error)) {
+      opticBasisCache.set(worldline, false);
+    } else {
+      opticBasisCache.delete(worldline);
+    }
+    throw error;
+  }
+}
+
+function isMissingBoundedOpticBasis(error) {
+  return error instanceof Error && (
+    error.code === 'E_OPTIC_NO_BOUNDED_BASIS' ||
+    error.message.includes('E_OPTIC_NO_BOUNDED_BASIS')
+  );
 }
 
 async function getRuntimeBlobStorage(repoDir) {
@@ -537,7 +402,10 @@ function getMatchPatternsForKind(kind) {
 }
 
 export async function listChronologyEntries(read) {
-  const captures = await listEntriesByKind(read, 'capture');
+  const captures = await listRecentStoredEntries(read, {
+    kind: 'capture',
+    limit: Number.MAX_SAFE_INTEGER,
+  });
   return captures
     .map(toBrowseEntry)
     .sort(compareEntriesNewestFirst);
@@ -570,13 +438,8 @@ export async function* iterateRecentStoredEntries(read, { kind = 'capture', limi
     return;
   }
 
-  const candidates = await listEntryPropsByKind(read, kind);
-  for (const candidate of candidates.sort(compareEntriesNewestFirst).slice(0, maxEntries)) {
-    // eslint-disable-next-line no-await-in-loop -- bounded retrieval of selected recent entries
-    const entry = await getStoredEntry(read, candidate.id, candidate);
-    if (entry && entry.kind === kind) {
-      yield entry;
-    }
+  for (const entry of await listRecentCandidateEntries(read, { kind, limit: maxEntries })) {
+    yield entry;
   }
 }
 
@@ -589,14 +452,53 @@ async function getLatestIdByKind(read, kind, options = {}) {
 }
 
 export async function readNodeText(read, nodeId, props = null) {
+  const contentOid = await resolveNodeContentOid(read, nodeId, props);
+  const content = await readNodeContent(read, nodeId, contentOid);
+  if (hasReadableContent(content)) {
+    return decodeContent(content);
+  }
+
+  if (contentOid) {
+    throw new ContentUnavailableError(
+      `Content for ${nodeId} is unavailable: the read handle has a content oid but no readable content source.`,
+    );
+  }
+
+  return '';
+}
+
+async function resolveNodeContentOid(read, nodeId, props) {
   const resolvedProps = props ?? await read.view.getNodeProps(nodeId);
-  const contentOid = typeof resolvedProps?._content === 'string'
-    ? resolvedProps._content
-    : await readNodeContentOid(read, nodeId);
-  const content = contentOid && read.blobStorage
-    ? await read.blobStorage.retrieve(contentOid)
-    : await readContent(read, nodeId);
-  return content ? new TextDecoder().decode(content) : '';
+  if (typeof resolvedProps?._content === 'string') {
+    return resolvedProps._content;
+  }
+  return await readNodeContentOid(read, nodeId);
+}
+
+async function readNodeContent(read, nodeId, contentOid) {
+  const attachedContent = await readAttachedContent(read, contentOid);
+  if (hasReadableContent(attachedContent)) {
+    return attachedContent;
+  }
+  if (!contentOid && read.readContentRequiresContentOid) {
+    return null;
+  }
+  return await readContent(read, nodeId);
+}
+
+async function readAttachedContent(read, contentOid) {
+  if (contentOid && read.blobStorage) {
+    return await read.blobStorage.retrieve(contentOid);
+  }
+  return null;
+}
+
+function decodeContent(content) {
+  return new TextDecoder().decode(content);
+}
+
+function hasReadableContent(content) {
+  return content !== null && content !== undefined;
 }
 
 async function readContent(read, nodeId) {
@@ -615,23 +517,9 @@ async function readNodeContentOid(read, nodeId) {
 }
 
 export async function getLatestCaptureId(read, { excludeIds = [] } = {}) {
-  const result = await read.view.query()
-    .match(getMatchPatternsForKind('capture'))
-    .where({ kind: 'capture' })
-    .run();
-  return latestCaptureNodeId(result.nodes ?? [], { excludeIds });
-}
-
-function latestCaptureNodeId(nodes, { excludeIds = [] } = {}) {
+  const index = await readCaptureReadModel(read);
   const excludedIds = new Set(excludeIds);
-  const [latest] = nodes
-    .filter((node) => !excludedIds.has(node.id))
-    .map((node) => ({
-      id: node.id,
-      sortKey: String(node.props?.sortKey ?? ''),
-    }))
-    .sort(compareEntriesNewestFirst);
-  return latest?.id ?? null;
+  return index.refs.find((ref) => !excludedIds.has(ref.id))?.id ?? null;
 }
 
 export async function getProducedInSessionId(read, entry) {
@@ -677,7 +565,13 @@ export async function resolveHistorySessionTraversal(read, entry) {
 export const resolveGraphSessionTraversal = resolveHistorySessionTraversal;
 
 async function listHistorySessionBrowseEntries(read, entry) {
-  const captureProps = await listEntryPropsByKind(read, 'capture');
+  if (!entry.sessionId) {
+    return [];
+  }
+
+  const captureProps = await listIndexedCaptureProps(read, {
+    limit: Number.MAX_SAFE_INTEGER,
+  });
   const sessionEntryProps = resolveHistorySessionEntries(captureProps, entry);
   const sessionEntries = [];
 
@@ -709,4 +603,146 @@ function emptySessionTraversal() {
     previous: null,
     next: null,
   };
+}
+
+export async function listIndexedCaptureProps(read, { limit = 50 } = {}) {
+  const records = await readCaptureRecords(read, { limit });
+  if (records.length > 0) {
+    return records
+      .map((record) => Object.freeze({
+        id: record.id,
+        ...captureRecordToProps(record),
+      }))
+      .sort(compareEntriesNewestFirst);
+  }
+  if (typeof read.readNodeProp === 'function') {
+    return [];
+  }
+
+  const index = await readCaptureReadModel(read);
+  const maxEntries = Number.isInteger(limit) ? Math.max(0, limit) : 50;
+  const props = [];
+
+  for (const ref of index.refs.slice(0, maxEntries)) {
+    // eslint-disable-next-line no-await-in-loop -- exact bounded read per indexed capture
+    const captureProps = await read.view.getNodeProps(ref.id);
+    if (captureProps?.kind === 'capture') {
+      props.push(Object.freeze({
+        id: ref.id,
+        ...captureProps,
+      }));
+    }
+  }
+
+  return props.sort(compareEntriesNewestFirst);
+}
+
+export async function listStoredEntriesByRefs(read, refs, { limit = 50, kind = 'capture' } = {}) {
+  const maxEntries = Number.isInteger(limit) ? Math.max(0, limit) : 50;
+  const entries = await hydrateStoredEntriesByRefs(read, refs.slice(0, maxEntries), kind);
+  return entries.sort(compareEntriesNewestFirst);
+}
+
+async function listRecentCandidateEntries(read, { kind, limit }) {
+  if (kind === 'capture') {
+    const recordEntries = await listRecentCaptureRecordEntries(read, { limit });
+    if (recordEntries.length > 0) {
+      return recordEntries;
+    }
+    if (typeof read.readNodeProp === 'function') {
+      return [];
+    }
+  }
+
+  const candidates = await listRecentCandidateProps(read, { kind, limit });
+  const entries = [];
+
+  for (const candidate of candidates.sort(compareEntriesNewestFirst).slice(0, limit)) {
+    // eslint-disable-next-line no-await-in-loop -- exact bounded read per indexed capture
+    const entry = await getStoredEntry(read, candidate.id, candidate);
+    if (entry && entry.kind === kind) {
+      entries.push(entry);
+    }
+  }
+
+  return entries;
+}
+
+async function listRecentCaptureRecordEntries(read, { limit }) {
+  const records = await readCaptureRecords(read, { limit });
+  return records
+    .map(captureRecordToEntry)
+    .sort(compareEntriesNewestFirst);
+}
+
+function captureRecordToEntry(record) {
+  return new CaptureEntry(record.id, captureRecordToProps(record), record.text);
+}
+
+async function listRecentCandidateProps(read, { kind, limit }) {
+  if (kind === 'capture') {
+    return await listIndexedCaptureProps(read, { limit });
+  }
+
+  return await listEntryPropsByKind(read, kind);
+}
+
+async function hydrateStoredEntriesByRefs(read, refs, kind) {
+  const entries = [];
+
+  for (const ref of refs) {
+    // eslint-disable-next-line no-await-in-loop -- exact bounded read per indexed capture
+    const entry = await getStoredEntry(read, ref.id);
+    if (isRequestedEntryKind(entry, kind)) {
+      entries.push(entry);
+    }
+  }
+
+  return entries;
+}
+
+function isRequestedEntryKind(entry, kind) {
+  return Boolean(entry) && (!kind || entry.kind === kind);
+}
+
+export async function getChronologyNeighborEntries(read, currentEntry) {
+  const indexedNeighbors = await getIndexedChronologyNeighborEntries(read, currentEntry);
+  if (indexedNeighbors.found) {
+    return Object.freeze({
+      newer: indexedNeighbors.newer,
+      older: indexedNeighbors.older,
+    });
+  }
+
+  return Object.freeze({
+    newer: await hydrateChronologyNeighborByEdge(read, currentEntry.id, 'newer'),
+    older: await hydrateChronologyNeighborByEdge(read, currentEntry.id, 'older'),
+  });
+}
+
+async function getIndexedChronologyNeighborEntries(read, currentEntry) {
+  const index = await readCaptureReadModel(read);
+  const currentIndex = index.refs.findIndex((ref) => ref.id === currentEntry.id);
+  if (currentIndex < 0) {
+    return Object.freeze({ found: false, newer: null, older: null });
+  }
+
+  return Object.freeze({
+    found: true,
+    newer: await hydrateChronologyNeighbor(read, index.refs[currentIndex - 1] ?? null),
+    older: await hydrateChronologyNeighbor(read, index.refs[currentIndex + 1] ?? null),
+  });
+}
+
+async function hydrateChronologyNeighbor(read, ref) {
+  return ref ? await getStoredEntry(read, ref.id) : null;
+}
+
+async function hydrateChronologyNeighborByEdge(read, entryId, label) {
+  const result = await read.view.query()
+    .match(entryId)
+    .outgoing(label)
+    .run();
+  const neighborId = result.nodes?.[0]?.id ?? null;
+  return neighborId ? await getStoredEntry(read, neighborId) : null;
 }

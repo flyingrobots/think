@@ -8,8 +8,8 @@
   "strictLimits": {
     "byCategory": {
       "benchmark": 5,
-      "source": 150,
-      "test": 45
+      "source": 142,
+      "test": 34
     },
     "byFile": {
       "benchmarks/browse-bootstrap.js": {
@@ -158,12 +158,10 @@
       },
       "src/cli/commands/capture.js": {
         "byRule": {
-          "complexity": 1,
-          "max-lines-per-function": 1,
-          "max-statements": 1
+          "max-lines-per-function": 1
         },
         "category": "source",
-        "total": 3
+        "total": 1
       },
       "src/cli/commands/read.js": {
         "byRule": {
@@ -215,10 +213,10 @@
       },
       "src/mcp/service.js": {
         "byRule": {
-          "max-lines-per-function": 2
+          "max-lines-per-function": 1
         },
         "category": "source",
-        "total": 2
+        "total": 1
       },
       "src/splash-shader.js": {
         "byRule": {
@@ -230,13 +228,6 @@
         },
         "category": "source",
         "total": 17
-      },
-      "src/store/checkpoint-product-read.js": {
-        "byRule": {
-          "complexity": 1
-        },
-        "category": "source",
-        "total": 1
       },
       "src/store/derivation.js": {
         "byRule": {
@@ -314,19 +305,10 @@
       },
       "src/store/runtime.js": {
         "byRule": {
-          "complexity": 7,
-          "max-lines-per-function": 1
+          "complexity": 4
         },
         "category": "source",
-        "total": 8
-      },
-      "test/acceptance/graph-migration.test.js": {
-        "byRule": {
-          "complexity": 2,
-          "max-lines-per-function": 7
-        },
-        "category": "test",
-        "total": 9
+        "total": 4
       },
       "test/acceptance/json-output.test.js": {
         "byRule": {
@@ -382,14 +364,6 @@
         "category": "test",
         "total": 2
       },
-      "test/ports/checkpoint-read.test.js": {
-        "byRule": {
-          "max-lines-per-function": 1,
-          "max-statements": 1
-        },
-        "category": "test",
-        "total": 2
-      },
       "test/ports/docs-consistency.test.js": {
         "byRule": {
           "max-lines-per-function": 1
@@ -407,14 +381,14 @@
       }
     },
     "byRule": {
-      "complexity": 61,
+      "complexity": 54,
       "max-depth": 11,
       "max-lines": 1,
-      "max-lines-per-function": 96,
+      "max-lines-per-function": 86,
       "max-params": 3,
-      "max-statements": 28
+      "max-statements": 26
     },
-    "total": 200
+    "total": 181
   },
   "strictRuleIds": [
     "complexity",

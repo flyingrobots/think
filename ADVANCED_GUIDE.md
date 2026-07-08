@@ -6,10 +6,10 @@ For orientation and the productive-fast path, use the [GUIDE.md](./GUIDE.md).
 
 ## Graph-Native Doctrine
 
-Think uses a "window-based" read model to ensure the TUI remains responsive even as your archive grows to thousands of entries.
+Think uses bounded product read models to ensure recall and browse remain responsive as your archive grows.
 
-- **No Whole-Graph Materialization**: Commands like `browse` and `remember` use `git-warp` read handles to query specific worldline slices.
-- **Checkpoint-Backed Reuse**: The browse TUI uses checkpoints to avoid redundant traversal of chronological neighbors.
+- **No Whole-Graph Materialization**: Default `browse`, `recent`, and `remember` paths read Think-owned latest/recent read-model facts. Recall uses self-contained fast capture records so it does not hydrate capture nodes just to score ambient project matches.
+- **Runtime-Owned Acceleration**: `git-warp` owns checkpoints, state-cache, snapshots, and materialization; Think stores domain facts such as "latest capture" and "recent capture records."
 - **Immutable Raw Layer**: The core Git repository is the system of record. Raw thoughts are never modified after capture.
 
 ## Derivation Pipeline
