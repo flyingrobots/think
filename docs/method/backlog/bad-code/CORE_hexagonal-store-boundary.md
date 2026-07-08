@@ -17,6 +17,9 @@ on injected ports and runtime domain objects, not on concrete host APIs.
 
 ## Acceptance Criteria
 
+- Add a lint ratchet that counts direct substrate-layout and `git-warp`
+  runtime leakage outside explicit adapter, diagnostic, repair, or
+  benchmark boundaries.
 - Define explicit ports for graph persistence, content storage, clocks,
   random IDs, host metadata, prompt metrics storage, and ambient project
   context.
@@ -28,3 +31,8 @@ on injected ports and runtime domain objects, not on concrete host APIs.
   `@git-stunts/*` concrete adapters directly.
 - Add at least one browser-like unit test that runs core store logic
   without Node filesystem, process, or Git globals.
+
+## Progress
+
+- [x] Hexagonal Boundary ratchet added to `npm run lint`.
+- [ ] Existing substrate leaks moved behind product ports or adapters.

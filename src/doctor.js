@@ -145,8 +145,12 @@ function describeCheckpointStatus(status, repoDir) {
     return {
       name: 'checkpoint',
       status: 'warn',
-      message: 'No checkpoint cache found; reads may be slower until a checkpoint is regenerated',
+      message: 'No cached state found; reads may be slower until cached state is regenerated',
     };
+  }
+
+  if (status.kind === 'state_cache') {
+    return { name: 'checkpoint', status: 'ok', message: 'Cached state is available (state-cache)' };
   }
 
   if (status.supported) {

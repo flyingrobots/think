@@ -12,6 +12,7 @@ import {
   openProductReadHandle,
   openWarpApp,
 } from '../../src/store/runtime.js';
+import { STATE_CACHE_REF } from '../../src/store/checkpoint-state.js';
 import { runGit } from '../fixtures/git.js';
 import { createTempDir } from '../fixtures/tmp.js';
 import { formatResult } from '../fixtures/runtime.js';
@@ -37,14 +38,14 @@ test('checkpoint reads include CAS-backed raw tail captures', async () => {
     restoreTestNow(previousTestNow);
   }
 
-  const checkpointRef = runGit(
-    ['rev-parse', '--verify', '--quiet', 'refs/warp/think/checkpoints/head'],
+  const cachedStateRef = runGit(
+    ['rev-parse', '--verify', '--quiet', STATE_CACHE_REF],
     { cwd: repoDir },
   );
   assert.equal(
-    checkpointRef.status,
+    cachedStateRef.status,
     0,
-    `Expected fixture writes to create an indexed checkpoint.\n${formatResult(checkpointRef)}`
+    `Expected fixture writes to create cached state.\n${formatResult(cachedStateRef)}`
   );
 
   const checkpointCaptures = await listCheckpointEntriesByKind(repoDir, 'capture');

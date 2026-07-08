@@ -12,6 +12,10 @@ Release discipline:
 
 ## Unreleased
 
+- added a Hexagonal Boundary lint ratchet so product code cannot increase
+  direct substrate-layout or `git-warp` runtime leakage
+- upgraded `@git-stunts/git-warp` to 18.2.1
+
 ## [0.7.2] - 2026-06-23
 
 - added feature proposal packets for History product boundaries, Browse memory workbench, followthrough job queue, agent-native memory API, and evidence-bound enrichment

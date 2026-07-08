@@ -29,7 +29,8 @@ class CheckpointReadModel {
   }
 
   graphModelStatus() {
-    if (!this._hasCaptures()) {
+    const props = this._reader.getNodeProps(GRAPH_META_ID);
+    if (!props && !this._hasCaptures()) {
       return {
         currentGraphModelVersion: 1,
         requiredGraphModelVersion: GRAPH_MODEL_VERSION,
@@ -37,7 +38,6 @@ class CheckpointReadModel {
       };
     }
 
-    const props = this._reader.getNodeProps(GRAPH_META_ID);
     const currentGraphModelVersion = Number(props?.graphModelVersion ?? 1);
     return {
       currentGraphModelVersion,

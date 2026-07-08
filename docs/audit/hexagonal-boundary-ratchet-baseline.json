@@ -1,0 +1,43 @@
+{
+  "allowedBoundaryFiles": [
+    "src/browse-benchmark.js",
+    "src/browse/adapters/git-warp-worker.js",
+    "src/browse/adapters/git-warp.js",
+    "src/cli/commands/doctor.js",
+    "src/doctor.js",
+    "src/history/git-warp-read.js",
+    "src/store/checkpoint-state.js"
+  ],
+  "generatedFrom": "scripts/hexagonal-boundary-ratchet.mjs",
+  "leaks": {
+    "byFile": {
+      "src/git.js": 1,
+      "src/mcp/service.js": 2,
+      "src/store/annotate.js": 4,
+      "src/store/capture.js": 11,
+      "src/store/checkpoint-product-read.js": 3,
+      "src/store/checkpoint-read.js": 4,
+      "src/store/content-reader.js": 1,
+      "src/store/derivation.js": 3,
+      "src/store/enrichment/runner.js": 5,
+      "src/store/migrations.js": 6,
+      "src/store/queries.js": 2,
+      "src/store/reflect.js": 7,
+      "src/store/runtime.js": 28
+    },
+    "byTerm": {
+      "checkpoint-mechanic": 20,
+      "git-warp-package": 2,
+      "git-warp-runtime-symbol": 54,
+      "warp-ref-layout": 1
+    },
+    "total": 77
+  },
+  "substrateTermIds": [
+    "git-warp-package",
+    "git-warp-runtime-symbol",
+    "checkpoint-mechanic",
+    "warp-ref-layout"
+  ],
+  "version": 1
+}

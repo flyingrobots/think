@@ -60,6 +60,17 @@ Examples of capabilities that require ports:
 - CLI, MCP, macOS, and browser I/O.
 - Encoding, decoding, and content storage.
 
+Product code must not know substrate layout. References to concrete
+storage engines, `git-warp` runtime classes, WARP ref paths,
+checkpoint/state-cache mechanics, materialization strategies, or repair
+commands belong only in adapters, diagnostics, repair scripts, or
+benchmarks. CLI, MCP, Browse, Remember, Stats, and domain modules consume
+product ports and runtime-backed domain facts, not storage internals.
+
+This boundary is enforced by `npm run hexagonal-boundary:ratchet`, which
+runs from `npm run lint`. Existing leaks are debt in the ratchet baseline;
+new code must not increase them.
+
 ### 2. Dependency Injection
 
 Dependencies are injected through constructors or semantically named
