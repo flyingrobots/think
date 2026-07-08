@@ -79,6 +79,20 @@ export async function applyCaptureReadModelPatch(patch, read, entry, {
   });
 }
 
+export function applyPendingCaptureReadModelPatch(patch, entry) {
+  const ref = normalizeCaptureRef(entry);
+  if (!ref) {
+    return;
+  }
+
+  patch
+    .addNode(CAPTURE_READ_MODEL_ID)
+    .setProperty(CAPTURE_READ_MODEL_ID, 'kind', 'capture_read_model')
+    .setProperty(CAPTURE_READ_MODEL_ID, 'schemaVersion', SCHEMA_VERSION)
+    .setProperty(CAPTURE_READ_MODEL_ID, 'latestCaptureId', ref.id)
+    .setProperty(CAPTURE_READ_MODEL_ID, 'latestCaptureRefJson', stringifyJson(ref));
+}
+
 export function normalizeCaptureRef(entry) {
   if (!entry?.id || entry.kind !== 'capture') {
     return null;
@@ -92,18 +106,34 @@ export function normalizeCaptureRef(entry) {
 }
 
 function normalizeCaptureReadModel(props) {
-  const refs = parseRefs(props?.recentCaptureRefsJson).slice(0, CAPTURE_READ_MODEL_LIMIT);
-  const totalCaptures = Number.isInteger(props?.totalCaptures)
-    ? props.totalCaptures
-    : refs.length;
+  const persistedRefs = parseRefs(props?.recentCaptureRefsJson);
+  const pendingLatestRef = parseRef(props?.latestCaptureRefJson);
+  const refs = mergePersistedAndPendingRefs(persistedRefs, pendingLatestRef);
 
   return Object.freeze({
     id: CAPTURE_READ_MODEL_ID,
     kind: 'capture_read_model',
+    persistedRefs: Object.freeze(persistedRefs),
     refs: Object.freeze(refs),
-    latestCaptureId: props?.latestCaptureId ?? refs[0]?.id ?? null,
-    totalCaptures,
+    latestCaptureId: latestCaptureIdFromProps(props, refs),
+    totalCaptures: totalCapturesFromProps(props, refs),
   });
+}
+
+function mergePersistedAndPendingRefs(persistedRefs, pendingLatestRef) {
+  if (!pendingLatestRef) {
+    return mergeRefs(persistedRefs, null, CAPTURE_READ_MODEL_LIMIT);
+  }
+
+  return mergeRefs([...persistedRefs, pendingLatestRef], null, CAPTURE_READ_MODEL_LIMIT);
+}
+
+function latestCaptureIdFromProps(props, refs) {
+  return props?.latestCaptureId ?? refs[0]?.id ?? null;
+}
+
+function totalCapturesFromProps(props, refs) {
+  return Number.isInteger(props?.totalCaptures) ? props.totalCaptures : refs.length;
 }
 
 function normalizeAmbientReadModel(key, value, props) {
@@ -129,7 +159,7 @@ function emptyAmbientReadModel(key, value) {
 
 function addRefToCaptureReadModel(index, ref) {
   const refs = mergeRefs(index.refs, ref, CAPTURE_READ_MODEL_LIMIT);
-  const alreadyIndexed = index.refs.some((candidate) => candidate.id === ref.id);
+  const alreadyIndexed = index.persistedRefs.some((candidate) => candidate.id === ref.id);
   return Object.freeze({
     ...index,
     refs: Object.freeze(refs),
@@ -147,7 +177,9 @@ function addRefToAmbientReadModel(index, ref) {
 
 function mergeRefs(refs, ref, limit) {
   const byId = new Map(refs.map((candidate) => [candidate.id, candidate]));
-  byId.set(ref.id, ref);
+  if (ref) {
+    byId.set(ref.id, ref);
+  }
   return [...byId.values()]
     .sort(compareEntriesNewestFirst)
     .slice(0, limit);
@@ -215,6 +247,18 @@ function parseRefs(value) {
       .sort(compareEntriesNewestFirst);
   } catch {
     return [];
+  }
+}
+
+function parseRef(value) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return normalizeRefRecord(parseJson(value));
+  } catch {
+    return null;
   }
 }
 

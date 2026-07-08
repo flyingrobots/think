@@ -10,7 +10,10 @@ import {
 } from './runtime.js';
 import { ensureCaptureReadEdges, ensureFirstDerivedArtifacts } from './derivation.js';
 import { migrateGraphModel } from './migrations.js';
-import { applyCaptureReadModelPatch } from './read-model.js';
+import {
+  applyCaptureReadModelPatch,
+  applyPendingCaptureReadModelPatch,
+} from './read-model.js';
 
 export async function saveRawCapture(repoDir, thought, {
   provenance = null,
@@ -29,7 +32,7 @@ async function writeRawCapture(repoDir, thought, {
   const worldline = await openThinkWorldline(repoDir);
   const entry = createEntry(thought, worldline.writerId, { kind: 'capture', source: 'capture' });
   const captureProvenance = normalizeCaptureProvenance(provenance);
-  const patcher = createRawCapturePatcher(repoDir, entry, thought, {
+  const patcher = createRawCapturePatcher(entry, thought, {
     ambientContext,
     captureProvenance,
   });
@@ -39,21 +42,18 @@ async function writeRawCapture(repoDir, thought, {
   return entry;
 }
 
-function createRawCapturePatcher(repoDir, entry, thought, { ambientContext, captureProvenance }) {
+function createRawCapturePatcher(entry, thought, { ambientContext, captureProvenance }) {
   return async (patch) => {
-    const read = await openProductReadHandle(repoDir);
-    const { previousLatestRef } = await applyCaptureReadModelPatch(patch, read, entry, { ambientContext });
-
     applyRawCapturePatch(patch, entry, {
       ambientContext,
       captureProvenance,
-      previousLatestRef,
     });
     await patch.attachContent(entry.id, encodeTextContent(thought), { mime: TEXT_MIME });
   };
 }
 
-function applyRawCapturePatch(patch, entry, { ambientContext, captureProvenance, previousLatestRef }) {
+function applyRawCapturePatch(patch, entry, { ambientContext, captureProvenance }) {
+  applyPendingCaptureReadModelPatch(patch, entry);
   patch
     .addNode(entry.id)
     .setProperty(entry.id, 'kind', entry.kind)
@@ -65,7 +65,6 @@ function applyRawCapturePatch(patch, entry, { ambientContext, captureProvenance,
 
   applyAmbientContextPatch(patch, entry.id, ambientContext);
   applyCaptureProvenancePatch(patch, entry.id, captureProvenance);
-  applyChronologyPatch(patch, entry.id, previousLatestRef);
 }
 
 function applyCaptureProvenancePatch(patch, entryId, captureProvenance) {
@@ -80,23 +79,10 @@ function applyCaptureProvenancePatch(patch, entryId, captureProvenance) {
   }
 }
 
-function applyChronologyPatch(patch, entryId, previousLatestRef) {
-  if (!previousLatestRef) {
-    return;
-  }
-
-  patch.addEdge(entryId, previousLatestRef.id, 'older');
-  patch.addEdge(previousLatestRef.id, entryId, 'newer');
-}
-
 export async function finalizeCapturedThought(repoDir, entryId, {
   migrateIfNeeded = false,
   ambientContext = null,
 } = {}) {
-  if (ambientContext) {
-    await patchAmbientContext(repoDir, entryId, ambientContext);
-  }
-
   let read = await openProductReadHandle(repoDir);
   let entry = await getStoredEntry(read, entryId);
 
@@ -106,6 +92,10 @@ export async function finalizeCapturedThought(repoDir, entryId, {
       migration: null,
     };
   }
+
+  await patchCaptureReadModel(repoDir, entry, ambientContext);
+  read = await openProductReadHandle(repoDir);
+  entry = await getStoredEntry(read, entryId);
 
   await ensureFirstDerivedArtifacts(repoDir, read, entry);
   read = await openProductReadHandle(repoDir);
@@ -149,16 +139,11 @@ function applyAmbientContextPatch(patch, entryId, ambientContext) {
   }
 }
 
-async function patchAmbientContext(repoDir, entryId, ambientContext) {
+async function patchCaptureReadModel(repoDir, entry, ambientContext) {
   const patcher = async (patch) => {
     const read = await openProductReadHandle(repoDir);
-    const props = await read.view.getNodeProps(entryId);
-    await applyCaptureReadModelPatch(patch, read, {
-      id: entryId,
-      ...(props ?? {}),
-    }, { ambientContext });
-
-    applyAmbientContextPatch(patch, entryId, ambientContext);
+    await applyCaptureReadModelPatch(patch, read, entry, { ambientContext });
+    applyAmbientContextPatch(patch, entry.id, ambientContext);
   };
 
   await commitThinkWorldline(repoDir, patcher);
