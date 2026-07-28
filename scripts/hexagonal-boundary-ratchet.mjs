@@ -10,6 +10,8 @@ const baselinePath = path.join(repoRoot, 'docs', 'audit', 'hexagonal-boundary-ra
 const sourcePrefixes = Object.freeze(['src/', 'bin/', 'scripts/']);
 const allowedBoundaryFiles = Object.freeze([
   'scripts/hexagonal-boundary-ratchet.mjs',
+  'scripts/prepare-v19-mind.mjs',
+  'scripts/replay-v19-capture-on-v18.mjs',
   'scripts/repair-v17-mind.mjs',
   'src/browse-benchmark.js',
   'src/browse/adapters/git-warp-worker.js',

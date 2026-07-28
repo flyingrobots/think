@@ -1,6 +1,8 @@
 {
   "allowedBoundaryFiles": [
     "scripts/hexagonal-boundary-ratchet.mjs",
+    "scripts/prepare-v19-mind.mjs",
+    "scripts/replay-v19-capture-on-v18.mjs",
     "scripts/repair-v17-mind.mjs",
     "src/browse-benchmark.js",
     "src/browse/adapters/git-warp-worker.js",
