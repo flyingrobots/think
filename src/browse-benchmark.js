@@ -1,9 +1,6 @@
-import WarpApp, { GitGraphAdapter } from '@git-stunts/git-warp';
-
 import { ValidationError } from './errors.js';
-import { createThinkPlumbing, ensureGitRepo, hasGitRepo } from './git.js';
+import { ensureGitRepo, hasGitRepo } from './git.js';
 import {
-  GRAPH_NAME,
   loadBrowseChronologyEntries,
   prepareBrowseBootstrap as loadBrowseBootstrap,
 } from './store.js';
@@ -16,6 +13,7 @@ import {
   TEXT_MIME,
 } from './store/constants.js';
 import { encodeTextContent } from './store/content.js';
+import { commitThinkWorldlineWithWriter } from './store/runtime.js';
 
 const DEFAULT_START_TIME_MS = Date.parse('2026-03-20T16:00:00.000Z');
 const WITHIN_SESSION_GAP_MS = 30 * 1000;
@@ -197,14 +195,13 @@ function createSyntheticEntry({ thoughtNumber, sessionNumber, captureNumberInSes
   };
 }
 
-// eslint-disable-next-line require-await -- wraps git-warp WarpApp.open which returns a promise
-async function openGraph(repoDir) {
-  const plumbing = createThinkPlumbing(repoDir);
-  const persistence = new GitGraphAdapter({ plumbing });
-
-  return WarpApp.open({
-    persistence,
-    graphName: GRAPH_NAME,
+function openGraph(repoDir) {
+  return Object.freeze({
     writerId: 'benchmark-fixture',
+    patch: async patcher => await commitThinkWorldlineWithWriter(
+      repoDir,
+      'benchmark-fixture',
+      patcher
+    ),
   });
 }

@@ -1,15 +1,10 @@
-import { GitGraphAdapter, openWarpWorldline } from '@git-stunts/git-warp';
-
 import { ContentUnavailableError } from '../errors.js';
 import { resolveHistorySessionEntries } from '../history/session.js';
-import { createThinkPlumbing } from '../git.js';
 import {
   ARTIFACT_PREFIX,
   ENTRY_PREFIX,
-  EXACT_READ_UNAVAILABLE,
   GRAPH_META_ID,
   GRAPH_MODEL_VERSION,
-  GRAPH_NAME,
   LEGACY_BRAINSTORM_SESSION_PREFIX,
   PRODUCT_READ_LENS,
   REFLECT_SESSION_PREFIX,
@@ -27,6 +22,12 @@ import {
   readCaptureReadModel,
   readCaptureRecords,
 } from './read-model.js';
+import {
+  clearV19RuntimeCache,
+  commitV19ThinkWorldline,
+  isWriterCasConflict as isV19WriterCasConflict,
+  openV19ThinkWorldline,
+} from './git-warp-v19.js';
 
 export class GenericEntry {
   constructor(nodeId, resolvedProps, text) {
@@ -116,91 +117,34 @@ export class BaseEntry {
 
 const WRITER_CAS_CONFLICT_TEXT = 'writer ref was updated by another process';
 const DEFAULT_PATCH_MAX_ATTEMPTS = 3;
-const warpWorldlineCache = new Map();
-const runtimeBlobStorageCache = new Map();
-const opticBasisCache = new WeakMap();
 
 export async function openThinkWorldline(repoDir) {
-  const cached = warpWorldlineCache.get(repoDir);
-  if (cached) {
-    return cached;
-  }
-
-  const worldline = await openThinkWorldlineOnce(repoDir, createWriterId());
-  warpWorldlineCache.set(repoDir, worldline);
-  return worldline;
+  return await openThinkWorldlineOnce(repoDir, createWriterId());
 }
 
 async function openThinkWorldlineOnce(repoDir, writerId) {
-  const persistence = createThinkWarpPersistence(repoDir);
-
-  return await openWarpWorldline({
-    persistence,
-    worldlineName: GRAPH_NAME,
-    writerId,
-  });
-}
-
-function createThinkWarpPersistence(repoDir) {
-  return new GitGraphAdapter({
-    plumbing: createThinkPlumbing(repoDir),
-  });
+  return await openV19ThinkWorldline(repoDir, writerId);
 }
 
 export function clearWarpRuntimeCache(repoDir) {
-  warpWorldlineCache.delete(repoDir);
-  runtimeBlobStorageCache.delete(repoDir);
+  clearV19RuntimeCache(repoDir);
 }
 
 export async function commitThinkWorldline(repoDir, patcher, {
   maxAttempts = DEFAULT_PATCH_MAX_ATTEMPTS,
 } = {}) {
-  let attempt = 1;
-
-  /* eslint-disable no-await-in-loop -- retry attempts must run sequentially against a refreshed worldline */
-  while (true) {
-    const worldline = await openThinkWorldline(repoDir);
-
-    try {
-      await worldline.commit(patcher);
-      return worldline;
-    } catch (error) {
-      if (!isWriterCasConflict(error) || attempt >= maxAttempts) {
-        throw error;
-      }
-
-      clearWarpRuntimeCache(repoDir);
-      attempt += 1;
-    }
-  }
-  /* eslint-enable no-await-in-loop */
+  return await commitV19ThinkWorldline(repoDir, createWriterId(), patcher, { maxAttempts });
 }
 
 export async function commitThinkWorldlineWithWriter(repoDir, writerId, patcher, {
   maxAttempts = DEFAULT_PATCH_MAX_ATTEMPTS,
 } = {}) {
-  let attempt = 1;
-
-  /* eslint-disable no-await-in-loop -- retry attempts must run sequentially against a refreshed worldline */
-  while (true) {
-    const worldline = await openThinkWorldlineOnce(repoDir, writerId);
-
-    try {
-      await worldline.commit(patcher);
-      return worldline;
-    } catch (error) {
-      if (!isWriterCasConflict(error) || attempt >= maxAttempts) {
-        throw error;
-      }
-
-      attempt += 1;
-    }
-  }
-  /* eslint-enable no-await-in-loop */
+  return await commitV19ThinkWorldline(repoDir, writerId, patcher, { maxAttempts });
 }
 
 export function isWriterCasConflict(error) {
-  return error instanceof Error && error.message.includes(WRITER_CAS_CONFLICT_TEXT);
+  return isV19WriterCasConflict(error)
+    || (error instanceof Error && error.message.includes(WRITER_CAS_CONFLICT_TEXT));
 }
 
 export async function openProductReadHandle(repoDir) {
@@ -211,7 +155,6 @@ async function createWorldlineProductReadHandle({
   repoDir,
 }) {
   const worldline = await openThinkWorldline(repoDir);
-  const blobStorage = await getRuntimeBlobStorage(repoDir);
 
   return {
     app: null,
@@ -219,87 +162,28 @@ async function createWorldlineProductReadHandle({
     worldline,
     view: worldline.live(),
     contentCore: null,
-    blobStorage,
-    readContent: readUnavailableRuntimeContent,
-    readContentRequiresContentOid: true,
+    blobStorage: null,
+    readContent: createV19ContentReader(worldline),
+    readContentRequiresContentOid: false,
     readNodeProp: createWorldlineExactPropReader(worldline),
     writerId: worldline.writerId,
   };
 }
 
-function readUnavailableRuntimeContent(nodeId) {
-  throw new ContentUnavailableError(
-    `Content for ${nodeId} is unavailable: this git-warp runtime exposes no public content reader fallback.`,
-  );
+function createV19ContentReader(worldline) {
+  return async (nodeId) => {
+    const record = await worldline.readRecord(nodeId);
+    return typeof record?.text === 'string'
+      ? new TextEncoder().encode(record.text)
+      : null;
+  };
 }
 
 function createWorldlineExactPropReader(worldline) {
   return async (nodeId, key) => {
-    if (opticBasisCache.get(worldline) === false) {
-      return EXACT_READ_UNAVAILABLE;
-    }
-
-    try {
-      await prepareCachedOpticBasis(worldline);
-
-      const result = await worldline.optic().node(nodeId).prop(key).read();
-      return result.exists ? result.value : undefined;
-    } catch (error) {
-      if (isMissingBoundedOpticBasis(error)) {
-        return EXACT_READ_UNAVAILABLE;
-      }
-      throw error;
-    }
+    const record = await worldline.readRecord(nodeId);
+    return record?.props?.[key];
   };
-}
-
-async function prepareCachedOpticBasis(worldline) {
-  const cached = opticBasisCache.get(worldline);
-  if (cached) {
-    return cached;
-  }
-
-  const basisPromise = worldline.prepareOpticBasis();
-  opticBasisCache.set(worldline, basisPromise);
-
-  try {
-    await basisPromise;
-    return basisPromise;
-  } catch (error) {
-    if (isMissingBoundedOpticBasis(error)) {
-      opticBasisCache.set(worldline, false);
-    } else {
-      opticBasisCache.delete(worldline);
-    }
-    throw error;
-  }
-}
-
-function isMissingBoundedOpticBasis(error) {
-  return error instanceof Error && (
-    error.code === 'E_OPTIC_NO_BOUNDED_BASIS' ||
-    error.message.includes('E_OPTIC_NO_BOUNDED_BASIS')
-  );
-}
-
-async function getRuntimeBlobStorage(repoDir) {
-  if (runtimeBlobStorageCache.has(repoDir)) {
-    return await runtimeBlobStorageCache.get(repoDir);
-  }
-
-  const plumbing = createThinkPlumbing(repoDir);
-  const persistence = new GitGraphAdapter({ plumbing });
-  const blobStorage = createRuntimeBlobStorage(persistence);
-  runtimeBlobStorageCache.set(repoDir, blobStorage);
-  return await blobStorage;
-}
-
-function createRuntimeBlobStorage(persistence) {
-  const createStorage = persistence.createRuntimeBlobStorage;
-  if (typeof createStorage !== 'function') {
-    return null;
-  }
-  return createStorage.call(persistence);
 }
 
 export async function getGraphModelStatusForRead(read) {

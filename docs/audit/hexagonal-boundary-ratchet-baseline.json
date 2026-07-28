@@ -7,7 +7,9 @@
     "src/browse/adapters/git-warp.js",
     "src/cli/commands/doctor.js",
     "src/doctor.js",
-    "src/history/git-warp-read.js"
+    "src/history/git-warp-read.js",
+    "src/store/git-warp-v19.js",
+    "src/store/think-warp-sdk.js"
   ],
   "generatedFrom": "scripts/hexagonal-boundary-ratchet.mjs",
   "leaks": {
@@ -19,14 +21,13 @@
       "src/store/enrichment/runner.js": 2,
       "src/store/migrations.js": 6,
       "src/store/reflect.js": 6,
-      "src/store/runtime.js": 11
+      "src/store/runtime.js": 4
     },
     "byTerm": {
-      "git-warp-package": 1,
-      "git-warp-runtime-symbol": 37,
+      "git-warp-runtime-symbol": 31,
       "warp-ref-layout": 1
     },
-    "total": 39
+    "total": 32
   },
   "substrateTermIds": [
     "git-warp-package",

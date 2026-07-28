@@ -17,6 +17,8 @@ const allowedBoundaryFiles = Object.freeze([
   'src/cli/commands/doctor.js',
   'src/doctor.js',
   'src/history/git-warp-read.js',
+  'src/store/git-warp-v19.js',
+  'src/store/think-warp-sdk.js',
 ]);
 const substrateTerms = Object.freeze([
   {

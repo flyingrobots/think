@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { GitGraphAdapter, openWarpWorldline } from '@git-stunts/git-warp';
+import { Runtime } from '@git-stunts/git-warp';
 
-import { createThinkPlumbing, ensureGitRepo } from '../../src/git.js';
+import { ensureGitRepo } from '../../src/git.js';
 import { getCaptureAmbientContext, getAmbientProjectContext } from '../../src/project-context.js';
 import {
   finalizeCapturedThought,
@@ -15,6 +15,7 @@ import {
   startReflect,
 } from '../../src/store.js';
 import { createWriterId } from '../../src/store/model.js';
+import { thinkWarp } from '../../src/store/think-warp-sdk.js';
 import { createGitRepo, runGit } from '../fixtures/git.js';
 import { createTempDir } from '../fixtures/tmp.js';
 import { formatResult } from '../fixtures/runtime.js';
@@ -84,12 +85,7 @@ test('saveRawCapture retries after the cached writer ref is advanced externally'
   await ensureGitRepo(localRepoDir);
 
   await saveRawCapture(localRepoDir, 'seed capture before external writer advance');
-  const externalWorldline = await openExternalWorldline(localRepoDir);
-  await externalWorldline.commit((patch) => {
-    patch
-      .addNode('external:writer-advance')
-      .setProperty('external:writer-advance', 'kind', 'external_fixture');
-  });
+  await advanceWriterExternally(localRepoDir, 'external:writer-advance');
 
   const entry = await saveRawCapture(localRepoDir, 'capture should retry after writer ref conflict');
   const read = await openProductReadHandle(localRepoDir);
@@ -104,12 +100,7 @@ test('saveAnnotation retries after the cached writer ref is advanced externally'
   await ensureGitRepo(localRepoDir);
 
   const entry = await saveRawCapture(localRepoDir, 'annotation retry seed capture');
-  const externalWorldline = await openExternalWorldline(localRepoDir);
-  await externalWorldline.commit((patch) => {
-    patch
-      .addNode('external:annotation-writer-advance')
-      .setProperty('external:annotation-writer-advance', 'kind', 'external_fixture');
-  });
+  await advanceWriterExternally(localRepoDir, 'external:annotation-writer-advance');
 
   const result = await saveAnnotation(localRepoDir, entry.id, 'annotation should retry after writer ref conflict');
   const inspected = await inspectRawEntry(localRepoDir, entry.id);
@@ -129,22 +120,12 @@ test('reflect writes retry after the cached writer ref is advanced externally', 
     localRepoDir,
     'We should redesign browse startup because transitional reads can hide latency.'
   );
-  const firstExternalWorldline = await openExternalWorldline(localRepoDir);
-  await firstExternalWorldline.commit((patch) => {
-    patch
-      .addNode('external:reflect-start-writer-advance')
-      .setProperty('external:reflect-start-writer-advance', 'kind', 'external_fixture');
-  });
+  await advanceWriterExternally(localRepoDir, 'external:reflect-start-writer-advance');
 
   const started = await startReflect(localRepoDir, entry.id, { promptType: 'challenge' });
   assert.equal(started.ok, true, 'Expected reflect start to retry and create a session after writer ref conflict.');
 
-  const secondExternalWorldline = await openExternalWorldline(localRepoDir);
-  await secondExternalWorldline.commit((patch) => {
-    patch
-      .addNode('external:reflect-reply-writer-advance')
-      .setProperty('external:reflect-reply-writer-advance', 'kind', 'external_fixture');
-  });
+  await advanceWriterExternally(localRepoDir, 'external:reflect-reply-writer-advance');
 
   const saved = await saveReflectResponse(
     localRepoDir,
@@ -156,12 +137,15 @@ test('reflect writes retry after the cached writer ref is advanced externally', 
   assert.equal(saved.sessionId, started.sessionId, 'Expected retried reflect reply to preserve session lineage.');
 });
 
-async function openExternalWorldline(repoDir) {
-  return await openWarpWorldline({
-    persistence: new GitGraphAdapter({
-      plumbing: createThinkPlumbing(repoDir),
-    }),
-    worldlineName: GRAPH_NAME,
-    writerId: createWriterId(),
+async function advanceWriterExternally(repoDir, nodeId) {
+  const runtime = await Runtime.open({
+    at: repoDir,
+    writer: createWriterId(),
   });
+  try {
+    const lane = await runtime.lane(GRAPH_NAME);
+    await lane.write(thinkWarp.intents.registerNode({ subject: nodeId }));
+  } finally {
+    await runtime.close();
+  }
 }
