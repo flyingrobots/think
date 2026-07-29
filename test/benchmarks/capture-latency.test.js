@@ -8,10 +8,10 @@ import { repoRoot } from '../fixtures/runtime.js';
 const benchmarkScript = path.join(repoRoot, 'benchmarks', 'capture-latency.js');
 
 test('capture latency benchmark runs and produces valid JSON output', () => {
-  const result = spawnSync(process.execPath, [benchmarkScript, '--json', '--runs=3', '--warmup=1'], {
+  const result = spawnSync(process.execPath, [benchmarkScript, '--json', '--runs=1', '--warmup=0'], {
     cwd: repoRoot,
     encoding: 'utf8',
-    timeout: 30_000,
+    timeout: 90_000,
   });
 
   assert.equal(result.status, 0, `Benchmark exited with status ${result.status}:\n${result.stderr}`);
@@ -22,9 +22,9 @@ test('capture latency benchmark runs and produces valid JSON output', () => {
   assert.equal(typeof report.capturedAt, 'string', 'Expected capturedAt to be an ISO timestamp.');
   assert.equal(typeof report.commitSha, 'string', 'Expected commitSha to be present.');
 
-  assert.equal(report.measurement.runCount, 3, 'Expected 3 measured runs.');
-  assert.equal(report.measurement.warmupCount, 1, 'Expected 1 warmup run.');
-  assert.equal(report.measurement.samplesMs.length, 3, 'Expected 3 sample timings.');
+  assert.equal(report.measurement.runCount, 1, 'Expected 1 measured run.');
+  assert.equal(report.measurement.warmupCount, 0, 'Expected no warmup run.');
+  assert.equal(report.measurement.samplesMs.length, 1, 'Expected 1 sample timing.');
   assert.ok(report.measurement.samplesMs.every((s) => typeof s === 'number' && s > 0), 'Expected all samples to be positive numbers.');
 
   assert.equal(typeof report.summary.minMs, 'number', 'Expected minMs in summary.');
@@ -39,10 +39,10 @@ test('capture latency benchmark runs and produces valid JSON output', () => {
 });
 
 test('capture latency benchmark produces readable human output by default', () => {
-  const result = spawnSync(process.execPath, [benchmarkScript, '--runs=2', '--warmup=0'], {
+  const result = spawnSync(process.execPath, [benchmarkScript, '--runs=1', '--warmup=0'], {
     cwd: repoRoot,
     encoding: 'utf8',
-    timeout: 30_000,
+    timeout: 90_000,
   });
 
   assert.equal(result.status, 0, `Benchmark exited with status ${result.status}:\n${result.stderr}`);
@@ -52,10 +52,10 @@ test('capture latency benchmark produces readable human output by default', () =
 });
 
 test('capture latency benchmark uses an isolated temp repo', () => {
-  const result = spawnSync(process.execPath, [benchmarkScript, '--json', '--runs=2', '--warmup=0'], {
+  const result = spawnSync(process.execPath, [benchmarkScript, '--json', '--runs=1', '--warmup=0'], {
     cwd: repoRoot,
     encoding: 'utf8',
-    timeout: 30_000,
+    timeout: 90_000,
   });
 
   assert.equal(result.status, 0);

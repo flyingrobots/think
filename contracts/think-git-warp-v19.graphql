@@ -1,0 +1,120 @@
+# Think's authored git-warp v19 application contract.
+#
+# Wesley owns deterministic operation metadata. Think's renderer binds that
+# metadata to git-warp's public v19 Intent and Observer constructors.
+#
+# This is intentionally not a generic graph or property facade. The only
+# retained property shapes exposed to application code are Think's three
+# schema-versioned byte documents.
+
+directive @intent(
+  kind: IntentKind!
+  subject: String
+  property: String
+  value: String
+) on FIELD_DEFINITION
+
+directive @observer(
+  id: String!
+  reading: ReadingKind!
+  subject: String!
+  property: String
+  cardinality: ObserverCardinality!
+  decoder: ValueDecoder!
+) on FIELD_DEFINITION
+
+enum IntentKind {
+  NODE_ADD
+  PROPERTY_SET_BYTES
+}
+
+enum ReadingKind {
+  PROPERTY
+  NODE_EXISTS
+}
+
+enum ObserverCardinality {
+  EXACTLY_ONE
+}
+
+enum ValueDecoder {
+  BOOLEAN
+  BYTES
+}
+
+type IntentBinding {
+  operation: String!
+}
+
+scalar Bytes
+
+type Mutation {
+  declareMemoryObject(subject: ID!): IntentBinding!
+    @intent(kind: NODE_ADD, subject: "subject")
+
+  storeMemoryDocument(subject: ID!, value: Bytes!): IntentBinding!
+    @intent(
+      kind: PROPERTY_SET_BYTES
+      subject: "subject"
+      property: "think.memory-document.v1"
+      value: "value"
+    )
+
+  storeMemoryIndex(subject: ID!, value: Bytes!): IntentBinding!
+    @intent(
+      kind: PROPERTY_SET_BYTES
+      subject: "subject"
+      property: "think.memory-index.v1"
+      value: "value"
+    )
+
+  storeMemoryIndexPage(subject: ID!, value: Bytes!): IntentBinding!
+    @intent(
+      kind: PROPERTY_SET_BYTES
+      subject: "subject"
+      property: "think.memory-index-page.v1"
+      value: "value"
+    )
+
+}
+
+type Query {
+  memoryDocument(subject: ID!): Bytes
+    @observer(
+      id: "think.memory.document"
+      reading: PROPERTY
+      subject: "subject"
+      property: "think.memory-document.v1"
+      cardinality: EXACTLY_ONE
+      decoder: BYTES
+    )
+
+  memoryIndex(subject: ID!): Bytes
+    @observer(
+      id: "think.memory.index"
+      reading: PROPERTY
+      subject: "subject"
+      property: "think.memory-index.v1"
+      cardinality: EXACTLY_ONE
+      decoder: BYTES
+    )
+
+  memoryIndexPage(subject: ID!): Bytes
+    @observer(
+      id: "think.memory.index-page"
+      reading: PROPERTY
+      subject: "subject"
+      property: "think.memory-index-page.v1"
+      cardinality: EXACTLY_ONE
+      decoder: BYTES
+    )
+
+  memoryObjectExists(subject: ID!): Boolean!
+    @observer(
+      id: "think.memory.object-exists"
+      reading: NODE_EXISTS
+      subject: "subject"
+      cardinality: EXACTLY_ONE
+      decoder: BOOLEAN
+    )
+}

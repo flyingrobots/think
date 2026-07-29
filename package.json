@@ -32,9 +32,10 @@
     "benchmark:capture": "node benchmarks/capture-latency.js",
     "echo:probe": "node ./scripts/think-echo-capability-probe.mjs",
     "hexagonal-boundary:ratchet": "node ./scripts/hexagonal-boundary-ratchet.mjs",
-    "migrate:v19-prepare": "node ./scripts/prepare-v19-mind.mjs",
-    "migrate:v19-replay-capture": "node ./scripts/replay-v19-capture-on-v18.mjs",
-    "repair:v17-mind": "node ./scripts/repair-v17-mind.mjs",
+    "generate:memory:wesley": "node ./scripts/generate-think-memory-metadata.mjs",
+    "generate:memory:sdk": "node ./scripts/render-think-memory-sdk.mjs",
+    "generate:memory": "npm run generate:memory:wesley && npm run generate:memory:sdk",
+    "migrate:v19-native": "node ./scripts/convert-v19-mind.mjs",
     "runtime-truth:ratchet": "node ./scripts/runtime-truth-ratchet.mjs"
   },
   "engines": {

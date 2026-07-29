@@ -14,7 +14,7 @@ import { createTempDir } from '../fixtures/tmp.js';
 
 const benchmarkEntrypoint = path.join(repoRoot, 'benchmarks', 'browse-bootstrap.js');
 
-test('prepareBrowseBootstrap returns the latest capture window from graph-native browse edges', async () => {
+test('prepareBrowseBootstrap returns the latest bounded native capture window', async () => {
   const tempDir = await createTempDir('browse-bootstrap-fixture-');
   const repoDir = path.join(tempDir, 'repo');
 
@@ -26,7 +26,7 @@ test('prepareBrowseBootstrap returns the latest capture window from graph-native
 
   const bootstrap = await prepareBrowseBootstrap(repoDir);
 
-  assert.equal(bootstrap.ok, true, 'Expected graph-native browse bootstrap to succeed on a populated fixture.');
+  assert.equal(bootstrap.ok, true, 'Expected native aggregate browse bootstrap to succeed on a populated fixture.');
   assert.equal('entries' in bootstrap, false,
     'Expected browse bootstrap to return only the first-paint window, not a preloaded chronology corpus.');
   assert.equal(bootstrap.current.id, 'entry:1774023930000-bench-0012', 'Expected bootstrap to start from the latest capture anchor.');
@@ -38,7 +38,7 @@ test('prepareBrowseBootstrap returns the latest capture window from graph-native
   assert.equal(bootstrap.sessionContext?.sessionCount, 4, 'Expected bootstrap to expose the current session size.');
 });
 
-test('loadBrowseChronologyEntries follows graph-native older edges newest-first', async () => {
+test('loadBrowseChronologyEntries follows the bounded native capture index newest-first', async () => {
   const tempDir = await createTempDir('browse-chronology-fixture-');
   const repoDir = path.join(tempDir, 'repo');
 
@@ -57,7 +57,7 @@ test('loadBrowseChronologyEntries follows graph-native older edges newest-first'
   assert.match(entries.at(-1)?.text ?? '', /Benchmark thought 1\./, 'Expected chronology traversal to preserve the oldest capture text.');
 });
 
-test('browse benchmark emits a deterministic JSON report for a synthetic fixture graph', () => {
+test('browse benchmark emits a deterministic JSON report for a synthetic native aggregate fixture', () => {
   const result = runBrowseBenchmark(['--json', '--thoughts=12', '--sessions=3', '--warmup=0', '--runs=2']);
 
   assert.equal(result.status, 0, formatResult(result));

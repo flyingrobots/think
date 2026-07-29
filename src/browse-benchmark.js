@@ -10,10 +10,10 @@ import {
   GRAPH_MODEL_VERSION,
   SCHEMA_VERSION,
   SESSION_PREFIX,
-  TEXT_MIME,
 } from './store/constants.js';
-import { encodeTextContent } from './store/content.js';
-import { commitThinkWorldlineWithWriter } from './store/runtime.js';
+import { appendIndexedMemoryObject } from './store/native-index.js';
+import { encodeNativeDocument } from './store/native-document.js';
+import { openNativeMemory } from './store/native-runtime.js';
 
 const DEFAULT_START_TIME_MS = Date.parse('2026-03-20T16:00:00.000Z');
 const WITHIN_SESSION_GAP_MS = 30 * 1000;
@@ -69,7 +69,9 @@ export async function createSyntheticBrowseFixture({
   const capturesPerSession = distributeCaptures(captureCount, sessionCount);
   let currentMs = DEFAULT_START_TIME_MS;
   let createdCaptures = 0;
-  const graph = await openGraph(repoDir);
+  const memory = await openNativeMemory(repoDir, {
+    writerId: 'benchmark-fixture',
+  });
 
   const entries = [];
   for (let sessionIndex = 0; sessionIndex < capturesPerSession.length; sessionIndex += 1) {
@@ -107,49 +109,48 @@ export async function createSyntheticBrowseFixture({
     }
   }
 
-  await graph.patch(async (patch) => {
-    patch
-      .addNode(GRAPH_META_ID)
-      .setProperty(GRAPH_META_ID, 'kind', 'graph_meta')
-      .setProperty(GRAPH_META_ID, 'createdAt', new Date(DEFAULT_START_TIME_MS).toISOString())
-      .setProperty(GRAPH_META_ID, 'updatedAt', new Date(currentMs).toISOString())
-      .setProperty(GRAPH_META_ID, 'graphModelVersion', GRAPH_MODEL_VERSION);
-
-    for (const item of entries) {
-      if (item.type === 'session') {
-        patch
-          .addNode(item.id)
-          .setProperty(item.id, 'kind', 'session')
-          .setProperty(item.id, 'createdAt', item.createdAt)
-          .setProperty(item.id, 'sortKey', item.sortKey)
-          .setProperty(item.id, 'schemaVersion', SCHEMA_VERSION);
-        continue;
-      }
-
-      patch
-        .addNode(item.id)
-        .setProperty(item.id, 'kind', 'capture')
-        .setProperty(item.id, 'source', 'benchmark')
-        .setProperty(item.id, 'channel', 'benchmark')
-        .setProperty(item.id, 'writerId', graph.writerId)
-        .setProperty(item.id, 'createdAt', item.createdAt)
-        .setProperty(item.id, 'sortKey', item.sortKey)
-        .setProperty(item.id, 'sessionId', item.sessionId);
-
-      patch.addEdge(item.id, item.sessionId, 'captured_in');
-
-      // eslint-disable-next-line no-await-in-loop -- sequential graph writes within a patch transaction
-      await patch.attachContent(item.id, encodeTextContent(item.text), { mime: TEXT_MIME });
-    }
-
-    const captures = entries
-      .filter((item) => item.type === 'capture')
-      .sort((left, right) => right.sortKey.localeCompare(left.sortKey));
-
-    for (let index = 0; index + 1 < captures.length; index += 1) {
-      patch.addEdge(captures[index].id, captures[index + 1].id, 'older');
-    }
+  await memory.writeMemoryDocument({
+    id: GRAPH_META_ID,
+    bytes: encodeNativeDocument('memory-object', {
+      id: GRAPH_META_ID,
+      kind: 'graph_meta',
+      createdAt: new Date(DEFAULT_START_TIME_MS).toISOString(),
+      updatedAt: new Date(currentMs).toISOString(),
+      graphModelVersion: GRAPH_MODEL_VERSION,
+    }),
   });
+
+  for (const item of entries) {
+    if (item.type === 'session') {
+      // eslint-disable-next-line no-await-in-loop -- benchmark fixture construction is intentionally sequential
+      await appendIndexedMemoryObject(repoDir, {
+        id: item.id,
+        kind: 'session',
+        facts: {
+          kind: 'session',
+          createdAt: item.createdAt,
+          sortKey: item.sortKey,
+          schemaVersion: SCHEMA_VERSION,
+        },
+      });
+      continue;
+    }
+    // eslint-disable-next-line no-await-in-loop -- benchmark fixture construction is intentionally sequential
+    await appendIndexedMemoryObject(repoDir, {
+      id: item.id,
+      kind: 'capture',
+      facts: {
+        kind: 'capture',
+        text: item.text,
+        source: 'benchmark',
+        channel: 'benchmark',
+        writerId: memory.writerId,
+        createdAt: item.createdAt,
+        sortKey: item.sortKey,
+        sessionId: item.sessionId,
+      },
+    });
+  }
 
   return Object.freeze({
     captureCount,
@@ -193,15 +194,4 @@ function createSyntheticEntry({ thoughtNumber, sessionNumber, captureNumberInSes
     }),
     sessionId: null,
   };
-}
-
-function openGraph(repoDir) {
-  return Object.freeze({
-    writerId: 'benchmark-fixture',
-    patch: async patcher => await commitThinkWorldlineWithWriter(
-      repoDir,
-      'benchmark-fixture',
-      patcher
-    ),
-  });
 }

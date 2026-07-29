@@ -1,150 +1,125 @@
 import { normalizeCaptureProvenance } from '../capture-provenance.js';
-import { GRAPH_META_ID, GRAPH_MODEL_VERSION, TEXT_MIME } from './constants.js';
-import { encodeTextContent } from './content.js';
-import { createEntry } from './model.js';
 import {
-  commitThinkWorldline,
+  GRAPH_META_ID,
+  GRAPH_MODEL_VERSION,
+} from './constants.js';
+import {
+  createEntry,
+  createThoughtId,
+} from './model.js';
+import { appendIndexedMemoryObject } from './native-index.js';
+import {
+  encodeNativeDocument,
+} from './native-document.js';
+import { openNativeMemory } from './native-runtime.js';
+import {
+  getGraphModelStatusForRead,
   getStoredEntry,
-  openThinkWorldline,
   openProductReadHandle,
 } from './runtime.js';
-import { ensureCaptureReadEdges, ensureFirstDerivedArtifacts } from './derivation.js';
-import { migrateGraphModel } from './migrations.js';
-import {
-  applyCaptureReadModelPatch,
-  applyPendingCaptureReadModelPatch,
-} from './read-model.js';
 
 export async function saveRawCapture(repoDir, thought, {
   provenance = null,
   ambientContext = null,
+  initializeGraphModel = false,
 } = {}) {
-  return await writeRawCapture(repoDir, thought, {
-    provenance,
-    ambientContext,
-  });
-}
-
-async function writeRawCapture(repoDir, thought, {
-  provenance,
-  ambientContext,
-}) {
-  const worldline = await openThinkWorldline(repoDir);
-  const entry = createEntry(thought, worldline.writerId, { kind: 'capture', source: 'capture' });
+  const memory = await openNativeMemory(repoDir);
+  const created = createEntry(
+    thought,
+    memory.writerId,
+    { kind: 'capture', source: 'capture' }
+  );
   const captureProvenance = normalizeCaptureProvenance(provenance);
-  const patcher = createRawCapturePatcher(entry, thought, {
-    ambientContext,
-    captureProvenance,
+  const thoughtId = createThoughtId(thought);
+  const entry = Object.freeze({
+    ...created,
+    ...captureAmbientFacts(ambientContext),
+    ...captureProvenanceFacts(captureProvenance),
+    thoughtId,
+    sessionId: null,
   });
 
-  await commitThinkWorldline(repoDir, patcher);
+  await appendIndexedMemoryObject(repoDir, {
+    id: entry.id,
+    kind: entry.kind,
+    facts: captureFacts(entry),
+  });
+
+  if (initializeGraphModel) {
+    await writeGraphMetadata(memory, entry.createdAt);
+  }
 
   return entry;
 }
 
-function createRawCapturePatcher(entry, thought, { ambientContext, captureProvenance }) {
-  return async (patch) => {
-    applyRawCapturePatch(patch, entry, {
-      ambientContext,
-      captureProvenance,
-    });
-    await patch.attachContent(entry.id, encodeTextContent(thought), { mime: TEXT_MIME });
-  };
-}
-
-function applyRawCapturePatch(patch, entry, { ambientContext, captureProvenance }) {
-  applyPendingCaptureReadModelPatch(patch, entry, { ambientContext });
-  patch
-    .addNode(entry.id)
-    .setProperty(entry.id, 'kind', entry.kind)
-    .setProperty(entry.id, 'source', entry.source)
-    .setProperty(entry.id, 'channel', entry.channel)
-    .setProperty(entry.id, 'writerId', entry.writerId)
-    .setProperty(entry.id, 'createdAt', entry.createdAt)
-    .setProperty(entry.id, 'sortKey', entry.sortKey);
-
-  applyAmbientContextPatch(patch, entry.id, ambientContext);
-  applyCaptureProvenancePatch(patch, entry.id, captureProvenance);
-}
-
-function applyCaptureProvenancePatch(patch, entryId, captureProvenance) {
-  if (captureProvenance?.ingress) {
-    patch.setProperty(entryId, 'captureIngress', captureProvenance.ingress);
-  }
-  if (captureProvenance?.sourceApp) {
-    patch.setProperty(entryId, 'captureSourceApp', captureProvenance.sourceApp);
-  }
-  if (captureProvenance?.sourceURL) {
-    patch.setProperty(entryId, 'captureSourceURL', captureProvenance.sourceURL);
-  }
-}
-
-export async function finalizeCapturedThought(repoDir, entryId, {
-  migrateIfNeeded = false,
-  ambientContext = null,
-} = {}) {
-  let read = await openProductReadHandle(repoDir);
-  let entry = await getStoredEntry(read, entryId);
-
-  if (!entry || entry.kind !== 'capture') {
-    return {
-      entry: null,
-      migration: null,
-    };
-  }
-
-  await patchCaptureReadModel(repoDir, entry, ambientContext);
-  read = await openProductReadHandle(repoDir);
-  entry = await getStoredEntry(read, entryId);
-
-  await ensureFirstDerivedArtifacts(repoDir, read, entry);
-  read = await openProductReadHandle(repoDir);
-  await ensureCaptureReadEdges(repoDir, read, entryId);
-  read = await openProductReadHandle(repoDir);
-  entry = await getStoredEntry(read, entryId);
-
-  return {
-    entry,
-    migration: migrateIfNeeded ? await migrateGraphModel(repoDir) : null,
-  };
+export async function finalizeCapturedThought(repoDir, entryId) {
+  const read = await openProductReadHandle(repoDir);
+  const entry = await getStoredEntry(read, entryId);
+  return Object.freeze({
+    entry: entry?.kind === 'capture' ? entry : null,
+    migration: null,
+  });
 }
 
 export async function getGraphModelStatus(repoDir) {
-  const worldline = await openThinkWorldline(repoDir);
-  const graphMeta = await worldline.live().getNodeProps(GRAPH_META_ID);
-  const currentGraphModelVersion = Number(graphMeta?.graphModelVersion ?? 1);
-  return {
-    currentGraphModelVersion,
-    requiredGraphModelVersion: GRAPH_MODEL_VERSION,
-    migrationRequired: currentGraphModelVersion < GRAPH_MODEL_VERSION,
-  };
+  const read = await openProductReadHandle(repoDir);
+  return await getGraphModelStatusForRead(read);
 }
 
-function applyAmbientContextPatch(patch, entryId, ambientContext) {
-  if (!ambientContext) {
-    return;
-  }
-
-  if (ambientContext.cwd) {
-    patch.setProperty(entryId, 'ambientCwd', ambientContext.cwd);
-  }
-  if (ambientContext.gitRoot) {
-    patch.setProperty(entryId, 'ambientGitRoot', ambientContext.gitRoot);
-  }
-  if (ambientContext.gitRemote) {
-    patch.setProperty(entryId, 'ambientGitRemote', ambientContext.gitRemote);
-  }
-  if (ambientContext.gitBranch) {
-    patch.setProperty(entryId, 'ambientGitBranch', ambientContext.gitBranch);
-  }
+function captureFacts(entry) {
+  return Object.freeze({
+    kind: entry.kind,
+    text: entry.text,
+    source: entry.source,
+    channel: entry.channel,
+    writerId: entry.writerId,
+    createdAt: entry.createdAt,
+    sortKey: entry.sortKey,
+    thoughtId: entry.thoughtId,
+    sessionId: entry.sessionId,
+    ambientCwd: entry.ambientCwd,
+    ambientGitRoot: entry.ambientGitRoot,
+    ambientGitRemote: entry.ambientGitRemote,
+    ambientGitBranch: entry.ambientGitBranch,
+    captureIngress: entry.captureIngress,
+    captureSourceApp: entry.captureSourceApp,
+    captureSourceURL: entry.captureSourceURL,
+  });
 }
 
-async function patchCaptureReadModel(repoDir, entry, ambientContext) {
-  const patcher = async (patch) => {
-    const read = await openProductReadHandle(repoDir);
-    await applyCaptureReadModelPatch(patch, read, entry, { ambientContext });
-    applyAmbientContextPatch(patch, entry.id, ambientContext);
-  };
+function captureAmbientFacts(context) {
+  const resolved = context ?? {};
+  return Object.freeze({
+    ambientCwd: nullable(resolved.cwd),
+    ambientGitRoot: nullable(resolved.gitRoot),
+    ambientGitRemote: nullable(resolved.gitRemote),
+    ambientGitBranch: nullable(resolved.gitBranch),
+  });
+}
 
-  await commitThinkWorldline(repoDir, patcher);
+function captureProvenanceFacts(provenance) {
+  const resolved = provenance ?? {};
+  return Object.freeze({
+    captureIngress: nullable(resolved.ingress),
+    captureSourceApp: nullable(resolved.sourceApp),
+    captureSourceURL: nullable(resolved.sourceURL),
+  });
+}
+
+function nullable(value) {
+  return value ?? null;
+}
+
+async function writeGraphMetadata(memory, timestamp) {
+  const document = Object.freeze({
+    id: GRAPH_META_ID,
+    kind: 'graph_meta',
+    createdAt: timestamp,
+    graphModelVersion: GRAPH_MODEL_VERSION,
+    updatedAt: timestamp,
+  });
+  await memory.writeMemoryDocument({
+    id: GRAPH_META_ID,
+    bytes: encodeNativeDocument('memory-object', document),
+  });
 }

@@ -1,26 +1,24 @@
 import { randomUUID } from 'node:crypto';
 
-import { ValidationError, NotFoundError } from '../errors.js';
-import { ANNOTATION_PREFIX, TEXT_MIME } from './constants.js';
-import { encodeTextContent } from './content.js';
+import { NotFoundError, ValidationError } from '../errors.js';
+import { ANNOTATION_PREFIX } from './constants.js';
 import { getCurrentTime } from './model.js';
+import { appendIndexedMemoryObject } from './native-index.js';
+import { openNativeMemory } from './native-runtime.js';
 import {
-  commitThinkWorldline,
   getStoredEntry,
   openProductReadHandle,
-  openThinkWorldline,
 } from './runtime.js';
 
-export async function saveAnnotation(repoDir, targetEntryId, text, { writerId = null } = {}) {
+export async function saveAnnotation(repoDir, targetEntryId, text, {
+  writerId = null,
+} = {}) {
   if (!text || typeof text !== 'string' || text.trim() === '') {
     throw new ValidationError('Annotation text cannot be empty');
   }
-
-  const worldline = await openThinkWorldline(repoDir);
+  const memory = await openNativeMemory(repoDir);
   const read = await openProductReadHandle(repoDir);
-  const targetEntry = await getStoredEntry(read, targetEntryId);
-
-  if (!targetEntry) {
+  if (!await getStoredEntry(read, targetEntryId)) {
     throw new NotFoundError(`Entry not found: ${targetEntryId}`);
   }
 
@@ -29,26 +27,21 @@ export async function saveAnnotation(repoDir, targetEntryId, text, { writerId = 
   const createdAt = timestamp.toISOString();
   const sortKey = `${String(timestamp.getTime()).padStart(13, '0')}-${unique}`;
   const annotationId = `${ANNOTATION_PREFIX}${sortKey}`;
-  const resolvedWriterId = writerId ?? worldline.writerId;
 
-  await commitThinkWorldline(repoDir, async (patch) => {
-    patch
-      .addNode(annotationId)
-      .setProperty(annotationId, 'kind', 'annotation')
-      .setProperty(annotationId, 'source', 'annotation')
-      .setProperty(annotationId, 'channel', 'cli')
-      .setProperty(annotationId, 'writerId', resolvedWriterId)
-      .setProperty(annotationId, 'createdAt', createdAt)
-      .setProperty(annotationId, 'sortKey', sortKey)
-      .setProperty(annotationId, 'targetEntryId', targetEntryId)
-      .addEdge(annotationId, targetEntryId, 'annotates');
-
-    await patch.attachContent(annotationId, encodeTextContent(text.trim()), { mime: TEXT_MIME });
+  await appendIndexedMemoryObject(repoDir, {
+    id: annotationId,
+    kind: 'annotation',
+    facts: {
+      kind: 'annotation',
+      text: text.trim(),
+      source: 'annotation',
+      channel: 'cli',
+      writerId: writerId ?? memory.writerId,
+      createdAt,
+      sortKey,
+      targetEntryId,
+    },
   });
 
-  return Object.freeze({
-    annotationId,
-    targetEntryId,
-    createdAt,
-  });
+  return Object.freeze({ annotationId, targetEntryId, createdAt });
 }

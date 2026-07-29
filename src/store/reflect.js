@@ -3,9 +3,7 @@ import {
   CONSTRAINT_PROMPTS,
   MAX_REFLECT_STEPS,
   SHARPEN_PROMPTS,
-  TEXT_MIME,
 } from './constants.js';
-import { encodeTextContent } from './content.js';
 import {
   createEntry,
   createReflectSession,
@@ -13,25 +11,29 @@ import {
   stableHash,
 } from './model.js';
 import {
-  commitThinkWorldline,
+  appendIndexedMemoryObject,
+  updateIndexedMemoryObject,
+} from './native-index.js';
+import { openNativeMemory } from './native-runtime.js';
+import {
   getReflectSession,
   getStoredEntry,
   openProductReadHandle,
-  openThinkWorldline,
 } from './runtime.js';
 import { assessReflectability } from './derivation.js';
 
-export async function startReflect(repoDir, seedEntryId, { promptType = null } = {}) {
-  const worldline = await openThinkWorldline(repoDir);
+export async function startReflect(repoDir, seedEntryId, {
+  promptType = null,
+} = {}) {
+  const memory = await openNativeMemory(repoDir);
   const read = await openProductReadHandle(repoDir);
   const planned = await planReflect(read, seedEntryId, { promptType });
-
   if (!planned.ok) {
     return planned;
   }
 
-  const {promptPlan} = planned;
-  const session = createReflectSession(worldline.writerId, {
+  const { promptPlan } = planned;
+  const session = createReflectSession(memory.writerId, {
     seedEntryId,
     contrastEntryId: null,
     promptType: promptPlan.promptType,
@@ -39,29 +41,25 @@ export async function startReflect(repoDir, seedEntryId, { promptType = null } =
     selectionReason: promptPlan.selectionReason,
   });
 
-  // eslint-disable-next-line require-await -- git-warp patch callback must be async for the library API
-  await commitThinkWorldline(repoDir, async patch => {
-    patch
-      .addNode(session.id)
-      .setProperty(session.id, 'kind', session.kind)
-      .setProperty(session.id, 'source', session.source)
-      .setProperty(session.id, 'channel', session.channel)
-      .setProperty(session.id, 'writerId', session.writerId)
-      .setProperty(session.id, 'createdAt', session.createdAt)
-      .setProperty(session.id, 'sortKey', session.sortKey)
-      .setProperty(session.id, 'seedEntryId', session.seedEntryId)
-      .setProperty(session.id, 'promptType', session.promptType)
-      .setProperty(session.id, 'question', session.question)
-      .setProperty(session.id, 'selectionReasonKind', session.selectionReason.kind)
-      .setProperty(session.id, 'selectionReasonText', session.selectionReason.text)
-      .setProperty(session.id, 'maxSteps', session.maxSteps)
-      .setProperty(session.id, 'stepCount', 0);
-
-    patch.addEdge(session.id, session.seedEntryId, 'seeded_by');
-
-    if (session.contrastEntryId) {
-      patch.setProperty(session.id, 'contrastEntryId', session.contrastEntryId);
-    }
+  await appendIndexedMemoryObject(repoDir, {
+    id: session.id,
+    kind: session.kind,
+    facts: {
+      kind: session.kind,
+      source: session.source,
+      channel: session.channel,
+      writerId: session.writerId,
+      createdAt: session.createdAt,
+      sortKey: session.sortKey,
+      seedEntryId: session.seedEntryId,
+      contrastEntryId: session.contrastEntryId,
+      promptType: session.promptType,
+      question: session.question,
+      selectionReasonKind: session.selectionReason.kind,
+      selectionReasonText: session.selectionReason.text,
+      maxSteps: session.maxSteps,
+      stepCount: 0,
+    },
   });
 
   return Object.freeze({
@@ -78,14 +76,14 @@ export async function startReflect(repoDir, seedEntryId, { promptType = null } =
   });
 }
 
-export async function previewReflect(repoDir, seedEntryId, { promptType = null } = {}) {
+export async function previewReflect(repoDir, seedEntryId, {
+  promptType = null,
+} = {}) {
   const read = await openProductReadHandle(repoDir);
   const planned = await planReflect(read, seedEntryId, { promptType });
-
   if (!planned.ok) {
     return planned;
   }
-
   return Object.freeze({
     ok: true,
     seedEntryId,
@@ -100,15 +98,14 @@ export async function previewReflect(repoDir, seedEntryId, { promptType = null }
 }
 
 export async function saveReflectResponse(repoDir, sessionId, response) {
-  const worldline = await openThinkWorldline(repoDir);
+  const memory = await openNativeMemory(repoDir);
   const read = await openProductReadHandle(repoDir);
   const session = await getReflectSession(read, sessionId);
-
   if (!session) {
     return null;
   }
 
-  const entry = createEntry(response, worldline.writerId, {
+  const entry = createEntry(response, memory.writerId, {
     kind: 'reflect',
     source: 'reflect',
     seedEntryId: session.seedEntryId,
@@ -117,32 +114,30 @@ export async function saveReflectResponse(repoDir, sessionId, response) {
     promptType: session.promptType,
   });
 
-  await commitThinkWorldline(repoDir, async patch => {
-    patch
-      .addNode(entry.id)
-      .setProperty(entry.id, 'kind', entry.kind)
-      .setProperty(entry.id, 'source', entry.source)
-      .setProperty(entry.id, 'channel', entry.channel)
-      .setProperty(entry.id, 'writerId', entry.writerId)
-      .setProperty(entry.id, 'createdAt', entry.createdAt)
-      .setProperty(entry.id, 'sortKey', entry.sortKey)
-      .setProperty(entry.id, 'seedEntryId', entry.seedEntryId)
-      .setProperty(entry.id, 'sessionId', entry.sessionId)
-      .setProperty(entry.id, 'promptType', entry.promptType);
-
-    patch
-      .addEdge(entry.id, entry.sessionId, 'produced_in')
-      .addEdge(entry.id, entry.seedEntryId, 'responds_to');
-
-    if (entry.contrastEntryId) {
-      patch.setProperty(entry.id, 'contrastEntryId', entry.contrastEntryId);
-    }
-
-    patch
-      .setProperty(session.id, 'stepCount', session.stepCount + 1)
-      .setProperty(session.id, 'updatedAt', entry.createdAt);
-
-    await patch.attachContent(entry.id, encodeTextContent(response), { mime: TEXT_MIME });
+  await appendIndexedMemoryObject(repoDir, {
+    id: entry.id,
+    kind: entry.kind,
+    facts: {
+      kind: entry.kind,
+      text: entry.text,
+      source: entry.source,
+      channel: entry.channel,
+      writerId: entry.writerId,
+      createdAt: entry.createdAt,
+      sortKey: entry.sortKey,
+      seedEntryId: entry.seedEntryId,
+      contrastEntryId: entry.contrastEntryId,
+      sessionId: entry.sessionId,
+      promptType: entry.promptType,
+    },
+  });
+  await updateIndexedMemoryObject(repoDir, {
+    id: session.id,
+    kind: session.kind,
+    facts: {
+      stepCount: session.stepCount + 1,
+      updatedAt: entry.createdAt,
+    },
   });
 
   return entry;
@@ -150,73 +145,27 @@ export async function saveReflectResponse(repoDir, sessionId, response) {
 
 function selectReflectPrompt(seedEntry, requestedPromptType = null) {
   const normalized = normalizeSeed(seedEntry.text);
-
   if (requestedPromptType === 'challenge') {
-    return Object.freeze({
-      promptType: 'challenge',
-      selectionReason: Object.freeze({
-        kind: 'requested_challenge',
-        text: 'Used the requested challenge prompt family for this reflect session.',
-      }),
-      question: pickDeterministicPrompt(CHALLENGE_PROMPTS, normalized),
-    });
+    return buildPromptPlan('challenge', 'requested_challenge', CHALLENGE_PROMPTS, normalized);
   }
-
   if (requestedPromptType === 'constraint') {
-    return Object.freeze({
-      promptType: 'constraint',
-      selectionReason: Object.freeze({
-        kind: 'requested_constraint',
-        text: 'Used the requested constraint prompt family for this reflect session.',
-      }),
-      question: pickDeterministicPrompt(CONSTRAINT_PROMPTS, normalized),
-    });
+    return buildPromptPlan('constraint', 'requested_constraint', CONSTRAINT_PROMPTS, normalized);
   }
-
   if (requestedPromptType === 'sharpen') {
-    return Object.freeze({
-      promptType: 'sharpen',
-      selectionReason: Object.freeze({
-        kind: 'requested_sharpen',
-        text: 'Used the requested sharpen prompt family for this reflect session.',
-      }),
-      question: pickDeterministicPrompt(SHARPEN_PROMPTS, normalized),
-    });
+    return buildPromptPlan('sharpen', 'requested_sharpen', SHARPEN_PROMPTS, normalized);
   }
-
-  const familyIndex = stableHash(normalized) % 2;
-
-  if (familyIndex === 0) {
-    return Object.freeze({
-      promptType: 'challenge',
-      selectionReason: Object.freeze({
-        kind: 'seed_only_challenge',
-        text: 'Used a deterministic challenge prompt from the seed thought alone.',
-      }),
-      question: pickDeterministicPrompt(CHALLENGE_PROMPTS, normalized),
-    });
-  }
-
-  return Object.freeze({
-    promptType: 'constraint',
-    selectionReason: Object.freeze({
-      kind: 'seed_only_constraint',
-      text: 'Used a deterministic constraint prompt from the seed thought alone.',
-    }),
-    question: pickDeterministicPrompt(CONSTRAINT_PROMPTS, normalized),
-  });
+  return stableHash(normalized) % 2 === 0
+    ? buildPromptPlan('challenge', 'seed_only_challenge', CHALLENGE_PROMPTS, normalized)
+    : buildPromptPlan('constraint', 'seed_only_constraint', CONSTRAINT_PROMPTS, normalized);
 }
 
-async function planReflect(read, seedEntryId, { promptType = null } = {}) {
+async function planReflect(read, seedEntryId, {
+  promptType = null,
+} = {}) {
   const seedEntry = await getStoredEntry(read, seedEntryId);
-
   if (!seedEntry || seedEntry.kind !== 'capture') {
-    return Object.freeze({
-      ok: false,
-      code: 'seed_not_found',
-    });
+    return Object.freeze({ ok: false, code: 'seed_not_found' });
   }
-
   const eligibility = assessReflectability(seedEntry.text);
   if (!eligibility.eligible) {
     return Object.freeze({
@@ -227,7 +176,6 @@ async function planReflect(read, seedEntryId, { promptType = null } = {}) {
       eligibility,
     });
   }
-
   return Object.freeze({
     ok: true,
     seedEntry,
@@ -235,7 +183,19 @@ async function planReflect(read, seedEntryId, { promptType = null } = {}) {
   });
 }
 
-function pickDeterministicPrompt(prompts, normalizedSeed) {
-  const index = stableHash(normalizedSeed) % prompts.length;
-  return prompts[index];
+function buildPromptPlan(promptType, reasonKind, prompts, normalizedSeed) {
+  return Object.freeze({
+    promptType,
+    selectionReason: Object.freeze({
+      kind: reasonKind,
+      text: selectionReasonText(promptType, reasonKind),
+    }),
+    question: prompts[stableHash(normalizedSeed) % prompts.length],
+  });
+}
+
+function selectionReasonText(promptType, reasonKind) {
+  return reasonKind.startsWith('requested_')
+    ? `Used the requested ${promptType} prompt family for this reflect session.`
+    : `Used a deterministic ${promptType} prompt from the seed thought alone.`;
 }

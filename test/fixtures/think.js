@@ -8,7 +8,7 @@ import { createTempDir } from './tmp.js';
 export async function createThinkContext({ upstream = 'none' } = {}) {
   const homeDir = await createTempDir('think-home-');
   const thinkDir = path.join(homeDir, '.think');
-  const localRepoDir = path.join(thinkDir, 'repo');
+  const localRepoDir = path.join(thinkDir, 'james');
   let upstreamUrl = '';
 
   if (upstream === 'bare') {

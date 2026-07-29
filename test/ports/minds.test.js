@@ -52,24 +52,29 @@ test('discoverMinds ignores directories without git repos', async () => {
   assert.equal(minds[0].name, 'valid');
 });
 
-test('discoverMinds labels ~/.think/repo as "default"', async () => {
+test('discoverMinds labels ~/.think/james as "default" and keeps repo discoverable', async () => {
   const thinkDir = await createTempDir('think-minds-');
 
-  const repoDir = path.join(thinkDir, 'repo');
-  mkdirSync(repoDir, { recursive: true });
-  execSync('git init', { cwd: repoDir, stdio: 'ignore' });
+  for (const name of ['james', 'repo']) {
+    const mindDir = path.join(thinkDir, name);
+    mkdirSync(mindDir, { recursive: true });
+    execSync('git init', { cwd: mindDir, stdio: 'ignore' });
+  }
 
   const minds = discoverMinds(thinkDir);
 
-  assert.equal(minds.length, 1);
-  assert.equal(minds[0].name, 'default', 'Expected "repo" directory to display as "default".');
+  assert.equal(minds.length, 2);
+  assert.equal(minds[0].name, 'default', 'Expected "james" directory to display as "default".');
+  assert.equal(minds[0].repoDir, path.join(thinkDir, 'james'));
   assert.equal(minds[0].isDefault, true);
+  assert.equal(minds[1].name, 'repo', 'Expected the retained "repo" directory to remain discoverable.');
+  assert.equal(minds[1].isDefault, false);
 });
 
 test('discoverMinds sorts with default first, then alphabetical', async () => {
   const thinkDir = await createTempDir('think-minds-');
 
-  for (const name of ['work', 'repo', 'claude']) {
+  for (const name of ['work', 'james', 'claude']) {
     const mindDir = path.join(thinkDir, name);
     mkdirSync(mindDir, { recursive: true });
     execSync('git init', { cwd: mindDir, stdio: 'ignore' });

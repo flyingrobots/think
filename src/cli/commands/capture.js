@@ -1,6 +1,6 @@
 import { ensureGitRepo, hasGitRepo, pushWarpRefs } from '../../git.js';
 import { captureProvenanceFromEnvironment } from '../../capture-provenance.js';
-import { getCaptureAmbientContext, getAmbientProjectContext } from '../../project-context.js';
+import { getAmbientProjectContext } from '../../project-context.js';
 import { getLocalRepoDir, getUpstreamUrl } from '../../paths.js';
 import {
   finalizeCapturedThought,
@@ -36,10 +36,14 @@ export async function runCapture(thought, output, reporter) {
   reporter.event(repoAlreadyExists ? 'repo.ensure.done' : 'repo.bootstrap.done', { repoDir });
 
   const provenance = captureProvenanceFromEnvironment(process.env);
-  const ambientContext = getCaptureAmbientContext(process.cwd());
+  const ambientContext = getAmbientProjectContext(process.cwd());
 
   reporter.event('capture.local_save.start');
-  const entry = await saveRawCapture(repoDir, thought, { provenance, ambientContext });
+  const entry = await saveRawCapture(repoDir, thought, {
+    provenance,
+    ambientContext,
+    initializeGraphModel: !repoAlreadyExists,
+  });
   reporter.event('capture.local_save.done', { entryId: entry.id });
 
   output.out('Saved locally', 'capture.status', {

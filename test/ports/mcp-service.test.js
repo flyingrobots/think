@@ -19,7 +19,7 @@ test('MCP capture returns saved locally when post-save followthrough defers', as
     'hasGitRepo',
     'ensureGitRepo',
     'getCwd',
-    'getCaptureAmbientContext',
+    'getAmbientProjectContext',
     'saveRawCapture',
     'getGraphModelStatus',
     'waitForFollowthrough',
@@ -61,8 +61,7 @@ function createDeferredFollowthroughDeps(calls) {
   return {
     ensureGitRepo: (repoDir) => record(calls, 'ensureGitRepo', repoDir),
     finalizeCapturedThought: () => record(calls, 'finalizeCapturedThought'),
-    getAmbientProjectContext: () => record(calls, 'getAmbientProjectContext'),
-    getCaptureAmbientContext: (cwd) => ({ cwd: record(calls, 'getCaptureAmbientContext', cwd) }),
+    getAmbientProjectContext: (cwd) => ({ cwd: record(calls, 'getAmbientProjectContext', cwd) }),
     getCwd: () => record(calls, 'getCwd', '/tmp/project'),
     getGraphModelStatus: () => {
       record(calls, 'getGraphModelStatus');
