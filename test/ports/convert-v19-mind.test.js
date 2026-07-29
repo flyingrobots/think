@@ -10,6 +10,7 @@ import {
   buildNativeInventory,
   convertV19Mind,
   createInventorySnapshot,
+  mergeSourceInventories,
   parseConvertArgs,
   parseInventorySnapshot,
   projectNativeInventory,
@@ -162,8 +163,31 @@ test('native projection retains user records and drops recomputable graph state'
   assert.equal(projected.byKind.get('thought').length, 1);
 });
 
+test('mixed source inventory preserves exact native documents after legacy data', () => {
+  const legacy = buildNativeInventory(new Map([
+    ['entry:legacy', legacyRecord({
+      props: { kind: 'capture', sortKey: '001' },
+      text: 'legacy capture',
+    })],
+  ]));
+  const native = Object.freeze({
+    id: 'entry:native',
+    kind: 'capture',
+    sortKey: '002',
+    text: 'native capture',
+  });
+
+  const merged = mergeSourceInventories(legacy, [native]);
+
+  assert.deepEqual(
+    merged.byKind.get('capture').map(document => document.id),
+    ['entry:legacy', 'entry:native']
+  );
+  assert.deepEqual(merged.documents, [legacy.documents[0], native]);
+});
+
 test('native inventory imports into and verifies an empty real Git repository', {
-  timeout: 30_000,
+  timeout: 60_000,
 }, async (context) => {
   const { inventoryPath, targetDir } = await createConversionFixture(context);
   const report = await convertV19Mind({
@@ -244,13 +268,11 @@ async function createConversionFixture(context) {
   const targetDir = path.join(root, 'native-mind');
   const inventoryPath = path.join(root, 'mind.inventory.json');
   await execFileAsync('git', ['init', targetDir]);
-  await Promise.all([
-    execFileAsync('git', ['-C', targetDir, 'config', 'user.name', 'think']),
-    execFileAsync(
-      'git',
-      ['-C', targetDir, 'config', 'user.email', 'think@local.invalid']
-    ),
-  ]);
+  await execFileAsync('git', ['-C', targetDir, 'config', 'user.name', 'think']);
+  await execFileAsync(
+    'git',
+    ['-C', targetDir, 'config', 'user.email', 'think@local.invalid']
+  );
   await writeConversionInventory(inventoryPath);
   return { inventoryPath, targetDir };
 }

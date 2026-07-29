@@ -37,6 +37,11 @@ import {
   usage,
 } from './convert-v19-mind-cli.mjs';
 import {
+  collectNativeSourceProperties,
+  mergeNativeSourceDocuments,
+  requireCompleteSourceRecords,
+} from './convert-v19-mind-source.mjs';
+import {
   chunk,
   compareDocumentsOldestFirst,
   compareEdges,
@@ -436,9 +441,13 @@ async function readLegacyInventory(repoDir) {
   const state = await materializeLegacyState(repoDir, modules);
   const liveNodeIds = [...state.nodeAlive.elements()].sort();
   const collected = collectLegacyRecords(state, modules, liveNodeIds);
-  requireCompleteLegacyRecords(collected, liveNodeIds);
+  const native = collectNativeSourceProperties(state, modules, liveNodeIds);
+  requireCompleteSourceRecords(collected, native, liveNodeIds);
   requireLegacyCatalogs(collected.records);
-  return buildNativeInventory(collected.records);
+  return mergeSourceInventories(
+    buildNativeInventory(collected.records),
+    native.documents
+  );
 }
 
 function collectLegacyRecords(state, modules, liveNodeIds) {
@@ -463,20 +472,11 @@ function collectLegacyRecords(state, modules, liveNodeIds) {
   return Object.freeze({ invalidRecordIds, records });
 }
 
-function requireCompleteLegacyRecords({ invalidRecordIds, records }, liveNodeIds) {
-  if (invalidRecordIds.length > 0) {
-    throw new ConvertV19MindError(
-      `Legacy Think contains ${invalidRecordIds.length} invalid live records; first: ${invalidRecordIds[0]}`,
-      'convert_v19_mind.record_invalid'
-    );
-  }
-  if (records.size !== liveNodeIds.length) {
-    const firstMissing = liveNodeIds.find(id => !records.has(id)) ?? 'unknown';
-    throw new ConvertV19MindError(
-      `Legacy Think materialized ${liveNodeIds.length} live nodes but ${records.size} valid records; first missing: ${firstMissing}`,
-      'convert_v19_mind.record_missing'
-    );
-  }
+export function mergeSourceInventories(legacyInventory, nativeDocuments) {
+  return buildInventoryFromNativeDocuments(
+    mergeNativeSourceDocuments(legacyInventory.documents, nativeDocuments),
+    [...legacyInventory.edges]
+  );
 }
 
 function requireLegacyCatalogs(records) {
