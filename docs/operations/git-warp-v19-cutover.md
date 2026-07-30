@@ -174,7 +174,7 @@ INVENTORY="$REPORTS/codex.native-v19.inventory.json"
 ## James source
 
 `~/.think/repo` is the retained James source and must remain unchanged.
-Prepare and migrate a disposable copy with the official v19.0.1 substrate
+Prepare and migrate a disposable copy with the official v19.0.2 substrate
 migrator before using it as `--source`. Publish the native result to the absent
 `~/.think/james` path. Never rename or overwrite `~/.think/repo`.
 
