@@ -246,16 +246,28 @@ function missingIndexedObjectError(id, kind) {
 
 async function readRecentIndexPages(reader, state, requested) {
   const documents = [];
-  let pageNumber = state.headPage;
-  /* eslint-disable no-await-in-loop -- the page count is bounded by the requested result limit */
-  while (pageNumber >= 0 && documents.length < requested) {
-    const page = await readIndexPage(reader, state.kind, pageNumber);
+  const pageNumbers = recentIndexPageNumbers(state, requested);
+  const pages = await Promise.all(
+    pageNumbers.map(pageNumber => readIndexPage(reader, state.kind, pageNumber))
+  );
+  for (const page of pages) {
     const remaining = requested - documents.length;
     documents.push(...page.entries.slice(-remaining).reverse());
-    pageNumber -= 1;
   }
-  /* eslint-enable no-await-in-loop */
   return Object.freeze(documents);
+}
+
+function recentIndexPageNumbers(state, requested) {
+  const oldestRequestedOffset = Math.max(0, state.total - requested);
+  const oldestRequestedPage = Math.floor(
+    oldestRequestedOffset / NATIVE_INDEX_PAGE_SIZE
+  );
+  return Object.freeze(
+    Array.from(
+      { length: state.headPage - oldestRequestedPage + 1 },
+      (_, offset) => state.headPage - offset
+    )
+  );
 }
 
 async function findDocumentAcrossKinds(reader, kinds, id) {
