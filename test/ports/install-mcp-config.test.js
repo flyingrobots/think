@@ -324,6 +324,118 @@ test('mergeCodexTomlConfig is idempotent across repeated installs', () => {
   assert.equal(second.text, first.text);
 });
 
+test('mergeCodexTomlConfig replaces a hand-written env sub-table instead of duplicating the key', () => {
+  const existing = [
+    '[mcp_servers.think]',
+    'command = "node"',
+    'args = ["/old/think-mcp.js"]',
+    '',
+    '[mcp_servers.think.env]',
+    'THINK_REPO_DIR = "/Users/dev/.think/old"',
+    '',
+    '[mcp_servers.graft]',
+    'command = "npx"',
+    '',
+  ].join('\n');
+
+  const result = mergeCodexTomlConfig(existing, {
+    serversKey: 'mcp_servers',
+    serverName: 'think',
+    entry: {
+      command: 'node',
+      args: ['/opt/think/bin/think-mcp.js'],
+      env: { THINK_REPO_DIR: '/Users/dev/.think/new' },
+    },
+  });
+
+  assert.equal(result.action, 'updated');
+  assert.doesNotMatch(
+    result.text,
+    /\[mcp_servers\.think\.env\]/,
+    'Expected the nested env table to be consumed, not left behind as a duplicate key.'
+  );
+  assert.doesNotMatch(result.text, /old/, 'Expected no stale values to survive the rewrite.');
+  assert.match(result.text, /env = \{ THINK_REPO_DIR = "\/Users\/dev\/\.think\/new" \}/);
+  assert.match(result.text, /\[mcp_servers\.graft\]\ncommand = "npx"/, 'Expected the neighbour table to survive.');
+});
+
+test('mergeCodexTomlConfig keeps a blank line between the rewritten block and the next table', () => {
+  const existing = [
+    '[mcp_servers.think]',
+    'command = "node"',
+    'args = ["/old/think-mcp.js"]',
+    '',
+    '[mcp_servers.graft]',
+    'command = "npx"',
+    '',
+  ].join('\n');
+
+  const result = mergeCodexTomlConfig(existing, {
+    serversKey: 'mcp_servers',
+    serverName: 'think',
+    entry: { command: 'node', args: ['/opt/think/bin/think-mcp.js'] },
+  });
+
+  assert.match(
+    result.text,
+    /startup_timeout_sec = 60\n\n\[mcp_servers\.graft\]/,
+    'Expected exactly one blank line separating the rewritten block from the next table.'
+  );
+});
+
+test('mergeCodexTomlConfig stays idempotent when a nested table had to be collapsed', () => {
+  const options = {
+    serversKey: 'mcp_servers',
+    serverName: 'think',
+    entry: {
+      command: 'node',
+      args: ['/opt/think/bin/think-mcp.js'],
+      env: { THINK_REPO_DIR: '/Users/dev/.think/new' },
+    },
+  };
+  const existing = [
+    '[mcp_servers.think]',
+    'command = "node"',
+    'args = ["/old/think-mcp.js"]',
+    '',
+    '[mcp_servers.think.env]',
+    'THINK_REPO_DIR = "/Users/dev/.think/old"',
+    '',
+    '[mcp_servers.graft]',
+    'command = "npx"',
+    '',
+  ].join('\n');
+
+  const first = mergeCodexTomlConfig(existing, options);
+  const second = mergeCodexTomlConfig(first.text, options);
+
+  assert.equal(second.action, 'unchanged');
+  assert.equal(second.text, first.text);
+});
+
+test('mergeCodexTomlConfig does not treat another server as a nested table of the target', () => {
+  const existing = [
+    '[mcp_servers.think]',
+    'command = "node"',
+    '',
+    '[mcp_servers.think-extra]',
+    'command = "other"',
+    '',
+  ].join('\n');
+
+  const result = mergeCodexTomlConfig(existing, {
+    serversKey: 'mcp_servers',
+    serverName: 'think',
+    entry: { command: 'node', args: ['/opt/think/bin/think-mcp.js'] },
+  });
+
+  assert.match(
+    result.text,
+    /\[mcp_servers\.think-extra\]\ncommand = "other"/,
+    'Expected a similarly named sibling server to survive untouched.'
+  );
+});
+
 test('mergeCodexTomlConfig escapes quotes and backslashes in paths', () => {
   const result = mergeCodexTomlConfig('', {
     serversKey: 'mcp_servers',

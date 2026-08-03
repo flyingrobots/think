@@ -291,7 +291,7 @@ export function mergeCodexTomlConfig(existing, { serversKey, serverName, entry }
   const text = String(existing ?? '');
   const block = renderCodexTomlBlock({ serversKey, serverName, entry });
   const header = `[${serversKey}.${serverName}]`;
-  const found = findTomlBlock(text, header);
+  const found = findTomlBlock(text, header, `[${serversKey}.${serverName}.`);
 
   if (!found) {
     return Object.freeze({
@@ -300,10 +300,12 @@ export function mergeCodexTomlConfig(existing, { serversKey, serverName, entry }
     });
   }
 
-  const replaced = `${text.slice(0, found.start)}${block}${text.slice(found.end)}`;
+  const tail = text.slice(found.end);
+  const desired = tail.trim() === '' ? block : `${block}\n`;
+
   return Object.freeze({
-    action: text.slice(found.start, found.end) === block ? 'unchanged' : 'updated',
-    text: replaced,
+    action: text.slice(found.start, found.end) === desired ? 'unchanged' : 'updated',
+    text: `${text.slice(0, found.start)}${desired}${tail}`,
   });
 }
 
@@ -329,9 +331,16 @@ export function renderCodexTomlBlock({ serversKey, serverName, entry }) {
 
 /**
  * Locate a TOML table block by header line. The block runs from the header up
- * to the next line that opens a table, so unrelated tables survive a rewrite.
+ * to the next line that opens an *unrelated* table, so neighbouring tables
+ * survive a rewrite.
+ *
+ * Nested tables of the same server are absorbed into the block. A hand-written
+ * config may express the environment as `[mcp_servers.think.env]` rather than
+ * the inline table this module renders; leaving that sub-table behind would
+ * declare `env` twice and make the whole file invalid TOML, breaking every
+ * server in it rather than just Think's entry.
  */
-function findTomlBlock(text, header) {
+function findTomlBlock(text, header, childPrefix) {
   const lines = text.split('\n');
   const headerIndex = lines.findIndex((line) => line.trim() === header);
   if (headerIndex === -1) {
@@ -340,7 +349,8 @@ function findTomlBlock(text, header) {
 
   let endIndex = lines.length;
   for (let index = headerIndex + 1; index < lines.length; index += 1) {
-    if (lines[index].trimStart().startsWith('[')) {
+    const trimmed = lines[index].trimStart();
+    if (trimmed.startsWith('[') && !trimmed.startsWith(childPrefix)) {
       endIndex = index;
       break;
     }
