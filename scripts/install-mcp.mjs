@@ -22,7 +22,6 @@ import {
   mergeJsonMcpConfig,
   parseInstallMcpArgs,
   planInstallMcpTarget,
-  renderCodexTomlBlock,
   resolveMindRepoDir,
   resolveWriteTargetPath,
 } from '../src/mcp/install-config.js';
@@ -251,7 +250,7 @@ function reportPlanText({ options, target, entry, merged, written }) {
   // nothing to preview, and printing one alongside "nothing to do" reads as a
   // contradiction.
   if (options.print && merged.action !== 'unchanged') {
-    process.stdout.write(`\n${renderPreview({ options, target, entry })}`);
+    process.stdout.write(`\n${renderPreview({ target, merged })}`);
   }
   if (!written && merged.action !== 'unchanged') {
     process.stdout.write('\nNothing written. Re-run without --print to apply.\n');
@@ -266,15 +265,18 @@ function describeOutcome(action, print) {
   return print ? 'would write' : describeWrite(action);
 }
 
-function renderPreview({ options, target, entry }) {
-  if (target.format === 'toml') {
-    return renderCodexTomlBlock({
-      serversKey: target.serversKey,
-      serverName: options.serverName,
-      entry,
-    });
-  }
-  return `${JSON.stringify({ [target.serversKey]: { [options.serverName]: entry } }, null, 2)}\n`;
+/**
+ * Render exactly what a write would produce.
+ *
+ * Previewing only the Think entry was misleading for an existing config: the
+ * command advertises showing what would be written, but omitted every preserved
+ * neighbouring server and top-level key, so the merge itself could not be
+ * inspected before allowing a live write.
+ */
+function renderPreview({ target, merged }) {
+  return target.format === 'toml'
+    ? merged.text
+    : `${JSON.stringify(merged.config, null, 2)}\n`;
 }
 
 function describeWrite(action) {
