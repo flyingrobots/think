@@ -404,6 +404,32 @@ test('mergeJsonMcpConfig preserves unrelated servers and untouched top level key
   }, 'Expected the merge to leave the caller-owned object untouched.');
 });
 
+test('mergeJsonMcpConfig reports added for a name that collides with a prototype key', () => {
+  // TOML bare keys permit `constructor` and `toString`, so a permitted custom
+  // server name can collide with Object.prototype. A bracket lookup then sees the
+  // inherited value as an existing server and reports "updated" for a collection
+  // that is actually empty, in both text and --json output.
+  for (const serverName of ['constructor', 'toString', 'valueOf']) {
+    const result = mergeJsonMcpConfig({ mcpServers: {} }, {
+      serversKey: 'mcpServers',
+      serverName,
+      entry: { command: '/usr/local/bin/node', args: ['/opt/think/bin/think-mcp.js'] },
+    });
+
+    assert.equal(result.action, 'added', `Expected "${serverName}" to be reported as added, not updated.`);
+  }
+});
+
+test('mergeJsonMcpConfig still reports updated when such a name genuinely exists', () => {
+  const result = mergeJsonMcpConfig({ mcpServers: { constructor: { command: 'old' } } }, {
+    serversKey: 'mcpServers',
+    serverName: 'constructor',
+    entry: { command: '/usr/local/bin/node', args: ['/opt/think/bin/think-mcp.js'] },
+  });
+
+  assert.equal(result.action, 'updated');
+});
+
 test('mergeJsonMcpConfig is idempotent when the desired entry already matches', () => {
   const entry = { command: 'node', args: ['/opt/think/bin/think-mcp.js'] };
   const existing = { mcpServers: { think: { ...entry } } };
@@ -775,6 +801,26 @@ test('mergeCodexTomlConfig absorbs an equivalently spelled nested env table', ()
   assert.doesNotMatch(result.text, /\.env\]/u, 'Expected the quoted nested env table to be absorbed.');
   assert.doesNotMatch(result.text, /old/u);
   assert.match(result.text, /\[mcp_servers\.graft\]/u, 'Expected the neighbour to survive.');
+});
+
+test('mergeCodexTomlConfig escapes control characters that would break the file', () => {
+  // Newlines and tabs are legal in POSIX paths but cannot appear literally in a
+  // TOML basic string. Emitting them raw invalidates the config and disables
+  // every server in it.
+  const result = mergeCodexTomlConfig('', {
+    serversKey: 'mcp_servers',
+    serverName: 'think',
+    entry: {
+      command: '/usr/local/bin/node',
+      args: ['/tmp/we\nird\tpath/think-mcp.js'],
+      env: { THINK_REPO_DIR: '/tmp/mind\u0007bell' },
+    },
+  });
+
+  assert.doesNotMatch(result.text.split('args =')[1] ?? '', /\n[^"]*"/u, 'Expected no literal newline inside the string.');
+  assert.match(result.text, /\\n/u, 'Expected the newline to be escaped.');
+  assert.match(result.text, /\\t/u, 'Expected the tab to be escaped.');
+  assert.match(result.text, /\\u0007/u, 'Expected other control characters to be escaped as \\uXXXX.');
 });
 
 test('mergeCodexTomlConfig escapes quotes and backslashes in paths', () => {

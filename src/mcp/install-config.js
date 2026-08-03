@@ -339,7 +339,9 @@ export function buildStagedConfigPath(file, { pid, nonce }) {
 export function mergeJsonMcpConfig(existing, { serversKey, serverName, entry }) {
   const source = normalizeExistingJsonConfig(existing);
   const servers = readServersCollection(source, serversKey);
-  const previous = servers?.[serverName];
+  // Own-property check: a permitted name such as `constructor` would otherwise
+  // resolve an inherited Object.prototype member and look like an existing server.
+  const previous = servers && Object.hasOwn(servers, serverName) ? servers[serverName] : undefined;
   const action = resolveJsonAction({ source, previous, entry });
 
   if (action === 'unchanged') {
