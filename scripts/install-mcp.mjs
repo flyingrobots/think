@@ -9,7 +9,8 @@
  */
 
 import { randomBytes } from 'node:crypto';
-import { lstatSync, mkdirSync, readFileSync, readlinkSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { setTimeout as sleep } from 'node:timers/promises';
+import { lstatSync, mkdirSync, readFileSync, readlinkSync, realpathSync, renameSync, rmdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -56,7 +57,7 @@ const USAGE = [
   '  npm run install-mcp -- --client=cursor --scope=project --print',
 ].join('\n');
 
-function main(argv) {
+async function main(argv) {
   const options = parseInstallMcpArgs(argv);
 
   if (options.help) {
@@ -82,17 +83,85 @@ function main(argv) {
     dir: projectDir,
   });
 
-  const merged = mergeTarget({ target, options, entry });
-
   if (options.print) {
-    return reportPlan({ options, target, entry, merged, written: false });
+    const preview = mergeTarget({ target, options, entry });
+    return reportPlan({ options, target, entry, merged: preview, written: false });
   }
 
+  const merged = await withConfigLock(target, () => applyMerge({ target, options, entry }));
+
+  return reportPlan({ options, target, entry, merged, written: merged.action !== 'unchanged' });
+}
+
+/**
+ * Read, merge and write as one step. The caller holds the lock: without it two
+ * installers registering different server names each merge against their own
+ * snapshot, and the later rename silently discards whatever landed since.
+ */
+function applyMerge({ target, options, entry }) {
+  const merged = mergeTarget({ target, options, entry });
   if (merged.action !== 'unchanged') {
     writeTarget(target, merged);
   }
+  return merged;
+}
 
-  return reportPlan({ options, target, entry, merged, written: merged.action !== 'unchanged' });
+const LOCK_RETRY_DELAY_MS = 25;
+const LOCK_TIMEOUT_MS = 10_000;
+const LOCK_STALE_MS = 60_000;
+
+/**
+ * Serialise the whole read-modify-write against other installer processes.
+ *
+ * A directory create is atomic on every supported filesystem, so it doubles as
+ * the mutex. A lock older than LOCK_STALE_MS is treated as abandoned by a killed
+ * process and reclaimed, so a crash cannot wedge every later install.
+ */
+async function withConfigLock(target, run) {
+  const lockPath = `${target.file}.think-install.lock`;
+  mkdirSync(path.dirname(target.file), { recursive: true });
+
+  const deadline = LOCK_TIMEOUT_MS / LOCK_RETRY_DELAY_MS;
+  for (let attempt = 0; attempt < deadline; attempt += 1) {
+    if (tryAcquireLock(lockPath)) {
+      try {
+        return run();
+      } finally {
+        rmdirSync(lockPath);
+      }
+    }
+    // eslint-disable-next-line no-await-in-loop -- polling a mutex is inherently serial
+    await sleep(LOCK_RETRY_DELAY_MS);
+  }
+
+  throw new ValidationError(
+    `Timed out after ${String(LOCK_TIMEOUT_MS)}ms waiting for ${lockPath}. Remove it if no install is running.`
+  );
+}
+
+function tryAcquireLock(lockPath) {
+  try {
+    mkdirSync(lockPath);
+    return true;
+  } catch (error) {
+    if (error.code !== 'EEXIST') {
+      throw error;
+    }
+    return reclaimStaleLock(lockPath);
+  }
+}
+
+function reclaimStaleLock(lockPath) {
+  try {
+    if (Date.now() - statSync(lockPath).mtimeMs < LOCK_STALE_MS) {
+      return false;
+    }
+    rmSync(lockPath, { recursive: true, force: true });
+    mkdirSync(lockPath);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function resolveRepoDir(options) {
@@ -307,7 +376,7 @@ function describeWrite(action) {
 }
 
 try {
-  process.exitCode = main(process.argv.slice(2));
+  process.exitCode = await main(process.argv.slice(2));
 } catch (error) {
   process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
   process.exitCode = 1;

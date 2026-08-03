@@ -53,6 +53,20 @@ Release discipline:
   `git rev-parse --local-env-vars` instead of hand-maintaining a list
 - fixed the README describing `sourceURL` as free-form when it is URL-validated;
   an invalid value rejects the whole `capture` call before the thought is saved
+- fixed concurrent installs silently losing entries: the read-merge-write is now
+  serialised with a lock, so registering several minds in parallel keeps every
+  server (30 parallel registrations previously left 25)
+- fixed the Codex TOML path accepting a malformed config, appending to it, and
+  reporting success; both the existing file and the merged result are now checked
+  for unbalanced delimiters and duplicate tables, and the write is refused on
+  failure
+- fixed table headers carrying an inline comment going unrecognised, which
+  appended a duplicate table and invalidated the config
+- fixed control characters in paths being emitted literally into TOML strings
+- fixed the environment scrub being case-sensitive, which left the acceptance
+  suite redirectable into a real mind on Windows
+- fixed existing-entry lookup resolving inherited `Object.prototype` members, so
+  a server named `constructor` reported `updated` against an empty collection
 - added `npm run install-mcp` plus per-client shorthands (`install-mcp:claude`,
   `:codex`, `:cursor`, `:vscode`, `:windsurf`, `:list`) that merge the Think MCP
   server into Claude Code, Codex CLI, Cursor, VS Code, and Windsurf config, with
