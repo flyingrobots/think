@@ -14,6 +14,16 @@ import { createHermeticThinkEnv, THINK_ENV_PREFIX } from '../fixtures/runtime.js
  * minds, so this is the normal case, not an exotic one.
  */
 
+/**
+ * Think variables the fixture sets on purpose, so they are not leaks: the upstream
+ * URL is pinned per context, and the followthrough budget is pinned generously so
+ * acceptance assertions do not race a 6s wall clock.
+ */
+const FIXTURE_OWNED_THINK_VARS = new Set([
+  'THINK_UPSTREAM_URL',
+  'THINK_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS',
+]);
+
 const HOME_DIR = '/tmp/think-home-test';
 const UPSTREAM_URL = '/tmp/think-upstream.git';
 
@@ -51,7 +61,7 @@ test('every inherited THINK_ variable is scrubbed, not just the known dangerous 
 
   const leaked = Object.keys(env)
     .filter((key) => key.startsWith(THINK_ENV_PREFIX))
-    .filter((key) => key !== 'THINK_UPSTREAM_URL');
+    .filter((key) => !FIXTURE_OWNED_THINK_VARS.has(key));
 
   assert.deepEqual(
     leaked,
@@ -106,7 +116,7 @@ test('mixed-case Think variables are scrubbed, because Windows env lookup is cas
   });
 
   const leaked = Object.keys(env).filter((key) => (
-    key.toUpperCase().startsWith('THINK_') && key.toUpperCase() !== 'THINK_UPSTREAM_URL'
+    key.toUpperCase().startsWith('THINK_') && !FIXTURE_OWNED_THINK_VARS.has(key.toUpperCase())
   ));
 
   assert.deepEqual(leaked, [], 'Expected mixed-case Think variables to be scrubbed too.');

@@ -61,15 +61,15 @@ The only write. Returns `{ status: "saved_locally", entryId, backupStatus, migra
 
 `status` is always `saved_locally` on success — that's the contract. The raw thought is committed before anything derived is attempted. `backupStatus` is `skipped` when no `THINK_UPSTREAM_URL` is set, `pending` when the push didn't land, `backed_up` when it did.
 
-A `warnings` entry saying follow-through deferred means the derived work exceeded its budget (6s by default, see [`THINK_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS`](#environment)). It is **not** a failure and an agent should not retry on it — retrying duplicates the thought. What deferral actually costs is worth knowing precisely, because the surfaces disagree:
+A `warnings` entry saying follow-through deferred means the derived work exceeded its budget (6s by default, see [`THINK_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS`](#environment)). It is **not** a failure and an agent should not retry on it — retrying duplicates the thought.
 
-| | Sees a deferred capture? |
-|---|---|
-| Git history | **Yes** — the raw thought is committed. Nothing is lost. |
-| `remember` | **Yes** — including explicit queries. The main read path is unaffected. |
-| `recent` / `stats` | **No** — they read fast capture records written during follow-through, so they under-report until it is backfilled. |
+What deferral costs is narrower than it sounds, and one part of it is a known defect:
 
-So a deferred capture is durable and still recallable; it is only missing from the chronological and counting surfaces. Raise the budget if you see deferrals routinely — a cold repo with Git fsmonitor enabled can exceed 6 seconds on its first write.
+- **The raw thought is committed to Git and is never lost.** `inspect` returns its exact text and identity.
+- **The derived layer is skipped.** `canonicalThought.stored` stays `false`, and `sessionAttribution` and `seedQuality` are `null`, so the capture is not bucketed into a session.
+- **`recent` and `stats` misreport until the next healthy capture.** This is a bug, not a design: immediately after a deferral they show only the deferred entry (1 instead of 4 in a four-capture mind), and once a later capture rebuilds the read model the deferred entry is dropped from both. Tracked in `docs/method/backlog/bad-code/`.
+
+So treat a deferral as "the thought is safe, the indexes are not". If you see deferrals routinely, raise the budget rather than working around the counts.
 
 Optional provenance is additive, but only one of the three fields is genuinely free-form:
 

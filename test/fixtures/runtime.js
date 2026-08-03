@@ -20,6 +20,19 @@ export const baseEnv = {
 export const THINK_ENV_PREFIX = 'THINK_';
 
 /**
+ * Followthrough budget for spawned acceptance processes.
+ *
+ * Capture defers once post-capture derived work exceeds its budget, and the
+ * production default is 6s. Acceptance tests assert the output of a *healthy*
+ * capture, so racing that wall clock makes them fail whenever the suite's
+ * concurrent cold spawns slow the machine down — json-output passes in isolation
+ * at ~4.4s and fails in the full run at ~8.0s. Pin a generous budget so these
+ * tests observe the completed-followthrough path deterministically. The deferral
+ * path is covered without a wall clock in test/ports/capture-followthrough.js.
+ */
+export const ACCEPTANCE_FOLLOWTHROUGH_TIMEOUT_MS = '120000';
+
+/**
  * Repository-scoping git variables that are not in `git rev-parse
  * --local-env-vars` but still redirect lookups.
  */
@@ -97,6 +110,7 @@ export function createHermeticThinkEnv({
   return {
     ...scrubThinkEnv(processEnv),
     ...base,
+    THINK_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS: ACCEPTANCE_FOLLOWTHROUGH_TIMEOUT_MS,
     ...extraEnv,
     HOME: homeDir,
     THINK_UPSTREAM_URL: upstreamUrl ?? '',

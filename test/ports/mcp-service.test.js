@@ -42,8 +42,13 @@ function assertActionableDeferralWarning(warning) {
   );
   assert.match(
     warning,
-    /remember/,
-    'Expected the warning to say the thought is still recallable, so agents do not retry and duplicate it.'
+    /readable via inspect/,
+    'Expected the warning to say the raw thought survives, so agents do not retry and duplicate it.'
+  );
+  assert.match(
+    warning,
+    /recent\/stats may misreport/,
+    'Expected the warning to name the read-model consequence rather than claiming remember still finds it.'
   );
   assert.match(
     warning,

@@ -18,9 +18,9 @@ Release discipline:
 - extracted `src/capture-followthrough.js` as the single owner of the capture
   followthrough budget, deferral sentinel, and race, replacing the copies that
   had been duplicated between the CLI and MCP capture surfaces
-- changed the MCP capture deferral warning to name the budget it exceeded, the
-  surfaces that cannot see the capture yet, the knob that raises the budget, and
-  that retrying would duplicate the thought
+- changed the MCP capture deferral warning to name the budget it exceeded, what
+  the deferral actually skips, the knob that raises the budget, and that retrying
+  would duplicate the thought
 - fixed the Codex TOML merge corrupting configs that express the environment as
   a `[mcp_servers.think.env]` sub-table; it previously declared `env` twice and
   left the whole file invalid, breaking every server in it
@@ -53,6 +53,10 @@ Release discipline:
   `git rev-parse --local-env-vars` instead of hand-maintaining a list
 - fixed the README describing `sourceURL` as free-form when it is URL-validated;
   an invalid value rejects the whole `capture` call before the thought is saved
+- corrected the documented cost of a deferred capture: the raw thought stays
+  readable through `inspect`, the derived layer is skipped, and the `recent`/
+  `stats` read model misreports until the next capture — an earlier claim that
+  `remember` still found it was drawn from one unrepeated observation and is wrong
 - fixed concurrent installs silently losing entries: the read-merge-write is now
   serialised with a lock, so registering several minds in parallel keeps every
   server (30 parallel registrations previously left 25)
@@ -69,6 +73,11 @@ Release discipline:
   a server named `constructor` reported `updated` against an empty collection
 - fixed the capture followthrough deferral not being a guarantee: the timeout was
   unref'd, so a process with nothing else pending exited instead of deferring
+- added a canonical Think mind fixture, committed in-repo as a 34KB tarball with a
+  manifest, plus `scripts/build-smoke-mind-fixture.mjs` to regenerate it and an
+  acceptance test that extracts it and asserts durable reads and the derived layer;
+  in-repo rather than git-cas because git-cas objects live under `refs/cas/*`,
+  which the default push refspec never sends to the remote
 - added `npm run install-mcp` plus per-client shorthands (`install-mcp:claude`,
   `:codex`, `:cursor`, `:vscode`, `:windsurf`, `:list`) that merge the Think MCP
   server into Claude Code, Codex CLI, Cursor, VS Code, and Windsurf config, with

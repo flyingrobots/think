@@ -6,20 +6,10 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 
 import { createThinkContext, runThink } from '../fixtures/think.js';
 import { makePromptMetric, seedPromptMetricsFile } from '../fixtures/prompt-metrics.js';
-import { createHermeticThinkEnv, repoRoot } from '../fixtures/runtime.js';
+import { ACCEPTANCE_FOLLOWTHROUGH_TIMEOUT_MS, createHermeticThinkEnv, repoRoot } from '../fixtures/runtime.js';
 
 const mcpEntrypoint = './bin/think-mcp.js';
 
-/**
- * Capture followthrough defers after a wall-clock budget, so asserting "no
- * warnings on a healthy repo" against the 6s production default turns a
- * correctness assertion into a latency assertion — it fails whenever the
- * acceptance suite's concurrent cold spawns load the machine. Pin a generous
- * budget so these tests observe the completed-followthrough path
- * deterministically. The deferral path is covered without a wall clock by
- * test/ports/mcp-service.test.js.
- */
-const ACCEPTANCE_FOLLOWTHROUGH_TIMEOUT_MS = '120000';
 
 test('think MCP server lists the core Think tools', async () => {
   const context = await createThinkContext();
