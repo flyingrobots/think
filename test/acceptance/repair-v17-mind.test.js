@@ -19,8 +19,29 @@ const REPAIR_ENTRYPOINT = path.join(repoRoot, 'scripts', 'repair-v17-mind.mjs');
 const RESTORE_TIMEOUT_MS = 120_000;
 const GRAPH = 'think';
 
-test('git-cas fixture restores an archived pre-v17 Gemini mind tarball', async () => {
+/**
+ * These fixtures live in git-cas, whose objects hang off refs/cas/*. The default
+ * push refspec is refs/heads/*, so those refs never reach the remote and a fresh
+ * clone — every CI run — cannot restore the archived tarball. Skip explicitly
+ * rather than failing on an unreachable object id, which reports as a broken
+ * fixture instead of missing data.
+ */
+function hasRestorableCasFixture(fixture) {
+  const probe = spawnSync('git', ['cat-file', '-t', fixture.treeOid], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    env: fixtureEnv(),
+  });
+
+  return probe.status === 0 && probe.stdout.trim() === 'tree';
+}
+
+test('git-cas fixture restores an archived pre-v17 Gemini mind tarball', async (t) => {
   const fixture = await readGeminiFixtureMetadata();
+  if (!hasRestorableCasFixture(fixture)) {
+    t.skip(`git-cas object ${fixture.treeOid} is not present; refs/cas/* are not pushed to the remote.`);
+    return;
+  }
   const { mindDir, tarballPath } = await restoreGeminiFixture(fixture);
 
   assert.ok(existsSync(tarballPath), 'Expected git-cas restore to recreate the fixture tarball.');
@@ -48,6 +69,10 @@ test('repair-v17 mind repairs the restored git-cas fixture when v17 migration is
   }
 
   const fixture = await readGeminiFixtureMetadata();
+  if (!hasRestorableCasFixture(fixture)) {
+    t.skip(`git-cas object ${fixture.treeOid} is not present; refs/cas/* are not pushed to the remote.`);
+    return;
+  }
   const { mindDir } = await restoreGeminiFixture(fixture);
 
   const before = parseRepairJson(
