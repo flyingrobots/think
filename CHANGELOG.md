@@ -31,6 +31,10 @@ Release discipline:
   mind and write test captures into it
 - fixed the MCP capture acceptance assertion depending on wall-clock latency,
   which failed under the concurrent cold spawns of the full acceptance suite
+- fixed the pre-push hook being impossible to satisfy: git exports `GIT_DIR` and
+  related location variables to hooks, so tests that shelled out to git resolved
+  the hook's repository instead of their own fixture and six tests failed under
+  `git push` while passing under `npm run test:fast`
 - added `npm run install-mcp` plus per-client shorthands (`install-mcp:claude`,
   `:codex`, `:cursor`, `:vscode`, `:windsurf`, `:list`) that merge the Think MCP
   server into Claude Code, Codex CLI, Cursor, VS Code, and Windsurf config, with
