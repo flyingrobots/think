@@ -219,20 +219,28 @@ function reportPlanJson({ options, target, entry, merged, written }) {
 }
 
 function reportPlanText({ options, target, entry, merged, written }) {
-  const verb = written ? describeWrite(merged.action) : 'would write';
-
-  process.stdout.write(`Think MCP server "${options.serverName}" — ${verb} ${target.file}\n`);
+  process.stdout.write(`Think MCP server "${options.serverName}" — ${describeOutcome(merged.action, options.print)} ${target.file}\n`);
   process.stdout.write(`  client: ${options.client} (${options.scope} scope)\n`);
   const mind = entry.env?.THINK_REPO_DIR ?? `${path.join(getThinkDir(), 'repo')} (default)`;
   process.stdout.write(`  mind:   ${mind}\n`);
 
-  if (!written) {
+  // Only a preview run dumps the config. An already-configured machine has
+  // nothing to preview, and printing one alongside "nothing to do" reads as a
+  // contradiction.
+  if (options.print && merged.action !== 'unchanged') {
     process.stdout.write(`\n${renderPreview({ options, target, entry })}`);
   }
-  if (merged.action === 'unchanged') {
-    process.stdout.write('\nAlready configured. Nothing to do.\n');
+  if (!written && merged.action !== 'unchanged') {
+    process.stdout.write('\nNothing written. Re-run without --print to apply.\n');
   }
   return 0;
+}
+
+function describeOutcome(action, print) {
+  if (action === 'unchanged') {
+    return 'already configured in';
+  }
+  return print ? 'would write' : describeWrite(action);
 }
 
 function renderPreview({ options, target, entry }) {
