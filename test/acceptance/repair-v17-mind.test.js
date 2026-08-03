@@ -9,7 +9,7 @@ import test from 'node:test';
 import {
   resolveGitWarpPackageRoot,
 } from '../../scripts/repair-v17-mind.mjs';
-import { baseEnv, formatResult, repoRoot } from '../fixtures/runtime.js';
+import { baseEnv, formatResult, repoRoot, scrubThinkEnv } from '../fixtures/runtime.js';
 import { createTempDir } from '../fixtures/tmp.js';
 import { assertSuccess } from '../support/assertions.js';
 
@@ -196,8 +196,11 @@ function hasV17GitWarpMigration() {
 }
 
 function fixtureEnv() {
+  // Every repair invocation targets an explicit --repo, but scrub inherited
+  // THINK_ state anyway so a future fallback to $HOME/.think cannot reach a
+  // developer's real mind.
   return {
-    ...process.env,
+    ...scrubThinkEnv(),
     ...baseEnv,
     COPYFILE_DISABLE: '1',
   };

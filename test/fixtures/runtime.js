@@ -16,6 +16,45 @@ export const baseEnv = {
   TERM: 'dumb',
 };
 
+export const THINK_ENV_PREFIX = 'THINK_';
+
+/**
+ * Build a hermetic environment for a spawned Think process.
+ *
+ * Pinning HOME is not enough on its own. `getLocalRepoDir` honours
+ * THINK_REPO_DIR ahead of $HOME/.think/repo, and `getPromptMetricsFile` and
+ * `captureProvenanceFromEnvironment` read their own THINK_ variables, so an
+ * inherited environment can redirect the suite at a developer's real mind and
+ * write test captures into it.
+ *
+ * Every inherited THINK_ variable is therefore dropped. The scrub is
+ * prefix-wide rather than an allowlist so a newly added knob cannot quietly
+ * reopen the hole. Fixtures and individual tests can still set THINK_
+ * variables deliberately through `baseEnv` and `extraEnv`, which are layered
+ * on after the scrub.
+ */
+export function scrubThinkEnv(processEnv = process.env) {
+  return Object.fromEntries(
+    Object.entries(processEnv).filter(([key]) => !key.startsWith(THINK_ENV_PREFIX))
+  );
+}
+
+export function createHermeticThinkEnv({
+  processEnv = process.env,
+  baseEnv: base = baseEnv,
+  extraEnv = {},
+  homeDir,
+  upstreamUrl,
+}) {
+  return {
+    ...scrubThinkEnv(processEnv),
+    ...base,
+    ...extraEnv,
+    HOME: homeDir,
+    THINK_UPSTREAM_URL: upstreamUrl,
+  };
+}
+
 export function formatResult(result) {
   const pieces = [
     `exit status: ${result.status}`,
