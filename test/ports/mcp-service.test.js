@@ -21,6 +21,7 @@ test('MCP capture returns saved locally when post-save followthrough defers', as
     'getCwd',
     'getCaptureAmbientContext',
     'saveRawCapture',
+    'resolveFollowthroughTimeoutMs',
     'getGraphModelStatus',
     'waitForFollowthrough',
     'getUpstreamUrl',
@@ -30,7 +31,26 @@ test('MCP capture returns saved locally when post-save followthrough defers', as
   assert.equal(outcome.structuredContent.backupStatus, 'skipped');
   assert.equal(outcome.structuredContent.migration, null);
   assert.equal(outcome.structuredContent.warnings.length, 1);
+  assertActionableDeferralWarning(outcome.structuredContent.warnings[0]);
 });
+
+function assertActionableDeferralWarning(warning) {
+  assert.match(
+    warning,
+    /\b6000ms\b/,
+    'Expected the deferral warning to name the budget it exceeded so an agent can tell it is configurable.'
+  );
+  assert.match(
+    warning,
+    /remember/,
+    'Expected the warning to say the thought is still recallable, so agents do not retry and duplicate it.'
+  );
+  assert.match(
+    warning,
+    /THINK_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS/,
+    'Expected the warning to name the knob that raises the budget.'
+  );
+}
 
 test('MCP migrate_graph returns a no-op when the graph model is current', async () => {
   const calls = [];
@@ -73,6 +93,7 @@ function createDeferredFollowthroughDeps(calls) {
     graphName: 'think',
     hasGitRepo: () => record(calls, 'hasGitRepo', true),
     pushWarpRefs: () => record(calls, 'pushWarpRefs', true),
+    resolveFollowthroughTimeoutMs: () => record(calls, 'resolveFollowthroughTimeoutMs', 6_000),
     saveRawCapture: () => record(calls, 'saveRawCapture', { id: 'entry:test-claude' }),
     waitForFollowthrough: () => record(calls, 'waitForFollowthrough', { status: 'deferred' }),
   };

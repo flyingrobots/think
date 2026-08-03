@@ -1,5 +1,6 @@
 import {
   isDeferredCaptureFollowthrough,
+  resolveCaptureFollowthroughTimeoutMs,
   waitForCaptureFollowthrough,
 } from '../capture-followthrough.js';
 import { runDiagnostics } from '../doctor.js';
@@ -43,8 +44,15 @@ import {
   StatsOutcome,
 } from './result.js';
 
-const CAPTURE_FOLLOWTHROUGH_DEFERRED_WARNING =
-  'Capture followthrough deferred; raw thought saved locally before derived graph updates completed.';
+function buildCaptureFollowthroughDeferredWarning(timeoutMs) {
+  return [
+    `Capture followthrough deferred after ${String(timeoutMs)}ms;`,
+    'raw thought saved locally and still recallable via remember,',
+    'but not yet counted by recent or stats.',
+    'Do not retry, which would duplicate the thought.',
+    'Raise THINK_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS if this recurs.',
+  ].join(' ');
+}
 const NO_GRAPH_MIGRATION_STATUS = Object.freeze({
   currentGraphModelVersion: null,
   requiredGraphModelVersion: null,
@@ -63,6 +71,7 @@ const defaultCaptureDeps = Object.freeze({
   graphName: GRAPH_NAME,
   hasGitRepo,
   pushWarpRefs,
+  resolveFollowthroughTimeoutMs: resolveCaptureFollowthroughTimeoutMs,
   saveRawCapture,
   waitForFollowthrough: waitForCaptureFollowthrough,
 });
@@ -105,10 +114,11 @@ function normalizeThoughtText(text) {
 
 async function runCaptureFollowthrough(deps, repoDir, entryId, repoAlreadyExists) {
   const warnings = [];
+  const timeoutMs = deps.resolveFollowthroughTimeoutMs();
   const followthroughPromise = buildCaptureFollowthrough(deps, repoDir, entryId, repoAlreadyExists);
 
   try {
-    const followthrough = await deps.waitForFollowthrough(followthroughPromise);
+    const followthrough = await deps.waitForFollowthrough(followthroughPromise, { timeoutMs });
     if (!isDeferredCaptureFollowthrough(followthrough)) {
       return { migration: followthrough?.migration ?? null, warnings };
     }
@@ -118,7 +128,7 @@ async function runCaptureFollowthrough(deps, repoDir, entryId, repoAlreadyExists
   }
 
   followthroughPromise.catch(() => {});
-  warnings.push(CAPTURE_FOLLOWTHROUGH_DEFERRED_WARNING);
+  warnings.push(buildCaptureFollowthroughDeferredWarning(timeoutMs));
   return { migration: null, warnings };
 }
 
