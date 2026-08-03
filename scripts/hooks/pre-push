@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# shellcheck source=scripts/hooks/lib/scrub-git-env.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/scrub-git-env.sh"
+scrub_git_location_env
+
 if [[ "${THINK_PRE_PUSH_FULL:-0}" == "1" ]]; then
   echo "pre-push: running full local suite..."
   npm run test:local
