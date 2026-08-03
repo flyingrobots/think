@@ -376,6 +376,33 @@ test('mergeJsonMcpConfig replaces a stale Think entry without touching neighbors
   });
 });
 
+test('mergeJsonMcpConfig refuses a config whose root is not a JSON object', () => {
+  // scripts/install-mcp.mjs feeds this the result of JSON.parse, so an array or
+  // scalar at the root of ~/.claude.json reaches it in practice. Only the
+  // servers-collection guard was covered before; this pins the root guard.
+  for (const existing of [[], 'nope', 7, true]) {
+    assert.throws(
+      () => mergeJsonMcpConfig(existing, {
+        serversKey: 'mcpServers',
+        serverName: 'think',
+        entry: { command: 'node', args: ['/opt/think/bin/think-mcp.js'] },
+      }),
+      /Expected the existing MCP config to be a JSON object/,
+      `Expected ${JSON.stringify(existing)} to be refused rather than overwritten.`
+    );
+  }
+});
+
+test('mergeJsonMcpConfig treats an explicit null config as absent, not malformed', () => {
+  const result = mergeJsonMcpConfig(null, {
+    serversKey: 'mcpServers',
+    serverName: 'think',
+    entry: { command: 'node', args: ['/opt/think/bin/think-mcp.js'] },
+  });
+
+  assert.equal(result.action, 'created');
+});
+
 test('mergeJsonMcpConfig refuses to clobber a non-object servers collection', () => {
   assert.throws(
     () => mergeJsonMcpConfig({ mcpServers: [] }, {
