@@ -12,6 +12,17 @@ Release discipline:
 
 ## Unreleased
 
+- added `npm run install-mcp` plus per-client shorthands (`install-mcp:claude`,
+  `:codex`, `:cursor`, `:vscode`, `:windsurf`, `:list`) that merge the Think MCP
+  server into Claude Code, Codex CLI, Cursor, VS Code, and Windsurf config, with
+  `--mind` routing through `THINK_REPO_DIR`, idempotent merges that preserve
+  unrelated servers and config keys, and `--print` / `--json` preview modes
+- added `src/mcp/install-config.js` as the pure argument-parsing, path-planning,
+  and config-merging model behind the install script, covered by
+  `test/ports/install-mcp-config.test.js`
+- rewrote `README.md` to lead with the agent surface: the nine MCP tools and
+  their contracts, per-client MCP configuration, per-agent mind isolation, and a
+  copy-paste agent instruction block for `CLAUDE.md` / `AGENTS.md`
 - added bounded Think read-model facts for latest/recent captures plus
   self-contained fast capture records so default `--remember`, `--recent`, and
   browse bootstrap avoid scanning `entry:*`
