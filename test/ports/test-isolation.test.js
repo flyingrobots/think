@@ -60,6 +60,39 @@ test('every inherited THINK_ variable is scrubbed, not just the known dangerous 
   );
 });
 
+test('inherited git location variables cannot redirect a spawned Think process', () => {
+  // Git exports GIT_DIR and friends to every hook, so a suite run from the
+  // repo's own pre-push hook inherits them. Any git call that resolves its
+  // repository from the environment then operates on the wrong repository.
+  const env = createHermeticThinkEnv({
+    processEnv: {
+      GIT_DIR: '/Users/dev/git/think/.git',
+      GIT_WORK_TREE: '/Users/dev/git/think',
+      GIT_INDEX_FILE: '/Users/dev/git/think/.git/index',
+      GIT_OBJECT_DIRECTORY: '/Users/dev/git/think/.git/objects',
+      GIT_COMMON_DIR: '/Users/dev/git/think/.git',
+      GIT_QUARANTINE_PATH: '/Users/dev/git/think/.git/quarantine',
+    },
+    homeDir: HOME_DIR,
+    upstreamUrl: UPSTREAM_URL,
+  });
+
+  const leaked = Object.keys(env).filter((key) => key.startsWith('GIT_'));
+
+  assert.deepEqual(leaked, [], 'Expected git repository-location variables to be scrubbed.');
+});
+
+test('git identity and transport variables are left alone', () => {
+  const env = createHermeticThinkEnv({
+    processEnv: { GIT_SSH_COMMAND: 'ssh -v', GIT_TERMINAL_PROMPT: '0' },
+    homeDir: HOME_DIR,
+    upstreamUrl: UPSTREAM_URL,
+  });
+
+  assert.equal(env.GIT_SSH_COMMAND, 'ssh -v', 'Expected transport configuration to survive.');
+  assert.equal(env.GIT_TERMINAL_PROMPT, '0');
+});
+
 test('non-Think environment such as PATH still reaches the child process', () => {
   const env = buildEnv({
     processEnv: { PATH: '/usr/bin:/bin', HOME: '/Users/dev', SHELL: '/bin/zsh' },

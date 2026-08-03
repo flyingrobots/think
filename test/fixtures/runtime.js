@@ -19,6 +19,30 @@ export const baseEnv = {
 export const THINK_ENV_PREFIX = 'THINK_';
 
 /**
+ * Git environment variables that name *where* a repository lives.
+ *
+ * Git exports these to every hook, so a suite launched from the repo's own
+ * pre-push hook inherits them and any git call that resolves its repository
+ * from the environment silently targets the wrong one. Identity and transport
+ * variables such as GIT_AUTHOR_NAME or GIT_SSH_COMMAND are deliberately not
+ * listed: the product sets its own identity, and transport settings are safe to
+ * inherit.
+ */
+export const GIT_LOCATION_ENV_VARS = Object.freeze([
+  'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+  'GIT_CEILING_DIRECTORIES',
+  'GIT_COMMON_DIR',
+  'GIT_DIR',
+  'GIT_INDEX_FILE',
+  'GIT_INDEX_VERSION',
+  'GIT_NAMESPACE',
+  'GIT_OBJECT_DIRECTORY',
+  'GIT_PREFIX',
+  'GIT_QUARANTINE_PATH',
+  'GIT_WORK_TREE',
+]);
+
+/**
  * Build a hermetic environment for a spawned Think process.
  *
  * Pinning HOME is not enough on its own. `getLocalRepoDir` honours
@@ -34,8 +58,12 @@ export const THINK_ENV_PREFIX = 'THINK_';
  * on after the scrub.
  */
 export function scrubThinkEnv(processEnv = process.env) {
+  const gitLocation = new Set(GIT_LOCATION_ENV_VARS);
+
   return Object.fromEntries(
-    Object.entries(processEnv).filter(([key]) => !key.startsWith(THINK_ENV_PREFIX))
+    Object.entries(processEnv).filter(
+      ([key]) => !key.startsWith(THINK_ENV_PREFIX) && !gitLocation.has(key)
+    )
   );
 }
 
