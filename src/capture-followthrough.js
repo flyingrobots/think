@@ -46,6 +46,25 @@ export function resolveCaptureFollowthroughTimeoutMs(environment = process.env) 
   return Math.min(parsed, MAX_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS);
 }
 
+/**
+ * One budget shared across sequential followthrough waits.
+ *
+ * The CLI awaits twice — the graph-model probe, then the finalize. Handing each
+ * await the full budget let a slow capture spend up to twice what the operator
+ * configured. A deadline makes the budget mean total elapsed time, which is what
+ * "capture must not hang" actually requires.
+ */
+export function createCaptureFollowthroughDeadline(budgetMs, now = Date.now) {
+  const startedAt = now();
+  const clamped = Math.min(budgetMs, MAX_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS);
+
+  return Object.freeze({
+    budgetMs: clamped,
+    remainingMs: () => Math.max(0, clamped - (now() - startedAt)),
+    expired: () => now() - startedAt >= clamped,
+  });
+}
+
 export function isDeferredCaptureFollowthrough(followthrough) {
   return followthrough?.status === CAPTURE_FOLLOWTHROUGH_DEFERRED.status;
 }
