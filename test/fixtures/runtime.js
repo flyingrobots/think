@@ -46,12 +46,19 @@ export function createHermeticThinkEnv({
   homeDir,
   upstreamUrl,
 }) {
+  // Node omits env pairs whose value is undefined, so a forgotten homeDir would
+  // leave HOME unset in the child. getHomeDir() falls back to os.homedir() and
+  // the suite would quietly run against the developer's real ~/.think again.
+  if (!homeDir) {
+    throw new Error('createHermeticThinkEnv: homeDir is required to keep the suite off a real mind');
+  }
+
   return {
     ...scrubThinkEnv(processEnv),
     ...base,
     ...extraEnv,
     HOME: homeDir,
-    THINK_UPSTREAM_URL: upstreamUrl,
+    THINK_UPSTREAM_URL: upstreamUrl ?? '',
   };
 }
 

@@ -93,6 +93,33 @@ test('tests can still set THINK_ variables deliberately through extraEnv', () =>
   assert.equal(env.THINK_TEST_NOW, '1700000000000');
 });
 
+test('a missing homeDir is rejected instead of silently leaking the real home', () => {
+  // Node drops env pairs whose value is undefined, so a forgotten homeDir would
+  // leave HOME unset in the child. getHomeDir() then falls back to
+  // os.homedir(), pointing the suite back at the developer's real ~/.think —
+  // reopening the hole this fixture exists to close, with no visible error.
+  assert.throws(
+    () => createHermeticThinkEnv({ processEnv: {}, upstreamUrl: UPSTREAM_URL }),
+    /homeDir is required/,
+    'Expected a missing homeDir to fail loudly.'
+  );
+  assert.throws(
+    () => createHermeticThinkEnv({ processEnv: {}, homeDir: '', upstreamUrl: UPSTREAM_URL }),
+    /homeDir is required/,
+    'Expected an empty homeDir to fail loudly.'
+  );
+});
+
+test('a missing upstreamUrl is normalised to empty rather than dropped', () => {
+  const env = createHermeticThinkEnv({ processEnv: {}, homeDir: HOME_DIR });
+
+  assert.equal(
+    env.THINK_UPSTREAM_URL,
+    '',
+    'Expected an explicit empty upstream so an inherited value cannot survive.'
+  );
+});
+
 test('baseEnv is applied and does not resurrect scrubbed Think state', () => {
   const env = buildEnv({ processEnv: { THINK_REPO_DIR: '/Users/dev/.think/claude' } });
 
