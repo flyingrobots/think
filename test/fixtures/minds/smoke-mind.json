@@ -1,0 +1,27 @@
+{
+  "description": "Canonical Think mind containing three healthy captures with their derived layer intact.",
+  "tarball": {
+    "name": "smoke-mind.tar.gz",
+    "bytes": 33623,
+    "sha256": "fedf84aa8551b4eb82630a74356956fc4648ef1e3519f2aa0259cfff21daee7e"
+  },
+  "rebuild": "node ./scripts/build-smoke-mind-fixture.mjs",
+  "expected": {
+    "totalCaptureCount": 3,
+    "healthy": [
+      {
+        "text": "Warp worldlines keep browse startup fast because reads stay bounded.",
+        "entryId": "entry:1785796861745-58f09f32-8fd7-4b5b-aa28-33872f5a6d68"
+      },
+      {
+        "text": "Capture is a trapdoor: raw text in, immutable entry out, no retrieval first.",
+        "entryId": "entry:1785796866631-07fe72a3-5380-44ec-8adf-0551949024ed"
+      },
+      {
+        "text": "Turkey is good in burritos.",
+        "entryId": "entry:1785796874601-6442791f-d5ed-4d81-b6ca-5ac9c938a590"
+      }
+    ],
+    "note": "Every capture is durable and readable through inspect, with its derived layer present: canonicalThought.stored is true and sessionAttribution is populated. A deferred capture was deliberately left out because that state is not reproducible - the abandoned followthrough usually completes before the tarball is written."
+  }
+}
