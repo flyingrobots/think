@@ -9,7 +9,7 @@
  */
 
 import { randomBytes } from 'node:crypto';
-import { mkdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { lstatSync, mkdirSync, readFileSync, readlinkSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -157,7 +157,10 @@ function readTarget(target) {
 function writeTarget(target, merged) {
   // Follow a symlinked config to its real file first, so a dotfiles-managed
   // config keeps its link and actually receives the change.
-  const file = resolveWriteTargetPath(target.file, { realpath: realpathSync });
+  const file = resolveWriteTargetPath(target.file, {
+    realpath: realpathSync,
+    readLink: readSymlinkTarget,
+  });
   const directory = path.dirname(file);
   mkdirSync(directory, { recursive: true });
 
@@ -178,6 +181,20 @@ function writeTarget(target, merged) {
   } catch (error) {
     rmSync(staged, { force: true });
     throw error;
+  }
+}
+
+/**
+ * Return where a symlink points, or null when the path is not a symlink.
+ *
+ * Uses lstat so the link itself is inspected rather than followed, which is the
+ * whole point when the target does not exist yet.
+ */
+function readSymlinkTarget(file) {
+  try {
+    return lstatSync(file).isSymbolicLink() ? readlinkSync(file) : null;
+  } catch {
+    return null;
   }
 }
 

@@ -291,15 +291,25 @@ export function planInstallMcpTarget({ client, scope, home, dir }) {
  * A config that does not exist yet keeps its requested path. Any other
  * filesystem failure propagates rather than being written around.
  */
-export function resolveWriteTargetPath(file, { realpath }) {
+export function resolveWriteTargetPath(file, { realpath, readLink }) {
   try {
     return realpath(file);
   } catch (error) {
-    if (error.code === 'ENOENT') {
-      return file;
+    if (error.code !== 'ENOENT') {
+      throw error;
     }
-    throw error;
   }
+
+  // ENOENT covers two different situations: nothing is there at all, or a
+  // symlink is there but its target has not been created yet. A dangling link
+  // still points somewhere deliberate, so writing to the link path would
+  // replace it with a regular file — the breakage this function exists to avoid.
+  const linkTarget = readLink(file);
+  if (!linkTarget) {
+    return file;
+  }
+
+  return path.resolve(path.dirname(file), linkTarget);
 }
 
 /**

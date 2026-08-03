@@ -280,6 +280,39 @@ test('resolveWriteTargetPath follows a symlinked config to its real file', () =>
   assert.equal(resolved, '/home/u/dotfiles/mcp.json');
 });
 
+test('resolveWriteTargetPath resolves a dangling symlink to its intended target', () => {
+  // A dotfiles symlink whose target has not been created yet still points
+  // somewhere deliberate. realpathSync throws ENOENT for it, and treating that
+  // as "no file here" made the rename replace the link with a regular file —
+  // the same breakage the symlink handling was added to prevent.
+  const resolved = resolveWriteTargetPath('/home/u/.mcp.json', {
+    realpath: () => {
+      const error = new Error('no such file or directory');
+      error.code = 'ENOENT';
+      throw error;
+    },
+    readLink: (file) => {
+      assert.equal(file, '/home/u/.mcp.json');
+      return '/home/u/dotfiles/mcp.json';
+    },
+  });
+
+  assert.equal(resolved, '/home/u/dotfiles/mcp.json');
+});
+
+test('resolveWriteTargetPath resolves a relative dangling symlink against its own directory', () => {
+  const resolved = resolveWriteTargetPath('/home/u/.config/mcp.json', {
+    realpath: () => {
+      const error = new Error('missing');
+      error.code = 'ENOENT';
+      throw error;
+    },
+    readLink: () => '../dotfiles/mcp.json',
+  });
+
+  assert.equal(resolved, '/home/u/dotfiles/mcp.json');
+});
+
 test('resolveWriteTargetPath keeps the requested path when the config does not exist yet', () => {
   const resolved = resolveWriteTargetPath('/home/u/.cursor/mcp.json', {
     realpath: () => {
@@ -287,6 +320,7 @@ test('resolveWriteTargetPath keeps the requested path when the config does not e
       error.code = 'ENOENT';
       throw error;
     },
+    readLink: () => null,
   });
 
   assert.equal(resolved, '/home/u/.cursor/mcp.json');
