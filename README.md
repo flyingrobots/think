@@ -59,7 +59,17 @@ The server is `think` (stdio, JSON-RPC). Nine tools, all with declared output sc
 
 The only write. Returns `{ status: "saved_locally", entryId, backupStatus, migration, repoBootstrapped, warnings }`.
 
-`status` is always `saved_locally` on success — that's the contract. The raw thought is committed before anything derived is attempted. `backupStatus` is `skipped` when no `THINK_UPSTREAM_URL` is set, `pending` when the push didn't land, `backed_up` when it did. A `warnings` entry saying follow-through deferred means the thought is safe but derived links will be backfilled later; it is **not** a failure and an agent should not retry on it.
+`status` is always `saved_locally` on success — that's the contract. The raw thought is committed before anything derived is attempted. `backupStatus` is `skipped` when no `THINK_UPSTREAM_URL` is set, `pending` when the push didn't land, `backed_up` when it did.
+
+A `warnings` entry saying follow-through deferred means the derived work exceeded its budget (6s by default, see [`THINK_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS`](#environment)). It is **not** a failure and an agent should not retry on it — retrying duplicates the thought. What deferral actually costs is worth knowing precisely, because the surfaces disagree:
+
+| | Sees a deferred capture? |
+|---|---|
+| Git history | **Yes** — the raw thought is committed. Nothing is lost. |
+| `remember` | **Yes** — including explicit queries. The main read path is unaffected. |
+| `recent` / `stats` | **No** — they read fast capture records written during follow-through, so they under-report until it is backfilled. |
+
+So a deferred capture is durable and still recallable; it is only missing from the chronological and counting surfaces. Raise the budget if you see deferrals routinely — a cold repo with Git fsmonitor enabled can exceed 6 seconds on its first write.
 
 Optional provenance is additive: `ingress` is one of `url`, `shortcut`, `selected_text`, `share`; `sourceApp` and `sourceURL` are free-form. Agents can leave all three off.
 
@@ -234,8 +244,10 @@ test. Prefer `<filepath>#<line>@<git-sha>`.
 
 `capture` returns `status: "saved_locally"` as soon as the raw text is
 committed. A `warnings` entry about deferred follow-through means the
-thought is safely stored and derived links will be backfilled — it is
-not an error. Do not retry on it.
+derived work ran out of budget. The thought is still committed and
+`remember` will still find it; it just will not appear in `recent` or
+`stats` until backfilled. Either way it is not an error — **do not
+retry, because retrying duplicates the thought.**
 ```
 
 Trim it to taste, but keep the read trigger, the write trigger, and the "self-contained thoughts" rule. Those three do most of the work.
@@ -270,6 +282,7 @@ Beyond the MCP surface, the CLI also offers `--annotate`, `--enrich`, `--topics`
 |---|---|
 | `THINK_REPO_DIR` | Select the mind. Defaults to `~/.think/repo`. This is how per-agent namespacing works. |
 | `THINK_UPSTREAM_URL` | Enable best-effort push backup. Unset means `backupStatus: "skipped"`. |
+| `THINK_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS` | Budget for post-capture derived work, in milliseconds. Defaults to `6000`. Raise it on slow or cold repositories that defer routinely. An unusable value falls back to the default rather than failing the capture. |
 | `THINK_PROMPT_METRICS_FILE` | Override the prompt telemetry path. |
 
 Verify a setup with `think --doctor`, which checks the Think directory, local repo, history model version, entry count, Git fsmonitor state, and upstream reachability.
