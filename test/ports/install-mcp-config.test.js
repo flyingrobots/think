@@ -177,6 +177,28 @@ test('buildThinkMcpServerEntry routes a mind through THINK_REPO_DIR', () => {
   });
 });
 
+test('buildThinkMcpServerEntry pins cwd for a project-scoped entry', () => {
+  // A client that launches the server from an unrelated directory makes ambient
+  // remember resolve the wrong project — or none. The repo's own .mcp.json gives
+  // every server an explicit cwd for exactly this reason.
+  const entry = buildThinkMcpServerEntry({
+    nodePath: '/usr/local/bin/node',
+    serverPath: '/opt/think/bin/think-mcp.js',
+    cwd: '/home/u/git/project',
+  });
+
+  assert.equal(entry.cwd, '/home/u/git/project');
+});
+
+test('buildThinkMcpServerEntry omits cwd when none is requested', () => {
+  const entry = buildThinkMcpServerEntry({
+    nodePath: '/usr/local/bin/node',
+    serverPath: '/opt/think/bin/think-mcp.js',
+  });
+
+  assert.equal(Object.hasOwn(entry, 'cwd'), false, 'A user-scope entry has no single project to bind to.');
+});
+
 test('planInstallMcpTarget resolves user scope config paths per client', () => {
   const home = '/home/u';
 

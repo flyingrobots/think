@@ -68,12 +68,18 @@ function main(argv) {
   }
 
   const repoDir = resolveRepoDir(options);
-  const entry = buildThinkMcpServerEntry({ nodePath: process.execPath, serverPath, repoDir });
+  const projectDir = path.resolve(options.dir ?? process.cwd());
+  const entry = buildThinkMcpServerEntry({
+    nodePath: process.execPath,
+    serverPath,
+    repoDir,
+    cwd: options.scope === 'project' ? projectDir : null,
+  });
   const target = planInstallMcpTarget({
     client: options.client,
     scope: options.scope,
     home: getHomeDir(),
-    dir: path.resolve(options.dir ?? process.cwd()),
+    dir: projectDir,
   });
 
   const merged = mergeTarget({ target, options, entry });

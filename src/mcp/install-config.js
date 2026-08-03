@@ -16,6 +16,12 @@ const CODEX_STARTUP_TIMEOUT_SEC = 60;
  */
 const TOML_BARE_KEY = /^[A-Za-z0-9_-]+$/u;
 
+function assertAbsolutePath(value, label) {
+  if (!value || !path.isAbsolute(value)) {
+    throw new ValidationError(`${label} must be an absolute path, got ${JSON.stringify(value)}`);
+  }
+}
+
 function assertTomlBareKey(value, label) {
   if (typeof value !== 'string' || !TOML_BARE_KEY.test(value)) {
     throw new ValidationError(
@@ -236,18 +242,20 @@ export function resolveMindRepoDir(mind, thinkDir) {
  * trade-off is that the recorded path is version-specific for those managers,
  * so re-running the installer after a Node upgrade is what repairs it.
  */
-export function buildThinkMcpServerEntry({ nodePath, serverPath, repoDir = null }) {
-  if (!nodePath || !path.isAbsolute(nodePath)) {
-    throw new ValidationError(`nodePath must be an absolute path, got "${nodePath}"`);
-  }
-  if (!serverPath || !path.isAbsolute(serverPath)) {
-    throw new ValidationError(`serverPath must be an absolute path, got "${serverPath}"`);
-  }
+export function buildThinkMcpServerEntry({ nodePath, serverPath, repoDir = null, cwd = null }) {
+  assertAbsolutePath(nodePath, 'nodePath');
+  assertAbsolutePath(serverPath, 'serverPath');
 
   const entry = {
     command: nodePath,
     args: [serverPath],
   };
+
+  // Project scope pins cwd so ambient recall resolves this project. User scope
+  // has no single project to bind to and leaves it to the client.
+  if (cwd) {
+    entry.cwd = cwd;
+  }
 
   if (repoDir) {
     entry.env = { THINK_REPO_DIR: repoDir };
