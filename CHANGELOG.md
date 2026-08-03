@@ -40,6 +40,19 @@ Release discipline:
   `command` that the client would execute on startup — into a live Codex config;
   the name is now validated as a TOML bare key at parse time and at the exported
   render and merge boundaries
+- fixed the generated MCP entry hardcoding a bare `node`, which failed to start
+  for clients whose PATH has none; it now records the interpreter that ran the
+  installer, and pins `cwd` for project-scoped entries so ambient recall resolves
+  the intended project
+- fixed a dangling config symlink being replaced by a regular file, and made
+  `--print` render the complete merged config rather than only the Think entry
+- fixed the CLI spending the followthrough budget once per await, so a slow
+  capture could take up to twice the configured budget
+- fixed the git environment scrub omitting eight variables git reports as
+  repository-local, including `GIT_CONFIG`; both paths now query
+  `git rev-parse --local-env-vars` instead of hand-maintaining a list
+- fixed the README describing `sourceURL` as free-form when it is URL-validated;
+  an invalid value rejects the whole `capture` call before the thought is saved
 - added `npm run install-mcp` plus per-client shorthands (`install-mcp:claude`,
   `:codex`, `:cursor`, `:vscode`, `:windsurf`, `:list`) that merge the Think MCP
   server into Claude Code, Codex CLI, Cursor, VS Code, and Windsurf config, with

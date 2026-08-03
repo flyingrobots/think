@@ -71,7 +71,15 @@ A `warnings` entry saying follow-through deferred means the derived work exceede
 
 So a deferred capture is durable and still recallable; it is only missing from the chronological and counting surfaces. Raise the budget if you see deferrals routinely — a cold repo with Git fsmonitor enabled can exceed 6 seconds on its first write.
 
-Optional provenance is additive: `ingress` is one of `url`, `shortcut`, `selected_text`, `share`; `sourceApp` and `sourceURL` are free-form. Agents can leave all three off.
+Optional provenance is additive, but only one of the three fields is genuinely free-form:
+
+| Field | Accepted |
+|---|---|
+| `ingress` | Exactly one of `url`, `shortcut`, `selected_text`, `share` |
+| `sourceApp` | Free-form text |
+| `sourceURL` | **A valid URL.** Validated at the MCP boundary; only `http:` and `https:` are retained |
+
+`sourceURL` is a real constraint, not a hint. Passing an internal identifier or any non-URL string **rejects the whole `capture` call before the thought is saved** — the one way to lose a capture through provenance. If you have a source that is not a URL, put it in `sourceApp`. Agents can safely leave all three off.
 
 ### `remember`
 

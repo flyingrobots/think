@@ -77,6 +77,29 @@ test('README documents the followthrough budget knob in its environment table', 
   );
 });
 
+test('README does not describe the URL-validated capture field as free-form', () => {
+  // sourceURL is z.string().url() at the MCP boundary and the runtime keeps only
+  // http(s). Calling it free-form invites an agent to pass an internal id, which
+  // rejects the whole capture before the thought is saved.
+  const readme = readRepoFile('README.md');
+  const claims = readme
+    .split('\n')
+    .filter((line) => /sourceURL/u.test(line))
+    .filter((line) => /free-form/iu.test(line));
+
+  assert.deepEqual(
+    claims,
+    [],
+    'Expected sourceURL never to be described as free-form; it is URL-validated.'
+  );
+
+  assert.match(
+    readme,
+    /`sourceURL`[\s\S]{0,400}?valid URL/u,
+    'Expected the README to state that sourceURL must be a valid URL.'
+  );
+});
+
 test('MIND_ORCHESTRATION.md exists and is linked from GUIDE.md', () => {
   const mindDoc = readRepoFile('docs/MIND_ORCHESTRATION.md');
   assert.ok(mindDoc.length > 0, 'Expected docs/MIND_ORCHESTRATION.md to exist and have content.');
