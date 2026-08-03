@@ -585,6 +585,7 @@ test('mergeCodexTomlConfig does not treat another server as a nested table of th
   const existing = [
     '[mcp_servers.think]',
     'command = "node"',
+    'args = ["/old.js"]',
     '',
     '[mcp_servers.think-extra]',
     'command = "other"',
@@ -597,9 +598,19 @@ test('mergeCodexTomlConfig does not treat another server as a nested table of th
     entry: { command: 'node', args: ['/opt/think/bin/think-mcp.js'] },
   });
 
+  // Both halves must be pinned. Asserting only that the sibling survives would
+  // still pass if the finder stopped short and left the stale Think body in
+  // place, which is the opposite failure from swallowing the sibling.
+  assert.equal(result.action, 'updated', 'Expected the Think block itself to be rewritten.');
   assert.match(
     result.text,
-    /\[mcp_servers\.think-extra\]\ncommand = "other"/,
+    /args = \["\/opt\/think\/bin\/think-mcp\.js"\]/u,
+    'Expected the target block to carry the new entry.'
+  );
+  assert.doesNotMatch(result.text, /old\.js/u, 'Expected the stale Think body to be gone.');
+  assert.match(
+    result.text,
+    /\[mcp_servers\.think-extra\]\ncommand = "other"/u,
     'Expected a similarly named sibling server to survive untouched.'
   );
 });
