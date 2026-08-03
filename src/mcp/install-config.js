@@ -621,10 +621,32 @@ function offsetOfLine(lines, lineIndex) {
   return offset;
 }
 
+const TOML_STRING_ESCAPES = Object.freeze({
+  '\b': '\\b',
+  '\t': '\\t',
+  '\n': '\\n',
+  '\f': '\\f',
+  '\r': '\\r',
+});
+
+/**
+ * Render a TOML basic string.
+ *
+ * Control characters cannot appear literally in a basic string. Paths may
+ * legally contain them on POSIX, and emitting one raw invalidates the whole
+ * config — which disables every server in the file, not just Think's. Escape the
+ * ones TOML names, and any other control character as \\uXXXX.
+ */
 function toTomlString(value) {
   const escaped = String(value)
     .replaceAll('\\', '\\\\')
-    .replaceAll('"', '\\"');
+    .replaceAll('"', '\\"')
+    // eslint-disable-next-line no-control-regex -- escaping control characters is the point
+    .replace(/[\u0000-\u001f\u007f]/gu, (character) => (
+      TOML_STRING_ESCAPES[character]
+        ?? `\\u${character.codePointAt(0).toString(16).padStart(4, '0')}`
+    ));
+
   return `"${escaped}"`;
 }
 

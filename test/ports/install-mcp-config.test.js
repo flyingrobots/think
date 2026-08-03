@@ -817,7 +817,17 @@ test('mergeCodexTomlConfig escapes control characters that would break the file'
     },
   });
 
-  assert.doesNotMatch(result.text.split('args =')[1] ?? '', /\n[^"]*"/u, 'Expected no literal newline inside the string.');
+  // Every rendered line must be free of literal control characters. Checking the
+  // whole blob would trip over the newlines that legitimately separate keys.
+  for (const line of result.text.split('\n')) {
+    assert.doesNotMatch(
+      line,
+      // eslint-disable-next-line no-control-regex -- asserting control characters are absent
+      /[\u0000-\u001f\u007f]/u,
+      `Expected no literal control character in rendered line: ${JSON.stringify(line)}`
+    );
+  }
+
   assert.match(result.text, /\\n/u, 'Expected the newline to be escaped.');
   assert.match(result.text, /\\t/u, 'Expected the tab to be escaped.');
   assert.match(result.text, /\\u0007/u, 'Expected other control characters to be escaped as \\uXXXX.');
