@@ -40,13 +40,5 @@ Open the reader-first TUI to navigate your cognitive worldline.
 think --browse
 ```
 
-## Documentation
-
-- **[Guide](./GUIDE.md)**: Orientation, the fast path, and mind management.
-- **[Advanced Guide](./ADVANCED_GUIDE.md)**: Deep dives into the graph model, derivation pipeline, and benchmarks.
-- **[Architecture](./docs/ARCHITECTURE.md)**: The authoritative structural reference (Git, WARP, Minds).
-- **[Vision](./docs/VISION.md)**: Core tenets and the capture doctrine.
-- **[Method](./docs/method/process.md)**: Repo work doctrine and the cycle loop.
-
 ---
-Built with cognitive ambition by [FLYING ROBOTS](https://github.com/flyingrobots)
+By [FLYING ROBOTS](https://github.com/flyingrobots)
