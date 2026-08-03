@@ -82,11 +82,27 @@ export function listInstallMcpClients() {
     id: client.id,
     label: client.label,
     format: client.format,
-    scopes: Object.freeze([
-      ...(client.userFile ? ['user'] : []),
-      ...(client.projectFile ? ['project'] : []),
-    ]),
+    scopes: supportedScopes(client),
   }));
+}
+
+/**
+ * Look up a client definition by id.
+ *
+ * `Object.hasOwn` matters here: `CLIENTS` is a plain object, so an id like
+ * `toString` would otherwise resolve to an inherited function and skip the
+ * unknown-client branch, producing "toString does not support user scope" with
+ * an empty scope list instead of a real error.
+ */
+function findClient(client) {
+  return Object.hasOwn(CLIENTS, client) ? CLIENTS[client] : null;
+}
+
+function supportedScopes(definition) {
+  return Object.freeze([
+    ...(definition.userFile ? ['user'] : []),
+    ...(definition.projectFile ? ['project'] : []),
+  ]);
 }
 
 const BOOLEAN_FLAGS = Object.freeze({
@@ -185,7 +201,7 @@ function validateParsedArgs(parsed) {
   if (!parsed.client) {
     throw new ValidationError('--client is required. Run with --list to see supported clients.');
   }
-  if (!Object.hasOwn(CLIENTS, parsed.client)) {
+  if (!findClient(parsed.client)) {
     const supported = Object.keys(CLIENTS).join(', ');
     throw new ValidationError(`Unknown client "${parsed.client}". Supported clients: ${supported}`);
   }
@@ -228,9 +244,10 @@ export function buildThinkMcpServerEntry({ serverPath, repoDir = null }) {
 }
 
 export function planInstallMcpTarget({ client, scope, home, dir }) {
-  const definition = CLIENTS[client];
+  const definition = findClient(client);
   if (!definition) {
-    throw new ValidationError(`Unknown client "${client}"`);
+    const supported = Object.keys(CLIENTS).join(', ');
+    throw new ValidationError(`Unknown client "${client}". Supported clients: ${supported}`);
   }
 
   const segments = scope === 'user' ? definition.userFile : definition.projectFile;
@@ -246,13 +263,6 @@ export function planInstallMcpTarget({ client, scope, home, dir }) {
     format: definition.format,
     serversKey: definition.serversKey,
   };
-}
-
-function supportedScopes(definition) {
-  return [
-    ...(definition.userFile ? ['user'] : []),
-    ...(definition.projectFile ? ['project'] : []),
-  ];
 }
 
 /**

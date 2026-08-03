@@ -200,6 +200,21 @@ test('planInstallMcpTarget resolves project scope config paths and uses the VS C
   );
 });
 
+test('planInstallMcpTarget rejects inherited object keys as client ids', () => {
+  // CLIENTS is a plain object, so indexing it with an arbitrary caller string
+  // resolves inherited members. Without an own-property check, `toString` slips
+  // past the unknown-client branch and reports "does not support user scope"
+  // with an empty scope list. This function is exported, so the CLI parser's
+  // own guard cannot be relied on.
+  for (const client of ['toString', 'constructor', 'valueOf', '__proto__']) {
+    assert.throws(
+      () => planInstallMcpTarget({ client, scope: 'user', home: '/home/u', dir: '/repo' }),
+      /Unknown client/,
+      `Expected "${client}" to be rejected as an unknown client.`
+    );
+  }
+});
+
 test('planInstallMcpTarget refuses scopes a client does not actually support', () => {
   assert.throws(
     () => planInstallMcpTarget({ client: 'vscode', scope: 'user', home: '/home/u', dir: '/repo' }),
