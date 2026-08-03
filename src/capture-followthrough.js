@@ -82,8 +82,11 @@ export async function waitForCaptureFollowthrough(followthroughPromise, { timeou
   );
   let timeoutId = null;
   const timeout = new Promise((resolve) => {
+    // Deliberately not unref'd. An unref'd timer does not hold the event loop, so
+    // a process with nothing else pending exits instead of deferring and the
+    // budget stops being a guarantee. clearTimeout below already ensures the
+    // timer never outlives the race, so there is nothing left for unref to buy.
     timeoutId = setTimeout(() => resolve(CAPTURE_FOLLOWTHROUGH_DEFERRED), budgetMs);
-    timeoutId.unref?.();
   });
 
   try {

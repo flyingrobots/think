@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import test from 'node:test';
 
 import {
@@ -87,6 +88,30 @@ test('waitForCaptureFollowthrough defers once the budget elapses', async () => {
 
   assert.equal(result, CAPTURE_FOLLOWTHROUGH_DEFERRED);
   assert.equal(isDeferredCaptureFollowthrough(result), true);
+});
+
+test('the deferral timer keeps the process alive long enough to actually fire', () => {
+  // An unref'd timer does not hold the event loop, so a process with nothing else
+  // pending exits *instead* of deferring — the timeout stops being a guarantee.
+  // Locally other work masked it; CI exited with code 13 and took six tests down
+  // as cancelledByParent. Assert it in a fresh child, which has nothing else
+  // pending by construction.
+  const script = [
+    "import { waitForCaptureFollowthrough } from './src/capture-followthrough.js';",
+    'const result = await waitForCaptureFollowthrough(new Promise(() => {}), { timeoutMs: 25 });',
+    'process.stdout.write(JSON.stringify(result));',
+  ].join('\n');
+
+  const stdout = execFileSync(process.execPath, ['--input-type=module', '--eval', script], {
+    cwd: new URL('../..', import.meta.url),
+    encoding: 'utf8',
+  });
+
+  assert.equal(
+    stdout.trim(),
+    '{"status":"deferred"}',
+    'Expected the child to defer and exit cleanly rather than dying with an unsettled await.'
+  );
 });
 
 test('waitForCaptureFollowthrough propagates followthrough rejections to the caller', async () => {

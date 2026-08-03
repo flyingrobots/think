@@ -67,6 +67,8 @@ Release discipline:
   suite redirectable into a real mind on Windows
 - fixed existing-entry lookup resolving inherited `Object.prototype` members, so
   a server named `constructor` reported `updated` against an empty collection
+- fixed the capture followthrough deferral not being a guarantee: the timeout was
+  unref'd, so a process with nothing else pending exited instead of deferring
 - added `npm run install-mcp` plus per-client shorthands (`install-mcp:claude`,
   `:codex`, `:cursor`, `:vscode`, `:windsurf`, `:list`) that merge the Think MCP
   server into Claude Code, Codex CLI, Cursor, VS Code, and Windsurf config, with
