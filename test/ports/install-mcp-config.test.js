@@ -706,6 +706,38 @@ test('mergeCodexTomlConfig recognises equivalent spellings of the target header'
   }
 });
 
+test('mergeCodexTomlConfig recognises a header carrying an inline comment', () => {
+  // TOML allows a comment after the closing bracket. Requiring the trimmed line
+  // to end in ']' rejected such a header, so the merge appended a second table
+  // for the same key and invalidated the file.
+  for (const header of ['[mcp_servers.think] # local server', '[mcp_servers."think"]\t# note', '[mcp_servers.think]  #']) {
+    const result = mergeCodexTomlConfig(`${header}\ncommand = "node"\nargs = ["/old.js"]\n`, {
+      serversKey: 'mcp_servers',
+      serverName: 'think',
+      entry: { command: 'node', args: ['/opt/think/bin/think-mcp.js'] },
+    });
+
+    assert.equal(result.action, 'updated', `Expected ${header} to be recognised.`);
+    assert.doesNotMatch(result.text, /old\.js/u, `Expected the stale body under ${header} to be replaced.`);
+    assert.equal(
+      [...result.text.matchAll(/^\[\s*mcp_servers\s*\.\s*['"]?think['"]?\s*\]/gmu)].length,
+      1,
+      `Expected exactly one think table after merging into ${header}.`
+    );
+  }
+});
+
+test('mergeCodexTomlConfig does not mistake a bracket inside a quoted key for the header end', () => {
+  const result = mergeCodexTomlConfig('[mcp_servers."th]ink"]\ncommand = "other"\n', {
+    serversKey: 'mcp_servers',
+    serverName: 'think',
+    entry: { command: 'node', args: ['/opt/think/bin/think-mcp.js'] },
+  });
+
+  assert.equal(result.action, 'added', 'Expected a differently keyed server to be left alone.');
+  assert.match(result.text, /\[mcp_servers\."th\]ink"\]\ncommand = "other"/u);
+});
+
 test('mergeCodexTomlConfig treats a quoted sibling server as unrelated', () => {
   const result = mergeCodexTomlConfig('[mcp_servers."think-extra"]\ncommand = "other"\n', {
     serversKey: 'mcp_servers',

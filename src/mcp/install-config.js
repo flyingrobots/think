@@ -501,17 +501,57 @@ function isTableHeaderFor(line, keyPath, { exact }) {
  */
 function parseTomlTableHeader(line) {
   const trimmed = line.trim();
-  if (!trimmed.startsWith('[') || !trimmed.endsWith(']') || trimmed.startsWith('[[')) {
+  if (!trimmed.startsWith('[') || trimmed.startsWith('[[')) {
     return null;
   }
 
-  const parts = splitTopLevelDots(trimmed.slice(1, -1));
+  // TOML permits a comment after the closing bracket, so the header does not
+  // necessarily end the line. Find the bracket that actually closes it, ignoring
+  // brackets inside quoted key parts, and allow only a comment to follow.
+  const closingIndex = findHeaderClose(trimmed);
+  if (closingIndex === -1) {
+    return null;
+  }
+
+  const trailing = trimmed.slice(closingIndex + 1).trim();
+  if (trailing !== '' && !trailing.startsWith('#')) {
+    return null;
+  }
+
+  const parts = splitTopLevelDots(trimmed.slice(1, closingIndex));
   if (!parts) {
     return null;
   }
 
   const unquoted = parts.map((part) => unquoteTomlKeyPart(part.trim()));
   return unquoted.some((part) => part === null) ? null : unquoted;
+}
+
+/**
+ * Index of the bracket that closes a table header, ignoring brackets that sit
+ * inside quoted key parts. Returns -1 when the header is never closed.
+ */
+function findHeaderClose(trimmed) {
+  let quote = null;
+
+  for (let index = 1; index < trimmed.length; index += 1) {
+    const character = trimmed[index];
+    if (quote) {
+      if (character === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (character === '"' || character === "'") {
+      quote = character;
+      continue;
+    }
+    if (character === ']') {
+      return index;
+    }
+  }
+
+  return -1;
 }
 
 function splitTopLevelDots(inner) {
