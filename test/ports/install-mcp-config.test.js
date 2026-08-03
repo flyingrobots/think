@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
+import path from 'node:path';
 import test from 'node:test';
 
 import {
+  buildStagedConfigPath,
   buildThinkMcpServerEntry,
   listInstallMcpClients,
   mergeCodexTomlConfig,
@@ -207,6 +209,30 @@ test('planInstallMcpTarget refuses scopes a client does not actually support', (
     () => planInstallMcpTarget({ client: 'windsurf', scope: 'project', home: '/home/u', dir: '/repo' }),
     /windsurf does not support project scope/
   );
+});
+
+test('buildStagedConfigPath stages beside the target under a unique hidden name', () => {
+  const staged = buildStagedConfigPath('/home/u/dotfiles/mcp.json', { pid: 4242, nonce: 'a1b2c3' });
+
+  assert.equal(staged, '/home/u/dotfiles/.mcp.json.think-install.4242.a1b2c3.tmp');
+  assert.equal(
+    path.dirname(staged),
+    '/home/u/dotfiles',
+    'Staging must share the target directory so the rename stays atomic.'
+  );
+  assert.match(path.basename(staged), /^\./u, 'Expected a hidden staged file.');
+});
+
+test('buildStagedConfigPath is unpredictable across attempts', () => {
+  // A predictable staged path lets someone pre-create it as a symlink and
+  // redirect the write, or leave a stale file whose looser mode the rename then
+  // moves onto the live config.
+  const first = buildStagedConfigPath('/home/u/.mcp.json', { pid: 1, nonce: 'aaaa' });
+  const second = buildStagedConfigPath('/home/u/.mcp.json', { pid: 1, nonce: 'bbbb' });
+  const otherProcess = buildStagedConfigPath('/home/u/.mcp.json', { pid: 2, nonce: 'aaaa' });
+
+  assert.notEqual(first, second, 'Expected the nonce to vary the staged name.');
+  assert.notEqual(first, otherProcess, 'Expected concurrent processes not to collide.');
 });
 
 test('resolveWriteTargetPath follows a symlinked config to its real file', () => {

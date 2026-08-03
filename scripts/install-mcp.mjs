@@ -8,12 +8,14 @@
  * config, applies the merge, and writes the result back.
  */
 
+import { randomBytes } from 'node:crypto';
 import { mkdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { ValidationError } from '../src/errors.js';
 import {
+  buildStagedConfigPath,
   buildThinkMcpServerEntry,
   listInstallMcpClients,
   mergeCodexTomlConfig,
@@ -162,10 +164,16 @@ function writeTarget(target, merged) {
   const body = target.format === 'toml'
     ? merged.text
     : `${JSON.stringify(merged.config, null, 2)}\n`;
-  const staged = path.join(directory, `.${path.basename(file)}.think-install.tmp`);
+  const staged = buildStagedConfigPath(file, {
+    pid: process.pid,
+    nonce: randomBytes(6).toString('hex'),
+  });
 
   try {
-    writeFileSync(staged, body, { encoding: 'utf8', mode: 0o600 });
+    // 'wx' creates exclusively: the mode is always applied to a fresh file, and
+    // a pre-existing path — including a planted symlink — fails instead of being
+    // followed or reused.
+    writeFileSync(staged, body, { encoding: 'utf8', mode: 0o600, flag: 'wx' });
     renameSync(staged, file);
   } catch (error) {
     rmSync(staged, { force: true });

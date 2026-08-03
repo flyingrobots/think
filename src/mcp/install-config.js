@@ -279,6 +279,22 @@ export function resolveWriteTargetPath(file, { realpath }) {
   }
 }
 
+/**
+ * Name the temporary file a merged config is staged in before being renamed.
+ *
+ * The name must be unique per attempt. A predictable staged path is a hazard on
+ * a shared-home or multi-user box: an attacker can pre-create it as a symlink
+ * and redirect the write, or leave a stale file whose looser permissions the
+ * rename then moves onto the live config. Callers pair this with an exclusive
+ * create so a name that somehow already exists fails rather than being reused.
+ */
+export function buildStagedConfigPath(file, { pid, nonce }) {
+  const directory = path.dirname(file);
+  const base = path.basename(file);
+
+  return path.join(directory, `.${base}.think-install.${String(pid)}.${nonce}.tmp`);
+}
+
 export function mergeJsonMcpConfig(existing, { serversKey, serverName, entry }) {
   const source = normalizeExistingJsonConfig(existing);
   const servers = readServersCollection(source, serversKey);
