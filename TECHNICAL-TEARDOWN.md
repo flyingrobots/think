@@ -393,7 +393,7 @@ The design is pragmatic: user should rarely be blocked by one transient pipeline
 
 `THINK_PROMPT_METRICS_FILE` chooses the metrics output destination, replacing the default `$HOME/.think/metrics/prompt-ux.jsonl` path.
 
-`THINK_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS` bounds the post-capture derived work in milliseconds (default `6000`, resolved by `src/capture-followthrough.js` for both the CLI and MCP surfaces). Exceeding the budget defers the followthrough rather than failing the capture: the raw thought is already committed and remains recallable through `remember`, though `recent` and `stats` will not count it until it is backfilled. An unusable value falls back to the default, because capture is a trapdoor and must not fail on a malformed knob.
+`THINK_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS` bounds the post-capture derived work in milliseconds (default `6000`, resolved by `src/capture-followthrough.js` for both the CLI and MCP surfaces). Exceeding the budget defers the followthrough rather than failing the capture: the raw thought is already committed and stays readable through `inspect`, but the derived layer is skipped (`canonicalThought.stored` false, `sessionAttribution` and `seedQuality` null) and the `recent`/`stats` read model misreports until the next healthy capture rebuilds it. An unusable value falls back to the default, because capture is a trapdoor and must not fail on a malformed knob.
 
 `THINK_CAPTURE_INGRESS`, `THINK_CAPTURE_SOURCE_APP`, and `THINK_CAPTURE_SOURCE_URL` seed capture provenance metadata when a capture is created without explicit provenance.
 
