@@ -5,6 +5,7 @@ import {
   CAPTURE_FOLLOWTHROUGH_DEFERRED,
   DEFAULT_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS,
   isDeferredCaptureFollowthrough,
+  MAX_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS,
   resolveCaptureFollowthroughTimeoutMs,
   waitForCaptureFollowthrough,
 } from '../../src/capture-followthrough.js';
@@ -35,6 +36,38 @@ test('an unusable followthrough budget falls back to the default instead of brea
       `Expected "${raw}" to fall back to the default followthrough budget.`
     );
   }
+});
+
+test('a budget beyond the 32-bit timer range is clamped, not silently turned into 1ms', () => {
+  // setTimeout stores its delay in a 32-bit signed integer. Node warns and
+  // substitutes 1ms for anything larger, so an operator asking for a very large
+  // budget would get immediate deferral — the exact opposite of the request.
+  assert.equal(
+    resolveCaptureFollowthroughTimeoutMs({ THINK_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS: '2147483648' }),
+    MAX_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS
+  );
+  assert.equal(
+    resolveCaptureFollowthroughTimeoutMs({ THINK_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS: '99999999999' }),
+    MAX_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS
+  );
+});
+
+test('the largest in-range budget is preserved exactly', () => {
+  assert.equal(MAX_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS, 2_147_483_647);
+  assert.equal(
+    resolveCaptureFollowthroughTimeoutMs({ THINK_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS: '2147483647' }),
+    2_147_483_647
+  );
+});
+
+test('waitForCaptureFollowthrough clamps an over-range budget it is handed directly', async () => {
+  // The exported helper must not overflow either, since callers can pass a
+  // budget without going through the resolver.
+  const settled = await waitForCaptureFollowthrough(Promise.resolve({ migration: null }), {
+    timeoutMs: Number.MAX_SAFE_INTEGER,
+  });
+
+  assert.deepEqual(settled, { migration: null }, 'Expected no immediate deferral from an over-range budget.');
 });
 
 test('waitForCaptureFollowthrough returns the settled followthrough when it beats the budget', async () => {
