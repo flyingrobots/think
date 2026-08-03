@@ -211,7 +211,8 @@ function reportPlanText({ options, target, entry, merged, written }) {
 
   process.stdout.write(`Think MCP server "${options.serverName}" — ${verb} ${target.file}\n`);
   process.stdout.write(`  client: ${options.client} (${options.scope} scope)\n`);
-  process.stdout.write(`  mind:   ${entry.env?.THINK_REPO_DIR ?? `${getThinkDir()}/repo (default)`}\n`);
+  const mind = entry.env?.THINK_REPO_DIR ?? `${path.join(getThinkDir(), 'repo')} (default)`;
+  process.stdout.write(`  mind:   ${mind}\n`);
 
   if (!written) {
     process.stdout.write(`\n${renderPreview({ options, target, entry })}`);
