@@ -93,6 +93,33 @@ test('git identity and transport variables are left alone', () => {
   assert.equal(env.GIT_TERMINAL_PROMPT, '0');
 });
 
+test('mixed-case Think variables are scrubbed, because Windows env lookup is case-insensitive', () => {
+  // On Windows an inherited `Think_Repo_Dir` passes a case-sensitive filter, yet
+  // the spawned child still resolves it through process.env.THINK_REPO_DIR — so
+  // the suite could be redirected into a developer's real mind again.
+  const env = buildEnv({
+    processEnv: {
+      Think_Repo_Dir: '/Users/dev/.think/claude',
+      think_prompt_metrics_file: '/Users/dev/.think/metrics/prompt-ux.jsonl',
+      ThInK_CaPtUrE_iNgReSs: 'share',
+    },
+  });
+
+  const leaked = Object.keys(env).filter((key) => (
+    key.toUpperCase().startsWith('THINK_') && key.toUpperCase() !== 'THINK_UPSTREAM_URL'
+  ));
+
+  assert.deepEqual(leaked, [], 'Expected mixed-case Think variables to be scrubbed too.');
+});
+
+test('mixed-case git location variables are scrubbed as well', () => {
+  const env = buildEnv({ processEnv: { Git_Dir: '/Users/dev/git/think/.git', git_work_tree: '/Users/dev/git/think' } });
+
+  const leaked = Object.keys(env).filter((key) => key.toUpperCase().startsWith('GIT_'));
+
+  assert.deepEqual(leaked, [], 'Expected mixed-case git location variables to be scrubbed.');
+});
+
 test('non-Think environment such as PATH still reaches the child process', () => {
   const env = buildEnv({
     processEnv: { PATH: '/usr/bin:/bin', HOME: '/Users/dev', SHELL: '/bin/zsh' },

@@ -61,13 +61,22 @@ function readGitLocalEnvVars() {
   return String(result.stdout).split('\n').map((line) => line.trim()).filter(Boolean);
 }
 
+/**
+ * Drop inherited Think and git repository-scoping variables.
+ *
+ * Comparison is case-insensitive because Windows environment lookup is: an
+ * inherited `Think_Repo_Dir` would pass a case-sensitive filter yet still be
+ * returned by `process.env.THINK_REPO_DIR` in the spawned child, redirecting the
+ * suite at a developer's real mind again.
+ */
 export function scrubThinkEnv(processEnv = process.env) {
   const gitLocation = new Set(GIT_LOCATION_ENV_VARS);
 
   return Object.fromEntries(
-    Object.entries(processEnv).filter(
-      ([key]) => !key.startsWith(THINK_ENV_PREFIX) && !gitLocation.has(key)
-    )
+    Object.entries(processEnv).filter(([key]) => {
+      const normalized = key.toUpperCase();
+      return !normalized.startsWith(THINK_ENV_PREFIX) && !gitLocation.has(normalized);
+    })
   );
 }
 
