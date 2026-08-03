@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,44 +20,47 @@ export const baseEnv = {
 export const THINK_ENV_PREFIX = 'THINK_';
 
 /**
- * Git environment variables that name *where* a repository lives.
- *
- * Git exports these to every hook, so a suite launched from the repo's own
- * pre-push hook inherits them and any git call that resolves its repository
- * from the environment silently targets the wrong one. Identity and transport
- * variables such as GIT_AUTHOR_NAME or GIT_SSH_COMMAND are deliberately not
- * listed: the product sets its own identity, and transport settings are safe to
- * inherit.
+ * Repository-scoping git variables that are not in `git rev-parse
+ * --local-env-vars` but still redirect lookups.
  */
-export const GIT_LOCATION_ENV_VARS = Object.freeze([
-  'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+const GIT_EXTRA_SCRUBBED_ENV_VARS = Object.freeze([
   'GIT_CEILING_DIRECTORIES',
-  'GIT_COMMON_DIR',
-  'GIT_DIR',
-  'GIT_INDEX_FILE',
   'GIT_INDEX_VERSION',
   'GIT_NAMESPACE',
-  'GIT_OBJECT_DIRECTORY',
-  'GIT_PREFIX',
   'GIT_QUARANTINE_PATH',
-  'GIT_WORK_TREE',
 ]);
 
 /**
- * Build a hermetic environment for a spawned Think process.
+ * Git environment variables that bind a process to a specific repository.
  *
- * Pinning HOME is not enough on its own. `getLocalRepoDir` honours
- * THINK_REPO_DIR ahead of $HOME/.think/repo, and `getPromptMetricsFile` and
- * `captureProvenanceFromEnvironment` read their own THINK_ variables, so an
- * inherited environment can redirect the suite at a developer's real mind and
- * write test captures into it.
+ * Git exports these to every hook, so a suite launched from the repo's own
+ * pre-push hook inherits them and any git call that resolves its repository
+ * from the environment silently targets the wrong one.
  *
- * Every inherited THINK_ variable is therefore dropped. The scrub is
- * prefix-wide rather than an allowlist so a newly added knob cannot quietly
- * reopen the hole. Fixtures and individual tests can still set THINK_
- * variables deliberately through `baseEnv` and `extraEnv`, which are layered
- * on after the scrub.
+ * The authoritative set comes from `git rev-parse --local-env-vars` rather than
+ * a hand-maintained list. An earlier hand-written list agreed with its shell
+ * counterpart yet silently omitted GIT_CONFIG, GIT_CONFIG_COUNT,
+ * GIT_CONFIG_PARAMETERS, GIT_GRAFT_FILE, GIT_IMPLICIT_WORK_TREE,
+ * GIT_NO_REPLACE_OBJECTS, GIT_REPLACE_REF_BASE and GIT_SHALLOW_FILE — agreement
+ * between two incomplete lists proves nothing.
+ *
+ * Identity and transport variables are deliberately excluded: the product sets
+ * its own commit identity, and inheriting GIT_SSH_COMMAND is safe.
  */
+export const GIT_LOCATION_ENV_VARS = Object.freeze([...new Set([
+  ...readGitLocalEnvVars(),
+  ...GIT_EXTRA_SCRUBBED_ENV_VARS,
+])].sort());
+
+function readGitLocalEnvVars() {
+  const result = spawnSync('git', ['rev-parse', '--local-env-vars'], { encoding: 'utf8' });
+  if (result.status !== 0) {
+    return [];
+  }
+
+  return String(result.stdout).split('\n').map((line) => line.trim()).filter(Boolean);
+}
+
 export function scrubThinkEnv(processEnv = process.env) {
   const gitLocation = new Set(GIT_LOCATION_ENV_VARS);
 
