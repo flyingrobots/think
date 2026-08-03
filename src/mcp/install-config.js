@@ -350,8 +350,7 @@ export function mergeCodexTomlConfig(existing, { serversKey, serverName, entry }
 
   const text = String(existing ?? '');
   const block = renderCodexTomlBlock({ serversKey, serverName, entry });
-  const header = `[${serversKey}.${serverName}]`;
-  const found = findTomlBlock(text, header, `[${serversKey}.${serverName}.`);
+  const found = findTomlBlock(text, [serversKey, serverName]);
 
   if (!found) {
     return Object.freeze({
@@ -403,25 +402,132 @@ export function renderCodexTomlBlock({ serversKey, serverName, entry }) {
  * declare `env` twice and make the whole file invalid TOML, breaking every
  * server in it rather than just Think's entry.
  */
-function findTomlBlock(text, header, childPrefix) {
+function findTomlBlock(text, keyPath) {
   const lines = text.split('\n');
-  const headerIndex = lines.findIndex((line) => line.trim() === header);
+  const headerIndex = lines.findIndex((line) => isTableHeaderFor(line, keyPath, { exact: true }));
   if (headerIndex === -1) {
     return null;
   }
 
   let endIndex = lines.length;
   for (let index = headerIndex + 1; index < lines.length; index += 1) {
-    const trimmed = lines[index].trimStart();
-    if (trimmed.startsWith('[') && !trimmed.startsWith(childPrefix)) {
-      endIndex = index;
-      break;
+    if (!looksLikeTableHeader(lines[index])) {
+      continue;
     }
+    if (isTableHeaderFor(lines[index], keyPath, { exact: false })) {
+      continue;
+    }
+    endIndex = index;
+    break;
   }
 
   const start = offsetOfLine(lines, headerIndex);
   const end = offsetOfLine(lines, endIndex);
   return { start, end };
+}
+
+function looksLikeTableHeader(line) {
+  return line.trimStart().startsWith('[');
+}
+
+/**
+ * Does this line open the table at `keyPath` (`exact`), or one nested beneath it?
+ *
+ * TOML lets the same table be spelled several ways — `[mcp_servers.think]`,
+ * `[mcp_servers."think"]`, `[mcp_servers . think]` — so comparing header text
+ * literally missed real matches and appended a second table for the same key,
+ * which makes the whole file invalid rather than just Think's entry.
+ */
+function isTableHeaderFor(line, keyPath, { exact }) {
+  const parts = parseTomlTableHeader(line);
+  if (!parts) {
+    return false;
+  }
+  if (exact ? parts.length !== keyPath.length : parts.length <= keyPath.length) {
+    return false;
+  }
+
+  return keyPath.every((part, index) => parts[index] === part);
+}
+
+/**
+ * Split a TOML table header into its key parts, or null when the line is not a
+ * plain table header this module is prepared to reason about.
+ *
+ * Array-of-tables headers and quoted parts carrying escape sequences return
+ * null: they are not shapes this module writes, and guessing at them risks
+ * rewriting the wrong table.
+ */
+function parseTomlTableHeader(line) {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith('[') || !trimmed.endsWith(']') || trimmed.startsWith('[[')) {
+    return null;
+  }
+
+  const parts = splitTopLevelDots(trimmed.slice(1, -1));
+  if (!parts) {
+    return null;
+  }
+
+  const unquoted = parts.map((part) => unquoteTomlKeyPart(part.trim()));
+  return unquoted.some((part) => part === null) ? null : unquoted;
+}
+
+function splitTopLevelDots(inner) {
+  const state = { parts: [], current: '', quote: null };
+
+  for (const character of inner) {
+    consumeHeaderCharacter(state, character);
+  }
+
+  if (state.quote) {
+    return null;
+  }
+
+  state.parts.push(state.current);
+  return state.parts;
+}
+
+function consumeHeaderCharacter(state, character) {
+  if (state.quote) {
+    if (character === state.quote) {
+      state.quote = null;
+    }
+    state.current += character;
+    return;
+  }
+
+  if (character === '"' || character === "'") {
+    state.quote = character;
+    state.current += character;
+    return;
+  }
+
+  if (character === '.') {
+    state.parts.push(state.current);
+    state.current = '';
+    return;
+  }
+
+  state.current += character;
+}
+
+function unquoteTomlKeyPart(part) {
+  if (isQuotedKeyPart(part)) {
+    const inner = part.slice(1, -1);
+    return inner.includes('\\') ? null : inner;
+  }
+
+  return TOML_BARE_KEY.test(part) ? part : null;
+}
+
+function isQuotedKeyPart(part) {
+  if (part.length < 2) {
+    return false;
+  }
+
+  const quote = part[0];
+  return (quote === '"' || quote === "'") && part.endsWith(quote);
 }
 
 function offsetOfLine(lines, lineIndex) {

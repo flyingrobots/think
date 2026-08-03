@@ -562,6 +562,65 @@ test('mergeCodexTomlConfig does not treat another server as a nested table of th
   );
 });
 
+test('mergeCodexTomlConfig recognises equivalent spellings of the target header', () => {
+  // TOML permits quoting and whitespace around dotted key parts, so all of these
+  // are the same table as [mcp_servers.think]. Literal string matching missed
+  // them and appended a second table, which makes the file invalid and breaks
+  // every server in it.
+  for (const header of ['[mcp_servers."think"]', '[mcp_servers . think]', '[ mcp_servers.think ]', "[mcp_servers.'think']"]) {
+    const result = mergeCodexTomlConfig(`${header}\ncommand = "node"\nargs = ["/old.js"]\n`, {
+      serversKey: 'mcp_servers',
+      serverName: 'think',
+      entry: { command: 'node', args: ['/opt/think/bin/think-mcp.js'] },
+    });
+
+    assert.equal(result.action, 'updated', `Expected ${header} to be recognised as the target block.`);
+
+    const headerCount = [...result.text.matchAll(/^\[\s*mcp_servers\s*\.\s*['"]?think['"]?\s*\]/gmu)].length;
+    assert.equal(headerCount, 1, `Expected exactly one think table after merging into ${header}.`);
+    assert.doesNotMatch(result.text, /old\.js/u, `Expected the stale body under ${header} to be replaced.`);
+  }
+});
+
+test('mergeCodexTomlConfig treats a quoted sibling server as unrelated', () => {
+  const result = mergeCodexTomlConfig('[mcp_servers."think-extra"]\ncommand = "other"\n', {
+    serversKey: 'mcp_servers',
+    serverName: 'think',
+    entry: { command: 'node', args: ['/opt/think/bin/think-mcp.js'] },
+  });
+
+  assert.equal(result.action, 'added');
+  assert.match(result.text, /\[mcp_servers\."think-extra"\]\ncommand = "other"/u);
+});
+
+test('mergeCodexTomlConfig absorbs an equivalently spelled nested env table', () => {
+  const existing = [
+    '[mcp_servers.think]',
+    'command = "node"',
+    '',
+    '[mcp_servers."think".env]',
+    'THINK_REPO_DIR = "/Users/dev/.think/old"',
+    '',
+    '[mcp_servers.graft]',
+    'command = "npx"',
+    '',
+  ].join('\n');
+
+  const result = mergeCodexTomlConfig(existing, {
+    serversKey: 'mcp_servers',
+    serverName: 'think',
+    entry: {
+      command: 'node',
+      args: ['/opt/think/bin/think-mcp.js'],
+      env: { THINK_REPO_DIR: '/Users/dev/.think/new' },
+    },
+  });
+
+  assert.doesNotMatch(result.text, /\.env\]/u, 'Expected the quoted nested env table to be absorbed.');
+  assert.doesNotMatch(result.text, /old/u);
+  assert.match(result.text, /\[mcp_servers\.graft\]/u, 'Expected the neighbour to survive.');
+});
+
 test('mergeCodexTomlConfig escapes quotes and backslashes in paths', () => {
   const result = mergeCodexTomlConfig('', {
     serversKey: 'mcp_servers',
