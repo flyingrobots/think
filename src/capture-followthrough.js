@@ -13,6 +13,17 @@
 
 export const DEFAULT_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS = 6_000;
 
+/**
+ * The largest delay `setTimeout` can hold.
+ *
+ * Node stores the delay in a 32-bit signed integer and substitutes 1ms for
+ * anything larger, with a TimeoutOverflowWarning. Left unclamped, asking for a
+ * very large budget would produce immediate deferral — the opposite of intent —
+ * so an over-range request is clamped to the maximum rather than defaulted,
+ * which honours the direction the operator asked for.
+ */
+export const MAX_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS = 2_147_483_647;
+
 export const CAPTURE_FOLLOWTHROUGH_DEFERRED = Object.freeze({ status: 'deferred' });
 
 /**
@@ -32,7 +43,7 @@ export function resolveCaptureFollowthroughTimeoutMs(environment = process.env) 
     return DEFAULT_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS;
   }
 
-  return parsed;
+  return Math.min(parsed, MAX_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS);
 }
 
 export function isDeferredCaptureFollowthrough(followthrough) {
@@ -46,7 +57,10 @@ export function isDeferredCaptureFollowthrough(followthrough) {
  * that keep the abandoned promise alive must attach their own catch handler.
  */
 export async function waitForCaptureFollowthrough(followthroughPromise, { timeoutMs } = {}) {
-  const budgetMs = timeoutMs ?? resolveCaptureFollowthroughTimeoutMs();
+  const budgetMs = Math.min(
+    timeoutMs ?? resolveCaptureFollowthroughTimeoutMs(),
+    MAX_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS
+  );
   let timeoutId = null;
   const timeout = new Promise((resolve) => {
     timeoutId = setTimeout(() => resolve(CAPTURE_FOLLOWTHROUGH_DEFERRED), budgetMs);
