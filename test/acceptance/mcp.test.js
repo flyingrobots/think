@@ -36,42 +36,10 @@ test('think MCP server lists the core Think tools', async () => {
 test('think MCP capture, recent, browse, and inspect route through the existing Think runtime', async () => {
   const context = await createThinkContext();
 
-  await withThinkMcpClient(context, async ({ client }) => {
-    const capture = await callTool(client, 'capture', {
-      text: 'MCP capture should feel like the same capture core, not a second product.',
-    });
-
-    assert.equal(capture.status, 'saved_locally', 'Expected MCP capture to report the normal saved-locally status.');
-    assert.equal(capture.backupStatus, 'skipped', 'Expected MCP capture to preserve the normal no-upstream backup behavior.');
-    assert.equal(capture.warnings.length, 0, 'Expected MCP capture not to emit post-save warnings on a healthy repo.');
-
-    const recent = await callTool(client, 'recent', {});
-    assert.equal(recent.repoPresent, true, 'Expected recent to see the repo bootstrapped by MCP capture.');
-    assert.equal(recent.entries.length, 1, 'Expected one recent entry after the first MCP capture.');
-    assert.equal(
-      recent.entries[0].text,
-      'MCP capture should feel like the same capture core, not a second product.',
-      'Expected recent to surface the exact MCP-captured text.'
-    );
-
-    const browse = await callTool(client, 'browse', {});
-    assert.equal(
-      browse.current.text,
-      'MCP capture should feel like the same capture core, not a second product.',
-      'Expected browse without an entry id to start from the latest capture.'
-    );
-    assert.equal(browse.older, null, 'Expected no older neighbor after one capture.');
-
-    const inspect = await callTool(client, 'inspect', {
-      entryId: capture.entryId,
-    });
-    assert.equal(inspect.entry.entryId, capture.entryId, 'Expected inspect to return the captured entry id.');
-    assert.equal(
-      inspect.entry.text,
-      'MCP capture should feel like the same capture core, not a second product.',
-      'Expected inspect to preserve the exact raw capture text.'
-    );
-  });
+  await withThinkMcpClient(
+    context,
+    async ({ client }) => await exerciseCoreMcpRuntime(client)
+  );
 });
 
 test('think MCP capture preserves additive provenance separately from the raw text', async () => {
@@ -135,7 +103,48 @@ test('think MCP capture trims additive provenance strings before persistence', a
 
 test('think MCP remember, stats, and prompt_metrics expose structured read results', async () => {
   const context = await createThinkContext();
-  const metricsFile = seedPromptMetricsFile(context, [
+  const metricsFile = seedMcpPromptMetrics(context);
+
+  runThink(context, ['project notes about warp performance and browse startup']);
+  runThink(context, ['remembering warp worldlines makes browse startup fast']);
+
+  await withThinkMcpClient(
+    context,
+    async ({ client }) => await assertStructuredReadResults(client),
+    {
+      THINK_PROMPT_METRICS_FILE: metricsFile,
+    }
+  );
+});
+
+async function exerciseCoreMcpRuntime(client) {
+  const text = 'MCP capture should feel like the same capture core, not a second product.';
+  const capture = await callTool(client, 'capture', { text });
+
+  assert.equal(capture.status, 'saved_locally', 'Expected MCP capture to report the normal saved-locally status.');
+  assert.equal(capture.backupStatus, 'skipped', 'Expected MCP capture to preserve the normal no-upstream backup behavior.');
+  assert.deepEqual(
+    capture.warnings,
+    [],
+    'Expected completed native v19 capture followthrough to emit no compatibility warning.'
+  );
+
+  const recent = await callTool(client, 'recent', {});
+  assert.equal(recent.repoPresent, true, 'Expected recent to see the repo bootstrapped by MCP capture.');
+  assert.equal(recent.entries.length, 1, 'Expected one recent entry after the first MCP capture.');
+  assert.equal(recent.entries[0].text, text, 'Expected recent to surface the exact MCP-captured text.');
+
+  const browse = await callTool(client, 'browse', {});
+  assert.equal(browse.current.text, text, 'Expected browse without an entry id to start from the latest capture.');
+  assert.equal(browse.older, null, 'Expected no older neighbor after one capture.');
+
+  const inspect = await callTool(client, 'inspect', { entryId: capture.entryId });
+  assert.equal(inspect.entry.entryId, capture.entryId, 'Expected inspect to return the captured entry id.');
+  assert.equal(inspect.entry.text, text, 'Expected inspect to preserve the exact raw capture text.');
+}
+
+function seedMcpPromptMetrics(context) {
+  return seedPromptMetricsFile(context, [
     makePromptMetric({
       sessionId: 'prompt-session-1',
       ts: '2026-03-29T10:00:00.000Z',
@@ -159,43 +168,28 @@ test('think MCP remember, stats, and prompt_metrics expose structured read resul
       backupState: null,
     }),
   ]);
+}
 
-  runThink(context, ['project notes about warp performance and browse startup']);
-  runThink(context, ['remembering warp worldlines makes browse startup fast']);
+async function assertStructuredReadResults(client) {
+  const remember = await callTool(client, 'remember', {
+    brief: true,
+    limit: 1,
+    query: 'warp',
+  });
 
-  await withThinkMcpClient(
-    context,
-    async ({ client }) => {
-      const remember = await callTool(client, 'remember', {
-        brief: true,
-        limit: 1,
-        query: 'warp',
-      });
+  assert.equal(remember.repoPresent, true, 'Expected remember to read from the local Think repo.');
+  assert.equal(remember.matches.length, 1, 'Expected remember --limit semantics to carry into MCP.');
+  assert.match(remember.matches[0].reasonText, /matched query/, 'Expected explicit recall receipts.');
 
-      assert.equal(remember.repoPresent, true, 'Expected remember to read from the local Think repo.');
-      assert.equal(remember.matches.length, 1, 'Expected remember --limit semantics to carry into MCP.');
-      assert.match(
-        remember.matches[0].reasonText,
-        /matched query/,
-        'Expected remember to preserve explicit recall receipts.'
-      );
+  const stats = await callTool(client, 'stats', {});
+  assert.equal(stats.repoPresent, true, 'Expected stats to report the repo as present.');
+  assert.equal(stats.total, 2, 'Expected stats to count the seeded captures.');
 
-      const stats = await callTool(client, 'stats', {});
-      assert.equal(stats.repoPresent, true, 'Expected stats to report the repo as present.');
-      assert.equal(stats.total, 2, 'Expected stats to count the seeded captures.');
-
-      const promptMetrics = await callTool(client, 'prompt_metrics', {
-        bucket: 'day',
-      });
-      assert.equal(promptMetrics.summary.sessions, 2, 'Expected prompt_metrics to report total sessions.');
-      assert.equal(promptMetrics.timings.length, 4, 'Expected prompt_metrics to expose the known timing rows.');
-      assert.equal(promptMetrics.buckets.length, 1, 'Expected bucketed prompt metrics to return one day bucket.');
-    },
-    {
-      THINK_PROMPT_METRICS_FILE: metricsFile,
-    }
-  );
-});
+  const promptMetrics = await callTool(client, 'prompt_metrics', { bucket: 'day' });
+  assert.equal(promptMetrics.summary.sessions, 2, 'Expected total prompt sessions.');
+  assert.equal(promptMetrics.timings.length, 4, 'Expected the known timing rows.');
+  assert.equal(promptMetrics.buckets.length, 1, 'Expected one day bucket.');
+}
 
 test('think MCP doctor tool returns structured health checks', async () => {
   const context = await createThinkContext();

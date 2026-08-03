@@ -1,11 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { stringifyJson } from '../../src/json.js';
-import { CAPTURE_READ_MODEL_ID } from '../../src/store/constants.js';
 import { getBrowseWindowForRead } from '../../src/store.js';
-
-const ENCODER = new TextEncoder();
 
 test('browse window hydrates only the selected capture and adjacent chronology entries', async () => {
   const read = createCaptureRead([
@@ -22,60 +18,40 @@ test('browse window hydrates only the selected capture and adjacent chronology e
   assert.equal(window.newer.text, 'newer neighbor');
   assert.equal(window.older.text, 'older neighbor');
   assert.deepEqual(
-    [...read.contentReads].sort(),
+    [...read.documentReads].sort(),
     [
       'entry:1774432800000-older',
       'entry:1774432860000-current',
       'entry:1774432920000-newer',
     ],
-    'Expected browse to avoid hydrating unrelated capture bodies.'
+    'Expected browse to avoid exact reads for unrelated capture documents.'
   );
 });
 
 function capture(id, text, createdAt) {
-  return {
+  return Object.freeze({
     id,
+    kind: 'capture',
     text,
-    props: {
-      kind: 'capture',
-      writerId: 'test',
-      createdAt,
-      sortKey: id.slice('entry:'.length),
-    },
-  };
+    writerId: 'test',
+    createdAt,
+    sortKey: id.slice('entry:'.length),
+  });
 }
 
 function createCaptureRead(entries) {
-  const propsById = new Map(entries.map((entry) => [entry.id, entry.props]));
-  const textById = new Map(entries.map((entry) => [entry.id, entry.text]));
-  const contentReads = new Set();
-
+  const documentsById = new Map(entries.map(entry => [entry.id, entry]));
+  const documentReads = new Set();
   return {
-    contentReads,
+    documentReads,
     repoDir: '/tmp/think-fake-read',
-    view: {
-      getNodeProps(nodeId) {
-        if (nodeId === CAPTURE_READ_MODEL_ID) {
-          return {
-            kind: 'capture_read_model',
-            latestCaptureId: entries[0]?.id ?? null,
-            totalCaptures: entries.length,
-            recentCaptureRefsJson: stringifyJson(entries.map((entry) => ({
-              id: entry.id,
-              createdAt: entry.props.createdAt,
-              sortKey: entry.props.sortKey,
-            }))),
-          };
-        }
-        return propsById.get(nodeId) ?? null;
-      },
-      query() {
-        throw new Error('Expected browse window to use bounded read-model refs, not graph queries.');
-      },
+    listDocumentsByKind(kind, { limit }) {
+      assert.equal(kind, 'capture');
+      return entries.slice(0, limit);
     },
-    readContent(nodeId) {
-      contentReads.add(nodeId);
-      return ENCODER.encode(textById.get(nodeId) ?? '');
+    readDocument(nodeId) {
+      documentReads.add(nodeId);
+      return documentsById.get(nodeId) ?? null;
     },
   };
 }

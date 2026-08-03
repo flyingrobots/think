@@ -10,8 +10,9 @@ blocked_by:
 Think runtime compatibility must be proven against the published
 `@git-stunts/git-warp` package declared in `package.json`, not against a linked
 local checkout or private package internals. The current product runtime targets
-the public worldline API in `@git-stunts/git-warp@18.2.1`; legacy checkpoint
-repair remains quarantined in the v17 repair lane.
+the public Runtime, Lane, Intent, Observer, and captured-coordinate APIs in
+`@git-stunts/git-warp@19.0.2`; legacy checkpoint repair remains quarantined in
+the v17 repair lane.
 
 ## Acceptance Criteria
 

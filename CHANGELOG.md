@@ -22,7 +22,13 @@ Release discipline:
   direct substrate-layout or `git-warp` runtime leakage
 - removed Think-managed `git-warp` cache/checkpoint reads, doctor checks, and
   ref deletion from product runtime paths
-- upgraded `@git-stunts/git-warp` to 18.2.1
+- replaced the production storage path with the public
+  `@git-stunts/git-warp` v19 Runtime, Lane, Intent, Observer, and captured
+  coordinate APIs, with no v18 compatibility path
+- upgraded the registry dependency to `@git-stunts/git-warp` 19.0.2
+- read bounded native index pages concurrently at one captured coordinate,
+  preserving deterministic newest-first recall while avoiding serial optic
+  latency
 
 ## [0.7.2] - 2026-06-23
 

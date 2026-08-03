@@ -1,16 +1,12 @@
-import { parseJson, stringifyJson } from '../json.js';
 import {
   DERIVER_NAME,
   DERIVER_VERSION,
-  GRAPH_META_ID,
-  GRAPH_MODEL_VERSION,
   REFLECT_MARKERS,
   REFLECT_PROMPT_TYPES,
   SCHEMA_VERSION,
   SESSION_IDLE_GAP_MS,
   SESSION_PREFIX,
 } from './constants.js';
-import { encodeTextContent } from './content.js';
 import {
   compareEntriesNewestFirst,
   createArtifactId,
@@ -19,17 +15,11 @@ import {
   normalizeSeed,
 } from './model.js';
 import {
-  commitThinkWorldline,
-  getLatestStoredEntry,
-  getProducedInSessionId,
-  getStoredEntry,
-  hasNode,
   listEntriesByKind,
 } from './runtime.js';
 
 export function assessReflectability(text) {
   const seedQuality = deriveSeedQuality(createThoughtId(text), text);
-
   if (seedQuality.verdict === 'likely_reflectable') {
     return Object.freeze({
       eligible: true,
@@ -37,7 +27,6 @@ export function assessReflectability(text) {
       text: 'This entry looks like a candidate idea, question, or decision that can be pressure-tested.',
     });
   }
-
   return Object.freeze({
     eligible: false,
     kind: 'not_pressure_testable',
@@ -46,174 +35,24 @@ export function assessReflectability(text) {
   });
 }
 
-export async function ensureFirstDerivedArtifacts(repoDir, read, entry) {
-  if (!entry || entry.kind !== 'capture') {
-    return null;
-  }
-
-  const thoughtId = createThoughtId(entry.text);
-  const seedQuality = deriveSeedQuality(thoughtId, entry.text);
-  const sessionAttribution = await deriveSessionAttribution(read, entry);
-
-  const [
-    thoughtNodeExists,
-    seedQualityExists,
-    sessionNodeExists,
-    sessionArtifactExists,
-    entryProps,
-    graphMetaProps,
-  ] = await Promise.all([
-    hasNode(read, thoughtId),
-    hasNode(read, seedQuality.artifactId),
-    hasNode(read, sessionAttribution.sessionId),
-    hasNode(read, sessionAttribution.artifactId),
-    read.view.getNodeProps(entry.id),
-    read.view.getNodeProps(GRAPH_META_ID),
-  ]);
-
-  const needsCaptureThoughtLink = entryProps?.thoughtId !== thoughtId;
-  const needsCaptureSessionLink = entryProps?.sessionId !== sessionAttribution.sessionId;
-  const needsGraphMetadata = !graphMetaProps || graphMetaProps.graphModelVersion !== GRAPH_MODEL_VERSION;
-
-  if (
-    thoughtNodeExists
-    && seedQualityExists
-    && sessionNodeExists
-    && sessionArtifactExists
-    && !needsCaptureThoughtLink
-    && !needsCaptureSessionLink
-    && !needsGraphMetadata
-  ) {
-    return {
-      thoughtId,
-      seedQuality,
-      sessionAttribution,
-    };
-  }
-
-  await commitThinkWorldline(repoDir, async (patch) => {
-    ensureGraphMetadataNode(patch, graphMetaProps);
-
-    if (!thoughtNodeExists) {
-      patch
-        .addNode(thoughtId)
-        .setProperty(thoughtId, 'kind', 'thought')
-        .setProperty(thoughtId, 'fingerprint', thoughtId.slice('thought:'.length))
-        .setProperty(thoughtId, 'createdAt', entry.createdAt)
-        .setProperty(thoughtId, 'schemaVersion', SCHEMA_VERSION);
-
-      await patch.attachContent(thoughtId, encodeTextContent(entry.text), { mime: 'text/plain; charset=utf-8' });
-    }
-
-    if (needsCaptureThoughtLink) {
-      patch.setProperty(entry.id, 'thoughtId', thoughtId);
-    }
-    patch.addEdge(entry.id, thoughtId, 'expresses');
-
-    if (!seedQualityExists) {
-      addArtifactNode(patch, seedQuality);
-    }
-
-    if (!sessionNodeExists) {
-      patch
-        .addNode(sessionAttribution.sessionId)
-        .setProperty(sessionAttribution.sessionId, 'kind', 'session')
-        .setProperty(sessionAttribution.sessionId, 'createdAt', sessionAttribution.sessionCreatedAt)
-        .setProperty(sessionAttribution.sessionId, 'startSortKey', sessionAttribution.sessionStartSortKey)
-        .setProperty(sessionAttribution.sessionId, 'schemaVersion', SCHEMA_VERSION);
-    }
-
-    if (needsCaptureSessionLink) {
-      patch.setProperty(entry.id, 'sessionId', sessionAttribution.sessionId);
-    }
-    patch.addEdge(entry.id, sessionAttribution.sessionId, 'captured_in');
-
-    if (!sessionArtifactExists) {
-      addArtifactNode(patch, sessionAttribution);
-    }
-  });
-
-  return {
-    thoughtId,
-    seedQuality,
-    sessionAttribution,
-  };
-}
-
-export async function ensureCaptureReadEdges(repoDir, read, entryId) {
-  const entry = await getStoredEntry(read, entryId);
-  if (!entry || entry.kind !== 'capture') {
-    return;
-  }
-
-  const olderEntry = await getLatestStoredEntry(read, 'capture', {
-    excludeIds: [entry.id],
-  });
-
-  if (!olderEntry) {
-    return;
-  }
-
-  await commitThinkWorldline(repoDir, (patch) => {
-    patch.addEdge(entry.id, olderEntry.id, 'older');
-    patch.addEdge(olderEntry.id, entry.id, 'newer');
-  });
-}
-
 export async function listDirectDerivedReceipts(read, seedEntryId) {
-  const receipts = [];
-  const seenEntryIds = new Set();
-  const graphNativeNeighbors = await read.view.query()
-    .match(seedEntryId)
-    .incoming('responds_to')
-    .run();
-
-  for (const neighbor of graphNativeNeighbors.nodes ?? []) {
-    // eslint-disable-next-line no-await-in-loop -- sequential graph traversal of neighbor nodes
-    const entry = await getStoredEntry(read, neighbor.id, neighbor.props ?? null);
-    if (!entry || entry.kind !== 'reflect' || seenEntryIds.has(entry.id)) {
-      continue;
-    }
-
-    seenEntryIds.add(entry.id);
-    receipts.push({
-      relation: 'seed_of',
-      kind: entry.kind,
-      entryId: entry.id,
-      // eslint-disable-next-line no-await-in-loop -- sequential graph read per neighbor
-      sessionId: await getProducedInSessionId(read, entry),
-      promptType: entry.promptType,
-      createdAt: entry.createdAt,
-      sortKey: entry.sortKey,
-    });
-  }
-
   const reflectEntries = await listEntriesByKind(read, 'reflect');
-  for (const entry of reflectEntries) {
-    if (entry.seedEntryId !== seedEntryId || seenEntryIds.has(entry.id)) {
-      continue;
-    }
-
-    receipts.push({
+  return reflectEntries
+    .filter(entry => entry.seedEntryId === seedEntryId)
+    .sort(compareEntriesNewestFirst)
+    .map(entry => Object.freeze({
       relation: 'seed_of',
       kind: entry.kind,
       entryId: entry.id,
       sessionId: entry.sessionId,
       promptType: entry.promptType,
       createdAt: entry.createdAt,
-      sortKey: entry.sortKey,
-    });
-  }
-
-  return receipts
-    .sort(compareEntriesNewestFirst)
-    .map(({ sortKey: _sortKey, ...receipt }) => receipt);
+    }));
 }
 
 export function deriveSeedQuality(thoughtId, text) {
   const normalized = normalizeSeed(text);
-  const eligible = REFLECT_MARKERS.some((pattern) => pattern.test(normalized));
-
+  const eligible = REFLECT_MARKERS.some(pattern => pattern.test(normalized));
   return Object.freeze({
     artifactId: createArtifactId('seed_quality', thoughtId),
     kind: 'seed_quality',
@@ -233,192 +72,61 @@ export function deriveSeedQuality(thoughtId, text) {
 }
 
 export async function deriveSessionAttribution(read, entry) {
-  const latestEntry = await getLatestStoredEntry(read, 'capture', {
-    excludeIds: [entry.id],
-  });
-
+  const captures = await listEntriesByKind(read, 'capture', { limit: 4096 });
+  const latestEntry = captures.find(candidate =>
+    candidate.id !== entry.id
+    && Date.parse(candidate.createdAt) <= Date.parse(entry.createdAt)
+  );
   if (latestEntry && latestEntry.id !== entry.id) {
     const gapMs = Date.parse(entry.createdAt) - Date.parse(latestEntry.createdAt);
     if (gapMs <= SESSION_IDLE_GAP_MS) {
       const activeSessionId = latestEntry.sessionId || `${SESSION_PREFIX}${latestEntry.sortKey}`;
-      const sessionCreatedAt = latestEntry.sessionCreatedAt || latestEntry.createdAt;
-      const sessionStartSortKey = latestEntry.sessionStartSortKey || latestEntry.sortKey;
-
-      return Object.freeze({
-        artifactId: createArtifactId('session_attribution', entry.id, activeSessionId),
-        kind: 'session_attribution',
-        primaryInputKind: 'capture',
-        primaryInputId: entry.id,
-        sessionId: activeSessionId,
-        sessionCreatedAt,
-        sessionStartSortKey,
+      return buildSessionAttribution(entry, activeSessionId, {
+        sessionCreatedAt: latestEntry.createdAt,
+        sessionStartSortKey: latestEntry.sortKey,
         reasonKind: 'temporal_proximity',
         reasonText: 'Captured within 5 minutes of the most recent entry.',
-        deriver: DERIVER_NAME,
-        deriverVersion: DERIVER_VERSION,
-        schemaVersion: SCHEMA_VERSION,
-        createdAt: getCurrentTime().toISOString(),
       });
     }
   }
-
   const sessionId = `${SESSION_PREFIX}${entry.sortKey}`;
+  return buildSessionAttribution(entry, sessionId, {
+    sessionCreatedAt: entry.createdAt,
+    sessionStartSortKey: entry.sortKey,
+    reasonKind: 'new_session_bucket',
+    reasonText: 'Started a new session bucket because no recent capture fell within the 5 minute idle-gap threshold.',
+  });
+}
+
+export async function getCanonicalThought(read, entry) {
+  const thoughtId = entry.thoughtId ?? createThoughtId(entry.text);
+  return Object.freeze({
+    entryId: entry.id,
+    thoughtId,
+    relation: 'expresses',
+    stored: await read.memory.exists(thoughtId),
+  });
+}
+
+export function getSeedQualityReceipt(_read, entry) {
+  return deriveSeedQuality(entry.thoughtId ?? createThoughtId(entry.text), entry.text);
+}
+
+export async function getSessionAttributionReceipt(read, entry) {
+  return await deriveSessionAttribution(read, entry);
+}
+
+function buildSessionAttribution(entry, sessionId, details) {
   return Object.freeze({
     artifactId: createArtifactId('session_attribution', entry.id, sessionId),
     kind: 'session_attribution',
     primaryInputKind: 'capture',
     primaryInputId: entry.id,
     sessionId,
-    sessionCreatedAt: entry.createdAt,
-    sessionStartSortKey: entry.sortKey,
-    reasonKind: 'new_session_bucket',
-    reasonText: 'Started a new session bucket because no recent capture fell within the 5 minute idle-gap threshold.',
+    ...details,
     deriver: DERIVER_NAME,
     deriverVersion: DERIVER_VERSION,
     schemaVersion: SCHEMA_VERSION,
     createdAt: getCurrentTime().toISOString(),
   });
-}
-
-export async function getCanonicalThought(read, entry) {
-  const thoughtId = entry.thoughtId ?? createThoughtId(entry.text);
-  const thoughtProps = await read.view.getNodeProps(thoughtId);
-
-  return Object.freeze({
-    entryId: entry.id,
-    thoughtId,
-    relation: 'expresses',
-    stored: Boolean(thoughtProps),
-  });
-}
-
-export async function getSeedQualityReceipt(read, entry) {
-  const thoughtId = entry.thoughtId ?? createThoughtId(entry.text);
-  const artifactId = createArtifactId('seed_quality', thoughtId);
-  const props = await read.view.getNodeProps(artifactId);
-  if (!props) {
-    return null;
-  }
-
-  return Object.freeze({
-    artifactId,
-    kind: 'seed_quality',
-    primaryInputKind: props.primaryInputKind,
-    primaryInputId: props.primaryInputId,
-    verdict: props.verdict,
-    reasonKind: props.reasonKind,
-    reasonText: props.reasonText,
-    promptFamilies: Object.freeze(parseJsonArray(props.promptFamiliesJson)),
-    deriver: props.deriver,
-    deriverVersion: props.deriverVersion,
-    schemaVersion: props.schemaVersion,
-    createdAt: props.createdAt,
-  });
-}
-
-export async function getSessionAttributionReceipt(read, entry) {
-  const thoughtId = entry.sessionId ?? null;
-  const artifactId = thoughtId
-    ? createArtifactId('session_attribution', entry.id, thoughtId)
-    : (await deriveSessionAttribution(read, entry)).artifactId;
-  const props = await read.view.getNodeProps(artifactId);
-  if (!props) {
-    return null;
-  }
-
-  return Object.freeze({
-    artifactId,
-    kind: 'session_attribution',
-    primaryInputKind: props.primaryInputKind,
-    primaryInputId: props.primaryInputId,
-    sessionId: props.sessionId,
-    reasonKind: props.reasonKind,
-    reasonText: props.reasonText,
-    deriver: props.deriver,
-    deriverVersion: props.deriverVersion,
-    schemaVersion: props.schemaVersion,
-    createdAt: props.createdAt,
-  });
-}
-
-export async function getSessionAttributionReceiptIfPresent(read, entry) {
-  if (!entry.sessionId) {
-    return null;
-  }
-
-  const artifactId = createArtifactId('session_attribution', entry.id, entry.sessionId);
-  const props = await read.view.getNodeProps(artifactId);
-  if (!props) {
-    return null;
-  }
-
-  return Object.freeze({
-    artifactId,
-    kind: 'session_attribution',
-    primaryInputKind: props.primaryInputKind,
-    primaryInputId: props.primaryInputId,
-    sessionId: props.sessionId,
-    reasonKind: props.reasonKind,
-    reasonText: props.reasonText,
-    deriver: props.deriver,
-    deriverVersion: props.deriverVersion,
-    schemaVersion: props.schemaVersion,
-    createdAt: props.createdAt,
-  });
-}
-
-function addArtifactNode(patch, artifact) {
-  patch
-    .addNode(artifact.artifactId)
-    .setProperty(artifact.artifactId, 'kind', artifact.kind)
-    .setProperty(artifact.artifactId, 'primaryInputKind', artifact.primaryInputKind)
-    .setProperty(artifact.artifactId, 'primaryInputId', artifact.primaryInputId)
-    .setProperty(artifact.artifactId, 'deriver', artifact.deriver)
-    .setProperty(artifact.artifactId, 'deriverVersion', artifact.deriverVersion)
-    .setProperty(artifact.artifactId, 'schemaVersion', artifact.schemaVersion)
-    .setProperty(artifact.artifactId, 'createdAt', artifact.createdAt);
-
-  if (artifact.kind === 'seed_quality') {
-    patch
-      .setProperty(artifact.artifactId, 'verdict', artifact.verdict)
-      .setProperty(artifact.artifactId, 'reasonKind', artifact.reasonKind)
-      .setProperty(artifact.artifactId, 'reasonText', artifact.reasonText)
-      .setProperty(artifact.artifactId, 'promptFamiliesJson', stringifyJson(artifact.promptFamilies));
-    patch.addEdge(artifact.artifactId, artifact.primaryInputId, 'derived_from');
-    return;
-  }
-
-  if (artifact.kind === 'session_attribution') {
-    patch
-      .setProperty(artifact.artifactId, 'sessionId', artifact.sessionId)
-      .setProperty(artifact.artifactId, 'reasonKind', artifact.reasonKind)
-      .setProperty(artifact.artifactId, 'reasonText', artifact.reasonText);
-    patch.addEdge(artifact.artifactId, artifact.primaryInputId, 'contextualizes');
-  }
-}
-
-function ensureGraphMetadataNode(patch, graphMetaProps) {
-  if (!graphMetaProps) {
-    patch
-      .addNode(GRAPH_META_ID)
-      .setProperty(GRAPH_META_ID, 'kind', 'graph_meta')
-      .setProperty(GRAPH_META_ID, 'createdAt', getCurrentTime().toISOString());
-  }
-
-  patch
-    .setProperty(GRAPH_META_ID, 'graphModelVersion', GRAPH_MODEL_VERSION)
-    .setProperty(GRAPH_META_ID, 'updatedAt', getCurrentTime().toISOString());
-}
-
-function parseJsonArray(value) {
-  if (!value) {
-    return [];
-  }
-
-  try {
-    const parsed = parseJson(value);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
 }

@@ -123,7 +123,7 @@ function measureCapturePhases(homeDir, text) {
 
   const wallMs = Number(wallEnd - wallStart) / 1_000_000;
 
-  const events = result.stderr
+  const events = `${result.stdout}\n${result.stderr}`
     .split('\n')
     .filter((line) => line.trim().startsWith('{'))
     .map((line) => {
