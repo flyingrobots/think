@@ -68,7 +68,7 @@ function main(argv) {
   }
 
   const repoDir = resolveRepoDir(options);
-  const entry = buildThinkMcpServerEntry({ serverPath, repoDir });
+  const entry = buildThinkMcpServerEntry({ nodePath: process.execPath, serverPath, repoDir });
   const target = planInstallMcpTarget({
     client: options.client,
     scope: options.scope,

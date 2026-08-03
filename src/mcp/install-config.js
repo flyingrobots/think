@@ -226,13 +226,26 @@ export function resolveMindRepoDir(mind, thinkDir) {
   return path.join(thinkDir, directory);
 }
 
-export function buildThinkMcpServerEntry({ serverPath, repoDir = null }) {
+/**
+ * Build the MCP server entry a client will launch.
+ *
+ * `nodePath` records the interpreter that ran the installer rather than a bare
+ * `node`. A bare command only resolves if the client's PATH contains one, and
+ * GUI-launched clients and version managers such as nvm or asdf routinely do
+ * not — the server then fails to start with nothing indicating why. The
+ * trade-off is that the recorded path is version-specific for those managers,
+ * so re-running the installer after a Node upgrade is what repairs it.
+ */
+export function buildThinkMcpServerEntry({ nodePath, serverPath, repoDir = null }) {
+  if (!nodePath || !path.isAbsolute(nodePath)) {
+    throw new ValidationError(`nodePath must be an absolute path, got "${nodePath}"`);
+  }
   if (!serverPath || !path.isAbsolute(serverPath)) {
     throw new ValidationError(`serverPath must be an absolute path, got "${serverPath}"`);
   }
 
   const entry = {
-    command: 'node',
+    command: nodePath,
     args: [serverPath],
   };
 

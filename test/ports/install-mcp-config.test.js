@@ -140,23 +140,38 @@ test('resolveMindRepoDir maps the default mind onto the legacy repo directory', 
   assert.throws(() => resolveMindRepoDir('', '/home/u/.think'), /Mind name must be a single path segment/);
 });
 
-test('buildThinkMcpServerEntry pins an absolute server path and omits env when no mind is selected', () => {
-  const entry = buildThinkMcpServerEntry({ serverPath: '/opt/think/bin/think-mcp.js' });
+test('buildThinkMcpServerEntry records the interpreter that ran the installer', () => {
+  // A bare "node" only resolves if the client's PATH has one. GUI-launched
+  // clients and version managers such as nvm or asdf routinely do not, and the
+  // server then fails to start with nothing pointing at why.
+  const entry = buildThinkMcpServerEntry({
+    nodePath: '/home/u/.nvm/versions/node/v22.14.0/bin/node',
+    serverPath: '/opt/think/bin/think-mcp.js',
+  });
 
   assert.deepEqual(entry, {
-    command: 'node',
+    command: '/home/u/.nvm/versions/node/v22.14.0/bin/node',
     args: ['/opt/think/bin/think-mcp.js'],
   });
 });
 
+test('buildThinkMcpServerEntry requires an absolute interpreter path', () => {
+  assert.throws(
+    () => buildThinkMcpServerEntry({ nodePath: 'node', serverPath: '/opt/think/bin/think-mcp.js' }),
+    /nodePath must be an absolute path/,
+    'Expected a bare command name to be refused, since it defeats the purpose of recording it.'
+  );
+});
+
 test('buildThinkMcpServerEntry routes a mind through THINK_REPO_DIR', () => {
   const entry = buildThinkMcpServerEntry({
+    nodePath: '/usr/local/bin/node',
     serverPath: '/opt/think/bin/think-mcp.js',
     repoDir: '/home/u/.think/claude',
   });
 
   assert.deepEqual(entry, {
-    command: 'node',
+    command: '/usr/local/bin/node',
     args: ['/opt/think/bin/think-mcp.js'],
     env: { THINK_REPO_DIR: '/home/u/.think/claude' },
   });
