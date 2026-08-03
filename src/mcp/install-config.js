@@ -3,6 +3,26 @@ import path from 'node:path';
 import { ValidationError } from '../errors.js';
 
 const CODEX_STARTUP_TIMEOUT_SEC = 60;
+
+/**
+ * A TOML bare key: the only shape safe to interpolate into a table header.
+ *
+ * Server names reach `[${serversKey}.${serverName}]` unquoted. Anything outside
+ * this class can close the header and append caller-chosen TOML — including a
+ * second server with its own `command`, which the client executes on startup.
+ * Whitespace-padded names are rejected too: TOML tolerates them around dotted
+ * key parts, so they parse but resolve to a *different* key than the literal
+ * header text, which breaks block matching and yields a duplicate table.
+ */
+const TOML_BARE_KEY = /^[A-Za-z0-9_-]+$/u;
+
+function assertTomlBareKey(value, label) {
+  if (typeof value !== 'string' || !TOML_BARE_KEY.test(value)) {
+    throw new ValidationError(
+      `${label} must be a TOML bare key (letters, digits, underscore, hyphen), got ${JSON.stringify(value)}`
+    );
+  }
+}
 const DEFAULT_SERVER_NAME = 'think';
 const DEFAULT_MIND_DIRECTORY = 'repo';
 const DEFAULT_MIND_NAME = 'default';
@@ -175,9 +195,7 @@ function validateParsedArgs(parsed) {
   if (parsed.mind && parsed.repoDir) {
     throw new ValidationError('--mind and --repo-dir are mutually exclusive.');
   }
-  if (parsed.serverName.trim() === '') {
-    throw new ValidationError('--server-name cannot be empty.');
-  }
+  assertTomlBareKey(parsed.serverName, '--server-name');
 
   return parsed;
 }
@@ -312,6 +330,8 @@ function resolveJsonAction({ source, previous, entry }) {
 }
 
 export function mergeCodexTomlConfig(existing, { serversKey, serverName, entry }) {
+  assertTomlBareKey(serverName, 'serverName');
+
   const text = String(existing ?? '');
   const block = renderCodexTomlBlock({ serversKey, serverName, entry });
   const header = `[${serversKey}.${serverName}]`;
@@ -334,6 +354,9 @@ export function mergeCodexTomlConfig(existing, { serversKey, serverName, entry }
 }
 
 export function renderCodexTomlBlock({ serversKey, serverName, entry }) {
+  // Exported boundary: cannot assume the CLI parser validated this.
+  assertTomlBareKey(serverName, 'serverName');
+
   const lines = [
     `[${serversKey}.${serverName}]`,
     `command = ${toTomlString(entry.command)}`,

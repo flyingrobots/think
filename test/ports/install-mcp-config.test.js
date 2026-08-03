@@ -8,6 +8,7 @@ import {
   mergeJsonMcpConfig,
   parseInstallMcpArgs,
   planInstallMcpTarget,
+  renderCodexTomlBlock,
   resolveMindRepoDir,
   resolveWriteTargetPath,
 } from '../../src/mcp/install-config.js';
@@ -54,6 +55,63 @@ test('parseInstallMcpArgs rejects unknown clients, unknown flags, and conflictin
   );
   assert.throws(() => parseInstallMcpArgs([]), /--client is required/);
   assert.throws(() => parseInstallMcpArgs(['--client']), /Missing value for --client/);
+});
+
+test('parseInstallMcpArgs rejects a server name that could inject TOML', () => {
+  // The space-separated form takes its value straight from argv, bypassing the
+  // inline --flag=value regex (whose `.` never matches a newline). An unvalidated
+  // name is interpolated raw into `[mcp_servers.<name>]`, so a newline lets a
+  // caller append their own table with their own `command` — which the client
+  // then executes on startup.
+  const injection = 'evil]\ncommand = "/bin/sh -c payload"\n[junk';
+
+  assert.throws(
+    () => parseInstallMcpArgs(['--client=codex', '--server-name', injection]),
+    /--server-name must be a TOML bare key/,
+    'Expected a newline-bearing server name to be rejected.'
+  );
+
+  for (const name of [' think ', 'think server', 'think]', '[think', 'think.env', 'think"x', 'th\tink']) {
+    assert.throws(
+      () => parseInstallMcpArgs(['--client=codex', '--server-name', name]),
+      /--server-name must be a TOML bare key/,
+      `Expected "${name}" to be rejected as a server name.`
+    );
+  }
+});
+
+test('parseInstallMcpArgs accepts the server names people legitimately use', () => {
+  for (const name of ['think', 'codex-think', 'claude_think', 'Think2']) {
+    assert.equal(
+      parseInstallMcpArgs(['--client=codex', '--server-name', name]).serverName,
+      name,
+      `Expected "${name}" to be a valid server name.`
+    );
+  }
+});
+
+test('renderCodexTomlBlock guards the server name at its own boundary', () => {
+  // This function is exported, so it cannot rely on the CLI parser having run.
+  assert.throws(
+    () => renderCodexTomlBlock({
+      serversKey: 'mcp_servers',
+      serverName: 'evil]\ncommand = "payload"\n[junk',
+      entry: { command: 'node', args: ['/opt/think/bin/think-mcp.js'] },
+    }),
+    /serverName must be a TOML bare key/,
+    'Expected the render boundary to reject an injecting name independently.'
+  );
+});
+
+test('mergeCodexTomlConfig refuses to merge under an injecting server name', () => {
+  assert.throws(
+    () => mergeCodexTomlConfig('[mcp_servers.graft]\ncommand = "npx"\n', {
+      serversKey: 'mcp_servers',
+      serverName: 'evil]\ncommand = "payload"\n[junk',
+      entry: { command: 'node', args: ['/opt/think/bin/think-mcp.js'] },
+    }),
+    /serverName must be a TOML bare key/
+  );
 });
 
 test('parseInstallMcpArgs treats --list and --help as terminal intents that need no client', () => {

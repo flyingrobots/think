@@ -35,6 +35,11 @@ Release discipline:
   related location variables to hooks, so tests that shelled out to git resolved
   the hook's repository instead of their own fixture and six tests failed under
   `git push` while passing under `npm run test:fast`
+- fixed `--server-name` accepting arbitrary text, which let the space-separated
+  form inject a whole TOML table — including a second server with its own
+  `command` that the client would execute on startup — into a live Codex config;
+  the name is now validated as a TOML bare key at parse time and at the exported
+  render and merge boundaries
 - added `npm run install-mcp` plus per-client shorthands (`install-mcp:claude`,
   `:codex`, `:cursor`, `:vscode`, `:windsurf`, `:list`) that merge the Think MCP
   server into Claude Code, Codex CLI, Cursor, VS Code, and Windsurf config, with
