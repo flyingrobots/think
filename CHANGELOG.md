@@ -12,6 +12,25 @@ Release discipline:
 
 ## Unreleased
 
+- added `THINK_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS` so operators on cold or slow
+  repositories can raise the post-capture derived-work budget; an unusable value
+  falls back to the 6s default rather than failing the capture
+- extracted `src/capture-followthrough.js` as the single owner of the capture
+  followthrough budget, deferral sentinel, and race, replacing the copies that
+  had been duplicated between the CLI and MCP capture surfaces
+- changed the MCP capture deferral warning to name the budget it exceeded, the
+  surfaces that cannot see the capture yet, the knob that raises the budget, and
+  that retrying would duplicate the thought
+- fixed the Codex TOML merge corrupting configs that express the environment as
+  a `[mcp_servers.think.env]` sub-table; it previously declared `env` twice and
+  left the whole file invalid, breaking every server in it
+- fixed MCP client config writes to be atomic, so an interrupted install cannot
+  truncate live client state such as `~/.claude.json`
+- fixed acceptance fixtures inheriting `THINK_` environment variables, which let
+  a developer with `THINK_REPO_DIR` exported run the suite against their real
+  mind and write test captures into it
+- fixed the MCP capture acceptance assertion depending on wall-clock latency,
+  which failed under the concurrent cold spawns of the full acceptance suite
 - added `npm run install-mcp` plus per-client shorthands (`install-mcp:claude`,
   `:codex`, `:cursor`, `:vscode`, `:windsurf`, `:list`) that merge the Think MCP
   server into Claude Code, Codex CLI, Cursor, VS Code, and Windsurf config, with
