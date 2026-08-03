@@ -10,6 +10,7 @@ import {
   mergeJsonMcpConfig,
   parseInstallMcpArgs,
   planInstallMcpTarget,
+  findTomlStructuralProblem,
   renderCodexTomlBlock,
   resolveMindRepoDir,
   resolveWriteTargetPath,
@@ -509,6 +510,44 @@ test('mergeJsonMcpConfig refuses to clobber a non-object servers collection', ()
     }),
     /Expected "mcpServers" to be an object/
   );
+});
+
+test('findTomlStructuralProblem reports the corruption shapes it can prove', () => {
+  assert.match(findTomlStructuralProblem('broken = [\n'), /unterminated array/u);
+  assert.match(findTomlStructuralProblem('x = { a = 1\n'), /unterminated inline table/u);
+  assert.match(findTomlStructuralProblem('name = "unclosed\n'), /unterminated string on line 1/u);
+  assert.match(
+    findTomlStructuralProblem('[mcp_servers.think]\ncommand = "a"\n\n[mcp_servers.think]\ncommand = "b"\n'),
+    /declared twice, on lines 1 and 4/u
+  );
+});
+
+test('findTomlStructuralProblem accepts documents this module actually writes', () => {
+  const clean = [
+    '# a comment with a stray [ bracket and " quote',
+    '[mcp_servers.graft]',
+    'command = "npx"',
+    'args = ["-y", "@flyingrobots/graft", "serve"]',
+    '',
+    '[mcp_servers.think]',
+    'command = "/usr/local/bin/node"',
+    'args = ["/opt/think/bin/think-mcp.js"]',
+    'env = { THINK_REPO_DIR = "/home/u/.think/claude" }',
+    'startup_timeout_sec = 60',
+    '',
+    '[history]',
+    'persistence = "save-all"',
+    '',
+  ].join('\n');
+
+  assert.equal(findTomlStructuralProblem(clean), null);
+  assert.equal(findTomlStructuralProblem(''), null);
+});
+
+test('findTomlStructuralProblem tolerates a multi-line array, which is valid TOML', () => {
+  const multiline = '[mcp_servers.think]\nargs = [\n  "/opt/think/bin/think-mcp.js",\n]\n';
+
+  assert.equal(findTomlStructuralProblem(multiline), null);
 });
 
 test('mergeCodexTomlConfig appends a server block with an inline env table', () => {

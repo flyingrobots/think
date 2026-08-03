@@ -388,6 +388,124 @@ function resolveJsonAction({ source, previous, entry }) {
   return deepEqual(previous, entry) ? 'unchanged' : 'updated';
 }
 
+/**
+ * Conservative structural check for a TOML document.
+ *
+ * This is deliberately not a full parser — the module has no TOML dependency —
+ * so it reports only what it can prove: unbalanced brackets, braces or quotes,
+ * and duplicate table headers. Both are the shapes that actually bite here. A
+ * malformed existing config was previously appended to, written, and reported as
+ * a success, leaving Codex unable to load any server; failing closed on what we
+ * can detect is strictly better than claiming success.
+ *
+ * Returns null when nothing suspect was found, or a human-readable reason.
+ */
+export function findTomlStructuralProblem(text) {
+  const state = { headers: new Map(), depth: 0, braces: 0 };
+
+  for (const [index, rawLine] of String(text ?? '').split('\n').entries()) {
+    const problem = inspectTomlLine(state, stripTomlComment(rawLine), index + 1);
+    if (problem) {
+      return problem;
+    }
+  }
+
+  if (state.depth !== 0) {
+    return 'unterminated array';
+  }
+  return state.braces === 0 ? null : 'unterminated inline table';
+}
+
+function inspectTomlLine(state, line, lineNumber) {
+  if (line.trim() === '') {
+    return null;
+  }
+  if (countUnbalancedQuotes(line)) {
+    return `unterminated string on line ${String(lineNumber)}`;
+  }
+
+  const header = parseTomlTableHeader(line);
+  if (header) {
+    return recordTomlHeader(state, header, lineNumber);
+  }
+
+  state.depth += countOutsideStrings(line, '[') - countOutsideStrings(line, ']');
+  state.braces += countOutsideStrings(line, '{') - countOutsideStrings(line, '}');
+
+  return state.depth < 0 || state.braces < 0
+    ? `unbalanced bracket on line ${String(lineNumber)}`
+    : null;
+}
+
+function recordTomlHeader(state, header, lineNumber) {
+  const key = header.join('\u0000');
+  const seenAt = state.headers.get(key);
+  if (seenAt) {
+    return `table [${header.join('.')}] declared twice, on lines ${String(seenAt)} and ${String(lineNumber)}`;
+  }
+
+  state.headers.set(key, lineNumber);
+  return null;
+}
+
+function stripTomlComment(line) {
+  let quote = null;
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+    if (quote) {
+      if (character === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (character === '"' || character === "'") {
+      quote = character;
+      continue;
+    }
+    if (character === '#') {
+      return line.slice(0, index);
+    }
+  }
+  return line;
+}
+
+function countUnbalancedQuotes(line) {
+  let quote = null;
+  for (const character of line) {
+    if (quote) {
+      if (character === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (character === '"' || character === "'") {
+      quote = character;
+    }
+  }
+  return quote !== null;
+}
+
+function countOutsideStrings(line, target) {
+  let quote = null;
+  let total = 0;
+  for (const character of line) {
+    if (quote) {
+      if (character === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (character === '"' || character === "'") {
+      quote = character;
+      continue;
+    }
+    if (character === target) {
+      total += 1;
+    }
+  }
+  return total;
+}
+
 export function mergeCodexTomlConfig(existing, { serversKey, serverName, entry }) {
   assertTomlBareKey(serverName, 'serverName');
 

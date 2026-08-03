@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { ValidationError } from '../src/errors.js';
 import {
   buildStagedConfigPath,
+  findTomlStructuralProblem,
   buildThinkMcpServerEntry,
   listInstallMcpClients,
   mergeCodexTomlConfig,
@@ -134,6 +135,10 @@ function readTarget(target) {
   }
 
   if (target.format === 'toml') {
+    // The JSON path refuses to merge into a config it cannot parse. Give TOML the
+    // same treatment, or a malformed config gets appended to, written, and
+    // reported as a success while Codex still cannot load any server.
+    assertUsableToml(raw, `${target.file} is not usable TOML`);
     return raw;
   }
   if (raw.trim() === '') {
@@ -159,6 +164,13 @@ function readTarget(target) {
  * it into place. Rename within a directory is atomic on POSIX and replaces the
  * destination on Windows.
  */
+function assertUsableToml(text, label) {
+  const problem = findTomlStructuralProblem(text);
+  if (problem) {
+    throw new ValidationError(`${label}: ${problem}`);
+  }
+}
+
 function writeTarget(target, merged) {
   // Follow a symlinked config to its real file first, so a dotfiles-managed
   // config keeps its link and actually receives the change.
@@ -172,6 +184,11 @@ function writeTarget(target, merged) {
   const body = target.format === 'toml'
     ? merged.text
     : `${JSON.stringify(merged.config, null, 2)}\n`;
+
+  if (target.format === 'toml') {
+    assertUsableToml(body, 'refusing to write unusable TOML');
+  }
+
   const staged = buildStagedConfigPath(file, {
     pid: process.pid,
     nonce: randomBytes(6).toString('hex'),
