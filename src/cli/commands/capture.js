@@ -1,5 +1,6 @@
 import { ensureGitRepo, hasGitRepo, pushWarpRefs } from '../../git.js';
 import {
+  createCaptureFollowthroughDeadline,
   isDeferredCaptureFollowthrough,
   resolveCaptureFollowthroughTimeoutMs,
   waitForCaptureFollowthrough,
@@ -56,20 +57,23 @@ export async function runCapture(thought, output, reporter) {
 }
 
 async function runCaptureFollowthrough(repoDir, entryId, repoAlreadyExists, reporter) {
-  const timeoutMs = resolveCaptureFollowthroughTimeoutMs();
+  // One deadline for the whole followthrough, not one budget per await.
+  const deadline = createCaptureFollowthroughDeadline(resolveCaptureFollowthroughTimeoutMs());
 
   try {
     const graphStatusPromise = repoAlreadyExists
       ? getGraphModelStatus(repoDir)
       : Promise.resolve(NO_GRAPH_MIGRATION_STATUS);
-    const graphStatus = await waitForCaptureFollowthrough(graphStatusPromise, { timeoutMs });
+    const graphStatus = await waitForCaptureFollowthrough(graphStatusPromise, {
+      timeoutMs: deadline.remainingMs(),
+    });
     if (isDeferredCaptureFollowthrough(graphStatus)) {
       graphStatusPromise.catch(() => {});
       reporter.event('capture.followthrough.deferred', {
         command: 'capture',
         trigger: 'post_capture',
         entryId,
-        timeoutMs,
+        timeoutMs: deadline.budgetMs,
       });
       return;
     }
@@ -88,14 +92,16 @@ async function runCaptureFollowthrough(repoDir, entryId, repoAlreadyExists, repo
       migrateIfNeeded: false,
       ambientContext: getAmbientProjectContext(process.cwd()),
     });
-    const followthrough = await waitForCaptureFollowthrough(followthroughPromise, { timeoutMs });
+    const followthrough = await waitForCaptureFollowthrough(followthroughPromise, {
+      timeoutMs: deadline.remainingMs(),
+    });
     if (isDeferredCaptureFollowthrough(followthrough)) {
       followthroughPromise.catch(() => {});
       reporter.event('capture.followthrough.deferred', {
         command: 'capture',
         trigger: 'post_capture',
         entryId,
-        timeoutMs,
+        timeoutMs: deadline.budgetMs,
       });
     }
   } catch (error) {

@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   CAPTURE_FOLLOWTHROUGH_DEFERRED,
+  createCaptureFollowthroughDeadline,
   DEFAULT_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS,
   isDeferredCaptureFollowthrough,
   MAX_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS,
@@ -93,6 +94,35 @@ test('waitForCaptureFollowthrough propagates followthrough rejections to the cal
     waitForCaptureFollowthrough(Promise.reject(new Error('graph write failed')), { timeoutMs: 10_000 }),
     /graph write failed/
   );
+});
+
+test('a followthrough deadline spends one budget across sequential waits', () => {
+  // The CLI awaits twice: the graph-model probe, then the finalize. Handing each
+  // the full budget lets a slow capture spend up to 2x what the operator
+  // configured, so the budget has to be a shared deadline rather than a
+  // per-await allowance.
+  const clock = { now: 1_000 };
+  const deadline = createCaptureFollowthroughDeadline(500, () => clock.now);
+
+  assert.equal(deadline.remainingMs(), 500);
+
+  clock.now = 1_200;
+  assert.equal(deadline.remainingMs(), 300, 'Expected elapsed time to be deducted.');
+
+  clock.now = 1_500;
+  assert.equal(deadline.remainingMs(), 0, 'Expected an exhausted deadline to report zero.');
+
+  clock.now = 9_999;
+  assert.equal(deadline.remainingMs(), 0, 'Expected an overrun deadline never to go negative.');
+});
+
+test('an exhausted deadline reports itself as expired', () => {
+  const clock = { now: 0 };
+  const deadline = createCaptureFollowthroughDeadline(100, () => clock.now);
+
+  assert.equal(deadline.expired(), false);
+  clock.now = 100;
+  assert.equal(deadline.expired(), true);
 });
 
 test('isDeferredCaptureFollowthrough matches the sentinel by status, not identity', () => {
