@@ -47,6 +47,36 @@ test('METHOD docs use one consistent cycle-only release and README closeout poli
   );
 });
 
+test('README presents the capture followthrough budget as a default, not a fixed constant', () => {
+  const readme = readRepoFile('README.md');
+  const prose = readme.split('```').filter((_, index) => index % 2 === 0).join('\n');
+
+  const absoluteClaims = prose
+    .split('\n')
+    .filter((line) => /(?:abandoned|deferred|defers|gives up)[^.\n]*\b6 seconds\b/iu.test(line))
+    .filter((line) => !/default|configurable/iu.test(line));
+
+  assert.deepEqual(
+    absoluteClaims,
+    [],
+    [
+      'README prose states the followthrough budget as an absolute 6 seconds.',
+      'It is configurable through THINK_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS, so every',
+      'mention outside a code example must say "default" or "configurable".',
+    ].join('\n')
+  );
+});
+
+test('README documents the followthrough budget knob in its environment table', () => {
+  const readme = readRepoFile('README.md');
+
+  assert.match(
+    readme,
+    /\|\s*`THINK_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS`\s*\|/u,
+    'Expected the environment table to carry a row for the followthrough budget.'
+  );
+});
+
 test('MIND_ORCHESTRATION.md exists and is linked from GUIDE.md', () => {
   const mindDoc = readRepoFile('docs/MIND_ORCHESTRATION.md');
   assert.ok(mindDoc.length > 0, 'Expected docs/MIND_ORCHESTRATION.md to exist and have content.');
