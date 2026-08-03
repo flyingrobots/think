@@ -9,6 +9,7 @@ import {
   parseInstallMcpArgs,
   planInstallMcpTarget,
   resolveMindRepoDir,
+  resolveWriteTargetPath,
 } from '../../src/mcp/install-config.js';
 
 test('parseInstallMcpArgs defaults to user scope because Think is a single global memory', () => {
@@ -147,6 +148,47 @@ test('planInstallMcpTarget refuses scopes a client does not actually support', (
   assert.throws(
     () => planInstallMcpTarget({ client: 'windsurf', scope: 'project', home: '/home/u', dir: '/repo' }),
     /windsurf does not support project scope/
+  );
+});
+
+test('resolveWriteTargetPath follows a symlinked config to its real file', () => {
+  // Dotfiles setups symlink ~/.claude.json and friends into a tracked repo.
+  // Staging beside the link and renaming over it would replace the link with a
+  // regular file and leave the tracked source untouched, so the config the user
+  // asked for never takes effect while the install still reports success.
+  const resolved = resolveWriteTargetPath('/home/u/.mcp.json', {
+    realpath: (file) => {
+      assert.equal(file, '/home/u/.mcp.json');
+      return '/home/u/dotfiles/mcp.json';
+    },
+  });
+
+  assert.equal(resolved, '/home/u/dotfiles/mcp.json');
+});
+
+test('resolveWriteTargetPath keeps the requested path when the config does not exist yet', () => {
+  const resolved = resolveWriteTargetPath('/home/u/.cursor/mcp.json', {
+    realpath: () => {
+      const error = new Error('no such file or directory');
+      error.code = 'ENOENT';
+      throw error;
+    },
+  });
+
+  assert.equal(resolved, '/home/u/.cursor/mcp.json');
+});
+
+test('resolveWriteTargetPath propagates unexpected filesystem failures', () => {
+  assert.throws(
+    () => resolveWriteTargetPath('/home/u/.mcp.json', {
+      realpath: () => {
+        const error = new Error('permission denied');
+        error.code = 'EACCES';
+        throw error;
+      },
+    }),
+    /permission denied/,
+    'Expected a non-ENOENT failure to surface rather than silently writing to the unresolved path.'
   );
 });
 

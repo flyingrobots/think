@@ -237,6 +237,30 @@ function supportedScopes(definition) {
   ];
 }
 
+/**
+ * Resolve the path a merged config should actually be written to.
+ *
+ * Dotfiles setups commonly symlink `~/.claude.json`, `~/.cursor/mcp.json` or
+ * `~/.codex/config.toml` into a tracked repository. Staging a replacement
+ * beside the link and renaming over it would swap the link for a regular file
+ * and leave the tracked source untouched — the requested configuration would
+ * never take effect even though the install reported success. Resolving the
+ * link first keeps the write atomic *and* lands it on the real file.
+ *
+ * A config that does not exist yet keeps its requested path. Any other
+ * filesystem failure propagates rather than being written around.
+ */
+export function resolveWriteTargetPath(file, { realpath }) {
+  try {
+    return realpath(file);
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      return file;
+    }
+    throw error;
+  }
+}
+
 export function mergeJsonMcpConfig(existing, { serversKey, serverName, entry }) {
   const source = normalizeExistingJsonConfig(existing);
   const servers = readServersCollection(source, serversKey);

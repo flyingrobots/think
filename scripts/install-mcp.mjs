@@ -8,7 +8,7 @@
  * config, applies the merge, and writes the result back.
  */
 
-import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -22,6 +22,7 @@ import {
   planInstallMcpTarget,
   renderCodexTomlBlock,
   resolveMindRepoDir,
+  resolveWriteTargetPath,
 } from '../src/mcp/install-config.js';
 import { getHomeDir, getThinkDir } from '../src/paths.js';
 
@@ -152,17 +153,20 @@ function readTarget(target) {
  * destination on Windows.
  */
 function writeTarget(target, merged) {
-  const directory = path.dirname(target.file);
+  // Follow a symlinked config to its real file first, so a dotfiles-managed
+  // config keeps its link and actually receives the change.
+  const file = resolveWriteTargetPath(target.file, { realpath: realpathSync });
+  const directory = path.dirname(file);
   mkdirSync(directory, { recursive: true });
 
   const body = target.format === 'toml'
     ? merged.text
     : `${JSON.stringify(merged.config, null, 2)}\n`;
-  const staged = path.join(directory, `.${path.basename(target.file)}.think-install.tmp`);
+  const staged = path.join(directory, `.${path.basename(file)}.think-install.tmp`);
 
   try {
     writeFileSync(staged, body, { encoding: 'utf8', mode: 0o600 });
-    renameSync(staged, target.file);
+    renameSync(staged, file);
   } catch (error) {
     rmSync(staged, { force: true });
     throw error;
