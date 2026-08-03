@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -6,67 +7,80 @@ import test from 'node:test';
 import { GIT_LOCATION_ENV_VARS, repoRoot } from '../fixtures/runtime.js';
 
 /**
- * The set of git repository-location variables to scrub is expressed twice:
- * once in JavaScript for spawned Think processes, and once in shell for the
- * git hooks. Both exist because hooks cannot import the JS module and the JS
- * fixtures cannot source the shell function.
+ * The git variables to scrub are applied in two places: JavaScript for spawned
+ * Think processes, and shell for the git hooks. Both exist because hooks cannot
+ * import the module and the fixtures cannot source the shell function.
  *
- * Nothing else forces the two to agree. Adding a variable to one list alone
- * silently leaves the other path redirectable — the exact failure that made the
- * pre-push hook impossible to satisfy in the first place. This test is the
- * enforcement.
+ * An earlier version of this file only asserted the two hand-maintained lists
+ * agreed with each other. They did — and both were missing eight variables
+ * including GIT_CONFIG. Agreement between two incomplete lists proves nothing,
+ * so these tests assert *completeness* against `git rev-parse --local-env-vars`,
+ * which is what git itself considers repository-local.
  */
 
 const SCRUB_SCRIPT = join(repoRoot, 'scripts', 'hooks', 'lib', 'scrub-git-env.sh');
 
-function readShellScrubbedVars() {
-  const source = readFileSync(SCRUB_SCRIPT, 'utf8');
-  const body = source.slice(source.indexOf('scrub_git_location_env()'));
+function gitLocalEnvVars() {
+  const result = spawnSync('git', ['rev-parse', '--local-env-vars'], { encoding: 'utf8' });
+  assert.equal(result.status, 0, 'Expected git rev-parse --local-env-vars to succeed.');
 
-  return [...body.matchAll(/^\s*unset\s+(GIT_[A-Z_]+)\s*$/gmu)]
-    .map(([, name]) => name)
-    .sort();
+  return String(result.stdout).split('\n').map((line) => line.trim()).filter(Boolean).sort();
 }
 
-test('the shell hook scrubs exactly the git location variables the JS fixtures scrub', () => {
-  const shellVars = readShellScrubbedVars();
-  const jsVars = [...GIT_LOCATION_ENV_VARS].sort();
+test('the JavaScript scrub list covers everything git calls repository-local', () => {
+  const authoritative = gitLocalEnvVars();
+  const covered = new Set(GIT_LOCATION_ENV_VARS);
+  const missing = authoritative.filter((name) => !covered.has(name));
 
   assert.deepEqual(
-    shellVars,
-    jsVars,
+    missing,
+    [],
     [
-      'scripts/hooks/lib/scrub-git-env.sh and GIT_LOCATION_ENV_VARS have drifted.',
-      'Both must scrub the same variables or one execution path stays redirectable.',
-      `shell only: ${shellVars.filter((name) => !jsVars.includes(name)).join(', ') || '(none)'}`,
-      `js only:    ${jsVars.filter((name) => !shellVars.includes(name)).join(', ') || '(none)'}`,
+      'GIT_LOCATION_ENV_VARS is missing variables git reports as repository-local.',
+      'A spawned Think process could still resolve the invoking repository through them.',
+      `missing: ${missing.join(', ')}`,
     ].join('\n')
   );
 });
 
-test('the shell scrub function unsets each variable exactly once', () => {
-  const shellVars = readShellScrubbedVars();
+test('the shell hook derives its scrub set from git rather than hand-maintaining it', () => {
+  const source = readFileSync(SCRUB_SCRIPT, 'utf8');
+
+  assert.match(
+    source,
+    /git rev-parse --local-env-vars/u,
+    'Expected the hook to query git for the authoritative set, so it cannot drift as git adds variables.'
+  );
+  assert.match(source, /unset "\$\{name\}"/u, 'Expected the queried names to actually be unset.');
+});
+
+test('both scrub paths cover the same extra repository-scoping variables', () => {
+  // A few variables scope lookups but are absent from --local-env-vars, so they
+  // are still listed by hand. Those hand-maintained additions must agree.
+  const source = readFileSync(SCRUB_SCRIPT, 'utf8');
+  const declared = /GIT_EXTRA_SCRUBBED_ENV_VARS="([^"]+)"/u.exec(source);
+
+  assert.ok(declared, 'Expected the shell helper to declare its extra variables in one place.');
+
+  const shellExtras = declared[1].trim().split(/\s+/u).sort();
+  const authoritative = new Set(gitLocalEnvVars());
+  const jsExtras = GIT_LOCATION_ENV_VARS.filter((name) => !authoritative.has(name)).sort();
 
   assert.deepEqual(
-    shellVars,
-    [...new Set(shellVars)],
-    'Expected no duplicate unset lines, which would hide a typo in a neighbouring name.'
+    shellExtras,
+    jsExtras,
+    'Expected the hand-maintained extras to match between shell and JavaScript.'
   );
 });
 
-test('every scrubbed variable actually redirects git rather than configuring identity', () => {
-  // Identity and transport variables must not creep into this list: the product
-  // sets its own commit identity, and dropping GIT_SSH_COMMAND would change
-  // push behaviour rather than isolate a repository.
+test('no identity or transport variable is scrubbed', () => {
+  // Dropping GIT_SSH_COMMAND or GIT_AUTHOR_NAME would change push and commit
+  // behaviour rather than isolate a repository.
   const forbidden = GIT_LOCATION_ENV_VARS.filter((name) => (
-    /AUTHOR|COMMITTER|SSH|TERMINAL|ASKPASS|EDITOR|PAGER|CONFIG/u.test(name)
+    /AUTHOR|COMMITTER|SSH|TERMINAL|ASKPASS|EDITOR|PAGER/u.test(name)
   ));
 
-  assert.deepEqual(
-    forbidden,
-    [],
-    'Expected only repository-location variables in the scrub list.'
-  );
+  assert.deepEqual(forbidden, [], 'Expected only repository-scoping variables in the scrub set.');
 });
 
 test('both hooks invoke the shared scrub before running anything', () => {
