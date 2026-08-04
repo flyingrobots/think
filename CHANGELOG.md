@@ -73,11 +73,14 @@ Release discipline:
   a server named `constructor` reported `updated` against an empty collection
 - fixed the capture followthrough deferral not being a guarantee: the timeout was
   unref'd, so a process with nothing else pending exited instead of deferring
-- added a canonical Think mind fixture, committed in-repo as a 34KB tarball with a
-  manifest, plus `scripts/build-smoke-mind-fixture.mjs` to regenerate it and an
-  acceptance test that extracts it and asserts durable reads and the derived layer;
-  in-repo rather than git-cas because git-cas objects live under `refs/cas/*`,
-  which the default push refspec never sends to the remote
+- added a canonical Think mind fixture stored in git-cas as
+  `test-fixtures/readme-smoke-mind-v1`, archived from a real capture session, with
+  `scripts/build-smoke-mind-fixture.mjs` to publish it and an acceptance test that
+  restores it by tree oid, verifies its digest, and reads it back; the mind
+  contains a capture whose followthrough budget expired, freezing a state that
+  cannot be reproduced on demand
+- added a CI step that fetches `refs/cas/*`, which `actions/checkout` does not,
+  and pushed those refs so CAS-backed fixtures are restorable from a fresh clone
 - added `npm run install-mcp` plus per-client shorthands (`install-mcp:claude`,
   `:codex`, `:cursor`, `:vscode`, `:windsurf`, `:list`) that merge the Think MCP
   server into Claude Code, Codex CLI, Cursor, VS Code, and Windsurf config, with
