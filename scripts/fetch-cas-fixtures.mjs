@@ -72,7 +72,12 @@ const fetched = spawnSync('git', ['fetch', '--no-tags', '--quiet', 'origin', REF
 });
 
 if (fetched.status !== 0) {
-  const reason = (fetched.stderr || fetched.error?.message || 'unknown error').trim().split('\n').at(-1);
+  // git's first stderr line carries the actual cause; later lines are advice that
+  // reads as nonsense when quoted out of context.
+  const [reason = 'unknown error'] = (fetched.stderr || fetched.error?.message || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
   process.stderr.write(
     `cas-fixtures: could not fetch ${REFSPEC} (${reason}). `
     + `${String(missing.length)} fixture(s) will skip.\n`
