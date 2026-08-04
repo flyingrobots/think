@@ -7,21 +7,26 @@ Icon?
 .Spotlight-V100
 .Trashes
 
+# A trailing slash matches directories only, so a symlink of the same name is
+# still staged by `git add -A` — which is how the node_modules symlink reached
+# a commit. These names are never something to track, whatever their file type,
+# so they are matched without the slash.
+
 # Editor and local workspace files
 *.swp
 *.swo
 *~
-.idea/
-.vscode/
-.obsidian/
-.claude/
-.codex/
+.idea
+.vscode
+.obsidian
+.claude
+.codex
 .audit_reports/*
 EDITORS-REPORT.md
 
 # Dependencies
-node_modules/
+node_modules
 
 # SwiftPM build output
-macos/.build/
-macos/.dist/
+macos/.build
+macos/.dist
