@@ -60,6 +60,10 @@ Release discipline:
 - fixed concurrent installs silently losing entries: the read-merge-write is now
   serialised with a lock, so registering several minds in parallel keeps every
   server (30 parallel registrations previously left 25)
+- fixed the installer's stale-lock reclamation recursively deleting whatever it
+  found at the lock path, which silently erased a tracked file in a project
+  checkout; reclamation now requires an empty installer-owned directory and
+  claims it by atomic rename so two reclaimers cannot both win
 - fixed `renderCodexTomlBlock` interpolating env keys raw while validating the
   server name, so an env key carrying a quote or newline produced a config no TOML
   parser would read

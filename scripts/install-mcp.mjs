@@ -10,7 +10,7 @@
 
 import { randomBytes } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
-import { lstatSync, mkdirSync, readFileSync, readlinkSync, realpathSync, renameSync, rmdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { lstatSync, mkdirSync, readFileSync, readlinkSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -27,6 +27,7 @@ import {
   resolveMindRepoDir,
   resolveWriteTargetPath,
 } from '../src/mcp/install-config.js';
+import { buildConfigLockPath, claimConfigLock } from '../src/mcp/install-lock.js';
 import { getHomeDir, getThinkDir } from '../src/paths.js';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -108,59 +109,47 @@ function applyMerge({ target, options, entry }) {
 
 const LOCK_RETRY_DELAY_MS = 25;
 const LOCK_TIMEOUT_MS = 10_000;
-const LOCK_STALE_MS = 60_000;
 
 /**
  * Serialise the whole read-modify-write against other installer processes.
  *
- * A directory create is atomic on every supported filesystem, so it doubles as
- * the mutex. A lock older than LOCK_STALE_MS is treated as abandoned by a killed
- * process and reclaimed, so a crash cannot wedge every later install.
+ * `run` is awaited inside the try so the lock is held for its whole duration —
+ * returning it unawaited would release the lock the moment the promise was
+ * created, the day the merge becomes asynchronous.
  */
 async function withConfigLock(target, run) {
-  const lockPath = `${target.file}.think-install.lock`;
+  const lockPath = buildConfigLockPath(target.file);
   mkdirSync(path.dirname(target.file), { recursive: true });
 
-  const deadline = LOCK_TIMEOUT_MS / LOCK_RETRY_DELAY_MS;
-  for (let attempt = 0; attempt < deadline; attempt += 1) {
-    if (tryAcquireLock(lockPath)) {
-      try {
-        return run();
-      } finally {
-        rmdirSync(lockPath);
-      }
+  const claim = await acquireConfigLock(lockPath);
+  try {
+    return await run();
+  } finally {
+    claim.release();
+  }
+}
+
+/**
+ * Poll until the lock is ours or the wall-clock deadline passes. The mechanics
+ * of claiming and reclaiming live in src/mcp/install-lock.js; this is the wait.
+ */
+async function acquireConfigLock(lockPath) {
+  const deadline = Date.now() + LOCK_TIMEOUT_MS;
+
+  for (;;) {
+    const claim = claimConfigLock(lockPath);
+    if (claim.acquired) {
+      return claim;
     }
-    // eslint-disable-next-line no-await-in-loop -- polling a mutex is inherently serial
+    if (Date.now() >= deadline) {
+      throw new ValidationError(
+        `Timed out after ${String(LOCK_TIMEOUT_MS)}ms waiting for ${lockPath}. `
+        + 'Remove it if no install is running.'
+      );
+    }
+
+    // eslint-disable-next-line no-await-in-loop -- waiting on a mutex is inherently serial
     await sleep(LOCK_RETRY_DELAY_MS);
-  }
-
-  throw new ValidationError(
-    `Timed out after ${String(LOCK_TIMEOUT_MS)}ms waiting for ${lockPath}. Remove it if no install is running.`
-  );
-}
-
-function tryAcquireLock(lockPath) {
-  try {
-    mkdirSync(lockPath);
-    return true;
-  } catch (error) {
-    if (error.code !== 'EEXIST') {
-      throw error;
-    }
-    return reclaimStaleLock(lockPath);
-  }
-}
-
-function reclaimStaleLock(lockPath) {
-  try {
-    if (Date.now() - statSync(lockPath).mtimeMs < LOCK_STALE_MS) {
-      return false;
-    }
-    rmSync(lockPath, { recursive: true, force: true });
-    mkdirSync(lockPath);
-    return true;
-  } catch {
-    return false;
   }
 }
 
