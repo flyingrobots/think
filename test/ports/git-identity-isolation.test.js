@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 
-import { createThinkPlumbing, ensureGitRepo } from '../../src/git.js';
+import { ensureGitRepo } from '../../src/git.js';
+import { createHermeticThinkEnv, repoRoot } from '../fixtures/runtime.js';
 import { createTempDir } from '../fixtures/tmp.js';
 
 /**
@@ -28,6 +28,8 @@ import { createTempDir } from '../fixtures/tmp.js';
 
 const HOST_NAME = 'Host Developer';
 const HOST_EMAIL = 'host@example.com';
+const THINK_IDENTITY = 'think <think@local.invalid>';
+const CLI = path.join(repoRoot, 'bin', 'think.js');
 
 function git(cwd, args) {
   const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
@@ -80,58 +82,65 @@ test('ensureGitRepo writes no identity into a repository it creates either', asy
     null,
     'Identity is per-invocation state and does not belong in stored config.'
   );
+  assert.equal(
+    readLocalConfig(mindDir, 'user.name'),
+    null,
+    'Persisting either half of the identity reintroduces the leak.'
+  );
 });
 
-test('Think still commits as the agent, not as whoever ran it', async () => {
-  const parent = await createTempDir('think-agent-ident-');
-  const mindDir = path.join(parent, 'mind');
-  await ensureGitRepo(mindDir);
+test('a real capture commits as the agent with no identity available anywhere', async () => {
+  const homeDir = await createTempDir('think-agent-ident-');
+  const mindDir = path.join(homeDir, 'mind');
 
-  writeFileSync(path.join(mindDir, 'note.txt'), 'a thought\n');
-  const plumbing = createThinkPlumbing(mindDir);
-  assert.ok(plumbing, 'Expected Think plumbing for the mind.');
+  // Strip every source of ambient identity: no repository config (the mind is
+  // created fresh and nothing writes user.* into it), no global or system
+  // config, and no GIT_AUTHOR_*/GIT_COMMITTER_* in the environment. If the
+  // runner's -c arguments were removed, git would refuse to commit and the
+  // capture would fail outright — which is the regression this pins.
+  const captured = spawnSync(process.execPath, [CLI, 'identity check'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    env: stripIdentityEnv(createHermeticThinkEnv({
+      homeDir,
+      upstreamUrl: '',
+      extraEnv: { THINK_REPO_DIR: mindDir },
+    })),
+  });
 
-  // Drive a commit through the same runner Think uses, with no identity in the
-  // repository config and none inherited from the environment.
-  const result = spawnSync('git', ['-C', mindDir, 'add', '-A'], { encoding: 'utf8' });
-  assert.equal(result.status, 0, `git add failed: ${result.stderr}`);
-
-  const commit = spawnSync(
-    'git',
-    ['-C', mindDir, 'commit', '-q', '-m', 'thought'],
-    {
-      encoding: 'utf8',
-      env: stripIdentityEnv(process.env),
-    }
+  assert.equal(
+    captured.status,
+    0,
+    `Capture failed with no ambient git identity: ${captured.stderr || captured.stdout}`
   );
 
-  // Without a stored identity and without env identity, git refuses to commit —
-  // which is exactly why the identity has to travel with each invocation.
-  if (commit.status !== 0) {
-    assert.match(
-      `${commit.stderr}`,
-      /Please tell me who you are|unable to auto-detect email/u,
-      `Unexpected commit failure: ${commit.stderr}`
+  const authors = git(mindDir, ['log', '--all', '--format=%an <%ae>|%cn <%ce>']);
+  const lines = authors.split('\n').filter(Boolean);
+
+  assert.ok(lines.length > 0, 'Expected the capture to have written commits.');
+  for (const line of lines) {
+    assert.equal(
+      line,
+      `${THINK_IDENTITY}|${THINK_IDENTITY}`,
+      `Every mind commit must be authored and committed as ${THINK_IDENTITY}.`
     );
-    return;
   }
 
-  const author = git(mindDir, ['log', '-1', '--format=%an <%ae>']);
-  assert.notEqual(
-    author,
-    `${HOST_NAME} <${HOST_EMAIL}>`,
-    'A mind commit must not be attributed to the host developer.'
+  assert.equal(
+    readLocalConfig(mindDir, 'user.email'),
+    null,
+    'The capture must not have persisted an identity to get itself committed.'
   );
 });
 
+/** Remove every ambient identity source so only the runner's -c args remain. */
 function stripIdentityEnv(env) {
   const copy = { ...env };
   for (const key of Object.keys(copy)) {
-    if (/^(GIT_AUTHOR_|GIT_COMMITTER_|EMAIL$)/u.test(key)) {
+    if (/^(GIT_AUTHOR_|GIT_COMMITTER_)/u.test(key) || key === 'EMAIL') {
       delete copy[key];
     }
   }
-  copy.HOME = '/nonexistent-think-test-home';
   copy.GIT_CONFIG_GLOBAL = '/dev/null';
   copy.GIT_CONFIG_SYSTEM = '/dev/null';
   return copy;
