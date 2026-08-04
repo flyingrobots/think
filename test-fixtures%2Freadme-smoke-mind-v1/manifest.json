@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "formatVersion": "6.0.0",
+  "slug": "test-fixtures/readme-smoke-mind-v1",
+  "filename": "think-readme-smoke-mind.tar.gz",
+  "size": 49641,
+  "chunks": [
+    {
+      "index": 0,
+      "size": 49641,
+      "digest": "c612b9eceea0b67d6b8c633c91ea5606cac156dd06ad924dbe3b0dd72ca7c193",
+      "blob": "cd4adabc5959d99fffb28805eac0e65a112fbac3"
+    }
+  ],
+  "compression": {
+    "algorithm": "gzip"
+  },
+  "manifestHash": "29f550217e0a0b8b6dc76e43cb883acdd1486521b305f6946e449b3d85260f09"
+}
