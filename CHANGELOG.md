@@ -79,8 +79,10 @@ Release discipline:
   restores it by tree oid, verifies its digest, and reads it back; the mind
   contains a capture whose followthrough budget expired, freezing a state that
   cannot be reproduced on demand
-- added a CI step that fetches `refs/cas/*`, which `actions/checkout` does not,
-  and pushed those refs so CAS-backed fixtures are restorable from a fresh clone
+- wired `refs/cas/*` fetching into `npm test` via `npm run fetch:cas-fixtures`, so
+  a local run and CI behave the same way; it skips the network entirely when the
+  fixture trees are already present and never fails the run when they cannot be
+  fetched, and those refs are now pushed so a fresh clone can restore them
 - added `npm run install-mcp` plus per-client shorthands (`install-mcp:claude`,
   `:codex`, `:cursor`, `:vscode`, `:windsurf`, `:list`) that merge the Think MCP
   server into Claude Code, Codex CLI, Cursor, VS Code, and Windsurf config, with

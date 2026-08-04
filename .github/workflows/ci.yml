@@ -21,12 +21,6 @@ jobs:
         node-version: [22]
     steps:
       - uses: actions/checkout@v5
-      # git-cas fixture assets hang off refs/cas/*, which checkout does not fetch.
-      # Tests skip cleanly when they are absent, so a failure here must not fail CI.
-      - name: Fetch git-cas fixture assets
-        run: |
-          git fetch --no-tags origin '+refs/cas/*:refs/cas/*' \
-            || echo "refs/cas/* unavailable; CAS-backed fixtures will skip"
       - uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node-version }}
