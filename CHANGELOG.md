@@ -40,7 +40,79 @@ Release discipline:
   which failed under the concurrent cold spawns of the full acceptance suite
 - documented what a deferred capture actually costs, and logged the read-model
   corruption it exposes as a bad-code backlog item with a reproduction
-
+- fixed the Codex TOML merge corrupting configs that express the environment as
+  a `[mcp_servers.think.env]` sub-table; it previously declared `env` twice and
+  left the whole file invalid, breaking every server in it
+- fixed MCP client config writes to be atomic, so an interrupted install cannot
+  truncate live client state such as `~/.claude.json`
+- fixed `--server-name` accepting arbitrary text, which let the space-separated
+  form inject a whole TOML table — including a second server with its own
+  `command` that the client would execute on startup — into a live Codex config;
+  the name is now validated as a TOML bare key at parse time and at the exported
+  render and merge boundaries
+- fixed the generated MCP entry hardcoding a bare `node`, which failed to start
+  for clients whose PATH has none; it now records the interpreter that ran the
+  installer, and pins `cwd` for project-scoped entries so ambient recall resolves
+  the intended project
+- fixed a dangling config symlink being replaced by a regular file, and made
+  `--print` render the complete merged config rather than only the Think entry
+- fixed the README describing `sourceURL` as free-form when it is URL-validated;
+  an invalid value rejects the whole `capture` call before the thought is saved
+- fixed concurrent installs silently losing entries: the read-merge-write is now
+  serialised with a lock, so registering several minds in parallel keeps every
+  server (30 parallel registrations previously left 25)
+- fixed the installer's stale-lock reclamation recursively deleting whatever it
+  found at the lock path, which silently erased a tracked file in a project
+  checkout; reclamation now requires an empty installer-owned directory and
+  claims it by atomic rename so two reclaimers cannot both win
+- fixed `renderCodexTomlBlock` interpolating env keys raw while validating the
+  server name, so an env key carrying a quote or newline produced a config no TOML
+  parser would read
+- fixed the installer corrupting a Codex config that defines the server inline in
+  its parent table (`[mcp_servers]` plus `think = { ... }`); it appended a second
+  declaration of the same key and reported success, and now refuses with an
+  explanation instead
+- fixed the Codex TOML structural check fabricating "unterminated string" for
+  valid syntax it does not itself write — `\"` escapes and `\"\"\"` / `'''`
+  multi-line strings — which the installer converted into a hard refusal of the
+  user's own valid config; one string-aware scanner now backs comment stripping,
+  delimiter balance and header detection, and reports only what it can prove
+- fixed the Codex TOML path accepting a malformed config, appending to it, and
+  reporting success; both the existing file and the merged result are now checked
+  for unbalanced delimiters and duplicate tables, and the write is refused on
+  failure
+- fixed table headers carrying an inline comment going unrecognised, which
+  appended a duplicate table and invalidated the config
+- fixed control characters in paths being emitted literally into TOML strings
+- fixed existing-entry lookup resolving inherited `Object.prototype` members, so
+  a server named `constructor` reported `updated` against an empty collection
+- added a canonical Think mind fixture stored in git-cas as
+  `test-fixtures/readme-smoke-mind-v1`, archived from a real capture session, with
+  `scripts/build-smoke-mind-fixture.mjs` to publish it and an acceptance test that
+  restores it by tree oid, verifies its digest, and reads it back; the mind
+  contains a capture whose followthrough budget expired, freezing a state that
+  cannot be reproduced on demand
+- wired `refs/cas/*` fetching into `npm test` via `npm run fetch:cas-fixtures`, so
+  a local run and CI behave the same way; it skips the network entirely when the
+  fixture trees are already present, and those refs are now pushed so a fresh
+  clone can restore them
+- fixed the CAS fixture fetch turning every failure into a clean skip, which let
+  a transport, permission or refspec regression delete CAS-backed coverage from
+  CI with no signal; the remote is now asked what it publishes first, so an
+  unreachable remote or one carrying no `refs/cas/*` still skips and keeps
+  offline runs working, while a fixture left unresolved by a remote that does
+  publish them fails loudly
+- added `npm run install-mcp` plus per-client shorthands (`install-mcp:claude`,
+  `:codex`, `:cursor`, `:vscode`, `:windsurf`, `:list`) that merge the Think MCP
+  server into Claude Code, Codex CLI, Cursor, VS Code, and Windsurf config, with
+  `--mind` routing through `THINK_REPO_DIR`, idempotent merges that preserve
+  unrelated servers and config keys, and `--print` / `--json` preview modes
+- added `src/mcp/install-config.js` as the pure argument-parsing, path-planning,
+  and config-merging model behind the install script, covered by
+  `test/ports/install-mcp-config.test.js`
+- rewrote `README.md` to lead with the agent surface: the nine MCP tools and
+  their contracts, per-client MCP configuration, per-agent mind isolation, and a
+  copy-paste agent instruction block for `CLAUDE.md` / `AGENTS.md`
 - added bounded Think read-model facts for latest/recent captures plus
   self-contained fast capture records so default `--remember`, `--recent`, and
   browse bootstrap avoid scanning `entry:*`

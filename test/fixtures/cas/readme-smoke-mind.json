@@ -1,0 +1,36 @@
+{
+  "description": "Canonical Think mind archived from a real capture session, including a capture whose followthrough budget expired.",
+  "slug": "test-fixtures/readme-smoke-mind-v1",
+  "treeOid": "f6beb3469e8c1fe526877f50cb7be1e4eabdcd5a",
+  "tarball": {
+    "name": "think-readme-smoke-mind.tar.gz",
+    "bytes": 49515,
+    "sha256": "58d65241fd88991ddab950181dd3bb21c5fd7b24af7e20d5030573d5b658e597"
+  },
+  "rebuild": "node ./scripts/build-smoke-mind-fixture.mjs --mind <path to a Think mind>",
+  "expected": {
+    "commitCount": 19,
+    "visibleEntryCount": 5,
+    "statsTotal": 5,
+    "visibleTexts": [
+      "Captured through MCP during the smoke test",
+      "generous budget",
+      "Turkey is good in burritos",
+      "Test fixtures now scrub inherited THINK_ env vars so the suite cannot write into a real mind",
+      "Extracted the capture followthrough budget into one shared module so CLI and MCP cannot drift"
+    ],
+    "visibleEntryIds": [
+      "entry:1785794301778-c9ee9565-e206-4b62-af68-bfe4c49fd678",
+      "entry:1785794290392-572a012a-10d9-42ce-bbcc-6681b4b1516d",
+      "entry:1785794277335-d4fc25fc-fc81-484a-9f68-a014ee044d94",
+      "entry:1785794270573-22858e16-8c82-4ab8-aa1f-bf8427ce7c56",
+      "entry:1785794265998-79fb746c-9259-4ba8-88bd-5112d24dfac2"
+    ],
+    "deferred": {
+      "needle": "deferred on purpose",
+      "gitObject": "f1134f057b19da004c62bb35bc002ffd3c673d3b",
+      "note": "This capture is committed to Git but absent from recent and stats. Which surfaces can see a deferred capture is nondeterministic in live use, because the abandoned followthrough keeps running: a separate reproduction had remember return zero matches where this frozen mind returns one. rememberMatchCount therefore records what THIS artifact does, not a contract.",
+      "rememberMatchCount": 1
+    }
+  }
+}
