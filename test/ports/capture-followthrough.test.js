@@ -63,13 +63,23 @@ test('the largest in-range budget is preserved exactly', () => {
 });
 
 test('waitForCaptureFollowthrough clamps an over-range budget it is handed directly', async () => {
-  // The exported helper must not overflow either, since callers can pass a
-  // budget without going through the resolver.
-  const settled = await waitForCaptureFollowthrough(Promise.resolve({ migration: null }), {
+  // An already-resolved followthrough wins on the microtask queue, so it proved
+  // nothing: the test passed even with the clamp removed. Delay the followthrough
+  // past a tick so the budgeted timer is genuinely raced — unclamped, Node
+  // substitutes 1ms and this defers instead of settling.
+  const settlesLater = new Promise((resolve) => {
+    setTimeout(() => resolve({ migration: null }), 40);
+  });
+
+  const settled = await waitForCaptureFollowthrough(settlesLater, {
     timeoutMs: Number.MAX_SAFE_INTEGER,
   });
 
-  assert.deepEqual(settled, { migration: null }, 'Expected no immediate deferral from an over-range budget.');
+  assert.deepEqual(
+    settled,
+    { migration: null },
+    'An over-range budget must clamp to the maximum, not collapse to Node\'s 1ms substitute.'
+  );
 });
 
 test('an exhausted budget defers without racing a timer', async () => {
@@ -124,6 +134,9 @@ test('the deferral timer keeps the process alive long enough to actually fire', 
   const stdout = execFileSync(process.execPath, ['--input-type=module', '--eval', script], {
     cwd: new URL('../..', import.meta.url),
     encoding: 'utf8',
+    // Without this, a regression that leaves the child's await unsettled hangs
+    // the whole suite instead of failing this one test.
+    timeout: 20_000,
   });
 
   assert.equal(

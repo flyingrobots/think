@@ -48,7 +48,7 @@ function buildCaptureFollowthroughDeferredWarning(timeoutMs) {
   return [
     `Capture followthrough deferred after ${String(timeoutMs)}ms;`,
     'raw thought committed to Git and readable via inspect,',
-    'but derived records were skipped and recent/stats may misreport until the next capture.',
+    'but derived records were skipped and recent/stats may misreport until the next healthy capture.',
     'Do not retry, which would duplicate the thought.',
     'Raise THINK_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS if this recurs.',
   ].join(' ');
