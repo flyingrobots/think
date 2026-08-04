@@ -1,4 +1,10 @@
 import { ensureGitRepo, hasGitRepo, pushWarpRefs } from '../../git.js';
+import {
+  createCaptureFollowthroughDeadline,
+  isDeferredCaptureFollowthrough,
+  resolveCaptureFollowthroughTimeoutMs,
+  waitForCaptureFollowthrough,
+} from '../../capture-followthrough.js';
 import { captureProvenanceFromEnvironment } from '../../capture-provenance.js';
 import { getCaptureAmbientContext, getAmbientProjectContext } from '../../project-context.js';
 import { getLocalRepoDir, getUpstreamUrl } from '../../paths.js';
@@ -10,8 +16,6 @@ import {
   saveRawCapture,
 } from '../../store.js';
 
-const CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS = 6_000;
-const CAPTURE_FOLLOWTHROUGH_DEFERRED = Object.freeze({ status: 'deferred' });
 const NO_GRAPH_MIGRATION_STATUS = Object.freeze({
   currentGraphModelVersion: null,
   requiredGraphModelVersion: null,
@@ -53,18 +57,23 @@ export async function runCapture(thought, output, reporter) {
 }
 
 async function runCaptureFollowthrough(repoDir, entryId, repoAlreadyExists, reporter) {
+  // One deadline for the whole followthrough, not one budget per await.
+  const deadline = createCaptureFollowthroughDeadline(resolveCaptureFollowthroughTimeoutMs());
+
   try {
     const graphStatusPromise = repoAlreadyExists
       ? getGraphModelStatus(repoDir)
       : Promise.resolve(NO_GRAPH_MIGRATION_STATUS);
-    const graphStatus = await waitForCaptureFollowthrough(graphStatusPromise);
-    if (graphStatus === CAPTURE_FOLLOWTHROUGH_DEFERRED) {
+    const graphStatus = await waitForCaptureFollowthrough(graphStatusPromise, {
+      timeoutMs: deadline.remainingMs(),
+    });
+    if (isDeferredCaptureFollowthrough(graphStatus)) {
       graphStatusPromise.catch(() => {});
       reporter.event('capture.followthrough.deferred', {
         command: 'capture',
         trigger: 'post_capture',
         entryId,
-        timeoutMs: CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS,
+        timeoutMs: deadline.budgetMs,
       });
       return;
     }
@@ -83,14 +92,16 @@ async function runCaptureFollowthrough(repoDir, entryId, repoAlreadyExists, repo
       migrateIfNeeded: false,
       ambientContext: getAmbientProjectContext(process.cwd()),
     });
-    const followthrough = await waitForCaptureFollowthrough(followthroughPromise);
-    if (followthrough === CAPTURE_FOLLOWTHROUGH_DEFERRED) {
+    const followthrough = await waitForCaptureFollowthrough(followthroughPromise, {
+      timeoutMs: deadline.remainingMs(),
+    });
+    if (isDeferredCaptureFollowthrough(followthrough)) {
       followthroughPromise.catch(() => {});
       reporter.event('capture.followthrough.deferred', {
         command: 'capture',
         trigger: 'post_capture',
         entryId,
-        timeoutMs: CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS,
+        timeoutMs: deadline.budgetMs,
       });
     }
   } catch (error) {
@@ -117,20 +128,6 @@ async function runBackup(repoDir, output, reporter) {
   });
   reporter.event(backedUp ? 'backup.success' : 'backup.pending');
   return 0;
-}
-
-async function waitForCaptureFollowthrough(followthroughPromise) {
-  let timeoutId = null;
-  const timeout = new Promise((resolve) => {
-    timeoutId = setTimeout(() => resolve(CAPTURE_FOLLOWTHROUGH_DEFERRED), CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS);
-    timeoutId.unref?.();
-  });
-
-  try {
-    return await Promise.race([followthroughPromise, timeout]);
-  } finally {
-    clearTimeout(timeoutId);
-  }
 }
 
 export async function runIngest(stdin, output, reporter) {

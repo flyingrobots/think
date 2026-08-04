@@ -6,9 +6,10 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 
 import { createThinkContext, runThink } from '../fixtures/think.js';
 import { makePromptMetric, seedPromptMetricsFile } from '../fixtures/prompt-metrics.js';
-import { baseEnv, repoRoot } from '../fixtures/runtime.js';
+import { ACCEPTANCE_FOLLOWTHROUGH_TIMEOUT_MS, createHermeticThinkEnv, repoRoot } from '../fixtures/runtime.js';
 
 const mcpEntrypoint = './bin/think-mcp.js';
+
 
 test('think MCP server lists the core Think tools', async () => {
   const context = await createThinkContext();
@@ -221,13 +222,14 @@ async function withThinkMcpClient(context, run, extraEnv = {}) {
     command: process.execPath,
     args: [mcpEntrypoint],
     cwd: repoRoot,
-    env: {
-      ...process.env,
-      ...baseEnv,
-      ...extraEnv,
-      HOME: context.homeDir,
-      THINK_UPSTREAM_URL: context.upstreamUrl,
-    },
+    env: createHermeticThinkEnv({
+      extraEnv: {
+        THINK_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS: ACCEPTANCE_FOLLOWTHROUGH_TIMEOUT_MS,
+        ...extraEnv,
+      },
+      homeDir: context.homeDir,
+      upstreamUrl: context.upstreamUrl,
+    }),
     stderr: 'pipe',
   });
   const stderrChunks = [];

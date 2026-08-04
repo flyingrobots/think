@@ -9,7 +9,7 @@ import test from 'node:test';
 import {
   resolveGitWarpPackageRoot,
 } from '../../scripts/repair-v17-mind.mjs';
-import { baseEnv, formatResult, repoRoot } from '../fixtures/runtime.js';
+import { baseEnv, formatResult, repoRoot, scrubThinkEnv } from '../fixtures/runtime.js';
 import { createTempDir } from '../fixtures/tmp.js';
 import { assertSuccess } from '../support/assertions.js';
 
@@ -19,8 +19,74 @@ const REPAIR_ENTRYPOINT = path.join(repoRoot, 'scripts', 'repair-v17-mind.mjs');
 const RESTORE_TIMEOUT_MS = 120_000;
 const GRAPH = 'think';
 
-test('git-cas fixture restores an archived pre-v17 Gemini mind tarball', async () => {
+/**
+ * These fixtures live in git-cas, whose objects hang off refs/cas/*. The default
+ * push refspec is refs/heads/*, so those refs never reach the remote and a fresh
+ * clone — every CI run — cannot restore the archived tarball. Skip explicitly
+ * rather than failing on an unreachable object id, which reports as a broken
+ * fixture instead of missing data.
+ */
+/**
+ * Only a genuinely absent object may skip: refs/cas/* may simply not be in this
+ * checkout. Every other non-zero exit — a malformed oid, an aborted probe, a
+ * repository failure — means the fixture or the environment is broken, and
+ * skipping there would hide it behind "not pushed to the remote".
+ */
+function assertProbeMeansMissingObject(probe, fixture) {
+  const stderr = String(probe.stderr ?? '');
+
+  assert.match(
+    stderr,
+    /Not a valid object name|could not get object info/u,
+    `git cat-file failed for ${fixture.treeOid} in a way that is not a missing object: ${stderr.trim()}`
+  );
+  assert.match(
+    fixture.treeOid,
+    /^[0-9a-f]{40}$/u,
+    `Fixture treeOid ${JSON.stringify(fixture.treeOid)} is not a valid object id; the manifest is wrong.`
+  );
+}
+
+function hasRestorableCasFixture(fixture) {
+  assert.equal(
+    typeof fixture.treeOid,
+    'string',
+    'Fixture manifest must carry a treeOid string; a malformed manifest is a failure, not a skip.'
+  );
+
+  const probe = spawnSync('git', ['cat-file', '-t', fixture.treeOid], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    env: fixtureEnv(),
+  });
+
+  if (probe.error) {
+    throw new assert.AssertionError({
+      message: `Could not run git cat-file for ${fixture.treeOid}: ${probe.error.message}`,
+    });
+  }
+
+  if (probe.status !== 0) {
+    assertProbeMeansMissingObject(probe, fixture);
+    return false;
+  }
+
+  const kind = probe.stdout.trim();
+  assert.equal(
+    kind,
+    'tree',
+    `Fixture object ${fixture.treeOid} resolved to "${kind}" rather than a tree; the manifest is wrong.`
+  );
+
+  return true;
+}
+
+test('git-cas fixture restores an archived pre-v17 Gemini mind tarball', async (t) => {
   const fixture = await readGeminiFixtureMetadata();
+  if (!hasRestorableCasFixture(fixture)) {
+    t.skip(`git-cas object ${fixture.treeOid} is not present; refs/cas/* are not pushed to the remote.`);
+    return;
+  }
   const { mindDir, tarballPath } = await restoreGeminiFixture(fixture);
 
   assert.ok(existsSync(tarballPath), 'Expected git-cas restore to recreate the fixture tarball.');
@@ -48,6 +114,10 @@ test('repair-v17 mind repairs the restored git-cas fixture when v17 migration is
   }
 
   const fixture = await readGeminiFixtureMetadata();
+  if (!hasRestorableCasFixture(fixture)) {
+    t.skip(`git-cas object ${fixture.treeOid} is not present; refs/cas/* are not pushed to the remote.`);
+    return;
+  }
   const { mindDir } = await restoreGeminiFixture(fixture);
 
   const before = parseRepairJson(
@@ -196,8 +266,11 @@ function hasV17GitWarpMigration() {
 }
 
 function fixtureEnv() {
+  // Every repair invocation targets an explicit --repo, but scrub inherited
+  // THINK_ state anyway so a future fallback to $HOME/.think cannot reach a
+  // developer's real mind.
   return {
-    ...process.env,
+    ...scrubThinkEnv(),
     ...baseEnv,
     COPYFILE_DISABLE: '1',
   };

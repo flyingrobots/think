@@ -1,3 +1,8 @@
+import {
+  isDeferredCaptureFollowthrough,
+  resolveCaptureFollowthroughTimeoutMs,
+  waitForCaptureFollowthrough,
+} from '../capture-followthrough.js';
 import { runDiagnostics } from '../doctor.js';
 import { ValidationError, NotFoundError, GraphError } from '../errors.js';
 import { ensureGitRepo, getFsmonitorStatus, hasGitRepo, lsRemote, pushWarpRefs } from '../git.js';
@@ -39,10 +44,16 @@ import {
   StatsOutcome,
 } from './result.js';
 
-const CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS = 6_000;
-const CAPTURE_FOLLOWTHROUGH_DEFERRED = Object.freeze({ status: 'deferred' });
-const CAPTURE_FOLLOWTHROUGH_DEFERRED_WARNING =
-  'Capture followthrough deferred; raw thought saved locally before derived graph updates completed.';
+function buildCaptureFollowthroughDeferredWarning(timeoutMs) {
+  return [
+    `Capture followthrough deferred after ${String(timeoutMs)}ms;`,
+    'raw thought committed to Git and readable via inspect,',
+    'but derived records may still be incomplete when this returns, and recent/stats',
+    'may misreport until that work lands or a later healthy capture rebuilds them.',
+    'Do not retry, which would duplicate the thought.',
+    'Raise THINK_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS if this recurs.',
+  ].join(' ');
+}
 const NO_GRAPH_MIGRATION_STATUS = Object.freeze({
   currentGraphModelVersion: null,
   requiredGraphModelVersion: null,
@@ -61,6 +72,7 @@ const defaultCaptureDeps = Object.freeze({
   graphName: GRAPH_NAME,
   hasGitRepo,
   pushWarpRefs,
+  resolveFollowthroughTimeoutMs: resolveCaptureFollowthroughTimeoutMs,
   saveRawCapture,
   waitForFollowthrough: waitForCaptureFollowthrough,
 });
@@ -103,10 +115,11 @@ function normalizeThoughtText(text) {
 
 async function runCaptureFollowthrough(deps, repoDir, entryId, repoAlreadyExists) {
   const warnings = [];
+  const timeoutMs = deps.resolveFollowthroughTimeoutMs();
   const followthroughPromise = buildCaptureFollowthrough(deps, repoDir, entryId, repoAlreadyExists);
 
   try {
-    const followthrough = await deps.waitForFollowthrough(followthroughPromise);
+    const followthrough = await deps.waitForFollowthrough(followthroughPromise, { timeoutMs });
     if (!isDeferredCaptureFollowthrough(followthrough)) {
       return { migration: followthrough?.migration ?? null, warnings };
     }
@@ -116,7 +129,7 @@ async function runCaptureFollowthrough(deps, repoDir, entryId, repoAlreadyExists
   }
 
   followthroughPromise.catch(() => {});
-  warnings.push(CAPTURE_FOLLOWTHROUGH_DEFERRED_WARNING);
+  warnings.push(buildCaptureFollowthroughDeferredWarning(timeoutMs));
   return { migration: null, warnings };
 }
 
@@ -131,10 +144,6 @@ async function buildCaptureFollowthrough(deps, repoDir, entryId, repoAlreadyExis
   });
 }
 
-function isDeferredCaptureFollowthrough(followthrough) {
-  return followthrough?.status === CAPTURE_FOLLOWTHROUGH_DEFERRED.status;
-}
-
 async function runCaptureBackup(deps, repoDir) {
   const upstreamUrl = deps.getUpstreamUrl();
   if (!upstreamUrl) {
@@ -143,23 +152,6 @@ async function runCaptureBackup(deps, repoDir) {
 
   const backedUp = await deps.pushWarpRefs(repoDir, upstreamUrl, deps.graphName);
   return backedUp ? 'backed_up' : 'pending';
-}
-
-async function waitForCaptureFollowthrough(followthroughPromise) {
-  let timeoutId = null;
-  const timeout = new Promise((resolve) => {
-    timeoutId = setTimeout(
-      () => resolve(CAPTURE_FOLLOWTHROUGH_DEFERRED),
-      CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS
-    );
-    timeoutId.unref?.();
-  });
-
-  try {
-    return await Promise.race([followthroughPromise, timeout]);
-  } finally {
-    clearTimeout(timeoutId);
-  }
 }
 
 export async function listRecentThoughts({ count = null, query = null } = {}) {
