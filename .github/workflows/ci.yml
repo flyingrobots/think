@@ -28,6 +28,8 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm test
+      - name: DELIBERATE FAILURE (throwaway branch, proves the ci gate fails)
+        run: exit 1
 
   # The single required status check.
   #
