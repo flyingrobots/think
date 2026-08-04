@@ -172,11 +172,21 @@ function readOption(arg, args) {
   if (inlineValue !== undefined) {
     return { flag, value: inlineValue };
   }
-  if (args.length === 0) {
+
+  // A recognised option token is never a value. `--mind --print` used to take the
+  // flag as the mind name, which silently disabled preview and wrote the live
+  // config pointing at ~/.think/--print. A value that merely starts with a dash,
+  // such as a relative path, is still accepted.
+  if (args.length === 0 || isOptionToken(args[0])) {
     throw new ValidationError(`Missing value for --${flag}`);
   }
 
   return { flag, value: args.shift() };
+}
+
+function isOptionToken(token) {
+  return Object.hasOwn(BOOLEAN_FLAGS, token)
+    || /^--(client|scope|dir|mind|repo-dir|server-name)(=|$)/u.test(token);
 }
 
 function applyOption(parsed, { flag, value }) {

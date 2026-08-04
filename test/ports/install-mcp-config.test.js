@@ -68,6 +68,32 @@ test('parseInstallMcpArgs accepts the server names people legitimately use', () 
   }
 });
 
+test('an option token is never consumed as another option\'s value', () => {
+  // `--mind --print` took the flag as the value: the mind became "--print",
+  // preview was silently disabled, and the live config was written pointing at
+  // ~/.think/--print. An omitted value must not defeat --print, --json or --help.
+  for (const [flag, follower] of [
+    ['--mind', '--print'],
+    ['--client', '--json'],
+    ['--server-name', '--help'],
+    ['--dir', '--list'],
+    ['--repo-dir', '--scope'],
+  ]) {
+    assert.throws(
+      () => parseInstallMcpArgs(['--client=claude-code', flag, follower]),
+      new RegExp(`Missing value for ${flag}`, 'u'),
+      `Expected ${flag} ${follower} to report a missing value rather than consuming the flag.`
+    );
+  }
+});
+
+test('a value that merely starts with a dash is still usable', () => {
+  // Refusing anything dash-leading would block legitimate relative paths.
+  const parsed = parseInstallMcpArgs(['--client=claude-code', '--dir', '-weird-dir']);
+
+  assert.equal(parsed.dir, '-weird-dir', 'Only recognised option tokens are refused, not any dash.');
+});
+
 test('parseInstallMcpArgs treats --list and --help as terminal intents that need no client', () => {
   assert.equal(parseInstallMcpArgs(['--list']).list, true);
   assert.equal(parseInstallMcpArgs(['--help']).help, true);
