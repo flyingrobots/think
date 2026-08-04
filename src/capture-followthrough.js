@@ -38,12 +38,25 @@ export function resolveCaptureFollowthroughTimeoutMs(environment = process.env) 
     return DEFAULT_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS;
   }
 
+  // The value is already known to be digit-only, so it cannot be negative and
+  // cannot be a typo. Above MAX_SAFE_INTEGER parseInt loses precision, but the
+  // operator's intent is unambiguous — they asked for more than the timer can
+  // hold — so clamp rather than treating imprecision as "unusable" and handing
+  // back the default, which is the opposite of what they asked for.
   const parsed = Number.parseInt(raw, 10);
-  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+  if (parsed <= 0) {
     return DEFAULT_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS;
   }
 
   return Math.min(parsed, MAX_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS);
+}
+
+/**
+ * A time source that cannot be adjusted backwards by the operating system, so a
+ * clock correction mid-capture cannot silently extend the budget.
+ */
+function monotonicNow() {
+  return performance.now();
 }
 
 /**
@@ -54,14 +67,24 @@ export function resolveCaptureFollowthroughTimeoutMs(environment = process.env) 
  * configured. A deadline makes the budget mean total elapsed time, which is what
  * "capture must not hang" actually requires.
  */
-export function createCaptureFollowthroughDeadline(budgetMs, now = Date.now) {
+export function createCaptureFollowthroughDeadline(budgetMs, now = monotonicNow) {
   const startedAt = now();
   const clamped = Math.min(budgetMs, MAX_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS);
 
+  // Elapsed time only ever advances. performance.now() is monotonic already, but
+  // the source is injectable and a wall clock can move backwards — merely
+  // clamping at zero would *restore* spent budget rather than hold it, so the
+  // high-water mark is what makes remainingMs() non-increasing for any source.
+  let highWaterMs = 0;
+  const elapsedMs = () => {
+    highWaterMs = Math.max(highWaterMs, now() - startedAt);
+    return highWaterMs;
+  };
+
   return Object.freeze({
     budgetMs: clamped,
-    remainingMs: () => Math.max(0, clamped - (now() - startedAt)),
-    expired: () => now() - startedAt >= clamped,
+    remainingMs: () => Math.max(0, clamped - elapsedMs()),
+    expired: () => elapsedMs() >= clamped,
   });
 }
 

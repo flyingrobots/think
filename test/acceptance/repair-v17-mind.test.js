@@ -26,6 +26,27 @@ const GRAPH = 'think';
  * rather than failing on an unreachable object id, which reports as a broken
  * fixture instead of missing data.
  */
+/**
+ * Only a genuinely absent object may skip: refs/cas/* may simply not be in this
+ * checkout. Every other non-zero exit — a malformed oid, an aborted probe, a
+ * repository failure — means the fixture or the environment is broken, and
+ * skipping there would hide it behind "not pushed to the remote".
+ */
+function assertProbeMeansMissingObject(probe, fixture) {
+  const stderr = String(probe.stderr ?? '');
+
+  assert.match(
+    stderr,
+    /Not a valid object name|could not get object info/u,
+    `git cat-file failed for ${fixture.treeOid} in a way that is not a missing object: ${stderr.trim()}`
+  );
+  assert.match(
+    fixture.treeOid,
+    /^[0-9a-f]{40}$/u,
+    `Fixture treeOid ${JSON.stringify(fixture.treeOid)} is not a valid object id; the manifest is wrong.`
+  );
+}
+
 function hasRestorableCasFixture(fixture) {
   assert.equal(
     typeof fixture.treeOid,
@@ -45,11 +66,8 @@ function hasRestorableCasFixture(fixture) {
     });
   }
 
-  // A missing object is the one condition worth skipping for — refs/cas/* may
-  // simply not be in this checkout. Anything else means the fixture itself is
-  // wrong, and hiding that behind "not pushed to the remote" would let a broken
-  // manifest disappear silently.
   if (probe.status !== 0) {
+    assertProbeMeansMissingObject(probe, fixture);
     return false;
   }
 

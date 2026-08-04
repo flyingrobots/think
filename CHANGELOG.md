@@ -24,9 +24,10 @@ Release discipline:
 - fixed the CLI spending the followthrough budget once per await, so a slow
   capture could take up to twice the configured budget, and an exhausted budget
   now defers immediately instead of racing a zero-delay timer
-- changed the MCP capture deferral warning to name the budget it exceeded, what
-  the deferral actually skips, the knob that raises the budget, and that retrying
-  would duplicate the thought
+- changed the MCP capture deferral warning to name the budget it exceeded, that
+  derived records may still be incomplete when the call returns rather than
+  cancelled, the knob that raises the budget, and that retrying would duplicate
+  the thought
 - fixed acceptance fixtures inheriting `THINK_` and git repository-location
   environment variables, which let a developer with `THINK_REPO_DIR` exported run
   the suite against their real mind and write test captures into it; the scrub is
