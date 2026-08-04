@@ -28,3 +28,30 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm test
+
+  # The single required status check.
+  #
+  # Branch protection matches a check by its literal context string, and a matrix
+  # job's context is "<job-id> (<matrix values>)" — so requiring "test (22)"
+  # silently stops reporting the moment the matrix changes, and every pull request
+  # blocks forever with a rule that still looks green in the ruleset UI. This job
+  # keeps one stable context, "ci", no matter how the matrix grows.
+  #
+  # always() rather than !cancelled(): a check that never reports is
+  # indistinguishable from a blocked branch, so a cancelled run must fail loudly
+  # instead of going silent.
+  ci:
+    name: ci
+    runs-on: ubuntu-latest
+    needs: [test]
+    if: always()
+    steps:
+      - name: Require every test job to have succeeded
+        env:
+          TEST_RESULT: ${{ needs.test.result }}
+        run: |
+          if [ "$TEST_RESULT" != "success" ]; then
+            echo "test job result: $TEST_RESULT"
+            exit 1
+          fi
+          echo "test job result: success"
