@@ -19,13 +19,34 @@ function resolveGitBinary() {
 
 export const GIT_BINARY = resolveGitBinary();
 
-export const THINK_GIT_CONFIG_ARGS = Object.freeze(['-c', 'core.fsmonitor=false']);
+const THINK_IDENTITY = Object.freeze({
+  name: 'think',
+  email: 'think@local.invalid',
+});
+
+/**
+ * Identity travels with every invocation rather than being written into the
+ * target repository's config.
+ *
+ * `ensureGitRepo` accepts whatever directory it is handed, so persisting
+ * `user.name` and `user.email` there meant that pointing Think at a directory
+ * which is already a Git repository — a source checkout reached through
+ * `THINK_REPO_DIR` — silently rewrote that repository's committer identity, and
+ * every later commit made by hand in it was attributed to an address no forge
+ * can verify. `-c` covers the same ground for both the direct `runGit` path and
+ * git-warp's runner, and leaves nothing behind.
+ */
+export const THINK_GIT_CONFIG_ARGS = Object.freeze([
+  '-c', 'core.fsmonitor=false',
+  '-c', `user.name=${THINK_IDENTITY.name}`,
+  '-c', `user.email=${THINK_IDENTITY.email}`,
+]);
 
 const DEFAULT_GIT_ENV = {
-  GIT_AUTHOR_NAME: 'think',
-  GIT_AUTHOR_EMAIL: 'think@local.invalid',
-  GIT_COMMITTER_NAME: 'think',
-  GIT_COMMITTER_EMAIL: 'think@local.invalid',
+  GIT_AUTHOR_NAME: THINK_IDENTITY.name,
+  GIT_AUTHOR_EMAIL: THINK_IDENTITY.email,
+  GIT_COMMITTER_NAME: THINK_IDENTITY.name,
+  GIT_COMMITTER_EMAIL: THINK_IDENTITY.email,
 };
 
 const NON_INTERACTIVE_PUSH_ENV = {
@@ -44,8 +65,6 @@ export async function ensureGitRepo(repoDir) {
   }
 
   setFsmonitorDisabled(repoDir);
-  runGit(['-C', repoDir, 'config', 'user.name', DEFAULT_GIT_ENV.GIT_AUTHOR_NAME]);
-  runGit(['-C', repoDir, 'config', 'user.email', DEFAULT_GIT_ENV.GIT_AUTHOR_EMAIL]);
 }
 
 export function setFsmonitorDisabled(repoDir) {

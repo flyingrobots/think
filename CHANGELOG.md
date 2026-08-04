@@ -12,6 +12,16 @@ Release discipline:
 
 ## Unreleased
 
+- fixed Think rewriting the committer identity of any Git repository it was
+  pointed at: `ensureGitRepo` wrote `user.name` and `user.email` into the target
+  repo, so a `THINK_REPO_DIR` aimed at a source checkout left every later commit
+  made by hand in it authored as `think@local.invalid`. The signatures on those
+  commits stay cryptographically valid — what breaks is attribution: `.invalid`
+  is a reserved TLD, so no forge can match the address to an account, and GitHub
+  reports them `verified: false` with reason `no_user`, which a branch rule
+  requiring signed commits then treats as unsigned. The identity now travels per
+  invocation via `-c`, which covers both the direct git path and git-warp's
+  runner and leaves nothing behind
 - added `THINK_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS` so operators on cold or slow
   repositories can raise the post-capture derived-work budget; an unusable value
   falls back to the 6s default, and an over-range value is clamped to the 32-bit
