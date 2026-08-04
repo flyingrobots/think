@@ -32,7 +32,7 @@ Requires **Node.js >= 22** and **Git**.
 ## Why agents need this
 
 - **Recall is ambient, not manual.** An agent calls `remember` with no arguments and gets back thoughts captured in *this* project — matched on git remote, git root, working directory, and branch. No query engineering, no embedding index, no vector store to keep warm. (One caveat worth knowing up front: [ambient scope follows the MCP server's working directory](#ambient-scope-follows-the-server-process).)
-- **Capture never blocks the agent.** Raw text is committed locally first. Derived graph work runs as follow-through and is abandoned with a warning once it exceeds its budget — 6 seconds by default, and [configurable](#environment) — rather than holding the tool call open. Network backup is best-effort and never gates the local save.
+- **Capture is bounded, not instant.** Raw text is committed locally first, and that commit is the guarantee. Derived work then runs as follow-through and is abandoned with a warning once it exceeds its budget — 6 seconds by default, and [configurable](#environment) — so a slow repository cannot hold a call open indefinitely. The call does wait for that work and for a best-effort backup before responding, so expect seconds rather than milliseconds.
 - **Every match carries its reason.** `remember` returns `tier`, `matchKinds`, and a human-readable `reasonText` per hit. An agent can tell "this matched the current git remote" from "this happens to contain the word *think*" and weight accordingly.
 - **Separate minds per agent.** Two agents sharing one memory pool will pollute each other. Each mind is an independent Git repo under `~/.think/`, selected per MCP server via `THINK_REPO_DIR`. Claude writes to `~/.think/claude`, Codex writes to `~/.think/codex`, and neither sees the other unless you point them at the same mind.
 - **Git all the way down.** Your agents' memory is a Git repository on your disk. Inspectable, diffable, backup-able, and yours. No service, no account, no telemetry.
@@ -248,14 +248,18 @@ Think is memory, not proof. When a captured thought makes a strong
 claim, tie it to something inspectable — a file, commit, command, or
 test. Prefer `<filepath>#<line>@<git-sha>`.
 
-### Capture is cheap and non-blocking
+### Capture is cheap, but the call is not instant
 
-`capture` returns `status: "saved_locally"` as soon as the raw text is
-committed. A `warnings` entry about deferred follow-through means the
-derived work ran out of budget. The thought is still committed and
-`remember` will still find it; it just will not appear in `recent` or
-`stats` until backfilled. Either way it is not an error — **do not
-retry, because retrying duplicates the thought.**
+The raw thought is committed first, before anything derived is attempted —
+that part is the guarantee. The call itself then waits for derived work and
+a best-effort backup before responding, so it can take several seconds. That
+is normal; it is not a hang.
+
+A `warnings` entry about deferred follow-through means the derived work ran
+out of budget. The thought is committed and readable via `inspect`; which of
+`recent`, `stats` and `remember` can see it afterwards is unreliable. Either
+way it is not an error — **do not retry, because retrying duplicates the
+thought.**
 ```
 
 Trim it to taste, but keep the read trigger, the write trigger, and the "self-contained thoughts" rule. Those three do most of the work.

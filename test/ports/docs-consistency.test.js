@@ -100,6 +100,36 @@ test('README does not describe the URL-validated capture field as free-form', ()
   );
 });
 
+test('the agent instruction block does not contradict the capture contract', () => {
+  // This block is inside a fenced code block, so the prose guards deliberately
+  // skip it — and a correction to the prose once left the block, which is the part
+  // agents actually paste into CLAUDE.md, still carrying the retracted claim.
+  const readme = readRepoFile('README.md');
+  const blocks = readme.split('```').filter((_, index) => index % 2 === 1);
+  const raw = blocks.find((block) => block.startsWith('markdown')) ?? '';
+  // Normalise first: the claims wrap across lines and carry backticks, so a
+  // literal match silently passed while the block still said the wrong thing.
+  const instructions = raw.replace(/`/gu, '').replace(/\s+/gu, ' ');
+
+  assert.ok(instructions.length > 0, 'Expected to find the fenced agent instruction block.');
+
+  assert.doesNotMatch(
+    instructions,
+    /remember will still find it/iu,
+    'Which surfaces see a deferred capture is nondeterministic; the block must not promise remember does.'
+  );
+  assert.doesNotMatch(
+    instructions,
+    /returns[^.]*as soon as the raw text is committed/iu,
+    'capture awaits followthrough and backup before returning, so it is not immediate.'
+  );
+  assert.match(
+    instructions,
+    /do not\s*\n?\s*retry/iu,
+    'The block must still tell agents not to retry a deferred capture.'
+  );
+});
+
 test('MIND_ORCHESTRATION.md exists and is linked from GUIDE.md', () => {
   const mindDoc = readRepoFile('docs/MIND_ORCHESTRATION.md');
   assert.ok(mindDoc.length > 0, 'Expected docs/MIND_ORCHESTRATION.md to exist and have content.');
