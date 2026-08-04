@@ -18,13 +18,14 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, writeSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const fixtureDir = path.join(repoRoot, 'test', 'fixtures', 'cas');
 const REFSPEC = '+refs/cas/*:refs/cas/*';
+const FETCH_TIMEOUT_MS = 60_000;
 
 function readManifestTreeOids() {
   let names;
@@ -38,8 +39,10 @@ function readManifestTreeOids() {
   for (const name of names) {
     try {
       const { treeOid } = JSON.parse(readFileSync(path.join(fixtureDir, name), 'utf8'));
-      if (treeOid) {
-        oids.push({ name, treeOid });
+      // Only a non-empty string may reach spawnSync; a manifest carrying a number
+      // or an object would otherwise escape this parse guard and land in argv.
+      if (typeof treeOid === 'string' && treeOid.trim() !== '') {
+        oids.push({ name, treeOid: treeOid.trim() });
       }
     } catch {
       // A manifest we cannot read is a problem for the test that owns it, not here.
@@ -69,28 +72,48 @@ if (missing.length === 0) {
 const fetched = spawnSync('git', ['fetch', '--no-tags', '--quiet', 'origin', REFSPEC], {
   cwd: repoRoot,
   encoding: 'utf8',
+  // This runs in front of every acceptance suite, so it must never sit waiting.
+  // A credential prompt would otherwise hang `npm test` indefinitely.
+  timeout: FETCH_TIMEOUT_MS,
+  env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_ASKPASS: '', SSH_ASKPASS: '' },
 });
 
 if (fetched.status !== 0) {
-  // git's first stderr line carries the actual cause; later lines are advice that
-  // reads as nonsense when quoted out of context.
-  const [reason = 'unknown error'] = (fetched.stderr || fetched.error?.message || '')
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
-  process.stderr.write(
-    `cas-fixtures: could not fetch ${REFSPEC} (${reason}). `
+  reportAndExit(
+    `cas-fixtures: could not fetch ${REFSPEC} (${describeFetchFailure(fetched)}). `
     + `${String(missing.length)} fixture(s) will skip.\n`
   );
-  process.exit(0);
 }
 
 const stillMissing = missing.filter(({ treeOid }) => !isPresent(treeOid));
 if (stillMissing.length > 0) {
-  process.stderr.write(
+  reportAndExit(
     `cas-fixtures: fetched ${REFSPEC} but ${stillMissing.map(({ name }) => name).join(', ')} `
     + 'remain unresolved; those fixtures will skip.\n'
   );
+}
+
+/**
+ * git's first stderr line carries the cause; later lines are advice that reads as
+ * nonsense quoted out of context. stderr and the spawn error are considered
+ * independently, because a whitespace-only stderr is truthy and previously
+ * suppressed a perfectly good error message in favour of "unknown error".
+ */
+function describeFetchFailure(result) {
+  const firstLine = (text) => String(text ?? '')
+    .split('\n')
+    .map((line) => line.trim())
+    .find(Boolean);
+
+  return firstLine(result.stderr) ?? firstLine(result.error?.message) ?? 'unknown error';
+}
+
+/**
+ * Write a diagnostic and exit successfully. writeSync avoids the truncation an
+ * immediate process.exit can cause on a piped, asynchronous stderr.
+ */
+function reportAndExit(message) {
+  writeSync(process.stderr.fd, message);
   process.exit(0);
 }
 
