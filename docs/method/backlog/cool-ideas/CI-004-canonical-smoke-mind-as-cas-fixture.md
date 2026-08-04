@@ -21,7 +21,7 @@ restores an archived mind tarball through git-cas from a manifest in
 git-cas stores its objects under `refs/cas/*`. The default push refspec is
 `refs/heads/*`, so those refs never reach the remote:
 
-```
+```bash
 $ git for-each-ref refs/cas/     # local
 refs/cas/vault -> cc066d75bfc6251f774aac6e0c605712c1973b0b
 $ git ls-remote origin 'refs/cas/*' | wc -l

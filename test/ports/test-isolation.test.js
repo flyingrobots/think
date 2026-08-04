@@ -24,6 +24,16 @@ const FIXTURE_OWNED_THINK_VARS = new Set([
   'THINK_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS',
 ]);
 
+/**
+ * One normalising check for both leak assertions. They previously disagreed —
+ * one compared the raw key and one uppercased it — so a mixed-case fixture-owned
+ * variable counted as a leak in one test and not the other.
+ */
+function isLeakedThinkVar(key) {
+  const normalized = key.toUpperCase();
+  return normalized.startsWith(THINK_ENV_PREFIX) && !FIXTURE_OWNED_THINK_VARS.has(normalized);
+}
+
 const HOME_DIR = '/tmp/think-home-test';
 const UPSTREAM_URL = '/tmp/think-upstream.git';
 
@@ -59,9 +69,7 @@ test('every inherited THINK_ variable is scrubbed, not just the known dangerous 
     },
   });
 
-  const leaked = Object.keys(env)
-    .filter((key) => key.startsWith(THINK_ENV_PREFIX))
-    .filter((key) => !FIXTURE_OWNED_THINK_VARS.has(key));
+  const leaked = Object.keys(env).filter(isLeakedThinkVar);
 
   assert.deepEqual(
     leaked,
@@ -115,9 +123,7 @@ test('mixed-case Think variables are scrubbed, because Windows env lookup is cas
     },
   });
 
-  const leaked = Object.keys(env).filter((key) => (
-    key.toUpperCase().startsWith('THINK_') && !FIXTURE_OWNED_THINK_VARS.has(key.toUpperCase())
-  ));
+  const leaked = Object.keys(env).filter(isLeakedThinkVar);
 
   assert.deepEqual(leaked, [], 'Expected mixed-case Think variables to be scrubbed too.');
 });

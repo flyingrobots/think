@@ -27,13 +27,40 @@ const GRAPH = 'think';
  * fixture instead of missing data.
  */
 function hasRestorableCasFixture(fixture) {
+  assert.equal(
+    typeof fixture.treeOid,
+    'string',
+    'Fixture manifest must carry a treeOid string; a malformed manifest is a failure, not a skip.'
+  );
+
   const probe = spawnSync('git', ['cat-file', '-t', fixture.treeOid], {
     cwd: repoRoot,
     encoding: 'utf8',
     env: fixtureEnv(),
   });
 
-  return probe.status === 0 && probe.stdout.trim() === 'tree';
+  if (probe.error) {
+    throw new assert.AssertionError({
+      message: `Could not run git cat-file for ${fixture.treeOid}: ${probe.error.message}`,
+    });
+  }
+
+  // A missing object is the one condition worth skipping for — refs/cas/* may
+  // simply not be in this checkout. Anything else means the fixture itself is
+  // wrong, and hiding that behind "not pushed to the remote" would let a broken
+  // manifest disappear silently.
+  if (probe.status !== 0) {
+    return false;
+  }
+
+  const kind = probe.stdout.trim();
+  assert.equal(
+    kind,
+    'tree',
+    `Fixture object ${fixture.treeOid} resolved to "${kind}" rather than a tree; the manifest is wrong.`
+  );
+
+  return true;
 }
 
 test('git-cas fixture restores an archived pre-v17 Gemini mind tarball', async (t) => {

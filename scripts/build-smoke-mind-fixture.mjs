@@ -90,6 +90,10 @@ function observeMind(mind) {
     10
   );
 
+  const rememberMatchCount = eventsOfKind(
+    think(mind, ['--remember', DEFERRED_NEEDLE]),
+    'remember.match'
+  ).length;
   const deferredObject = findGitObjectContaining(mind, DEFERRED_NEEDLE);
   if (!deferredObject) {
     throw new ValidationError(`Mind does not contain the deferred capture text "${DEFERRED_NEEDLE}".`);
@@ -98,11 +102,11 @@ function observeMind(mind) {
     throw new ValidationError('Deferred capture is visible in --recent; this mind no longer shows the split.');
   }
 
-  return { recent, stats, commitCount, deferredObject };
+  return { recent, stats, commitCount, deferredObject, rememberMatchCount };
 }
 
 function buildManifest({ mind, treeOid, bytes }) {
-  const { recent, stats, commitCount, deferredObject } = observeMind(mind);
+  const { recent, stats, commitCount, deferredObject, rememberMatchCount } = observeMind(mind);
 
   return {
     description: 'Canonical Think mind archived from a real capture session, including a capture whose followthrough budget expired.',
@@ -123,6 +127,7 @@ function buildManifest({ mind, treeOid, bytes }) {
       deferred: {
         needle: DEFERRED_NEEDLE,
         gitObject: deferredObject,
+        rememberMatchCount,
         note: [
           'This capture is committed to Git but absent from recent and stats. Which',
           'surfaces can see a deferred capture is nondeterministic in live use, because',

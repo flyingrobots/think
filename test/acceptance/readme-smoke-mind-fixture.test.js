@@ -196,4 +196,17 @@ test('the deferred capture is durable in Git yet missing from the read surfaces'
     manifest.expected.visibleEntryCount,
     'stats and recent should agree with each other even while both omit the deferred capture.'
   );
+
+  // remember is pinned to what THIS artifact does, not to a contract. A separate
+  // reproduction had it return zero for a deferred capture while this frozen mind
+  // returns one — that disagreement is the defect, so the assertion records the
+  // instance and the manifest says so.
+  const matches = think(mindDir, ['--remember', needle])
+    .filter((event) => event.event === 'remember.match');
+
+  assert.equal(
+    matches.length,
+    manifest.expected.deferred.rememberMatchCount,
+    'Restored mind disagrees with the recall behaviour recorded in its manifest.'
+  );
 });

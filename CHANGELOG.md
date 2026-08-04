@@ -55,7 +55,7 @@ Release discipline:
   an invalid value rejects the whole `capture` call before the thought is saved
 - corrected the documented cost of a deferred capture: the raw thought stays
   readable through `inspect`, the derived layer is skipped, and the `recent`/
-  `stats` read model misreports until the next capture — an earlier claim that
+  `stats` read model misreports until the next healthy capture — an earlier claim that
   `remember` still found it was drawn from one unrepeated observation and is wrong
 - fixed concurrent installs silently losing entries: the read-merge-write is now
   serialised with a lock, so registering several minds in parallel keeps every

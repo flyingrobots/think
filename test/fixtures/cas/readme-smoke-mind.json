@@ -29,7 +29,8 @@
     "deferred": {
       "needle": "deferred on purpose",
       "gitObject": "f1134f057b19da004c62bb35bc002ffd3c673d3b",
-      "note": "This capture is committed to Git but absent from recent and stats. Which surfaces can see a deferred capture is nondeterministic in live use, because the abandoned followthrough keeps running; freezing this mind makes one such state reproducible so a fix has a regression target."
+      "note": "This capture is committed to Git but absent from recent and stats. Which surfaces can see a deferred capture is nondeterministic in live use, because the abandoned followthrough keeps running: a separate reproduction had remember return zero matches where this frozen mind returns one. rememberMatchCount therefore records what THIS artifact does, not a contract.",
+      "rememberMatchCount": 1
     }
   }
 }

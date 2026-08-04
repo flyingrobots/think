@@ -40,8 +40,10 @@ So a single deferral does three things:
    `stats` report 1 instead of 4.
 2. **Loses the deferred capture from both surfaces permanently** once a later
    healthy capture rebuilds the read model.
-3. **Leaves it unreachable through `remember`**, so the only way back to it is
-   `inspect` with the entry id, or raw Git.
+3. **Leaves recall unreliable.** In this reproduction `remember` returned zero
+   matches; the archived mind in `test/fixtures/cas/readme-smoke-mind.json`
+   returns one for its own deferred capture. Which surfaces can see it is not
+   fixed — that disagreement is the defect, not a contract to encode.
 
 ## Not introduced by the followthrough-budget work
 
