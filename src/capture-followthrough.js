@@ -80,6 +80,14 @@ export async function waitForCaptureFollowthrough(followthroughPromise, { timeou
     timeoutMs ?? resolveCaptureFollowthroughTimeoutMs(),
     MAX_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS
   );
+
+  // A spent budget has nothing left to grant. Racing setTimeout(0) instead let an
+  // already-settled followthrough win the race, so work slipped through a budget
+  // the caller had already exhausted.
+  if (budgetMs <= 0) {
+    return CAPTURE_FOLLOWTHROUGH_DEFERRED;
+  }
+
   let timeoutId = null;
   const timeout = new Promise((resolve) => {
     // Deliberately not unref'd. An unref'd timer does not hold the event loop, so

@@ -72,6 +72,25 @@ test('waitForCaptureFollowthrough clamps an over-range budget it is handed direc
   assert.deepEqual(settled, { migration: null }, 'Expected no immediate deferral from an over-range budget.');
 });
 
+test('an exhausted budget defers without racing a timer', async () => {
+  // The CLI's second await receives deadline.remainingMs(), which is 0 once the
+  // budget is spent. Racing setTimeout(0) let an already-settled followthrough
+  // win, so work slipped through a budget that had nothing left.
+  const result = await waitForCaptureFollowthrough(Promise.resolve({ migration: null }), {
+    timeoutMs: 0,
+  });
+
+  assert.equal(isDeferredCaptureFollowthrough(result), true, 'A spent budget must defer.');
+});
+
+test('a negative budget is treated as exhausted rather than as an immediate timer', async () => {
+  const result = await waitForCaptureFollowthrough(Promise.resolve({ migration: null }), {
+    timeoutMs: -1,
+  });
+
+  assert.equal(isDeferredCaptureFollowthrough(result), true);
+});
+
 test('waitForCaptureFollowthrough returns the settled followthrough when it beats the budget', async () => {
   const result = await waitForCaptureFollowthrough(Promise.resolve({ migration: null }), {
     timeoutMs: 10_000,
