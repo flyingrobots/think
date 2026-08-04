@@ -656,8 +656,14 @@ export function renderCodexTomlBlock({ serversKey, serverName, entry }) {
   ];
 
   if (entry.env) {
+    // Interpolated raw into the inline table, exactly like the server name, so it
+    // needs the same guard: a key carrying a quote or newline yields a config no
+    // TOML parser will read, disabling every server in the file.
     const pairs = Object.entries(entry.env)
-      .map(([key, value]) => `${key} = ${toTomlString(value)}`)
+      .map(([key, value]) => {
+        assertTomlBareKey(key, 'env key');
+        return `${key} = ${toTomlString(value)}`;
+      })
       .join(', ');
     lines.push(`env = { ${pairs} }`);
   }

@@ -60,6 +60,9 @@ Release discipline:
 - fixed concurrent installs silently losing entries: the read-merge-write is now
   serialised with a lock, so registering several minds in parallel keeps every
   server (30 parallel registrations previously left 25)
+- fixed `renderCodexTomlBlock` interpolating env keys raw while validating the
+  server name, so an env key carrying a quote or newline produced a config no TOML
+  parser would read
 - fixed the installer corrupting a Codex config that defines the server inline in
   its parent table (`[mcp_servers]` plus `think = { ... }`); it appended a second
   declaration of the same key and reported success, and now refuses with an
