@@ -94,8 +94,14 @@ Release discipline:
   cannot be reproduced on demand
 - wired `refs/cas/*` fetching into `npm test` via `npm run fetch:cas-fixtures`, so
   a local run and CI behave the same way; it skips the network entirely when the
-  fixture trees are already present and never fails the run when they cannot be
-  fetched, and those refs are now pushed so a fresh clone can restore them
+  fixture trees are already present, and those refs are now pushed so a fresh
+  clone can restore them
+- fixed the CAS fixture fetch turning every failure into a clean skip, which let
+  a transport, permission or refspec regression delete CAS-backed coverage from
+  CI with no signal; the remote is now asked what it publishes first, so an
+  unreachable remote or one carrying no `refs/cas/*` still skips and keeps
+  offline runs working, while a fixture left unresolved by a remote that does
+  publish them fails loudly
 - added `npm run install-mcp` plus per-client shorthands (`install-mcp:claude`,
   `:codex`, `:cursor`, `:vscode`, `:windsurf`, `:list`) that merge the Think MCP
   server into Claude Code, Codex CLI, Cursor, VS Code, and Windsurf config, with

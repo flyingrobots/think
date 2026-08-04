@@ -13,8 +13,13 @@
  *
  * - If every manifest's tree is already present, do nothing. The common local
  *   case makes no network call at all, so the suite still runs offline.
- * - A failed fetch is never fatal. No remote, no network, or no permission simply
- *   leaves the fixtures absent, and the tests that need them skip with a reason.
+ * - Absence and failure are not the same thing. A remote that cannot be reached,
+ *   or that publishes no `refs/cas/*` at all, leaves the fixtures absent and the
+ *   tests that need them skip with a reason — that is the offline local run. But
+ *   once the remote is known to publish `refs/cas/*`, a fixture that stays
+ *   unresolved is a transport, permission or refspec regression, and exiting 0
+ *   there would delete CAS coverage from CI without anyone noticing. That case
+ *   fails loudly.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -69,27 +74,43 @@ if (missing.length === 0) {
   process.exit(0);
 }
 
-const fetched = spawnSync('git', ['fetch', '--no-tags', '--quiet', 'origin', REFSPEC], {
-  cwd: repoRoot,
-  encoding: 'utf8',
-  // This runs in front of every acceptance suite, so it must never sit waiting.
-  // A credential prompt would otherwise hang `npm test` indefinitely.
-  timeout: FETCH_TIMEOUT_MS,
-  env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_ASKPASS: '', SSH_ASKPASS: '' },
-});
+const remote = probeRemoteCasRefs();
 
+if (!remote.reachable) {
+  reportAndExit(
+    `cas-fixtures: cannot reach origin (${remote.reason}); `
+    + `${String(missing.length)} fixture(s) will skip.\n`,
+    0
+  );
+}
+
+if (!remote.publishesCasRefs) {
+  reportAndExit(
+    `cas-fixtures: origin publishes no refs/cas/*; `
+    + `${String(missing.length)} fixture(s) will skip.\n`,
+    0
+  );
+}
+
+const fetched = runGitWithoutPrompting(['fetch', '--no-tags', '--quiet', 'origin', REFSPEC]);
+
+// Past this point the remote is known to publish refs/cas/*, so an absent
+// fixture is a failure rather than a fact about the environment.
 if (fetched.status !== 0) {
   reportAndExit(
-    `cas-fixtures: could not fetch ${REFSPEC} (${describeFetchFailure(fetched)}). `
-    + `${String(missing.length)} fixture(s) will skip.\n`
+    `cas-fixtures: origin publishes refs/cas/* but fetching ${REFSPEC} failed `
+    + `(${describeFetchFailure(fetched)}).\n`,
+    1
   );
 }
 
 const stillMissing = missing.filter(({ treeOid }) => !isPresent(treeOid));
 if (stillMissing.length > 0) {
+  const described = stillMissing.map(({ name, treeOid }) => `${name} (${treeOid})`).join(', ');
   reportAndExit(
-    `cas-fixtures: fetched ${REFSPEC} but ${stillMissing.map(({ name }) => name).join(', ')} `
-    + 'remain unresolved; those fixtures will skip.\n'
+    `cas-fixtures: fetched ${REFSPEC} from a remote that publishes it, but `
+    + `${described} remain unresolved.\n`,
+    1
   );
 }
 
@@ -109,12 +130,45 @@ function describeFetchFailure(result) {
 }
 
 /**
- * Write a diagnostic and exit successfully. writeSync avoids the truncation an
- * immediate process.exit can cause on a piped, asynchronous stderr.
+ * Run git with every interactive prompt disabled and a hard time limit, so this
+ * can never sit in front of the acceptance suite waiting for a credential.
  */
-function reportAndExit(message) {
+function runGitWithoutPrompting(args) {
+  return spawnSync('git', args, {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    timeout: FETCH_TIMEOUT_MS,
+    env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_ASKPASS: '', SSH_ASKPASS: '' },
+  });
+}
+
+/**
+ * Ask the remote what it publishes before deciding whether a missing fixture is
+ * a fact or a fault. Unreachable and empty are reported separately because only
+ * the first is compatible with an offline local run.
+ */
+function probeRemoteCasRefs() {
+  const listed = runGitWithoutPrompting(['ls-remote', '--refs', 'origin', 'refs/cas/*']);
+
+  if (listed.status !== 0) {
+    return { reachable: false, publishesCasRefs: false, reason: describeFetchFailure(listed) };
+  }
+
+  return {
+    reachable: true,
+    publishesCasRefs: String(listed.stdout ?? '').trim() !== '',
+    reason: null,
+  };
+}
+
+/**
+ * Write a diagnostic and exit with the given code. writeSync avoids the
+ * truncation an immediate process.exit can cause on a piped, asynchronous
+ * stderr.
+ */
+function reportAndExit(message, code) {
   writeSync(process.stderr.fd, message);
-  process.exit(0);
+  process.exit(code);
 }
 
 process.stdout.write(`cas-fixtures: fetched ${String(missing.length)} fixture asset(s) from refs/cas/*\n`);
