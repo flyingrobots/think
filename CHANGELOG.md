@@ -12,6 +12,34 @@ Release discipline:
 
 ## Unreleased
 
+- added `THINK_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS` so operators on cold or slow
+  repositories can raise the post-capture derived-work budget; an unusable value
+  falls back to the 6s default, and an over-range value is clamped to the 32-bit
+  timer range rather than collapsing to Node's 1ms substitute
+- extracted `src/capture-followthrough.js` as the single owner of the capture
+  followthrough budget, deferral sentinel and race, replacing the copies that had
+  been duplicated between the CLI and MCP capture surfaces
+- fixed the capture followthrough deferral not being a guarantee: the timeout was
+  unref'd, so a process with nothing else pending exited instead of deferring
+- fixed the CLI spending the followthrough budget once per await, so a slow
+  capture could take up to twice the configured budget, and an exhausted budget
+  now defers immediately instead of racing a zero-delay timer
+- changed the MCP capture deferral warning to name the budget it exceeded, what
+  the deferral actually skips, the knob that raises the budget, and that retrying
+  would duplicate the thought
+- fixed acceptance fixtures inheriting `THINK_` and git repository-location
+  environment variables, which let a developer with `THINK_REPO_DIR` exported run
+  the suite against their real mind and write test captures into it; the scrub is
+  case-insensitive and the git set is queried from `git rev-parse --local-env-vars`
+- fixed the pre-push hook being impossible to satisfy: git exports `GIT_DIR` and
+  related location variables to hooks, so tests that shelled out to git resolved
+  the hook's repository instead of their own fixture and six tests failed under
+  `git push` while passing under `npm run test:fast`
+- fixed the MCP capture acceptance assertion depending on wall-clock latency,
+  which failed under the concurrent cold spawns of the full acceptance suite
+- documented what a deferred capture actually costs, and logged the read-model
+  corruption it exposes as a bad-code backlog item with a reproduction
+
 - added bounded Think read-model facts for latest/recent captures plus
   self-contained fast capture records so default `--remember`, `--recent`, and
   browse bootstrap avoid scanning `entry:*`
