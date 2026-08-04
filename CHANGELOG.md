@@ -60,6 +60,11 @@ Release discipline:
 - fixed concurrent installs silently losing entries: the read-merge-write is now
   serialised with a lock, so registering several minds in parallel keeps every
   server (30 parallel registrations previously left 25)
+- fixed the Codex TOML structural check fabricating "unterminated string" for
+  valid syntax it does not itself write — `\"` escapes and `\"\"\"` / `'''`
+  multi-line strings — which the installer converted into a hard refusal of the
+  user's own valid config; one string-aware scanner now backs comment stripping,
+  delimiter balance and header detection, and reports only what it can prove
 - fixed the Codex TOML path accepting a malformed config, appending to it, and
   reporting success; both the existing file and the merged result are now checked
   for unbalanced delimiters and duplicate tables, and the write is refused on

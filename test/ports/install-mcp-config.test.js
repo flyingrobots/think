@@ -512,6 +512,52 @@ test('mergeJsonMcpConfig refuses to clobber a non-object servers collection', ()
   );
 });
 
+test('findTomlStructuralProblem accepts valid TOML string syntax it does not itself write', () => {
+  // The checker's contract is to report only what it can prove. Treating every
+  // quote as a delimiter fabricated "unterminated string" for escapes and
+  // multi-line strings, and scripts/install-mcp.mjs turns any report into a hard
+  // refusal — so a user with a perfectly valid config was blocked from installing.
+  const q = '"';
+  const a = "'";
+  const valid = [
+    ['escaped quote in a basic string', `command = ${q}a\\${q}b${q}\n`],
+    ['multi-line basic string', `message = ${q.repeat(3)}first\nsecond${q.repeat(3)}\n`],
+    ['multi-line literal string', `message = ${a.repeat(3)}first\nsecond${a.repeat(3)}\n`],
+    ['a bracket inside a multi-line string', `m = ${q.repeat(3)}not [a header]\nstill text${q.repeat(3)}\n`],
+    ['a quote inside a literal string', `note = ${a}he said ${q}hi${q}${a}\n`],
+    ['an apostrophe inside a comment', `# don${a}t break\ncommand = ${q}node${q}\n`],
+    ['escaped backslash before a closing quote', `p = ${q}C:\\\\${q}\n`],
+  ];
+
+  for (const [label, text] of valid) {
+    assert.equal(
+      findTomlStructuralProblem(text),
+      null,
+      `Expected valid TOML to be accepted (${label}): ${JSON.stringify(text)}`
+    );
+  }
+});
+
+test('findTomlStructuralProblem still proves a genuinely unterminated multi-line string', () => {
+  const q = '"';
+  assert.match(
+    findTomlStructuralProblem(`m = ${q.repeat(3)}opened and never closed\n`),
+    /unterminated/u
+  );
+});
+
+test('a table header inside a multi-line string is not treated as a table', () => {
+  const q = '"';
+  // Otherwise the merge could rewrite text that only looks like a header.
+  const text = `[mcp_servers.think]\ncommand = ${q}node${q}\nnote = ${q.repeat(3)}\n[mcp_servers.think]\n${q.repeat(3)}\n`;
+
+  assert.equal(
+    findTomlStructuralProblem(text),
+    null,
+    'Expected a bracketed line inside a multi-line string not to count as a duplicate table.'
+  );
+});
+
 test('findTomlStructuralProblem reports the corruption shapes it can prove', () => {
   assert.match(findTomlStructuralProblem('broken = [\n'), /unterminated array/u);
   assert.match(findTomlStructuralProblem('x = { a = 1\n'), /unterminated inline table/u);

@@ -389,22 +389,152 @@ function resolveJsonAction({ source, previous, entry }) {
 }
 
 /**
+ * One scanner that actually models TOML string syntax.
+ *
+ * Three independent ad-hoc scanners used to treat every quote as a delimiter,
+ * which fabricated "unterminated string" for `\"` escapes and for `"""` / `'''`
+ * multi-line strings. scripts/install-mcp.mjs turns any report into a hard
+ * refusal, so a user whose config merely contained an escaped quote was blocked
+ * from installing — the checker broke more than it protected.
+ *
+ * Scanning once per document instead removes that whole class: every consumer
+ * (comment stripping, delimiter balance, table-header detection) reads the same
+ * string-aware view.
+ *
+ * Returns { lines } where each line carries its raw text, its code-only text
+ * (strings and comments removed) and whether it began outside any string, or
+ * { problem } for a defect this scanner can actually prove.
+ */
+function scanTomlDocument(text) {
+  const rawLines = String(text ?? '').split('\n');
+  const lines = [];
+  let multiline = null;
+
+  for (const [index, raw] of rawLines.entries()) {
+    const startsOutsideString = multiline === null;
+    const scanned = scanTomlLine(raw, multiline, index + 1);
+    if (scanned.problem) {
+      return { problem: scanned.problem };
+    }
+
+    ({ multiline } = scanned);
+    lines.push({ raw, code: scanned.code, startsOutsideString });
+  }
+
+  if (multiline !== null) {
+    return { problem: 'unterminated multi-line string' };
+  }
+
+  return { lines };
+}
+
+const MULTILINE_BASIC = '"""';
+const MULTILINE_LITERAL = "'''";
+
+function scanTomlLine(raw, multiline, lineNumber) {
+  const state = { code: '', index: 0, open: multiline };
+
+  while (state.index < raw.length) {
+    const step = state.open === null
+      ? stepOutsideString(raw, state, lineNumber)
+      : stepInsideMultiline(raw, state);
+
+    if (step?.problem) {
+      return step;
+    }
+    if (step?.endOfLine) {
+      break;
+    }
+  }
+
+  return { code: state.code, multiline: state.open };
+}
+
+/** Advance through the body of an open multi-line string. */
+function stepInsideMultiline(raw, state) {
+  const closer = state.open === 'basic' ? MULTILINE_BASIC : MULTILINE_LITERAL;
+  if (raw.startsWith(closer, state.index)) {
+    state.open = null;
+    state.index += closer.length;
+    return null;
+  }
+
+  // Only a basic string honours escapes; a literal string has none.
+  state.index += state.open === 'basic' && raw[state.index] === '\\' ? 2 : 1;
+  return null;
+}
+
+/** Advance through code, entering strings and stopping at a comment. */
+function stepOutsideString(raw, state, lineNumber) {
+  const character = raw[state.index];
+  if (character === '#') {
+    return { endOfLine: true };
+  }
+
+  for (const [delimiter, kind] of [[MULTILINE_BASIC, 'basic'], [MULTILINE_LITERAL, 'literal']]) {
+    if (raw.startsWith(delimiter, state.index)) {
+      state.open = kind;
+      state.index += delimiter.length;
+      return null;
+    }
+  }
+
+  if (character === '"' || character === "'") {
+    const end = skipSingleLineString(raw, state.index, character);
+    if (end === -1) {
+      return { problem: `unterminated string on line ${String(lineNumber)}` };
+    }
+    state.index = end;
+    return null;
+  }
+
+  state.code += character;
+  state.index += 1;
+  return null;
+}
+
+/**
+ * Index just past a single-line string, or -1 when it never closes. A basic
+ * string honours backslash escapes; a literal string is taken verbatim, so a
+ * `"` inside `'...'` is ordinary text.
+ */
+function skipSingleLineString(raw, start, quote) {
+  let index = start + 1;
+
+  while (index < raw.length) {
+    if (quote === '"' && raw[index] === '\\') {
+      index += 2;
+      continue;
+    }
+    if (raw[index] === quote) {
+      return index + 1;
+    }
+    index += 1;
+  }
+
+  return -1;
+}
+
+/**
  * Conservative structural check for a TOML document.
  *
- * This is deliberately not a full parser — the module has no TOML dependency —
- * so it reports only what it can prove: unbalanced brackets, braces or quotes,
- * and duplicate table headers. Both are the shapes that actually bite here. A
- * malformed existing config was previously appended to, written, and reported as
- * a success, leaving Codex unable to load any server; failing closed on what we
- * can detect is strictly better than claiming success.
+ * Deliberately not a full parser — this module has no TOML dependency — so it
+ * reports only what it can prove: an unterminated string, unbalanced brackets or
+ * braces, and a table declared twice. Anything it cannot prove is silence rather
+ * than a refusal, because scripts/install-mcp.mjs turns any report into a hard
+ * refusal of the user's own file.
  *
  * Returns null when nothing suspect was found, or a human-readable reason.
  */
 export function findTomlStructuralProblem(text) {
-  const state = { headers: new Map(), depth: 0, braces: 0 };
+  const scanned = scanTomlDocument(text);
+  if (scanned.problem) {
+    return scanned.problem;
+  }
 
-  for (const [index, rawLine] of String(text ?? '').split('\n').entries()) {
-    const problem = inspectTomlLine(state, stripTomlComment(rawLine), index + 1);
+  const state = { headers: new Map(), depth: 0, braces: 0 };
+  for (const [index, line] of scanned.lines.entries()) {
+    const problem = inspectTomlLine(state, line, index + 1);
     if (problem) {
       return problem;
     }
@@ -417,20 +547,19 @@ export function findTomlStructuralProblem(text) {
 }
 
 function inspectTomlLine(state, line, lineNumber) {
-  if (line.trim() === '') {
+  if (line.code.trim() === '') {
     return null;
   }
-  if (countUnbalancedQuotes(line)) {
-    return `unterminated string on line ${String(lineNumber)}`;
-  }
 
-  const header = parseTomlTableHeader(line);
+  // A bracketed line opens a table only when it began outside any string;
+  // otherwise it is text that merely looks like a header.
+  const header = line.startsOutsideString ? parseTomlTableHeader(line.raw) : null;
   if (header) {
     return recordTomlHeader(state, header, lineNumber);
   }
 
-  state.depth += countOutsideStrings(line, '[') - countOutsideStrings(line, ']');
-  state.braces += countOutsideStrings(line, '{') - countOutsideStrings(line, '}');
+  state.depth += countCharacter(line.code, '[') - countCharacter(line.code, ']');
+  state.braces += countCharacter(line.code, '{') - countCharacter(line.code, '}');
 
   return state.depth < 0 || state.braces < 0
     ? `unbalanced bracket on line ${String(lineNumber)}`
@@ -448,57 +577,9 @@ function recordTomlHeader(state, header, lineNumber) {
   return null;
 }
 
-function stripTomlComment(line) {
-  let quote = null;
-  for (let index = 0; index < line.length; index += 1) {
-    const character = line[index];
-    if (quote) {
-      if (character === quote) {
-        quote = null;
-      }
-      continue;
-    }
-    if (character === '"' || character === "'") {
-      quote = character;
-      continue;
-    }
-    if (character === '#') {
-      return line.slice(0, index);
-    }
-  }
-  return line;
-}
-
-function countUnbalancedQuotes(line) {
-  let quote = null;
-  for (const character of line) {
-    if (quote) {
-      if (character === quote) {
-        quote = null;
-      }
-      continue;
-    }
-    if (character === '"' || character === "'") {
-      quote = character;
-    }
-  }
-  return quote !== null;
-}
-
-function countOutsideStrings(line, target) {
-  let quote = null;
+function countCharacter(code, target) {
   let total = 0;
-  for (const character of line) {
-    if (quote) {
-      if (character === quote) {
-        quote = null;
-      }
-      continue;
-    }
-    if (character === '"' || character === "'") {
-      quote = character;
-      continue;
-    }
+  for (const character of code) {
     if (character === target) {
       total += 1;
     }
