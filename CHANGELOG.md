@@ -60,6 +60,10 @@ Release discipline:
 - fixed concurrent installs silently losing entries: the read-merge-write is now
   serialised with a lock, so registering several minds in parallel keeps every
   server (30 parallel registrations previously left 25)
+- fixed the installer corrupting a Codex config that defines the server inline in
+  its parent table (`[mcp_servers]` plus `think = { ... }`); it appended a second
+  declaration of the same key and reported success, and now refuses with an
+  explanation instead
 - fixed the Codex TOML structural check fabricating "unterminated string" for
   valid syntax it does not itself write — `\"` escapes and `\"\"\"` / `'''`
   multi-line strings — which the installer converted into a hard refusal of the

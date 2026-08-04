@@ -797,6 +797,44 @@ test('mergeCodexTomlConfig does not treat another server as a nested table of th
   );
 });
 
+test('mergeCodexTomlConfig refuses when the server is already defined inline in its parent table', () => {
+  // `[mcp_servers]` + `think = { ... }` declares mcp_servers.think without a
+  // header of its own. Appending [mcp_servers.think] then declares it twice, so
+  // TOML parsers reject the whole file — and the installer reported success.
+  for (const inline of ['think = { command = "old" }', "think={command='old'}", 'think  =  { command = "old" }']) {
+    assert.throws(
+      () => mergeCodexTomlConfig(`[mcp_servers]\n${inline}\n`, {
+        serversKey: 'mcp_servers',
+        serverName: 'think',
+        entry: { command: '/usr/local/bin/node', args: ['/opt/think/bin/think-mcp.js'] },
+      }),
+      /already defined inline/u,
+      `Expected an inline definition to be refused: ${inline}`
+    );
+  }
+});
+
+test('mergeCodexTomlConfig ignores an inline key that belongs to a different table', () => {
+  const result = mergeCodexTomlConfig('[other]\nthink = { command = "unrelated" }\n', {
+    serversKey: 'mcp_servers',
+    serverName: 'think',
+    entry: { command: '/usr/local/bin/node', args: ['/opt/think/bin/think-mcp.js'] },
+  });
+
+  assert.equal(result.action, 'added', 'A same-named key under an unrelated table is not our server.');
+  assert.match(result.text, /\[other\]\nthink = \{ command = "unrelated" \}/u);
+});
+
+test('mergeCodexTomlConfig ignores a similarly named inline key in the parent table', () => {
+  const result = mergeCodexTomlConfig('[mcp_servers]\nthink-extra = { command = "other" }\n', {
+    serversKey: 'mcp_servers',
+    serverName: 'think',
+    entry: { command: '/usr/local/bin/node', args: ['/opt/think/bin/think-mcp.js'] },
+  });
+
+  assert.equal(result.action, 'added');
+});
+
 test('mergeCodexTomlConfig recognises equivalent spellings of the target header', () => {
   // TOML permits quoting and whitespace around dotted key parts, so all of these
   // are the same table as [mcp_servers.think]. Literal string matching missed

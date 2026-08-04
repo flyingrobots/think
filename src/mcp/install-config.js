@@ -516,6 +516,40 @@ function skipSingleLineString(raw, start, quote) {
 }
 
 /**
+ * Refuse when the server is already defined as a key inside its parent table.
+ *
+ * `[mcp_servers]` followed by `think = { ... }` declares `mcp_servers.think`
+ * without a header of its own, so header matching finds nothing and the merge
+ * appends `[mcp_servers.think]` — declaring the same key twice and making the
+ * whole file unparseable, while the installer reported success. Rewriting an
+ * inline table in place is more than this module can do safely, so it refuses and
+ * says why rather than guessing.
+ */
+function assertNoInlineDefinition(text, serversKey, serverName) {
+  const scanned = scanTomlDocument(text);
+  if (scanned.problem) {
+    return;
+  }
+
+  let inParentTable = false;
+  const assignment = new RegExp(`^\\s*${serverName}\\s*=`, 'u');
+
+  for (const line of scanned.lines) {
+    const header = line.startsOutsideString ? parseTomlTableHeader(line.raw) : null;
+    if (header) {
+      inParentTable = header.length === 1 && header[0] === serversKey;
+      continue;
+    }
+    if (inParentTable && assignment.test(line.code)) {
+      throw new ValidationError(
+        `${serversKey}.${serverName} is already defined inline under [${serversKey}]. `
+        + 'Remove that entry or edit it by hand; appending a table would declare the same key twice.'
+      );
+    }
+  }
+}
+
+/**
  * Conservative structural check for a TOML document.
  *
  * Deliberately not a full parser — this module has no TOML dependency — so it
@@ -591,6 +625,7 @@ export function mergeCodexTomlConfig(existing, { serversKey, serverName, entry }
   assertTomlBareKey(serverName, 'serverName');
 
   const text = String(existing ?? '');
+  assertNoInlineDefinition(text, serversKey, serverName);
   const block = renderCodexTomlBlock({ serversKey, serverName, entry });
   const found = findTomlBlock(text, [serversKey, serverName]);
 
