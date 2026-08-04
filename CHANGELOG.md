@@ -14,27 +14,37 @@ Release discipline:
 
 - added `THINK_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS` so operators on cold or slow
   repositories can raise the post-capture derived-work budget; an unusable value
-  falls back to the 6s default rather than failing the capture
+  falls back to the 6s default, and an over-range value is clamped to the 32-bit
+  timer range rather than collapsing to Node's 1ms substitute
 - extracted `src/capture-followthrough.js` as the single owner of the capture
-  followthrough budget, deferral sentinel, and race, replacing the copies that
-  had been duplicated between the CLI and MCP capture surfaces
-- changed the MCP capture deferral warning to name the budget it exceeded, what
-  the deferral actually skips, the knob that raises the budget, and that retrying
-  would duplicate the thought
+  followthrough budget, deferral sentinel and race, replacing the copies that had
+  been duplicated between the CLI and MCP capture surfaces
+- fixed the capture followthrough deferral not being a guarantee: the timeout was
+  unref'd, so a process with nothing else pending exited instead of deferring
+- fixed the CLI spending the followthrough budget once per await, so a slow
+  capture could take up to twice the configured budget, and an exhausted budget
+  now defers immediately instead of racing a zero-delay timer
+- changed the MCP capture deferral warning to name the budget it exceeded, that
+  derived records may still be incomplete when the call returns rather than
+  cancelled, the knob that raises the budget, and that retrying would duplicate
+  the thought
+- fixed acceptance fixtures inheriting `THINK_` and git repository-location
+  environment variables, which let a developer with `THINK_REPO_DIR` exported run
+  the suite against their real mind and write test captures into it; the scrub is
+  case-insensitive and the git set is queried from `git rev-parse --local-env-vars`
+- fixed the pre-push hook being impossible to satisfy: git exports `GIT_DIR` and
+  related location variables to hooks, so tests that shelled out to git resolved
+  the hook's repository instead of their own fixture and six tests failed under
+  `git push` while passing under `npm run test:fast`
+- fixed the MCP capture acceptance assertion depending on wall-clock latency,
+  which failed under the concurrent cold spawns of the full acceptance suite
+- documented what a deferred capture actually costs, and logged the read-model
+  corruption it exposes as a bad-code backlog item with a reproduction
 - fixed the Codex TOML merge corrupting configs that express the environment as
   a `[mcp_servers.think.env]` sub-table; it previously declared `env` twice and
   left the whole file invalid, breaking every server in it
 - fixed MCP client config writes to be atomic, so an interrupted install cannot
   truncate live client state such as `~/.claude.json`
-- fixed acceptance fixtures inheriting `THINK_` environment variables, which let
-  a developer with `THINK_REPO_DIR` exported run the suite against their real
-  mind and write test captures into it
-- fixed the MCP capture acceptance assertion depending on wall-clock latency,
-  which failed under the concurrent cold spawns of the full acceptance suite
-- fixed the pre-push hook being impossible to satisfy: git exports `GIT_DIR` and
-  related location variables to hooks, so tests that shelled out to git resolved
-  the hook's repository instead of their own fixture and six tests failed under
-  `git push` while passing under `npm run test:fast`
 - fixed `--server-name` accepting arbitrary text, which let the space-separated
   form inject a whole TOML table — including a second server with its own
   `command` that the client would execute on startup — into a live Codex config;
@@ -46,17 +56,8 @@ Release discipline:
   the intended project
 - fixed a dangling config symlink being replaced by a regular file, and made
   `--print` render the complete merged config rather than only the Think entry
-- fixed the CLI spending the followthrough budget once per await, so a slow
-  capture could take up to twice the configured budget
-- fixed the git environment scrub omitting eight variables git reports as
-  repository-local, including `GIT_CONFIG`; both paths now query
-  `git rev-parse --local-env-vars` instead of hand-maintaining a list
 - fixed the README describing `sourceURL` as free-form when it is URL-validated;
   an invalid value rejects the whole `capture` call before the thought is saved
-- corrected the documented cost of a deferred capture: the raw thought stays
-  readable through `inspect`, the derived layer is skipped, and the `recent`/
-  `stats` read model misreports until the next healthy capture — an earlier claim that
-  `remember` still found it was drawn from one unrepeated observation and is wrong
 - fixed concurrent installs silently losing entries: the read-merge-write is now
   serialised with a lock, so registering several minds in parallel keeps every
   server (30 parallel registrations previously left 25)
@@ -83,12 +84,8 @@ Release discipline:
 - fixed table headers carrying an inline comment going unrecognised, which
   appended a duplicate table and invalidated the config
 - fixed control characters in paths being emitted literally into TOML strings
-- fixed the environment scrub being case-sensitive, which left the acceptance
-  suite redirectable into a real mind on Windows
 - fixed existing-entry lookup resolving inherited `Object.prototype` members, so
   a server named `constructor` reported `updated` against an empty collection
-- fixed the capture followthrough deferral not being a guarantee: the timeout was
-  unref'd, so a process with nothing else pending exited instead of deferring
 - added a canonical Think mind fixture stored in git-cas as
   `test-fixtures/readme-smoke-mind-v1`, archived from a real capture session, with
   `scripts/build-smoke-mind-fixture.mjs` to publish it and an acceptance test that

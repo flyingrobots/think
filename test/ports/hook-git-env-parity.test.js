@@ -77,8 +77,11 @@ test('the shell hook unsets mixed-case git variables too', () => {
   // Unsetting only the exact uppercase name leaves an inherited `Git_Dir` in
   // place on a case-insensitive platform, and git still resolves the invoking
   // repository through it — the JavaScript side already normalises case.
+  // The bash program stays static and the path arrives as $1: interpolating it,
+  // even JSON-quoted, would let a path containing backticks or ${...} execute
+  // before the script is sourced.
   const script = [
-    `source ${JSON.stringify(SCRUB_SCRIPT)}`,
+    'source "$1"',
     'scrub_git_location_env',
     'for v in Git_Dir GIT_WORK_TREE git_config GIT_DIR; do',
     // eslint-disable-next-line no-template-curly-in-string -- shell parameter expansion, not a JS template
@@ -87,7 +90,7 @@ test('the shell hook unsets mixed-case git variables too', () => {
     'done',
   ].join('\n');
 
-  const stdout = execFileSync('bash', ['-c', script], {
+  const stdout = execFileSync('bash', ['-c', script, 'bash', SCRUB_SCRIPT], {
     cwd: repoRoot,
     encoding: 'utf8',
     timeout: 20_000,

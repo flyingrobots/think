@@ -54,6 +54,35 @@ test('a budget beyond the 32-bit timer range is clamped, not silently turned int
   );
 });
 
+test('a digit-only budget beyond safe-integer range still clamps rather than defaulting', () => {
+  // Number.parseInt loses precision above MAX_SAFE_INTEGER, and treating that as
+  // "unusable" silently handed back the 6s default — the opposite of the
+  // documented over-range behaviour, for an operator who asked for a huge budget.
+  for (const raw of ['10000000000000000', '99999999999999999999', '9007199254740993']) {
+    assert.equal(
+      resolveCaptureFollowthroughTimeoutMs({ THINK_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS: raw }),
+      MAX_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS,
+      `Expected "${raw}" to clamp to the timer maximum, not fall back to the default.`
+    );
+  }
+});
+
+test('a deadline cannot be extended by the clock moving backwards', () => {
+  // Date.now is adjustable; a backward jump made remainingMs() grow and could
+  // stretch the second followthrough wait past the configured budget.
+  const clock = { now: 10_000 };
+  const deadline = createCaptureFollowthroughDeadline(500, () => clock.now);
+
+  clock.now = 10_200;
+  assert.equal(deadline.remainingMs(), 300);
+
+  clock.now = 9_000;
+  assert.ok(
+    deadline.remainingMs() <= 300,
+    'Expected a backward clock jump never to increase the remaining budget.'
+  );
+});
+
 test('the largest in-range budget is preserved exactly', () => {
   assert.equal(MAX_CAPTURE_FOLLOWTHROUGH_TIMEOUT_MS, 2_147_483_647);
   assert.equal(
