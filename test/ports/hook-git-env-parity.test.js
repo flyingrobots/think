@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -71,6 +71,39 @@ test('both scrub paths cover the same extra repository-scoping variables', () =>
     jsExtras,
     'Expected the hand-maintained extras to match between shell and JavaScript.'
   );
+});
+
+test('the shell hook unsets mixed-case git variables too', () => {
+  // Unsetting only the exact uppercase name leaves an inherited `Git_Dir` in
+  // place on a case-insensitive platform, and git still resolves the invoking
+  // repository through it — the JavaScript side already normalises case.
+  const script = [
+    `source ${JSON.stringify(SCRUB_SCRIPT)}`,
+    'scrub_git_location_env',
+    'for v in Git_Dir GIT_WORK_TREE git_config GIT_DIR; do',
+    // eslint-disable-next-line no-template-curly-in-string -- shell parameter expansion, not a JS template
+    '  eval "val=\\${$v:-<unset>}"',
+    '  printf "%s=%s\\n" "$v" "$val"',
+    'done',
+  ].join('\n');
+
+  const stdout = execFileSync('bash', ['-c', script], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    timeout: 20_000,
+    env: {
+      ...process.env,
+      Git_Dir: '/tmp/fake.git',
+      GIT_WORK_TREE: '/tmp/fake',
+      git_config: '/tmp/fake.cfg',
+      GIT_DIR: '/tmp/other.git',
+    },
+  });
+
+  for (const line of stdout.trim().split('\n')) {
+    const [name, value] = line.split('=');
+    assert.equal(value, '<unset>', `Expected the hook to unset ${name} regardless of case.`);
+  }
 });
 
 test('no identity or transport variable is scrubbed', () => {

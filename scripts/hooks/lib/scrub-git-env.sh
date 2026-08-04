@@ -23,9 +23,20 @@
 # safe to inherit.
 GIT_EXTRA_SCRUBBED_ENV_VARS="GIT_CEILING_DIRECTORIES GIT_INDEX_VERSION GIT_NAMESPACE GIT_QUARANTINE_PATH"
 
+# Unsetting the exact uppercase name is not enough on a case-insensitive platform:
+# an inherited `Git_Dir` survives it while git still resolves the invoking
+# repository through it. Enumerate what is actually exported and unset every name
+# that matches case-insensitively, so the shell path isolates as thoroughly as
+# createHermeticThinkEnv does in JavaScript.
 scrub_git_location_env() {
-  local name
-  for name in $(git rev-parse --local-env-vars 2>/dev/null) ${GIT_EXTRA_SCRUBBED_ENV_VARS}; do
-    unset "${name}"
-  done
+  local targets name upper
+  targets=" $(git rev-parse --local-env-vars 2>/dev/null | tr '\n' ' ')${GIT_EXTRA_SCRUBBED_ENV_VARS} "
+
+  while IFS='=' read -r name _; do
+    [ -n "${name}" ] || continue
+    upper=$(printf '%s' "${name}" | tr '[:lower:]' '[:upper:]')
+    case "${targets}" in
+      *" ${upper} "*) unset "${name}" ;;
+    esac
+  done < <(env)
 }
