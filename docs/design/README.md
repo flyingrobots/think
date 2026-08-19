@@ -42,6 +42,7 @@ This review is meant to answer five questions:
 - [`0072-followthrough-job-queue/followthrough-job-queue.md`](./0072-followthrough-job-queue/followthrough-job-queue.md): draft proposal for durable, visible post-capture followthrough jobs that keep raw capture immediate.
 - [`0073-agent-native-memory-api/agent-native-memory-api.md`](./0073-agent-native-memory-api/agent-native-memory-api.md): draft proposal for capability-discovered MCP and JSON memory contracts for agents.
 - [`0074-evidence-bound-enrichment/evidence-bound-enrichment.md`](./0074-evidence-bound-enrichment/evidence-bound-enrichment.md): draft proposal for composable enrichment receipts that keep derived facts evidence-bound.
+- [`ADR-THINK-001-thoughts-are-sources-claims-are-readings.md`](./ADR-THINK-001-thoughts-are-sources-claims-are-readings.md): accepted, implementation-gated architecture decision for immutable ThoughtCaptures, contextual readings, witnessed authority, capability-gated projections, bounded migration, and erasure-compatible body storage.
 - [`ROADMAP.md`](./ROADMAP.md): milestone sequence, hill mapping, exit criteria, and review checkpoints.
 
 ## Archived Slice History
@@ -116,6 +117,7 @@ flowchart TD
     R --> P72["0072 Followthrough Job Queue"]
     R --> P73["0073 Agent-Native Memory API"]
     R --> P74["0074 Evidence-Bound Enrichment"]
+    R --> ADR1["ADR-THINK-001 Contextual Streaming Mind"]
     R --> RD["Roadmap and Milestones"]
     R --> BL["Backlog (deferred ideas)"]
     P --> A
@@ -209,6 +211,10 @@ flowchart TD
     P70 --> P73
     P72 --> P74
     P73 --> P74
+    P70 --> ADR1
+    P72 --> ADR1
+    P74 --> ADR1
+    ADR1 --> RD
     P70 --> RD
     P71 --> RD
     P72 --> RD
