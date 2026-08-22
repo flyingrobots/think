@@ -230,6 +230,19 @@ function validateManifest(manifest) {
   validateDependencyGraph(manifest.issues);
 }
 
+function validateUniqueGithubNumbers(manifest, githubMap) {
+  expect(
+    new Set(Object.values(githubMap.milestones).map((item) => item.number)).size
+      === manifest.milestones.length,
+    'github map milestone numbers must be unique',
+  );
+  expect(
+    new Set(Object.values(githubMap.issues).map((item) => item.number)).size
+      === manifest.issues.length,
+    'github map issue numbers must be unique',
+  );
+}
+
 function validateGithubMap(manifest, githubMap) {
   expect(githubMap.schemaVersion === 1, 'github map schemaVersion must be 1');
   expect(githubMap.repository === 'flyingrobots/think', 'github map repository must be flyingrobots/think');
@@ -239,6 +252,7 @@ function validateGithubMap(manifest, githubMap) {
     'github map milestones',
   );
   assertExactKeys(githubMap.issues, REQUIRED_ISSUE_IDS, 'github map issues');
+  validateUniqueGithubNumbers(manifest, githubMap);
 
   for (const milestone of manifest.milestones) {
     const mapped = githubMap.milestones[milestone.id];

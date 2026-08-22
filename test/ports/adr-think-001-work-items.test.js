@@ -114,6 +114,22 @@ test('GitHub map and generated catalog fail closed when incomplete or stale', as
   staleMap.issues['CT-303'].title = '[CT-303] stale';
   assert.throws(() => validateGithubMap(manifest, staleMap), /CT-303 GitHub issue title is stale/u);
 
+  const duplicateIssueNumber = structuredClone(githubMap);
+  duplicateIssueNumber.issues['CT-303'].number = duplicateIssueNumber.issues['CT-302'].number;
+  duplicateIssueNumber.issues['CT-303'].url = duplicateIssueNumber.issues['CT-302'].url;
+  assert.throws(
+    () => validateGithubMap(manifest, duplicateIssueNumber),
+    /github map issue numbers must be unique/u,
+  );
+
+  const duplicateMilestoneNumber = structuredClone(githubMap);
+  duplicateMilestoneNumber.milestones.P4.number = duplicateMilestoneNumber.milestones.P3.number;
+  duplicateMilestoneNumber.milestones.P4.url = duplicateMilestoneNumber.milestones.P3.url;
+  assert.throws(
+    () => validateGithubMap(manifest, duplicateMilestoneNumber),
+    /github map milestone numbers must be unique/u,
+  );
+
   assert.throws(
     () => validateCatalog(manifest, githubMap, `${catalog}\n<!-- stale -->\n`),
     /generated ADR-THINK-001 issue catalog is stale/u,
