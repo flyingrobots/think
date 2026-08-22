@@ -395,7 +395,7 @@ Every canonical record family has a versioned, bounded, validation-first schema 
 
 ##### Dependencies
 
-- Blocked by `CT-001` (planned)
+- Blocked by [#40 — CT-001](https://github.com/flyingrobots/think/issues/40)
 
 ##### ADR traceability
 
@@ -473,7 +473,7 @@ Schedulers receive finite CoverageObligations while evidence binds every reading
 
 ##### Dependencies
 
-- Blocked by `CT-002` (planned)
+- Blocked by [#41 — CT-002](https://github.com/flyingrobots/think/issues/41)
 
 ##### ADR traceability
 
@@ -551,8 +551,8 @@ Common low-risk uses resolve through a versioned default policy while explicit j
 
 ##### Dependencies
 
-- Blocked by `CT-002` (planned)
-- Blocked by `CT-003` (planned)
+- Blocked by [#41 — CT-002](https://github.com/flyingrobots/think/issues/41)
+- Blocked by [#42 — CT-003](https://github.com/flyingrobots/think/issues/42)
 
 ##### ADR traceability
 
@@ -636,7 +636,7 @@ The dojo scenario and every required ambiguity, temporal, authority, publication
 
 ##### Dependencies
 
-- Blocked by `CT-002` (planned)
+- Blocked by [#41 — CT-002](https://github.com/flyingrobots/think/issues/41)
 
 ##### ADR traceability
 
@@ -714,7 +714,7 @@ Projection capabilities can be minted only from normative definitions, governing
 
 ##### Dependencies
 
-- Blocked by `CT-003` (planned)
+- Blocked by [#42 — CT-003](https://github.com/flyingrobots/think/issues/42)
 
 ##### ADR traceability
 
@@ -796,8 +796,8 @@ The first canonical identity cannot be minted until per-occurrence cryptographic
 
 ##### Dependencies
 
-- Blocked by `CT-002` (planned)
-- Blocked by `CT-003` (planned)
+- Blocked by [#41 — CT-002](https://github.com/flyingrobots/think/issues/41)
+- Blocked by [#42 — CT-003](https://github.com/flyingrobots/think/issues/42)
 
 ##### ADR traceability
 
@@ -876,8 +876,8 @@ Logical one-thought operations can be physically co-published through bounded wi
 
 ##### Dependencies
 
-- Blocked by `CT-001` (planned)
-- Blocked by `CT-002` (planned)
+- Blocked by [#40 — CT-001](https://github.com/flyingrobots/think/issues/40)
+- Blocked by [#41 — CT-002](https://github.com/flyingrobots/think/issues/41)
 - External dependency: [https://github.com/git-stunts/git-warp/issues/565](https://github.com/git-stunts/git-warp/issues/565)
 - External dependency: [https://github.com/git-stunts/git-warp/issues/817](https://github.com/git-stunts/git-warp/issues/817)
 - External dependency: [https://github.com/git-stunts/git-warp/issues/824](https://github.com/git-stunts/git-warp/issues/824)
@@ -969,8 +969,8 @@ Think domain code can prepare, read, revoke, and inspect opaque per-occurrence g
 
 ##### Dependencies
 
-- Blocked by `CT-002` (planned)
-- Blocked by `CT-007` (planned)
+- Blocked by [#41 — CT-002](https://github.com/flyingrobots/think/issues/41)
+- Blocked by [#46 — CT-007](https://github.com/flyingrobots/think/issues/46)
 
 ##### ADR traceability
 
@@ -1053,7 +1053,7 @@ The default local adapter encrypts each occurrence behind independently revocabl
 
 ##### Dependencies
 
-- Blocked by `CT-101` (planned)
+- Blocked by [#48 — CT-101](https://github.com/flyingrobots/think/issues/48)
 
 ##### ADR traceability
 
@@ -1131,9 +1131,9 @@ Each admission represents one immutable capture occurrence with an opaque Think 
 
 ##### Dependencies
 
-- Blocked by `CT-001` (planned)
-- Blocked by `CT-002` (planned)
-- Blocked by `CT-101` (planned)
+- Blocked by [#40 — CT-001](https://github.com/flyingrobots/think/issues/40)
+- Blocked by [#41 — CT-002](https://github.com/flyingrobots/think/issues/41)
+- Blocked by [#48 — CT-101](https://github.com/flyingrobots/think/issues/48)
 
 ##### ADR traceability
 
@@ -1215,8 +1215,8 @@ Think replaces page-shaped canonical storage with one logical ThoughtCapture ato
 
 ##### Dependencies
 
-- Blocked by `CT-103` (planned)
-- Blocked by `CT-008` (planned)
+- Blocked by [#50 — CT-103](https://github.com/flyingrobots/think/issues/50)
+- Blocked by [#47 — CT-008](https://github.com/flyingrobots/think/issues/47)
 
 ##### ADR traceability
 
@@ -1298,8 +1298,8 @@ Think batches independent logical atom operations into deterministic item/byte-b
 
 ##### Dependencies
 
-- Blocked by `CT-008` (planned)
-- Blocked by `CT-104` (planned)
+- Blocked by [#47 — CT-008](https://github.com/flyingrobots/think/issues/47)
+- Blocked by [#51 — CT-104](https://github.com/flyingrobots/think/issues/51)
 - External dependency: [https://github.com/git-stunts/git-warp/issues/565](https://github.com/git-stunts/git-warp/issues/565)
 - External dependency: [https://github.com/git-stunts/git-warp/issues/817](https://github.com/git-stunts/git-warp/issues/817)
 - External dependency: [https://github.com/git-stunts/git-cas/issues/110](https://github.com/git-stunts/git-cas/issues/110)
@@ -1381,7 +1381,7 @@ A checked WARP ref update linearizes a complete window, and restart derives trut
 
 ##### Dependencies
 
-- Blocked by `CT-105` (planned)
+- Blocked by [#52 — CT-105](https://github.com/flyingrobots/think/issues/52)
 
 ##### ADR traceability
 
@@ -1460,8 +1460,8 @@ Every growing evidence-substrate path is mechanically classified and fails CI wh
 
 ##### Dependencies
 
-- Blocked by `CT-105` (planned)
-- Blocked by `CT-106` (planned)
+- Blocked by [#52 — CT-105](https://github.com/flyingrobots/think/issues/52)
+- Blocked by [#53 — CT-106](https://github.com/flyingrobots/think/issues/53)
 - External dependency: [https://github.com/git-stunts/git-warp/pull/847](https://github.com/git-stunts/git-warp/pull/847)
 
 ##### ADR traceability
@@ -1545,10 +1545,10 @@ An isolated fixture demonstrates encrypted prepare-then-admit capture, one thoug
 
 ##### Dependencies
 
-- Blocked by `CT-102` (planned)
-- Blocked by `CT-104` (planned)
-- Blocked by `CT-106` (planned)
-- Blocked by `CT-107` (planned)
+- Blocked by [#49 — CT-102](https://github.com/flyingrobots/think/issues/49)
+- Blocked by [#51 — CT-104](https://github.com/flyingrobots/think/issues/51)
+- Blocked by [#53 — CT-106](https://github.com/flyingrobots/think/issues/53)
+- Blocked by [#54 — CT-107](https://github.com/flyingrobots/think/issues/54)
 
 ##### ADR traceability
 
@@ -1632,8 +1632,8 @@ Think can enumerate bounded semantic work from a pinned source domain and determ
 
 ##### Dependencies
 
-- Blocked by `CT-005` (planned)
-- Blocked by `CT-108` (planned)
+- Blocked by [#44 — CT-005](https://github.com/flyingrobots/think/issues/44)
+- Blocked by [#55 — CT-108](https://github.com/flyingrobots/think/issues/55)
 
 ##### ADR traceability
 
@@ -1716,8 +1716,8 @@ Every requested reading is identified by all semantically relevant source, conte
 
 ##### Dependencies
 
-- Blocked by `CT-005` (planned)
-- Blocked by `CT-201` (planned)
+- Blocked by [#44 — CT-005](https://github.com/flyingrobots/think/issues/44)
+- Blocked by [#56 — CT-201](https://github.com/flyingrobots/think/issues/56)
 
 ##### ADR traceability
 
@@ -1796,7 +1796,7 @@ Each actual execution—success, typed failure, cancellation, exhaustion, invali
 
 ##### Dependencies
 
-- Blocked by `CT-202` (planned)
+- Blocked by [#57 — CT-202](https://github.com/flyingrobots/think/issues/57)
 
 ##### ADR traceability
 
@@ -1875,9 +1875,9 @@ Think consumes the independent six-constructor claim algebra, traversable values
 
 ##### Dependencies
 
-- Blocked by `CT-002` (planned)
-- Blocked by `CT-003` (planned)
-- Blocked by `CT-203` (planned)
+- Blocked by [#41 — CT-002](https://github.com/flyingrobots/think/issues/41)
+- Blocked by [#42 — CT-003](https://github.com/flyingrobots/think/issues/42)
+- Blocked by [#58 — CT-203](https://github.com/flyingrobots/think/issues/58)
 
 ##### ADR traceability
 
@@ -1956,8 +1956,8 @@ Think records what one attempt asserted at one candidate/node position without c
 
 ##### Dependencies
 
-- Blocked by `CT-203` (planned)
-- Blocked by `CT-204` (planned)
+- Blocked by [#58 — CT-203](https://github.com/flyingrobots/think/issues/58)
+- Blocked by [#59 — CT-204](https://github.com/flyingrobots/think/issues/59)
 
 ##### ADR traceability
 
@@ -2036,7 +2036,7 @@ Semantic, discourse, revision, and deontic relations persist as typed evidence-b
 
 ##### Dependencies
 
-- Blocked by `CT-205` (planned)
+- Blocked by [#60 — CT-205](https://github.com/flyingrobots/think/issues/60)
 
 ##### ADR traceability
 
@@ -2117,8 +2117,8 @@ Versioned policy resolves candidate retrieval and other bounded low-risk uses wh
 
 ##### Dependencies
 
-- Blocked by `CT-006` (planned)
-- Blocked by `CT-205` (planned)
+- Blocked by [#45 — CT-006](https://github.com/flyingrobots/think/issues/45)
+- Blocked by [#60 — CT-205](https://github.com/flyingrobots/think/issues/60)
 
 ##### ADR traceability
 
@@ -2197,9 +2197,9 @@ A projection becomes queryable only through an atomic manifest whose proven capa
 
 ##### Dependencies
 
-- Blocked by `CT-004` (planned)
-- Blocked by `CT-205` (planned)
-- Blocked by `CT-207` (planned)
+- Blocked by [#43 — CT-004](https://github.com/flyingrobots/think/issues/43)
+- Blocked by [#60 — CT-205](https://github.com/flyingrobots/think/issues/60)
+- Blocked by [#62 — CT-207](https://github.com/flyingrobots/think/issues/62)
 
 ##### ADR traceability
 
@@ -2278,8 +2278,8 @@ Natural-language proposals must validate into a finite query IR that selects a f
 
 ##### Dependencies
 
-- Blocked by `CT-207` (planned)
-- Blocked by `CT-208` (planned)
+- Blocked by [#62 — CT-207](https://github.com/flyingrobots/think/issues/62)
+- Blocked by [#63 — CT-208](https://github.com/flyingrobots/think/issues/63)
 
 ##### ADR traceability
 
@@ -2362,15 +2362,15 @@ One ThoughtCapture flows through coverage, exact observation, immutable reading,
 
 ##### Dependencies
 
-- Blocked by `CT-201` (planned)
-- Blocked by `CT-202` (planned)
-- Blocked by `CT-203` (planned)
-- Blocked by `CT-204` (planned)
-- Blocked by `CT-205` (planned)
-- Blocked by `CT-206` (planned)
-- Blocked by `CT-207` (planned)
-- Blocked by `CT-208` (planned)
-- Blocked by `CT-209` (planned)
+- Blocked by [#56 — CT-201](https://github.com/flyingrobots/think/issues/56)
+- Blocked by [#57 — CT-202](https://github.com/flyingrobots/think/issues/57)
+- Blocked by [#58 — CT-203](https://github.com/flyingrobots/think/issues/58)
+- Blocked by [#59 — CT-204](https://github.com/flyingrobots/think/issues/59)
+- Blocked by [#60 — CT-205](https://github.com/flyingrobots/think/issues/60)
+- Blocked by [#61 — CT-206](https://github.com/flyingrobots/think/issues/61)
+- Blocked by [#62 — CT-207](https://github.com/flyingrobots/think/issues/62)
+- Blocked by [#63 — CT-208](https://github.com/flyingrobots/think/issues/63)
+- Blocked by [#64 — CT-209](https://github.com/flyingrobots/think/issues/64)
 
 ##### ADR traceability
 
@@ -2455,7 +2455,7 @@ A pinned legacy frontier yields each logical thought occurrence exactly once des
 
 ##### Dependencies
 
-- Blocked by `CT-108` (planned)
+- Blocked by [#55 — CT-108](https://github.com/flyingrobots/think/issues/55)
 - External dependency: [https://github.com/git-stunts/git-warp/issues/824](https://github.com/git-stunts/git-warp/issues/824)
 - External dependency: [https://github.com/git-stunts/git-warp/pull/847](https://github.com/git-stunts/git-warp/pull/847)
 
@@ -2540,9 +2540,9 @@ Each observed legacy occurrence deterministically maps to one ThoughtId and inde
 
 ##### Dependencies
 
-- Blocked by `CT-102` (planned)
-- Blocked by `CT-103` (planned)
-- Blocked by `CT-301` (planned)
+- Blocked by [#49 — CT-102](https://github.com/flyingrobots/think/issues/49)
+- Blocked by [#50 — CT-103](https://github.com/flyingrobots/think/issues/50)
+- Blocked by [#66 — CT-301](https://github.com/flyingrobots/think/issues/66)
 
 ##### ADR traceability
 
@@ -2628,10 +2628,10 @@ The migrator pins a legacy frontier, streams logical occurrences through encrypt
 
 ##### Dependencies
 
-- Blocked by `CT-105` (planned)
-- Blocked by `CT-106` (planned)
-- Blocked by `CT-107` (planned)
-- Blocked by `CT-302` (planned)
+- Blocked by [#52 — CT-105](https://github.com/flyingrobots/think/issues/52)
+- Blocked by [#53 — CT-106](https://github.com/flyingrobots/think/issues/53)
+- Blocked by [#54 — CT-107](https://github.com/flyingrobots/think/issues/54)
+- Blocked by [#67 — CT-302](https://github.com/flyingrobots/think/issues/67)
 
 ##### ADR traceability
 
@@ -2710,7 +2710,7 @@ Restart after every object, ref, cursor, and process failure point resumes from 
 
 ##### Dependencies
 
-- Blocked by `CT-303` (planned)
+- Blocked by [#68 — CT-303](https://github.com/flyingrobots/think/issues/68)
 
 ##### ADR traceability
 
@@ -2793,8 +2793,8 @@ Corrupt or undecodable source ranges are durably accounted for without inventing
 
 ##### Dependencies
 
-- Blocked by `CT-302` (planned)
-- Blocked by `CT-303` (planned)
+- Blocked by [#67 — CT-302](https://github.com/flyingrobots/think/issues/67)
+- Blocked by [#68 — CT-303](https://github.com/flyingrobots/think/issues/68)
 
 ##### ADR traceability
 
@@ -2877,8 +2877,8 @@ Dry runs prove declared occurrence coverage, mapping, body commitments, order, c
 
 ##### Dependencies
 
-- Blocked by `CT-304` (planned)
-- Blocked by `CT-305` (planned)
+- Blocked by [#69 — CT-304](https://github.com/flyingrobots/think/issues/69)
+- Blocked by [#70 — CT-305](https://github.com/flyingrobots/think/issues/70)
 
 ##### ADR traceability
 
@@ -2962,7 +2962,7 @@ A disposable copy of the largest healthy Mind completes raw migration, restart, 
 
 ##### Dependencies
 
-- Blocked by `CT-306` (planned)
+- Blocked by [#71 — CT-306](https://github.com/flyingrobots/think/issues/71)
 
 ##### ADR traceability
 
@@ -3047,7 +3047,7 @@ Think migrates a pinned base frontier and repeatedly catches up bounded legacy t
 
 ##### Dependencies
 
-- Blocked by `CT-307` (planned)
+- Blocked by [#72 — CT-307](https://github.com/flyingrobots/think/issues/72)
 
 ##### ADR traceability
 
@@ -3126,7 +3126,7 @@ Think acquires the existing write lock only for the bounded final tail, publishe
 
 ##### Dependencies
 
-- Blocked by `CT-401` (planned)
+- Blocked by [#73 — CT-401](https://github.com/flyingrobots/think/issues/73)
 
 ##### ADR traceability
 
@@ -3211,8 +3211,8 @@ Authority can switch only when an independently recomputed CutoverWitness proves
 
 ##### Dependencies
 
-- Blocked by `CT-306` (planned)
-- Blocked by `CT-402` (planned)
+- Blocked by [#71 — CT-306](https://github.com/flyingrobots/think/issues/71)
+- Blocked by [#74 — CT-402](https://github.com/flyingrobots/think/issues/74)
 
 ##### ADR traceability
 
@@ -3295,8 +3295,8 @@ Old refs remain read-only recovery evidence after cutover, with explicit rollbac
 
 ##### Dependencies
 
-- Blocked by `CT-402` (planned)
-- Blocked by `CT-403` (planned)
+- Blocked by [#74 — CT-402](https://github.com/flyingrobots/think/issues/74)
+- Blocked by [#75 — CT-403](https://github.com/flyingrobots/think/issues/75)
 
 ##### ADR traceability
 
@@ -3379,8 +3379,8 @@ Each production Mind receives its own pinned source, migration run, verified wit
 
 ##### Dependencies
 
-- Blocked by `CT-403` (planned)
-- Blocked by `CT-404` (planned)
+- Blocked by [#75 — CT-403](https://github.com/flyingrobots/think/issues/75)
+- Blocked by [#76 — CT-404](https://github.com/flyingrobots/think/issues/76)
 
 ##### ADR traceability
 
@@ -3465,8 +3465,8 @@ Production ThoughtCaptures generate finite CoverageObligations and reevaluation 
 
 ##### Dependencies
 
-- Blocked by `CT-201` (planned)
-- Blocked by `CT-405` (planned)
+- Blocked by [#56 — CT-201](https://github.com/flyingrobots/think/issues/56)
+- Blocked by [#77 — CT-405](https://github.com/flyingrobots/think/issues/77)
 
 ##### ADR traceability
 
@@ -3549,10 +3549,10 @@ Versioned extractor adapters consume exact body/context streams, produce bounded
 
 ##### Dependencies
 
-- Blocked by `CT-202` (planned)
-- Blocked by `CT-203` (planned)
-- Blocked by `CT-204` (planned)
-- Blocked by `CT-501` (planned)
+- Blocked by [#57 — CT-202](https://github.com/flyingrobots/think/issues/57)
+- Blocked by [#58 — CT-203](https://github.com/flyingrobots/think/issues/58)
+- Blocked by [#59 — CT-204](https://github.com/flyingrobots/think/issues/59)
+- Blocked by [#78 — CT-501](https://github.com/flyingrobots/think/issues/78)
 
 ##### ADR traceability
 
@@ -3633,8 +3633,8 @@ New and historical ClaimOccurrences can receive evidence-bearing relation propos
 
 ##### Dependencies
 
-- Blocked by `CT-206` (planned)
-- Blocked by `CT-502` (planned)
+- Blocked by [#61 — CT-206](https://github.com/flyingrobots/think/issues/61)
+- Blocked by [#79 — CT-502](https://github.com/flyingrobots/think/issues/79)
 
 ##### ADR traceability
 
@@ -3718,9 +3718,9 @@ Production captures receive required readings and claims through bounded workers
 
 ##### Dependencies
 
-- Blocked by `CT-501` (planned)
-- Blocked by `CT-502` (planned)
-- Blocked by `CT-503` (planned)
+- Blocked by [#78 — CT-501](https://github.com/flyingrobots/think/issues/78)
+- Blocked by [#79 — CT-502](https://github.com/flyingrobots/think/issues/79)
+- Blocked by [#80 — CT-503](https://github.com/flyingrobots/think/issues/80)
 
 ##### ADR traceability
 
@@ -3799,8 +3799,8 @@ Historical queries can recover what evidence supported under source-time context
 
 ##### Dependencies
 
-- Blocked by `CT-504` (planned)
-- Blocked by `CT-209` (planned)
+- Blocked by [#81 — CT-504](https://github.com/flyingrobots/think/issues/81)
+- Blocked by [#64 — CT-209](https://github.com/flyingrobots/think/issues/64)
 
 ##### ADR traceability
 
@@ -3890,8 +3890,8 @@ Existing auto-tags and semantic parses remain useful for retrieval while manifes
 
 ##### Dependencies
 
-- Blocked by `CT-210` (planned)
-- Blocked by `CT-405` (planned)
+- Blocked by [#65 — CT-210](https://github.com/flyingrobots/think/issues/65)
+- Blocked by [#77 — CT-405](https://github.com/flyingrobots/think/issues/77)
 
 ##### ADR traceability
 
@@ -3975,9 +3975,9 @@ Projection builders can mint a capability only after its governing fixtures and 
 
 ##### Dependencies
 
-- Blocked by `CT-004` (planned)
-- Blocked by `CT-208` (planned)
-- Blocked by `CT-601` (planned)
+- Blocked by [#43 — CT-004](https://github.com/flyingrobots/think/issues/43)
+- Blocked by [#63 — CT-208](https://github.com/flyingrobots/think/issues/63)
+- Blocked by [#83 — CT-601](https://github.com/flyingrobots/think/issues/83)
 
 ##### ADR traceability
 
@@ -4063,8 +4063,8 @@ Real queries produce validated requirements and a non-enforcing shadow decision 
 
 ##### Dependencies
 
-- Blocked by `CT-210` (planned)
-- Blocked by `CT-602` (planned)
+- Blocked by [#65 — CT-210](https://github.com/flyingrobots/think/issues/65)
+- Blocked by [#84 — CT-602](https://github.com/flyingrobots/think/issues/84)
 
 ##### ADR traceability
 
@@ -4148,8 +4148,8 @@ A stale or weak projection can be repaired for a bounded query by streaming only
 
 ##### Dependencies
 
-- Blocked by `CT-209` (planned)
-- Blocked by `CT-602` (planned)
+- Blocked by [#64 — CT-209](https://github.com/flyingrobots/think/issues/64)
+- Blocked by [#84 — CT-602](https://github.com/flyingrobots/think/issues/84)
 - External dependency: [https://github.com/git-stunts/git-warp/issues/824](https://github.com/git-stunts/git-warp/issues/824)
 - External dependency: [https://github.com/git-stunts/git-warp/issues/565](https://github.com/git-stunts/git-warp/issues/565)
 
@@ -4235,8 +4235,8 @@ When derived state is insufficient, Think reports the cheapest lawful cure and m
 
 ##### Dependencies
 
-- Blocked by `CT-603` (planned)
-- Blocked by `CT-604` (planned)
+- Blocked by [#85 — CT-603](https://github.com/flyingrobots/think/issues/85)
+- Blocked by [#86 — CT-604](https://github.com/flyingrobots/think/issues/86)
 
 ##### ADR traceability
 
@@ -4320,9 +4320,9 @@ Maintainers receive a reproducible report showing where projections suffice, whe
 
 ##### Dependencies
 
-- Blocked by `CT-603` (planned)
-- Blocked by `CT-604` (planned)
-- Blocked by `CT-605` (planned)
+- Blocked by [#85 — CT-603](https://github.com/flyingrobots/think/issues/85)
+- Blocked by [#86 — CT-604](https://github.com/flyingrobots/think/issues/86)
+- Blocked by [#87 — CT-605](https://github.com/flyingrobots/think/issues/87)
 
 ##### ADR traceability
 
@@ -4412,9 +4412,9 @@ Every consequential claim use resolves against the explicit judgments and defaul
 
 ##### Dependencies
 
-- Blocked by `CT-207` (planned)
-- Blocked by `CT-505` (planned)
-- Blocked by `CT-606` (planned)
+- Blocked by [#62 — CT-207](https://github.com/flyingrobots/think/issues/62)
+- Blocked by [#82 — CT-505](https://github.com/flyingrobots/think/issues/82)
+- Blocked by [#88 — CT-606](https://github.com/flyingrobots/think/issues/88)
 
 ##### ADR traceability
 
@@ -4498,7 +4498,7 @@ Specific human or independently authorized judgments can override defaults while
 
 ##### Dependencies
 
-- Blocked by `CT-701` (planned)
+- Blocked by [#89 — CT-701](https://github.com/flyingrobots/think/issues/89)
 
 ##### ADR traceability
 
@@ -4582,7 +4582,7 @@ Human attention is requested lazily for blocked consequential uses and prioritiz
 
 ##### Dependencies
 
-- Blocked by `CT-702` (planned)
+- Blocked by [#90 — CT-702](https://github.com/flyingrobots/think/issues/90)
 
 ##### ADR traceability
 
@@ -4668,9 +4668,9 @@ The production planner uses a projection only when its proven capabilities satis
 
 ##### Dependencies
 
-- Blocked by `CT-606` (planned)
-- Blocked by `CT-701` (planned)
-- Blocked by `CT-702` (planned)
+- Blocked by [#88 — CT-606](https://github.com/flyingrobots/think/issues/88)
+- Blocked by [#89 — CT-701](https://github.com/flyingrobots/think/issues/89)
+- Blocked by [#90 — CT-702](https://github.com/flyingrobots/think/issues/90)
 
 ##### ADR traceability
 
@@ -4754,8 +4754,8 @@ Every answered or bounded query explains its frontier, clocks, evidence, reading
 
 ##### Dependencies
 
-- Blocked by `CT-605` (planned)
-- Blocked by `CT-704` (planned)
+- Blocked by [#87 — CT-605](https://github.com/flyingrobots/think/issues/87)
+- Blocked by [#92 — CT-704](https://github.com/flyingrobots/think/issues/92)
 
 ##### ADR traceability
 
@@ -4839,9 +4839,9 @@ Query classes advance from shadow to enforced planning only after fixtures, reme
 
 ##### Dependencies
 
-- Blocked by `CT-703` (planned)
-- Blocked by `CT-704` (planned)
-- Blocked by `CT-705` (planned)
+- Blocked by [#91 — CT-703](https://github.com/flyingrobots/think/issues/91)
+- Blocked by [#92 — CT-704](https://github.com/flyingrobots/think/issues/92)
+- Blocked by [#93 — CT-705](https://github.com/flyingrobots/think/issues/93)
 
 ##### ADR traceability
 
@@ -4931,7 +4931,7 @@ No ClaimOccurrence, answer, recommendation, or model output can directly authori
 
 ##### Dependencies
 
-- Blocked by `CT-706` (planned)
+- Blocked by [#94 — CT-706](https://github.com/flyingrobots/think/issues/94)
 
 ##### ADR traceability
 
@@ -5015,7 +5015,7 @@ The external-action adapter validates a receipt and executes only its named oper
 
 ##### Dependencies
 
-- Blocked by `CT-801` (planned)
+- Blocked by [#95 — CT-801](https://github.com/flyingrobots/think/issues/95)
 
 ##### ADR traceability
 
@@ -5101,7 +5101,7 @@ Later evidence can stop future action, request a compensating operation, or reco
 
 ##### Dependencies
 
-- Blocked by `CT-802` (planned)
+- Blocked by [#96 — CT-802](https://github.com/flyingrobots/think/issues/96)
 
 ##### ADR traceability
 
@@ -5185,7 +5185,7 @@ An auditor can reproduce why an action was lawful at its evidence frontier and s
 
 ##### Dependencies
 
-- Blocked by `CT-803` (planned)
+- Blocked by [#97 — CT-803](https://github.com/flyingrobots/think/issues/97)
 
 ##### ADR traceability
 
@@ -5269,7 +5269,7 @@ A production-shaped simulator demonstrates the full witnessed path from capture 
 
 ##### Dependencies
 
-- Blocked by `CT-804` (planned)
+- Blocked by [#98 — CT-804](https://github.com/flyingrobots/think/issues/98)
 
 ##### ADR traceability
 
