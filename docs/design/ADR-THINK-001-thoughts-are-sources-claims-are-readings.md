@@ -1,5 +1,7 @@
 # ADR-THINK-001
+
 # Thoughts Are Sources; Claims Are Readings
+
 ## The Contextual, Streaming Mind
 
 **Status:** Accepted — implementation gated\
@@ -240,7 +242,11 @@ They do not overwrite earlier attempts.
 
 ### I7. ClaimTerm identity is structural, not propositional
 
-A content-addressed ClaimTerm proves structural equality under an exact schema and normalization law.
+A structurally addressed ClaimTerm proves equality only under an exact schema,
+normalization law, and privacy scope. User-derived structural payloads and
+their equality commitments remain behind opaque, per-derivative erasable
+grants; immutable history does not publish plaintext term hashes or
+equality-revealing shared identifiers.
 
 It does not prove global proposition equality.
 
@@ -372,7 +378,7 @@ No plane may impersonate another.
 Every canonical record family must justify its existence with a query or invariant that cannot be satisfied without it.
 
 | Record family | Required because |
-|---|---|
+| --- | --- |
 | `BodyGrant` | User content must remain recoverable before erasure and non-recoverable afterward without publishing plaintext content identity. |
 | `ThoughtCapture` | Repetition, capture time, ingress, provenance, and occurrence identity must survive body deduplication. |
 | `ObservationSpec` | The system must prove exactly what context a reading observed. |
@@ -696,13 +702,21 @@ A ClaimTerm is an immutable structural value preserving qualification such as:
 
 ```text
 ClaimTerm {
+    claimTermId
     semanticSchemaDigest
     normalizationLawDigest
-    structuralPayload
+    structuralPayloadGrantRef
+    privateStructuralCommitmentRef?
 }
 ```
 
-Its optional content address means:
+`structuralPayloadGrantRef` resolves to an encrypted, independently erasable
+derived payload. `privateStructuralCommitmentRef`, when present, resolves to a
+keyed or otherwise non-public commitment inside the erasable vault boundary.
+Neither reference reveals source content or cross-occurrence equality through
+canonical history.
+
+Its optional private structural address means:
 
 > Structurally equal under this exact schema and normalization law.
 
@@ -710,7 +724,11 @@ It does not mean:
 
 > Universally the same proposition.
 
-Large terms must be bounded or represented through a completed Merkle-addressed envelope.
+Large terms must be bounded or represented through a completed,
+encrypted Merkle-addressed envelope whose payload and commitment capabilities
+are destroyed when any governing erasure policy requires it. ClaimTerm
+metadata may remain as a structural tombstone, but no recoverable semantic
+payload may survive erasure in append-only records.
 
 ### 13.2 ClaimOccurrence
 
@@ -1012,7 +1030,7 @@ Regret is appended, never backfilled.
 Think must preserve distinct clocks.
 
 | Clock | Meaning |
-|---|---|
+| --- | --- |
 | Causal admission frontier | When a record became part of authoritative history |
 | `capturedAt` | Time supplied by the ingress or device |
 | Source-mentioned time | Time referred to inside the content |
@@ -1028,7 +1046,7 @@ No single timestamp may impersonate all seven.
 Typed query operators must declare default clocks.
 
 | Query shape | Default interpretation |
-|---|---|
+| --- | --- |
 | “What did I write or capture Friday?” | `capturedAt`, bounded by the selected causal frontier |
 | “What did I decide by Friday?” | Decision effective time, evaluated using authority available by Friday’s frontier |
 | “What did I believe on Friday?” | Belief authority and effective interval as of Friday’s frontier |
@@ -1602,6 +1620,11 @@ A disjoint epoch-overlay design may be introduced by a separate ADR, but it is n
 
 ### 22.7 Cutover
 
+This protocol executes only in Phase 8, after every acceptance criterion in
+section 30 has independently passed. Earlier phases may rehearse every step on
+disposable or non-authoritative refs, but they MUST NOT perform the authority
+switch.
+
 The cutover protocol is:
 
 1. Record legacy source frontier \(C_0\).
@@ -1850,7 +1873,7 @@ The system must record these limitations honestly rather than claim impossible d
 ## 25. Failure semantics
 
 | Failure | Required behavior |
-|---|---|
+| --- | --- |
 | Body preparation fails | Capture is not admitted. Return typed failure. |
 | WARP admission fails after body preparation | Capture is not admitted. Prepared grant becomes orphaned and is later collected. |
 | Extraction fails | ThoughtCapture remains authoritative. Append or retain failed ReadingAttempt. Retry independently. |
@@ -2153,22 +2176,24 @@ Run against disposable refs.
 
 Do not switch authority.
 
-### Phase 4 — Verified cutover
+### Phase 4 — Verified cutover rehearsal
 
 Perform:
 
 - base migration;
 - tail catch-up;
-- final lock;
-- final window publication;
-- CutoverWitness verification;
-- atomic authority switch.
+- bounded final-lock rehearsal;
+- candidate final-window publication on non-authoritative refs;
+- CutoverWitness construction and independent verification;
+- crash, recovery, erasure, and no-split-brain drills.
 
-Retain legacy refs read-only.
+Do not switch authority. Legacy storage remains the sole production write
+target.
 
 ### Phase 5 — Contextual Claims backfill
 
-Enumerate CoverageObligations and create versioned ReadingAttempts.
+Enumerate CoverageObligations over the candidate evidence substrate and create
+versioned ReadingAttempts.
 
 Extraction failures do not affect raw migration validity.
 
@@ -2185,9 +2210,9 @@ Build and measure:
 
 Do not enforce refusals yet.
 
-### Phase 7 — Authority and refusal enforcement
+### Phase 7 — Authority and refusal enforcement readiness
 
-Enable:
+Implement and prove behind non-authoritative shadow or deny-by-default gates:
 
 - capability routing;
 - default authority policy;
@@ -2196,13 +2221,18 @@ Enable:
 - bounded automatic escalation;
 - answer witnesses.
 
-### Phase 8 — Edict action bridge
+### Phase 8 — Edict action bridge and production cutover
 
 Only after the read and authority planes are stable:
 
 - mint bounded ActionAuthorizationReceipts;
 - execute through Edict or Boundary;
-- preserve compensation and incident semantics.
+- preserve compensation and incident semantics;
+- prove all acceptance criteria 1–35 together;
+- acquire the final bounded legacy write lock;
+- publish and verify the final tail AdmissionWindow and CutoverWitness;
+- atomically switch production authority exactly once;
+- retain legacy refs read-only under the recovery and erasure policy.
 
 ---
 
@@ -2375,17 +2405,10 @@ Erasure removes future recoverability without rewriting history.
 None of these layers may impersonate another.
 
 > **The source is sacred as evidence, not as truth.**
-
 > **Hashes prove sameness of bytes. They do not prove sameness of meaning.**
-
 > **A relation without a witness is an edge wearing a tie.**
-
 > **A projection that cannot confess what it erased is not an optimization. It is a liar.**
-
 > **Append-only does not mean never changing your mind. It means changing your mind without rewriting who you were.**
-
 > **A distinction you cannot afford to adjudicate is a distinction you have merely stored.**
-
 > **The algebra is the easy tenth. The fixtures that make it honest are the work.**
-
 > **State is a reading. Mind is the witnessed worldline.**

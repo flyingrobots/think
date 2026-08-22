@@ -25,7 +25,8 @@ timeline
   while keeping physical publication bounded by AdmissionWindows.
 - Making footprint exactness, streaming, process count, authority, projection
   sufficiency, and erasure executable gates rather than ambient claims.
-- Keeping legacy production storage authoritative until a verified P4 cutover.
+- Keeping legacy production storage authoritative through P4 rehearsal and all
+  P5–P8 acceptance work, until the one verified P8 production cutover.
 
 ### 2. Think-on-Echo Runtime Proof
 
@@ -61,7 +62,8 @@ timeline
 - **Optic Exactness**: Streaming bounded resident state does not yet prove that
   every production optic reads only its complete causal support slice.
 - **Cutover Discipline**: The replacement architecture is accepted, but all
-  five gates and a witnessed P4 switch stand between design and authority.
+  five gates, the complete AC1–AC35 proof, and a witnessed P8 switch stand
+  between design and authority.
 
 ## Next Target
 

@@ -28,8 +28,8 @@
     },
     {
       "id": "P4",
-      "title": "ADR-THINK-001 P4 — Verified cutover",
-      "thesis": "Perform base migration, tail catch-up, a short locked final window, witnessed authority switch, and recovery-safe retention without long-lived dual writes."
+      "title": "ADR-THINK-001 P4 — Verified cutover rehearsal",
+      "thesis": "Rehearse base migration, tail convergence, the short locked final window, CutoverWitness verification, and recovery-safe retention on non-authoritative refs without long-lived dual writes."
     },
     {
       "id": "P5",
@@ -43,13 +43,13 @@
     },
     {
       "id": "P7",
-      "title": "ADR-THINK-001 P7 — Authority and refusal enforcement",
-      "thesis": "Enforce historical authority, projection sufficiency, finite-attention adjudication, priced remediation, and witnessed bounded or refused answers."
+      "title": "ADR-THINK-001 P7 — Authority and refusal readiness",
+      "thesis": "Prove historical authority, projection sufficiency, finite-attention adjudication, priced remediation, and witnessed bounded or refused answers behind non-authoritative gates."
     },
     {
       "id": "P8",
-      "title": "ADR-THINK-001 P8 — Edict action bridge",
-      "thesis": "Permit external effects only through bounded authorization receipts and preserve later revocation, compensation, incident, and historical-legality evidence."
+      "title": "ADR-THINK-001 P8 — Action bridge and production cutover",
+      "thesis": "Prove bounded action authorization and aftermath, close AC1–AC35, then perform the one witnessed production authority switch and preserve historical-legality evidence."
     }
   ],
   "features": [
@@ -96,12 +96,12 @@
     {
       "id": "F4.1",
       "milestone": "P4",
-      "title": "Tail catch-up and authority switch"
+      "title": "Tail convergence rehearsal"
     },
     {
       "id": "F4.2",
       "milestone": "P4",
-      "title": "Cutover proof and recovery"
+      "title": "Candidate cutover proof and recovery"
     },
     {
       "id": "F5.1",
@@ -131,7 +131,7 @@
     {
       "id": "F7.2",
       "milestone": "P7",
-      "title": "Sufficiency enforcement and answer witnesses"
+      "title": "Sufficiency enforcement readiness and answer witnesses"
     },
     {
       "id": "F8.1",
@@ -141,7 +141,7 @@
     {
       "id": "F8.2",
       "milestone": "P8",
-      "title": "Revocation, compensation, and audit"
+      "title": "Revocation, compensation, audit, and cutover"
     }
   ],
   "issues": [
@@ -1787,22 +1787,22 @@
       ],
       "deliverables": [
         "Contextual Claims adapter port and schema/version compatibility contract.",
-        "Bounded ClaimTerm envelope and canonical structural digest.",
+        "Bounded encrypted ClaimTerm payload grant and private structural-commitment boundary.",
         "Typed NodePath, annotation validation, and transformation transport map.",
         "Reference fold fixtures for rendering, subject collection, temporal resolution, and evidence lookup."
       ],
       "acceptance": [
         "All six constructors and ordered nested frames round-trip without flattening.",
-        "ClaimTerm identity binds schema and normalization law and makes no proposition-equality claim.",
+        "ClaimTerm identity binds schema, normalization law, and privacy scope without publishing source content, equality, or a proposition-equality claim.",
         "Annotations remain outside term identity and address valid typed paths.",
-        "Large terms require declared bounds or completed Merkle envelopes."
+        "Large terms require declared bounds or completed encrypted Merkle envelopes whose payload and commitment grants are independently erasable."
       ],
       "testPlan": {
         "contract": "Golden terms from the independent spec round-trip byte-for-byte under the pinned schema.",
         "integration": "The dojo terms preserve attribution, alternatives, negation, guards, modality, and temporal inheritance.",
         "failure": "Flattening, path drift, unknown values, non-finite numbers, empty alternatives/groups, cycles, and over-limit terms fail.",
         "resource": "Streaming envelope decode and path validation stay within declared item/depth/byte bounds.",
-        "security": null
+        "security": "Erasing the governing source grants destroys ClaimTerm payload and private-commitment access while leaving only non-leaking structural tombstones."
       },
       "resources": [
         {
@@ -1813,7 +1813,7 @@
         {
           "name": "claim-term-envelope",
           "mode": "exclusive",
-          "scope": "Bounded canonical encoding and digest."
+          "scope": "Bounded encrypted payload encoding and private commitment."
         },
         {
           "name": "contextual-claims-v1-spec",
@@ -2547,6 +2547,9 @@
         "enhancement"
       ],
       "blockedBy": [
+        "CT-004",
+        "CT-005",
+        "CT-006",
         "CT-105",
         "CT-106",
         "CT-107",
@@ -3097,49 +3100,49 @@
       "id": "CT-402",
       "milestone": "P4",
       "feature": "F4.1",
-      "title": "Implement the short-lock final tail and atomic authority switch",
-      "outcome": "Think acquires the existing write lock only for the bounded final tail, publishes the final window, atomically switches authority, and routes every later write to the new substrate.",
+      "title": "Rehearse the short-lock final tail without switching authority",
+      "outcome": "Think proves the bounded final-tail, publication, restart, and routing mechanics against non-authoritative refs while legacy remains the sole production writer.",
       "stories": [
         {
-          "actor": "Think user",
-          "capability": "one short, explicit capture pause at cutover",
-          "value": "there is no ambiguous dual-write epoch"
+          "actor": "Think maintainer",
+          "capability": "a production-shaped short-lock rehearsal with no authority mutation",
+          "value": "the dangerous timing and crash boundaries are proven before users depend on them"
         },
         {
           "actor": "operator",
-          "capability": "one checked authority-switch receipt",
-          "value": "restart can determine exactly which substrate owns future writes"
+          "capability": "a candidate switch receipt and deterministic restart simulation",
+          "value": "P8 can later recognize exactly one authority without learning in production"
         }
       ],
       "deliverables": [
-        "Final-lock readiness check and bounded tail converter.",
-        "Atomic storage-version or authoritative-ref switch.",
-        "AuthoritySwitchReceipt and restart reconciliation.",
-        "Post-switch routing guard that refuses legacy writes."
+        "Rehearsal-lock readiness check and bounded tail converter.",
+        "Non-authoritative candidate storage-version or ref-switch simulator.",
+        "Candidate AuthoritySwitchReceipt and restart reconciliation proof.",
+        "Routing guard fixture that would refuse legacy writes only after a future verified switch."
       ],
       "acceptance": [
-        "The final lock is acquired only after measured tail fits the configured bound.",
-        "Final tail window publication precedes the atomic authority switch.",
-        "After switch, all new writes target only the new substrate.",
-        "Restart before or after the switch resolves one authoritative writer without dual writing."
+        "The rehearsal lock is acquired only after the measured tail fits the configured bound.",
+        "Candidate final-window publication precedes the simulated atomic authority switch.",
+        "No production authority ref, storage version, or writer routing changes during P4.",
+        "Restart simulation before or after the candidate switch resolves one writer without dual writing."
       ],
       "testPlan": {
         "contract": "State-machine tests cover pre-lock, locked, final-published, switched, released, and recovered states.",
-        "integration": "A concurrent capture fixture verifies bounded blocking and post-switch routing.",
+        "integration": "A concurrent production-shaped fixture verifies bounded blocking and candidate post-switch routing on disposable refs.",
         "failure": "Crash before final publish, after publish, during switch, after switch, and before unlock recovers deterministically.",
         "resource": "Lock hold time, final-tail items/bytes/processes, and queued capture count meet configured ceilings.",
         "security": null
       },
       "resources": [
         {
-          "name": "think-production-write-lock",
+          "name": "think-cutover-rehearsal-lock",
           "mode": "exclusive",
-          "scope": "Existing short lock for the bounded final tail only."
+          "scope": "Production-shaped fixture lock for the bounded final tail only."
         },
         {
-          "name": "authoritative-storage-pointer",
+          "name": "candidate-authority-pointer",
           "mode": "exclusive",
-          "scope": "Storage-version or authoritative-ref switch."
+          "scope": "Non-authoritative storage-version or ref-switch simulation."
         },
         {
           "name": "cutover-target-ref",
@@ -3148,8 +3151,8 @@
         },
         {
           "name": "legacy-authoritative-writer",
-          "mode": "exclusive",
-          "scope": "Paused only while the final lock is held."
+          "mode": "shared",
+          "scope": "Read-only proof that production authority remains unchanged."
         }
       ]
     },
@@ -3184,13 +3187,13 @@
       "id": "CT-403",
       "milestone": "P4",
       "feature": "F4.2",
-      "title": "Implement the CutoverWitness and zero-obstruction release gate",
-      "outcome": "Authority can switch only when an independently recomputed CutoverWitness proves the declared source domain, target frontier, resource budgets, bounded query agreement, and obstruction disposition.",
+      "title": "Implement candidate CutoverWitness and zero-obstruction gates",
+      "outcome": "A candidate cutover becomes eligible for final P8 consideration only when an independently recomputed CutoverWitness proves the declared source domain, target frontier, resource budgets, bounded query agreement, and obstruction disposition.",
       "stories": [
         {
           "actor": "cutover approver",
-          "capability": "one fail-closed witness before authority moves",
-          "value": "production cutover is a verified decision rather than an optimistic command"
+          "capability": "one fail-closed candidate witness before authority can become eligible to move",
+          "value": "production cutover cannot bypass independently recomputed migration evidence"
         },
         {
           "actor": "auditor",
@@ -3201,18 +3204,18 @@
       "deliverables": [
         "CutoverWitness builder and independent verifier.",
         "Zero-unresolved-obstruction gate and LossAcceptance integration.",
-        "Authority-switch receipt binding to verified witness digest.",
+        "Final authority-switch precondition binding to a verified witness digest.",
         "Human-readable cutover proof report and machine result."
       ],
       "acceptance": [
         "Every ADR CutoverWitness field is populated and independently verified.",
         "Exact cutover fails with any unresolved obstruction.",
         "Explicit LossAcceptance preserves incomplete-coverage language and evidence.",
-        "Authority switch cannot reference an unverified or stale witness."
+        "The P8 authority switch cannot reference an unverified or stale witness."
       ],
       "testPlan": {
         "contract": "Witness codec and verifier tests cover every root, count, frontier, budget, and switch receipt.",
-        "integration": "A successful final-tail fixture produces and consumes the witness before switching.",
+        "integration": "A successful final-tail rehearsal produces and consumes the witness before a simulated switch.",
         "failure": "Tampering, stale source tail, stale target, unresolved obstruction, forged acceptance, and budget failure block.",
         "resource": "Verification streams declared domains under P3 resource ceilings.",
         "security": "Witnesses contain opaque commitments and erasable payload references only."
@@ -3236,7 +3239,7 @@
         {
           "name": "authoritative-storage-pointer",
           "mode": "shared",
-          "scope": "Read-only target of the verified switch."
+          "scope": "Read-only proof that P4 does not mutate production authority."
         }
       ]
     },
@@ -3365,19 +3368,19 @@
         "AC32"
       ],
       "nonGoals": [
-        "Do not cut over a Mind with unresolved obstruction absent explicit LossAcceptance.",
-        "Do not overlap locks or vault mutations merely to shorten wall time."
+        "Do not mutate production authority or present a rehearsal as a completed cutover.",
+        "Do not overlap rehearsal locks or vault mutations merely to shorten wall time."
       ],
       "id": "CT-405",
       "milestone": "P4",
       "feature": "F4.2",
-      "title": "Execute and verify the production Mind cutover fleet",
-      "outcome": "Each production Mind receives its own pinned source, migration run, verified witness, short-lock switch, post-switch append/read/doctor proof, and retained recovery posture.",
+      "title": "Execute production-shaped cutover rehearsals for every Mind",
+      "outcome": "Each selected Mind is copied to isolated refs for a pinned migration, verified witness, short-lock simulation, post-switch append/read/doctor proof, and recovery rehearsal without changing production authority.",
       "stories": [
         {
           "actor": "Think user",
-          "capability": "all of my Minds cut over without lost or duplicated captures",
-          "value": "the new occurrence model becomes production truth safely"
+          "capability": "each of my Minds to pass a production-shaped cutover rehearsal without lost or duplicated captures",
+          "value": "the eventual production switch is based on per-Mind evidence"
         },
         {
           "actor": "operator",
@@ -3387,43 +3390,43 @@
       ],
       "deliverables": [
         "Per-Mind preflight, backup, source frontier, and resource budget.",
-        "Per-Mind base/tail/final run and CutoverWitness.",
-        "Post-switch exact read, recent, capture, restart, doctor, and erasure checks.",
-        "Fleet summary with obstructions, loss acceptances, recovery refs, and authority receipts."
+        "Per-Mind base/tail/final rehearsal and candidate CutoverWitness.",
+        "Candidate post-switch exact read, recent, capture, restart, doctor, and erasure checks.",
+        "Fleet rehearsal summary with obstructions, loss acceptances, recovery refs, and candidate receipts."
       ],
       "acceptance": [
-        "Every selected Mind independently passes clean cutover or stops before authority switch.",
-        "Post-switch reads and captures use only the new substrate.",
+        "Every selected Mind independently passes a clean isolated rehearsal or stops without any production authority mutation.",
+        "Candidate post-switch reads and captures use only the new substrate inside the fixture.",
         "Counts, ordered IDs, mappings, birth witnesses, and Q0/D0 results match each verified witness.",
-        "No production plaintext body, public equality token, or erased synthetic canary is recoverable."
+        "No plaintext body, public equality token, or erased synthetic canary is recoverable from any rehearsal artifact."
       ],
       "testPlan": {
-        "contract": "Run the complete P4 runbook separately for each Mind in the approved fleet.",
-        "integration": "After each switch, execute exact inspect, bounded recent, capture, restart, doctor, and backup-restore checks.",
-        "failure": "Abort safely on lock timeout, resource breach, obstruction, witness mismatch, post-switch failure, or erasure leak.",
+        "contract": "Run the complete P4 rehearsal separately for each selected Mind copy.",
+        "integration": "After each candidate switch, execute exact inspect, bounded recent, capture, restart, doctor, and backup-restore checks.",
+        "failure": "Abort safely on lock timeout, resource breach, obstruction, witness mismatch, candidate post-switch failure, or erasure leak.",
         "resource": "Record per-Mind process, RSS, latency, lock, queue, and window evidence without overlapping exclusive Mind locks.",
         "security": "Use synthetic canaries and never publish user body bytes in receipts or reports."
       },
       "resources": [
         {
-          "name": "production-mind-write-lock",
+          "name": "mind-rehearsal-write-lock",
           "mode": "partitioned",
-          "scope": "Exclusive per named Mind; different Minds may cut over only if operator policy permits."
+          "scope": "Exclusive per isolated Mind copy; production writers remain untouched."
         },
         {
-          "name": "production-mind-vault",
+          "name": "mind-rehearsal-vault",
           "mode": "partitioned",
-          "scope": "Independent key/grant partition per Mind."
+          "scope": "Independent disposable key/grant partition per Mind copy."
         },
         {
           "name": "cutover-proof-runner",
           "mode": "exclusive",
-          "scope": "One certified production verification run at a time."
+          "scope": "One certified rehearsal verification run at a time."
         },
         {
-          "name": "fleet-cutover-ledger",
+          "name": "fleet-rehearsal-ledger",
           "mode": "exclusive",
-          "scope": "Authoritative operational sequence and results."
+          "scope": "Non-authoritative rehearsal sequence and results."
         }
       ]
     },
@@ -3460,7 +3463,7 @@
       "milestone": "P5",
       "feature": "F5.1",
       "title": "Implement bounded coverage scheduling and context invalidation",
-      "outcome": "Production ThoughtCaptures generate finite CoverageObligations and reevaluation work only from versioned, bounded triggers tied to their source and declared lens.",
+      "outcome": "Candidate ThoughtCaptures generate finite CoverageObligations and reevaluation work only from versioned, bounded triggers tied to their source and declared lens while legacy remains authoritative.",
       "stories": [
         {
           "actor": "Think user",
@@ -3474,7 +3477,7 @@
         }
       ],
       "deliverables": [
-        "Coverage enumerator over the production ThoughtCapture source domain.",
+        "Coverage enumerator over the candidate ThoughtCapture source domain.",
         "Bounded trigger index for project, entity, source-time, authority, and extractor-law changes.",
         "Operational queue/lease adapter separated from canonical attempt outcomes.",
         "Coverage status and backlog metrics by policy/lens/frontier."
@@ -4906,12 +4909,12 @@
       "id": "CT-706",
       "milestone": "P7",
       "feature": "F7.2",
-      "title": "Roll out authority and refusal enforcement safely",
-      "outcome": "Query classes advance from shadow to enforced planning only after fixtures, remediation, refusal policy, telemetry, rollback, and historical replay are independently proven.",
+      "title": "Prove authority and refusal enforcement readiness",
+      "outcome": "Query classes prove the path from shadow to enforced planning only after fixtures, remediation, refusal policy, telemetry, rollback, and historical replay are independently verified; activation waits for P8 cutover.",
       "stories": [
         {
           "actor": "Think user",
-          "capability": "predictable staged enforcement with useful bounded results",
+          "capability": "a predictable staged-enforcement rehearsal with useful bounded results",
           "value": "semantic safety does not arrive as a sudden wave of unexplained refusals"
         },
         {
@@ -4922,19 +4925,19 @@
       ],
       "deliverables": [
         "Enforcement readiness checklist and signed decision per query class.",
-        "Canary, cohort, percentage, hold, and rollback controls that preserve capability law.",
+        "Non-authoritative canary, cohort, percentage, hold, and rollback controls that preserve capability law.",
         "SLOs for answer, bounded, remediation, adjudication, refusal, error, and latency rates.",
         "Historical replay, incident, and rollback runbooks with evidence retention and payload erasure."
       ],
       "acceptance": [
-        "No class enables without passing governing fixtures, shadow evidence, remediation or final-refusal policy, and rollback rehearsal.",
+        "No class becomes production-authoritative before P8, and no class becomes eligible without passing governing fixtures, shadow evidence, remediation or final-refusal policy, and rollback rehearsal.",
         "Rollback changes routing behavior but never fabricates authority or projection capability.",
         "Historical answers remain reproducible across rollout and rollback.",
         "High refusal, latency, error, authority conflict, or privacy signals automatically hold further expansion."
       ],
       "testPlan": {
         "contract": "Rollout-state tests cover disabled, shadow, canary, cohort, expanding, held, rolled-back, and enforced states.",
-        "integration": "A representative query class advances through the full staged rollout with witnessed results and historical replay.",
+        "integration": "A representative query class advances through the full non-authoritative staged rollout with witnessed results and historical replay.",
         "failure": "Bad manifest, policy conflict, missing remediation, elevated refusal, latency regression, privacy event, and rollback failure trigger holds.",
         "resource": "Canary evaluation, telemetry, canonical escalation, and rollback remain bounded under production-shaped load.",
         "security": "Rollback and incident tooling preserve erasure and access-view constraints."
@@ -5342,15 +5345,57 @@
         "G5"
       ],
       "invariants": [
+        "I1",
+        "I2",
         "I3",
+        "I4",
+        "I5",
+        "I6",
+        "I7",
+        "I8",
         "I9",
         "I10",
+        "I11",
+        "I12",
         "I13",
         "I14",
         "I15",
+        "I16",
         "I17"
       ],
       "criteria": [
+        "AC1",
+        "AC2",
+        "AC3",
+        "AC4",
+        "AC5",
+        "AC6",
+        "AC7",
+        "AC8",
+        "AC9",
+        "AC10",
+        "AC11",
+        "AC12",
+        "AC13",
+        "AC14",
+        "AC15",
+        "AC16",
+        "AC17",
+        "AC18",
+        "AC19",
+        "AC20",
+        "AC21",
+        "AC22",
+        "AC23",
+        "AC24",
+        "AC25",
+        "AC26",
+        "AC27",
+        "AC28",
+        "AC29",
+        "AC30",
+        "AC31",
+        "AC32",
         "AC33",
         "AC34",
         "AC35"
@@ -5362,38 +5407,38 @@
       "id": "CT-805",
       "milestone": "P8",
       "feature": "F8.2",
-      "title": "Prove the end-to-end action safety boundary",
-      "outcome": "A production-shaped simulator demonstrates the full witnessed path from capture to authorized effect and every denial, revocation, compensation, incident, resource, and erasure invariant required for release.",
+      "title": "Close AC1–AC35 and perform the verified production cutover",
+      "outcome": "The complete architecture proves every acceptance criterion, demonstrates the action safety boundary, catches up the final legacy tail, and performs exactly one witnessed production authority switch per approved Mind.",
       "stories": [
         {
           "actor": "Think maintainer",
-          "capability": "one falsifiable acceptance suite for the complete action bridge",
-          "value": "release claims rest on executable causal stories rather than component-green optimism"
+          "capability": "one falsifiable AC1–AC35 release gate and exact cutover protocol",
+          "value": "production authority moves only after the whole architecture, not merely migration, is proven"
         },
         {
           "actor": "Think user",
-          "capability": "proof that ambiguous or unauthorized language cannot trigger an effect",
-          "value": "I can trust capture to remain evidence until a separate bounded authorization exists"
+          "capability": "my approved Mind to switch once without lost captures or unauthorized effects",
+          "value": "I can trust both storage migration and semantic action boundaries at cutover"
         }
       ],
       "deliverables": [
         "Production-shaped deterministic external-effect simulator and fault injector.",
-        "End-to-end fixtures for authorized, denied, bounded, expired, revoked, replayed, compensated, irreversible, and erased cases.",
-        "Resource report covering memory, queues, processes, concurrency, retries, time, bytes, and external calls.",
-        "P8 acceptance witness, threat-model review, operational runbook, and explicit residual-risk register."
+        "Integrated AC1–AC35 evidence bundle covering every gate, invariant, fixture, migration, authority, erasure, resource, and action proof.",
+        "Per-Mind final tail, CutoverWitness verification, atomic authority switch, and AuthoritySwitchReceipt runbook.",
+        "Post-switch read/write/restart/doctor/erasure proof, retained-ref posture, resource report, and residual-risk register."
       ],
       "acceptance": [
-        "The suite proves external action cannot occur from a ClaimOccurrence, projection, answer, or recommendation alone.",
-        "Every simulated effect has a valid bounded authorization and conforming execution receipt.",
-        "Later invalidation yields revocation, compensation, escalation, or incident without historical mutation.",
-        "All ADR acceptance criteria 33–35 and relevant erasure, authority, frontier, and bounded-execution ratchets pass together."
+        "All ADR acceptance criteria AC1–AC35 and gates G1–G5 pass together at the exact candidate frontier with no unresolved obstruction or blocking review.",
+        "The suite proves external action cannot occur from a ClaimOccurrence, projection, answer, or recommendation alone, and every simulated effect has a valid bounded receipt.",
+        "Each approved Mind either remains wholly legacy-authoritative on failure or switches exactly once after its final verified witness; no dual-write interval exists.",
+        "Post-switch reads, captures, restart, doctor, erasure, revocation, compensation, incident, process, memory, queue, and backup ratchets all pass."
       ],
       "testPlan": {
-        "contract": "Acceptance tests enumerate every authorization and aftermath state with exact witness assertions.",
-        "integration": "The full dojo capture-to-action story crosses BodyVault, WARP, reading, claims, authority, query, AnswerWitness, Edict, and audit.",
-        "failure": "Ambiguity, misattribution, conflict, stale frontier, forged receipt, replay, provider fault, irreversible effect, and erasure expose no unsafe path.",
-        "resource": "Long-running action simulations preserve flat memory, bounded queues, scoped processes, bounded retries, and exact external-call counts.",
-        "security": "Independent threat review and restore drills cover keys, backups, logs, traces, receipts, external credentials, and erased payloads."
+        "contract": "Acceptance tests enumerate AC1–AC35, every authorization and aftermath state, and every final-cutover state with exact witness assertions.",
+        "integration": "The full dojo and approved-Mind flow crosses BodyVault, WARP, reading, claims, authority, query, AnswerWitness, Edict, final tail, authority switch, and audit.",
+        "failure": "Any failed criterion, obstruction, ambiguity, stale frontier, forged receipt, replay, provider fault, lock timeout, witness mismatch, or erasure leak leaves legacy authoritative and exposes no unsafe path.",
+        "resource": "Action simulation and final cutover preserve flat memory, bounded queues, window-scaled Git processes, bounded retries, bounded lock time, and exact external-call counts.",
+        "security": "Independent threat review and restore drills cover keys, backups, logs, traces, receipts, external credentials, retained refs, and erased payloads before and after the switch."
       },
       "resources": [
         {
@@ -5420,6 +5465,21 @@
           "name": "release-evidence-bundle",
           "mode": "exclusive",
           "scope": "Signed acceptance results and residual-risk register."
+        },
+        {
+          "name": "production-mind-write-lock",
+          "mode": "partitioned",
+          "scope": "Exclusive final lock per approved Mind; Minds never share an authority mutation lane."
+        },
+        {
+          "name": "production-authority-pointer",
+          "mode": "exclusive",
+          "scope": "The one checked production substrate switch."
+        },
+        {
+          "name": "final-cutover-proof-runner",
+          "mode": "exclusive",
+          "scope": "Independent final-tail and CutoverWitness verification."
         }
       ]
     }

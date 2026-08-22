@@ -13,7 +13,7 @@ scope: milestones, features, issues, dependencies, performance, streaming, migra
 > The machine-checked implementation graph lives in
 > [`ADR-THINK-001-work-items.json`](./ADR-THINK-001-work-items.json). This
 > document explains their delivery shape. Existing production behavior remains
-> authoritative until the verified P4 cutover.
+> authoritative until the verified P8 production cutover.
 
 ## 1. Executive delivery contract
 
@@ -40,7 +40,7 @@ flowchart TD
     IS["60 independently testable issues"]
     PR["Focused implementation pull requests"]
     EV["Executable evidence and witnesses"]
-    CUT["P4 authority cutover"]
+    CUT["P8 production authority cutover"]
 
     ADR --> MS
     MS --> FT
@@ -69,7 +69,7 @@ The current state was refreshed on 2026-08-21.
 | Git object reads | The architecture calls for one persistent, bounded `git cat-file --batch-command --buffer` session; the remaining Think profile still includes per-payload object reads. | Object reads use persistent bounded sessions and drain or cancel protocol slots correctly. |
 | Git object writes | Isolated one-shot writes remain lawful, but migration-scale process-per-object publication is not. git-cas [#110](https://github.com/git-stunts/git-cas/issues/110) tracks bounded batches of small asset writes. | Bulk paths use storage-neutral, backpressured sessions; process count is O(windows), not O(thoughts), blobs, claims, or pages. |
 | Capture semantics | Current capture may materialize or update coarse storage structures. | Capture success ends after body preparation, one logical ThoughtCapture admission, and optional durable follow-through enqueueing. Extraction is excluded. |
-| Production authority | Legacy storage remains the production source of truth. | New records become authoritative only after the P4 `CutoverWitness` and atomic authority switch. |
+| Production authority | Legacy storage remains the production source of truth. | New records become authoritative only after P4 rehearsal, P5–P8 proof work, closure of AC1–AC35, the final `CutoverWitness`, and the one atomic authority switch in P8. |
 
 ### The direct answer about read-side optics
 
@@ -330,7 +330,8 @@ erDiagram
         string claimTermRef PK
         string semanticSchemaDigest
         string normalizationLawDigest
-        string structuralPayloadRef
+        string structuralPayloadGrantRef
+        string privateStructuralCommitmentRef
     }
     CLAIM_OCCURRENCE {
         string readingAttemptRef PK
@@ -860,7 +861,10 @@ sequenceDiagram
     Note over L,W: No LLM extraction runs in raw migration.
 ```
 
-### 14.2 Verified authority cutover
+### 14.2 Final verified authority cutover
+
+P4 rehearses this entire sequence against non-authoritative refs. It executes
+against the production authority router only in P8, after AC1–AC35 pass.
 
 ```mermaid
 sequenceDiagram
@@ -1078,12 +1082,15 @@ stateDiagram-v2
 ```mermaid
 stateDiagram-v2
     [*] --> LegacyAuthoritative
-    LegacyAuthoritative --> BaseMigrating: pin C0
-    BaseMigrating --> BaseMigrating: publish bounded window
-    BaseMigrating --> Paused: failure or operator pause
-    Paused --> BaseMigrating: resume from history
-    BaseMigrating --> TailCatchup: base witness through C0
-    TailCatchup --> TailCatchup: bounded tail windows
+    LegacyAuthoritative --> RehearsalMigrating: P4 pins C0
+    RehearsalMigrating --> RehearsalMigrating: publish bounded candidate window
+    RehearsalMigrating --> Paused: failure or operator pause
+    Paused --> RehearsalMigrating: resume from history
+    RehearsalMigrating --> CandidateVerified: rehearsal witness through C0
+    CandidateVerified --> SemanticProof: P5-P8 shadow and action proofs
+    SemanticProof --> CandidateVerified: any AC1-AC35 failure
+    SemanticProof --> TailCatchup: all AC1-AC35 pass
+    TailCatchup --> TailCatchup: bounded production tail windows
     TailCatchup --> FinalLock: lag within final bound
     FinalLock --> Verifying: publish final window
     FinalLock --> TailCatchup: lock or final-tail failure
@@ -1093,7 +1100,7 @@ stateDiagram-v2
     RecoveryReady --> [*]
 
     note right of Paused
-      Users continue writing only to legacy storage.
+      Users continue writing only to legacy storage through P8 proof.
       There is no split brain.
     end note
 ```
@@ -1157,9 +1164,10 @@ gitGraph LR:
     branch new_substrate
     checkout new_substrate
     commit id: "base window 1"
-    commit id: "base through C0"
+    commit id: "P4 rehearsal witness"
     checkout main
     commit id: "legacy C1"
+    commit id: "AC1-AC35 proof complete"
     checkout new_substrate
     commit id: "tail through C1"
     checkout main
@@ -1303,11 +1311,11 @@ flowchart LR
     P0["P0<br/>Constitutional foundation"] --> P1["P1<br/>Evidence substrate"]
     P1 --> P2["P2<br/>Minimal semantic vertical"]
     P2 --> P3["P3<br/>Migration dry run"]
-    P3 --> P4["P4<br/>Verified cutover"]
+    P3 --> P4["P4<br/>Verified cutover rehearsal"]
     P4 --> P5["P5<br/>Claims backfill"]
     P5 --> P6["P6<br/>Projection shadow mode"]
-    P6 --> P7["P7<br/>Authority and refusal enforcement"]
-    P7 --> P8["P8<br/>Edict action bridge"]
+    P6 --> P7["P7<br/>Authority and refusal readiness"]
+    P7 --> P8["P8<br/>Action bridge and production cutover"]
 
     G1["Gate 1<br/>bulk admission"] -. blocks .-> P3
     G2["Gate 2<br/>observation model"] -. blocks .-> P2
@@ -1324,7 +1332,8 @@ flowchart LR
 
 P2 may be prototyped on isolated fixtures before migration, but production
 migration cannot begin until all five P0 gates are independently verified.
-P4 remains the only authority switch.
+P4 proves the cutover mechanics without changing authority. P8 performs the
+only production authority switch, after the complete acceptance graph passes.
 
 ## 20. Dependency-only Gantt
 
@@ -1347,15 +1356,15 @@ gantt
 
     section Migration
     P3 Migration dry run                     :crit, p3, after p2, 25d
-    P4 Verified cutover                      :crit, p4, after p3, 15d
+    P4 Verified cutover rehearsal            :crit, p4, after p3, 15d
 
     section Interpretation and reads
     P5 Contextual Claims backfill             :p5, after p4, 30d
     P6 Projection shadow mode                :p6, after p5, 25d
-    P7 Authority and refusal enforcement     :crit, p7, after p6, 30d
+    P7 Authority and refusal readiness       :crit, p7, after p6, 30d
 
     section Action
-    P8 Edict action bridge                   :p8, after p7, 25d
+    P8 Action bridge and production cutover  :crit, p8, after p7, 25d
 ```
 
 ## 21. Milestones, features, and issue allocation
@@ -1370,16 +1379,16 @@ gantt
 | P2 | F2.2 Authority-aware query vertical | CT-207–CT-210 | One typed query proves projection insufficiency, bounded rehydration, authority, and an AnswerWitness. |
 | P3 | F3.1 Legacy occurrence observation and import | CT-301–CT-303 | Legacy logical occurrences stream into deterministic encrypted ThoughtCaptures without snapshot duplication. |
 | P3 | F3.2 Resumable migration proof | CT-304–CT-307 | Crashes, obstructions, mappings, equivalence bounds, and real-Mind rehearsal are witnessed on disposable refs. |
-| P4 | F4.1 Tail catch-up and authority switch | CT-401–CT-402 | Base and bounded tail converge under a short final lock and one atomic authority switch. |
-| P4 | F4.2 Cutover proof and recovery | CT-403–CT-405 | CutoverWitness, recovery refs, erasure posture, and fleet execution prove no split brain. |
+| P4 | F4.1 Tail convergence rehearsal | CT-401–CT-402 | Base and bounded tails converge under a rehearsed short lock without changing production authority. |
+| P4 | F4.2 Candidate cutover proof and recovery | CT-403–CT-405 | Candidate CutoverWitnesses, recovery refs, erasure posture, and fleet rehearsals prove the eventual switch path without split brain. |
 | P5 | F5.1 Bounded semantic scheduling and extraction | CT-501–CT-502 | Finite obligations schedule bounded attempts without coupling extraction to capture or migration validity. |
 | P5 | F5.2 Longitudinal relations and reinterpretation | CT-503–CT-505 | Relations, bounded backfill, source-time readings, and current reinterpretations coexist. |
 | P6 | F6.1 Confessing projection builders | CT-601–CT-602 | Legacy enrichment is demoted and no capability publishes without killing fixtures. |
 | P6 | F6.2 Shadow planning and canonical escalation | CT-603–CT-606 | Real query shadows quantify insufficiency, repair cost, answer changes, and enforcement readiness. |
 | P7 | F7.1 Historical authority and adjudication | CT-701–CT-703 | Historical policy, explicit judgment precedence, conflict, and finite-attention review are operational. |
-| P7 | F7.2 Sufficiency enforcement and answer witnesses | CT-704–CT-706 | Query classes enforce capability law with erasable answers, remediation, rollback, and historical replay. |
+| P7 | F7.2 Sufficiency enforcement readiness and answer witnesses | CT-704–CT-706 | Query classes prove capability-law enforcement with erasable answers, remediation, rollback, and historical replay before activation. |
 | P8 | F8.1 Bounded action authorization | CT-801–CT-802 | Only exact signed receipts can cross the Edict or Boundary adapter. |
-| P8 | F8.2 Revocation, compensation, and audit | CT-803–CT-805 | Later evidence produces truthful aftermath and the end-to-end safety suite passes. |
+| P8 | F8.2 Revocation, compensation, audit, and cutover | CT-803–CT-805 | Later evidence produces truthful aftermath; the complete AC1–AC35 suite gates the one production authority switch. |
 
 The complete leaf specifications are generated into
 [`ADR-THINK-001-issue-catalog.md`](./ADR-THINK-001-issue-catalog.md). The catalog,
@@ -1431,7 +1440,7 @@ that reviewers should expect to serialize:
 | Fixture corpus | `partitioned` | Independent capability or scenario families may evolve concurrently when their partitions are named. |
 | Model execution lanes | `partitioned` | Provider, profile, tenant, and budget partitions bound concurrency and cost. |
 | Published canonical history | `shared` | Readers consume a pinned frontier without mutation. |
-| Production authority switch | `exclusive` | Only the verified P4 cutover operation may change the authoritative substrate. |
+| Production authority switch | `exclusive` | Only CT-805 in P8 may change the authoritative substrate after all acceptance proofs pass. |
 | Query-class rollout state | `partitioned` | Distinct query classes may canary independently; one class has one authoritative rollout state. |
 
 Resource contention is scheduling, not causality. An issue remains causally
@@ -1513,6 +1522,9 @@ The validator rejects publication when:
 - any of G1–G5, I1–I17, or AC1–AC35 lacks issue coverage;
 - the expected totals of 9 milestones, 18 features, and 60 issues change
   without deliberately changing the validator and ADR projection together.
+- the stable 60-ID set or exact three resource modes changes;
+- the GitHub map is missing, incomplete, stale, or lacks any dependency target;
+- the generated issue catalog differs from the validated manifest and map.
 
 Every GitHub issue contains the stable marker:
 
@@ -1522,6 +1534,12 @@ Every GitHub issue contains the stable marker:
 
 The marker is the idempotency key for reconciliation. The GitHub mapping file
 records remote numbers and URLs; it does not replace the stable CT identity.
+`npm run roadmap:contextual-mind:check` fails on an incomplete map or stale
+catalog without requiring network access.
+`npm run roadmap:contextual-mind:reconcile` then reads live GitHub and compares
+every mapped issue number, title, milestone, URL, state, body, and label set,
+plus every milestone number, title, description, URL, and state, before it may
+report exact reconciliation.
 
 ## 25. Definition of done
 
@@ -1547,6 +1565,8 @@ It is complete when the integrated evidence shows:
 12. later correction produces new evidence, revocation, compensation, or an
     incident—never rewritten history.
 
-Until P4, the implementation is a gated shadow beside production. Until P7,
-projection insufficiency is measured before it is enforced. Until P8, Think
-does not claim an action-authorizing semantic boundary.
+Through P7, the implementation remains a gated, non-authoritative shadow beside
+legacy production. P4 rehearses but does not switch. P6 measures projection
+insufficiency before P7 proves enforcement readiness. P8 first proves the
+action boundary and all AC1–AC35, then performs the only production authority
+switch.

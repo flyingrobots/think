@@ -29,7 +29,9 @@ Milestones exist to prove user value in sequence. They are not buckets for unrel
 - the second `M5` slice, local URL-triggered capture and Apple Shortcuts, is implemented and closed.
 - `0027-m5-additional-ingress-surfaces.md` now frames the milestone and its next slice.
 - `0029-m5-selected-text-share-capture.md` now frames the next active `M5` slice.
-- `ADR-THINK-001` is accepted as the next implementation-gated architecture program; its P0–P8 plan does not switch production authority before the verified P4 cutover.
+- `ADR-THINK-001` is accepted as the next implementation-gated architecture
+  program; P4 rehearses cutover mechanics, and the P0–P8 plan does not switch
+  production authority before AC1–AC35 and the verified P8 cutover.
 
 ## Accepted Contextual Streaming Mind Program
 
@@ -53,9 +55,9 @@ the first canonical replacement identity.
 ```mermaid
 flowchart LR
     P0["P0 Foundation"] --> P1["P1 Evidence"] --> P2["P2 Semantic vertical"]
-    P2 --> P3["P3 Migration dry run"] --> P4["P4 Verified cutover"]
+    P2 --> P3["P3 Migration dry run"] --> P4["P4 Cutover rehearsal"]
     P4 --> P5["P5 Claims backfill"] --> P6["P6 Projection shadow"]
-    P6 --> P7["P7 Authority enforcement"] --> P8["P8 Action bridge"]
+    P6 --> P7["P7 Authority readiness"] --> P8["P8 Action bridge + cutover"]
 ```
 
 ## Planning Principles

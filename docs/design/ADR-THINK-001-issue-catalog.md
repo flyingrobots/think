@@ -18,11 +18,11 @@ This catalog expands [ADR-THINK-001](https://github.com/flyingrobots/think/blob/
 | P1 | ADR-THINK-001 P1 — Evidence substrate | 2 | 8 |
 | P2 | ADR-THINK-001 P2 — Minimal semantic vertical slice | 2 | 10 |
 | P3 | ADR-THINK-001 P3 — Migration dry run | 2 | 7 |
-| P4 | ADR-THINK-001 P4 — Verified cutover | 2 | 5 |
+| P4 | ADR-THINK-001 P4 — Verified cutover rehearsal | 2 | 5 |
 | P5 | ADR-THINK-001 P5 — Contextual Claims backfill | 2 | 5 |
 | P6 | ADR-THINK-001 P6 — Projection shadow mode | 2 | 6 |
-| P7 | ADR-THINK-001 P7 — Authority and refusal enforcement | 2 | 6 |
-| P8 | ADR-THINK-001 P8 — Edict action bridge | 2 | 5 |
+| P7 | ADR-THINK-001 P7 — Authority and refusal readiness | 2 | 6 |
+| P8 | ADR-THINK-001 P8 — Action bridge and production cutover | 2 | 5 |
 
 ## Build-time resource modes
 
@@ -36,6 +36,14 @@ This catalog expands [ADR-THINK-001](https://github.com/flyingrobots/think/blob/
 
 ```mermaid
 flowchart LR
+  subgraph EXT["External blockers"]
+    direction TB
+    EXT1["git-stunts/git-cas#110"]
+    EXT2["git-stunts/git-warp#565"]
+    EXT3["git-stunts/git-warp#817"]
+    EXT4["git-stunts/git-warp#824"]
+    EXT5["git-stunts/git-warp#847"]
+  end
   subgraph P0["P0"]
     direction TB
     CT001["CT-001"]
@@ -133,6 +141,10 @@ flowchart LR
   CT003 --> CT007
   CT001 --> CT008
   CT002 --> CT008
+  EXT2 -. external .-> CT008
+  EXT3 -. external .-> CT008
+  EXT4 -. external .-> CT008
+  EXT1 -. external .-> CT008
   CT002 --> CT101
   CT007 --> CT101
   CT101 --> CT102
@@ -143,9 +155,13 @@ flowchart LR
   CT008 --> CT104
   CT008 --> CT105
   CT104 --> CT105
+  EXT2 -. external .-> CT105
+  EXT3 -. external .-> CT105
+  EXT1 -. external .-> CT105
   CT105 --> CT106
   CT105 --> CT107
   CT106 --> CT107
+  EXT5 -. external .-> CT107
   CT102 --> CT108
   CT104 --> CT108
   CT106 --> CT108
@@ -178,9 +194,14 @@ flowchart LR
   CT208 --> CT210
   CT209 --> CT210
   CT108 --> CT301
+  EXT4 -. external .-> CT301
+  EXT5 -. external .-> CT301
   CT102 --> CT302
   CT103 --> CT302
   CT301 --> CT302
+  CT004 --> CT303
+  CT005 --> CT303
+  CT006 --> CT303
   CT105 --> CT303
   CT106 --> CT303
   CT107 --> CT303
@@ -221,6 +242,8 @@ flowchart LR
   CT602 --> CT603
   CT209 --> CT604
   CT602 --> CT604
+  EXT4 -. external .-> CT604
+  EXT2 -. external .-> CT604
   CT603 --> CT605
   CT604 --> CT605
   CT603 --> CT606
@@ -1831,16 +1854,16 @@ Think consumes the independent six-constructor claim algebra, traversable values
 ##### Deliverables
 
 - [ ] Contextual Claims adapter port and schema/version compatibility contract.
-- [ ] Bounded ClaimTerm envelope and canonical structural digest.
+- [ ] Bounded encrypted ClaimTerm payload grant and private structural-commitment boundary.
 - [ ] Typed NodePath, annotation validation, and transformation transport map.
 - [ ] Reference fold fixtures for rendering, subject collection, temporal resolution, and evidence lookup.
 
 ##### Acceptance criteria
 
 - [ ] All six constructors and ordered nested frames round-trip without flattening.
-- [ ] ClaimTerm identity binds schema and normalization law and makes no proposition-equality claim.
+- [ ] ClaimTerm identity binds schema, normalization law, and privacy scope without publishing source content, equality, or a proposition-equality claim.
 - [ ] Annotations remain outside term identity and address valid typed paths.
-- [ ] Large terms require declared bounds or completed Merkle envelopes.
+- [ ] Large terms require declared bounds or completed encrypted Merkle envelopes whose payload and commitment grants are independently erasable.
 
 ##### Test plan
 
@@ -1860,12 +1883,16 @@ Think consumes the independent six-constructor claim algebra, traversable values
 
 - [ ] Streaming envelope decode and path validation stay within declared item/depth/byte bounds.
 
+###### Security, privacy, and erasure
+
+- [ ] Erasing the governing source grants destroys ClaimTerm payload and private-commitment access while leaving only non-leaking structural tombstones.
+
 ##### Build-time resources
 
 | Resource | Exclusivity mode | Scope |
 | --- | --- | --- |
 | `contextual-claims-adapter` | **exclusive** | Think-owned compatibility and boundary validation. |
-| `claim-term-envelope` | **exclusive** | Bounded canonical encoding and digest. |
+| `claim-term-envelope` | **exclusive** | Bounded encrypted payload encoding and private commitment. |
 | `contextual-claims-v1-spec` | **shared** | Independent schema, evaluator, laws, and fixtures. |
 | `governing-conformance-corpus` | **shared** | Dojo and distinction fixtures. |
 
@@ -2628,6 +2655,9 @@ The migrator pins a legacy frontier, streams logical occurrences through encrypt
 
 ##### Dependencies
 
+- Blocked by [#43 — CT-004](https://github.com/flyingrobots/think/issues/43)
+- Blocked by [#44 — CT-005](https://github.com/flyingrobots/think/issues/44)
+- Blocked by [#45 — CT-006](https://github.com/flyingrobots/think/issues/45)
 - Blocked by [#52 — CT-105](https://github.com/flyingrobots/think/issues/52)
 - Blocked by [#53 — CT-106](https://github.com/flyingrobots/think/issues/53)
 - Blocked by [#54 — CT-107](https://github.com/flyingrobots/think/issues/54)
@@ -2975,11 +3005,11 @@ A disposable copy of the largest healthy Mind completes raw migration, restart, 
 - Do not alter or switch production Minds.
 - Do not run Contextual Claims backfill.
 
-## ADR-THINK-001 P4 — Verified cutover
+## ADR-THINK-001 P4 — Verified cutover rehearsal
 
-Perform base migration, tail catch-up, a short locked final window, witnessed authority switch, and recovery-safe retention without long-lived dual writes.
+Rehearse base migration, tail convergence, the short locked final window, CutoverWitness verification, and recovery-safe retention on non-authoritative refs without long-lived dual writes.
 
-### F4.1 — Tail catch-up and authority switch
+### F4.1 — Tail convergence rehearsal
 
 #### CT-401 — Implement base migration and bounded legacy tail catch-up
 
@@ -2987,9 +3017,9 @@ Perform base migration, tail catch-up, a short locked final window, witnessed au
 
 [ADR-THINK-001](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-thoughts-are-sources-claims-are-readings.md) · [Delivery plan](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-delivery-plan.md) · [Complete issue catalog](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-issue-catalog.md)
 
-**Milestone:** ADR-THINK-001 P4 — Verified cutover
+**Milestone:** ADR-THINK-001 P4 — Verified cutover rehearsal
 
-**Feature:** F4.1 — Tail catch-up and authority switch
+**Feature:** F4.1 — Tail convergence rehearsal
 
 ##### Outcome
 
@@ -3060,38 +3090,38 @@ Think migrates a pinned base frontier and repeatedly catches up bounded legacy t
 - Do not dual-write one capture to both substrates.
 - Do not acquire the final write lock during base migration.
 
-#### CT-402 — Implement the short-lock final tail and atomic authority switch
+#### CT-402 — Rehearse the short-lock final tail without switching authority
 
 <!-- adr-think-001-work-item: CT-402 -->
 
 [ADR-THINK-001](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-thoughts-are-sources-claims-are-readings.md) · [Delivery plan](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-delivery-plan.md) · [Complete issue catalog](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-issue-catalog.md)
 
-**Milestone:** ADR-THINK-001 P4 — Verified cutover
+**Milestone:** ADR-THINK-001 P4 — Verified cutover rehearsal
 
-**Feature:** F4.1 — Tail catch-up and authority switch
+**Feature:** F4.1 — Tail convergence rehearsal
 
 ##### Outcome
 
-Think acquires the existing write lock only for the bounded final tail, publishes the final window, atomically switches authority, and routes every later write to the new substrate.
+Think proves the bounded final-tail, publication, restart, and routing mechanics against non-authoritative refs while legacy remains the sole production writer.
 
 ##### User stories
 
-- As a **Think user**, I want one short, explicit capture pause at cutover, so that there is no ambiguous dual-write epoch.
-- As a **operator**, I want one checked authority-switch receipt, so that restart can determine exactly which substrate owns future writes.
+- As a **Think maintainer**, I want a production-shaped short-lock rehearsal with no authority mutation, so that the dangerous timing and crash boundaries are proven before users depend on them.
+- As a **operator**, I want a candidate switch receipt and deterministic restart simulation, so that P8 can later recognize exactly one authority without learning in production.
 
 ##### Deliverables
 
-- [ ] Final-lock readiness check and bounded tail converter.
-- [ ] Atomic storage-version or authoritative-ref switch.
-- [ ] AuthoritySwitchReceipt and restart reconciliation.
-- [ ] Post-switch routing guard that refuses legacy writes.
+- [ ] Rehearsal-lock readiness check and bounded tail converter.
+- [ ] Non-authoritative candidate storage-version or ref-switch simulator.
+- [ ] Candidate AuthoritySwitchReceipt and restart reconciliation proof.
+- [ ] Routing guard fixture that would refuse legacy writes only after a future verified switch.
 
 ##### Acceptance criteria
 
-- [ ] The final lock is acquired only after measured tail fits the configured bound.
-- [ ] Final tail window publication precedes the atomic authority switch.
-- [ ] After switch, all new writes target only the new substrate.
-- [ ] Restart before or after the switch resolves one authoritative writer without dual writing.
+- [ ] The rehearsal lock is acquired only after the measured tail fits the configured bound.
+- [ ] Candidate final-window publication precedes the simulated atomic authority switch.
+- [ ] No production authority ref, storage version, or writer routing changes during P4.
+- [ ] Restart simulation before or after the candidate switch resolves one writer without dual writing.
 
 ##### Test plan
 
@@ -3101,7 +3131,7 @@ Think acquires the existing write lock only for the bounded final tail, publishe
 
 ###### Integration and acceptance
 
-- [ ] A concurrent capture fixture verifies bounded blocking and post-switch routing.
+- [ ] A concurrent production-shaped fixture verifies bounded blocking and candidate post-switch routing on disposable refs.
 
 ###### Failure and recovery
 
@@ -3115,10 +3145,10 @@ Think acquires the existing write lock only for the bounded final tail, publishe
 
 | Resource | Exclusivity mode | Scope |
 | --- | --- | --- |
-| `think-production-write-lock` | **exclusive** | Existing short lock for the bounded final tail only. |
-| `authoritative-storage-pointer` | **exclusive** | Storage-version or authoritative-ref switch. |
+| `think-cutover-rehearsal-lock` | **exclusive** | Production-shaped fixture lock for the bounded final tail only. |
+| `candidate-authority-pointer` | **exclusive** | Non-authoritative storage-version or ref-switch simulation. |
 | `cutover-target-ref` | **exclusive** | Final new-substrate publication lane. |
-| `legacy-authoritative-writer` | **exclusive** | Paused only while the final lock is held. |
+| `legacy-authoritative-writer` | **shared** | Read-only proof that production authority remains unchanged. |
 
 - **exclusive:** Only one active slice may mutate or lease the named resource.
 - **partitioned:** Concurrent writes are lawful only in disjoint partitions named by each slice.
@@ -3139,32 +3169,32 @@ Think acquires the existing write lock only for the bounded final tail, publishe
 - Do not create a long-lived dual-write or epoch overlay.
 - Do not switch authority with unresolved verification failures.
 
-### F4.2 — Cutover proof and recovery
+### F4.2 — Candidate cutover proof and recovery
 
-#### CT-403 — Implement the CutoverWitness and zero-obstruction release gate
+#### CT-403 — Implement candidate CutoverWitness and zero-obstruction gates
 
 <!-- adr-think-001-work-item: CT-403 -->
 
 [ADR-THINK-001](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-thoughts-are-sources-claims-are-readings.md) · [Delivery plan](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-delivery-plan.md) · [Complete issue catalog](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-issue-catalog.md)
 
-**Milestone:** ADR-THINK-001 P4 — Verified cutover
+**Milestone:** ADR-THINK-001 P4 — Verified cutover rehearsal
 
-**Feature:** F4.2 — Cutover proof and recovery
+**Feature:** F4.2 — Candidate cutover proof and recovery
 
 ##### Outcome
 
-Authority can switch only when an independently recomputed CutoverWitness proves the declared source domain, target frontier, resource budgets, bounded query agreement, and obstruction disposition.
+A candidate cutover becomes eligible for final P8 consideration only when an independently recomputed CutoverWitness proves the declared source domain, target frontier, resource budgets, bounded query agreement, and obstruction disposition.
 
 ##### User stories
 
-- As a **cutover approver**, I want one fail-closed witness before authority moves, so that production cutover is a verified decision rather than an optimistic command.
+- As a **cutover approver**, I want one fail-closed candidate witness before authority can become eligible to move, so that production cutover cannot bypass independently recomputed migration evidence.
 - As a **auditor**, I want explicit LossAcceptance when exact coverage is impossible, so that accepted loss never masquerades as clean equivalence.
 
 ##### Deliverables
 
 - [ ] CutoverWitness builder and independent verifier.
 - [ ] Zero-unresolved-obstruction gate and LossAcceptance integration.
-- [ ] Authority-switch receipt binding to verified witness digest.
+- [ ] Final authority-switch precondition binding to a verified witness digest.
 - [ ] Human-readable cutover proof report and machine result.
 
 ##### Acceptance criteria
@@ -3172,7 +3202,7 @@ Authority can switch only when an independently recomputed CutoverWitness proves
 - [ ] Every ADR CutoverWitness field is populated and independently verified.
 - [ ] Exact cutover fails with any unresolved obstruction.
 - [ ] Explicit LossAcceptance preserves incomplete-coverage language and evidence.
-- [ ] Authority switch cannot reference an unverified or stale witness.
+- [ ] The P8 authority switch cannot reference an unverified or stale witness.
 
 ##### Test plan
 
@@ -3182,7 +3212,7 @@ Authority can switch only when an independently recomputed CutoverWitness proves
 
 ###### Integration and acceptance
 
-- [ ] A successful final-tail fixture produces and consumes the witness before switching.
+- [ ] A successful final-tail rehearsal produces and consumes the witness before a simulated switch.
 
 ###### Failure and recovery
 
@@ -3203,7 +3233,7 @@ Authority can switch only when an independently recomputed CutoverWitness proves
 | `cutover-witness-schema` | **exclusive** | Final witness and verification rules. |
 | `cutover-proof-runner` | **exclusive** | Independent recomputation and gate result. |
 | `loss-acceptance-registry` | **exclusive** | Explicit human incomplete-coverage judgments. |
-| `authoritative-storage-pointer` | **shared** | Read-only target of the verified switch. |
+| `authoritative-storage-pointer` | **shared** | Read-only proof that P4 does not mutate production authority. |
 
 - **exclusive:** Only one active slice may mutate or lease the named resource.
 - **partitioned:** Concurrent writes are lawful only in disjoint partitions named by each slice.
@@ -3231,9 +3261,9 @@ Authority can switch only when an independently recomputed CutoverWitness proves
 
 [ADR-THINK-001](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-thoughts-are-sources-claims-are-readings.md) · [Delivery plan](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-delivery-plan.md) · [Complete issue catalog](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-issue-catalog.md)
 
-**Milestone:** ADR-THINK-001 P4 — Verified cutover
+**Milestone:** ADR-THINK-001 P4 — Verified cutover rehearsal
 
-**Feature:** F4.2 — Cutover proof and recovery
+**Feature:** F4.2 — Candidate cutover proof and recovery
 
 ##### Outcome
 
@@ -3309,52 +3339,52 @@ Old refs remain read-only recovery evidence after cutover, with explicit rollbac
 - Do not promise causal rollback of externally visible post-cutover effects.
 - Do not keep legacy plaintext solely for convenience.
 
-#### CT-405 — Execute and verify the production Mind cutover fleet
+#### CT-405 — Execute production-shaped cutover rehearsals for every Mind
 
 <!-- adr-think-001-work-item: CT-405 -->
 
 [ADR-THINK-001](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-thoughts-are-sources-claims-are-readings.md) · [Delivery plan](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-delivery-plan.md) · [Complete issue catalog](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-issue-catalog.md)
 
-**Milestone:** ADR-THINK-001 P4 — Verified cutover
+**Milestone:** ADR-THINK-001 P4 — Verified cutover rehearsal
 
-**Feature:** F4.2 — Cutover proof and recovery
+**Feature:** F4.2 — Candidate cutover proof and recovery
 
 ##### Outcome
 
-Each production Mind receives its own pinned source, migration run, verified witness, short-lock switch, post-switch append/read/doctor proof, and retained recovery posture.
+Each selected Mind is copied to isolated refs for a pinned migration, verified witness, short-lock simulation, post-switch append/read/doctor proof, and recovery rehearsal without changing production authority.
 
 ##### User stories
 
-- As a **Think user**, I want all of my Minds cut over without lost or duplicated captures, so that the new occurrence model becomes production truth safely.
+- As a **Think user**, I want each of my Minds to pass a production-shaped cutover rehearsal without lost or duplicated captures, so that the eventual production switch is based on per-Mind evidence.
 - As a **operator**, I want per-Mind evidence and stop points, so that one Mind failure cannot contaminate the rest of the fleet.
 
 ##### Deliverables
 
 - [ ] Per-Mind preflight, backup, source frontier, and resource budget.
-- [ ] Per-Mind base/tail/final run and CutoverWitness.
-- [ ] Post-switch exact read, recent, capture, restart, doctor, and erasure checks.
-- [ ] Fleet summary with obstructions, loss acceptances, recovery refs, and authority receipts.
+- [ ] Per-Mind base/tail/final rehearsal and candidate CutoverWitness.
+- [ ] Candidate post-switch exact read, recent, capture, restart, doctor, and erasure checks.
+- [ ] Fleet rehearsal summary with obstructions, loss acceptances, recovery refs, and candidate receipts.
 
 ##### Acceptance criteria
 
-- [ ] Every selected Mind independently passes clean cutover or stops before authority switch.
-- [ ] Post-switch reads and captures use only the new substrate.
+- [ ] Every selected Mind independently passes a clean isolated rehearsal or stops without any production authority mutation.
+- [ ] Candidate post-switch reads and captures use only the new substrate inside the fixture.
 - [ ] Counts, ordered IDs, mappings, birth witnesses, and Q0/D0 results match each verified witness.
-- [ ] No production plaintext body, public equality token, or erased synthetic canary is recoverable.
+- [ ] No plaintext body, public equality token, or erased synthetic canary is recoverable from any rehearsal artifact.
 
 ##### Test plan
 
 ###### Contract and unit
 
-- [ ] Run the complete P4 runbook separately for each Mind in the approved fleet.
+- [ ] Run the complete P4 rehearsal separately for each selected Mind copy.
 
 ###### Integration and acceptance
 
-- [ ] After each switch, execute exact inspect, bounded recent, capture, restart, doctor, and backup-restore checks.
+- [ ] After each candidate switch, execute exact inspect, bounded recent, capture, restart, doctor, and backup-restore checks.
 
 ###### Failure and recovery
 
-- [ ] Abort safely on lock timeout, resource breach, obstruction, witness mismatch, post-switch failure, or erasure leak.
+- [ ] Abort safely on lock timeout, resource breach, obstruction, witness mismatch, candidate post-switch failure, or erasure leak.
 
 ###### Resource and performance
 
@@ -3368,10 +3398,10 @@ Each production Mind receives its own pinned source, migration run, verified wit
 
 | Resource | Exclusivity mode | Scope |
 | --- | --- | --- |
-| `production-mind-write-lock` | **partitioned** | Exclusive per named Mind; different Minds may cut over only if operator policy permits. |
-| `production-mind-vault` | **partitioned** | Independent key/grant partition per Mind. |
-| `cutover-proof-runner` | **exclusive** | One certified production verification run at a time. |
-| `fleet-cutover-ledger` | **exclusive** | Authoritative operational sequence and results. |
+| `mind-rehearsal-write-lock` | **partitioned** | Exclusive per isolated Mind copy; production writers remain untouched. |
+| `mind-rehearsal-vault` | **partitioned** | Independent disposable key/grant partition per Mind copy. |
+| `cutover-proof-runner` | **exclusive** | One certified rehearsal verification run at a time. |
+| `fleet-rehearsal-ledger` | **exclusive** | Non-authoritative rehearsal sequence and results. |
 
 - **exclusive:** Only one active slice may mutate or lease the named resource.
 - **partitioned:** Concurrent writes are lawful only in disjoint partitions named by each slice.
@@ -3390,8 +3420,8 @@ Each production Mind receives its own pinned source, migration run, verified wit
 
 ##### Non-goals
 
-- Do not cut over a Mind with unresolved obstruction absent explicit LossAcceptance.
-- Do not overlap locks or vault mutations merely to shorten wall time.
+- Do not mutate production authority or present a rehearsal as a completed cutover.
+- Do not overlap rehearsal locks or vault mutations merely to shorten wall time.
 
 ## ADR-THINK-001 P5 — Contextual Claims backfill
 
@@ -3411,7 +3441,7 @@ Schedule bounded semantic coverage and preserve immutable attempts, qualified cl
 
 ##### Outcome
 
-Production ThoughtCaptures generate finite CoverageObligations and reevaluation work only from versioned, bounded triggers tied to their source and declared lens.
+Candidate ThoughtCaptures generate finite CoverageObligations and reevaluation work only from versioned, bounded triggers tied to their source and declared lens while legacy remains authoritative.
 
 ##### User stories
 
@@ -3420,7 +3450,7 @@ Production ThoughtCaptures generate finite CoverageObligations and reevaluation 
 
 ##### Deliverables
 
-- [ ] Coverage enumerator over the production ThoughtCapture source domain.
+- [ ] Coverage enumerator over the candidate ThoughtCapture source domain.
 - [ ] Bounded trigger index for project, entity, source-time, authority, and extractor-law changes.
 - [ ] Operational queue/lease adapter separated from canonical attempt outcomes.
 - [ ] Coverage status and backlog metrics by policy/lens/frontier.
@@ -4335,9 +4365,9 @@ Maintainers receive a reproducible report showing where projections suffice, whe
 - Do not declare universal semantic equivalence from sampled shadow agreement.
 - Do not begin enforced refusal as part of publishing the report.
 
-## ADR-THINK-001 P7 — Authority and refusal enforcement
+## ADR-THINK-001 P7 — Authority and refusal readiness
 
-Enforce historical authority, projection sufficiency, finite-attention adjudication, priced remediation, and witnessed bounded or refused answers.
+Prove historical authority, projection sufficiency, finite-attention adjudication, priced remediation, and witnessed bounded or refused answers behind non-authoritative gates.
 
 ### F7.1 — Historical authority and adjudication
 
@@ -4347,7 +4377,7 @@ Enforce historical authority, projection sufficiency, finite-attention adjudicat
 
 [ADR-THINK-001](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-thoughts-are-sources-claims-are-readings.md) · [Delivery plan](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-delivery-plan.md) · [Complete issue catalog](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-issue-catalog.md)
 
-**Milestone:** ADR-THINK-001 P7 — Authority and refusal enforcement
+**Milestone:** ADR-THINK-001 P7 — Authority and refusal readiness
 
 **Feature:** F7.1 — Historical authority and adjudication
 
@@ -4433,7 +4463,7 @@ Every consequential claim use resolves against the explicit judgments and defaul
 
 [ADR-THINK-001](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-thoughts-are-sources-claims-are-readings.md) · [Delivery plan](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-delivery-plan.md) · [Complete issue catalog](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-issue-catalog.md)
 
-**Milestone:** ADR-THINK-001 P7 — Authority and refusal enforcement
+**Milestone:** ADR-THINK-001 P7 — Authority and refusal readiness
 
 **Feature:** F7.1 — Historical authority and adjudication
 
@@ -4517,7 +4547,7 @@ Specific human or independently authorized judgments can override defaults while
 
 [ADR-THINK-001](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-thoughts-are-sources-claims-are-readings.md) · [Delivery plan](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-delivery-plan.md) · [Complete issue catalog](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-issue-catalog.md)
 
-**Milestone:** ADR-THINK-001 P7 — Authority and refusal enforcement
+**Milestone:** ADR-THINK-001 P7 — Authority and refusal readiness
 
 **Feature:** F7.1 — Historical authority and adjudication
 
@@ -4595,7 +4625,7 @@ Human attention is requested lazily for blocked consequential uses and prioritiz
 - Do not require human review for every reading or relation proposal.
 - Do not store mutable inbox state as a canonical semantic fact.
 
-### F7.2 — Sufficiency enforcement and answer witnesses
+### F7.2 — Sufficiency enforcement readiness and answer witnesses
 
 #### CT-704 — Enforce projection sufficiency and exhaustive-answer law
 
@@ -4603,9 +4633,9 @@ Human attention is requested lazily for blocked consequential uses and prioritiz
 
 [ADR-THINK-001](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-thoughts-are-sources-claims-are-readings.md) · [Delivery plan](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-delivery-plan.md) · [Complete issue catalog](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-issue-catalog.md)
 
-**Milestone:** ADR-THINK-001 P7 — Authority and refusal enforcement
+**Milestone:** ADR-THINK-001 P7 — Authority and refusal readiness
 
-**Feature:** F7.2 — Sufficiency enforcement and answer witnesses
+**Feature:** F7.2 — Sufficiency enforcement readiness and answer witnesses
 
 ##### Outcome
 
@@ -4689,9 +4719,9 @@ The production planner uses a projection only when its proven capabilities satis
 
 [ADR-THINK-001](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-thoughts-are-sources-claims-are-readings.md) · [Delivery plan](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-delivery-plan.md) · [Complete issue catalog](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-issue-catalog.md)
 
-**Milestone:** ADR-THINK-001 P7 — Authority and refusal enforcement
+**Milestone:** ADR-THINK-001 P7 — Authority and refusal readiness
 
-**Feature:** F7.2 — Sufficiency enforcement and answer witnesses
+**Feature:** F7.2 — Sufficiency enforcement readiness and answer witnesses
 
 ##### Outcome
 
@@ -4768,35 +4798,35 @@ Every answered or bounded query explains its frontier, clocks, evidence, reading
 - Do not inline content-bearing quotations or summaries into irreversible witnesses.
 - Do not treat an AnswerWitness as proof of objective truth.
 
-#### CT-706 — Roll out authority and refusal enforcement safely
+#### CT-706 — Prove authority and refusal enforcement readiness
 
 <!-- adr-think-001-work-item: CT-706 -->
 
 [ADR-THINK-001](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-thoughts-are-sources-claims-are-readings.md) · [Delivery plan](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-delivery-plan.md) · [Complete issue catalog](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-issue-catalog.md)
 
-**Milestone:** ADR-THINK-001 P7 — Authority and refusal enforcement
+**Milestone:** ADR-THINK-001 P7 — Authority and refusal readiness
 
-**Feature:** F7.2 — Sufficiency enforcement and answer witnesses
+**Feature:** F7.2 — Sufficiency enforcement readiness and answer witnesses
 
 ##### Outcome
 
-Query classes advance from shadow to enforced planning only after fixtures, remediation, refusal policy, telemetry, rollback, and historical replay are independently proven.
+Query classes prove the path from shadow to enforced planning only after fixtures, remediation, refusal policy, telemetry, rollback, and historical replay are independently verified; activation waits for P8 cutover.
 
 ##### User stories
 
-- As a **Think user**, I want predictable staged enforcement with useful bounded results, so that semantic safety does not arrive as a sudden wave of unexplained refusals.
+- As a **Think user**, I want a predictable staged-enforcement rehearsal with useful bounded results, so that semantic safety does not arrive as a sudden wave of unexplained refusals.
 - As a **operator**, I want per-class enablement, hold, rollback, and incident signals, so that a bad planner or policy can be contained without disabling all Mind reads.
 
 ##### Deliverables
 
 - [ ] Enforcement readiness checklist and signed decision per query class.
-- [ ] Canary, cohort, percentage, hold, and rollback controls that preserve capability law.
+- [ ] Non-authoritative canary, cohort, percentage, hold, and rollback controls that preserve capability law.
 - [ ] SLOs for answer, bounded, remediation, adjudication, refusal, error, and latency rates.
 - [ ] Historical replay, incident, and rollback runbooks with evidence retention and payload erasure.
 
 ##### Acceptance criteria
 
-- [ ] No class enables without passing governing fixtures, shadow evidence, remediation or final-refusal policy, and rollback rehearsal.
+- [ ] No class becomes production-authoritative before P8, and no class becomes eligible without passing governing fixtures, shadow evidence, remediation or final-refusal policy, and rollback rehearsal.
 - [ ] Rollback changes routing behavior but never fabricates authority or projection capability.
 - [ ] Historical answers remain reproducible across rollout and rollback.
 - [ ] High refusal, latency, error, authority conflict, or privacy signals automatically hold further expansion.
@@ -4809,7 +4839,7 @@ Query classes advance from shadow to enforced planning only after fixtures, reme
 
 ###### Integration and acceptance
 
-- [ ] A representative query class advances through the full staged rollout with witnessed results and historical replay.
+- [ ] A representative query class advances through the full non-authoritative staged rollout with witnessed results and historical replay.
 
 ###### Failure and recovery
 
@@ -4854,9 +4884,9 @@ Query classes advance from shadow to enforced planning only after fixtures, reme
 - Do not enable every query class in one cutover.
 - Do not weaken semantic checks as a rollback mechanism.
 
-## ADR-THINK-001 P8 — Edict action bridge
+## ADR-THINK-001 P8 — Action bridge and production cutover
 
-Permit external effects only through bounded authorization receipts and preserve later revocation, compensation, incident, and historical-legality evidence.
+Prove bounded action authorization and aftermath, close AC1–AC35, then perform the one witnessed production authority switch and preserve historical-legality evidence.
 
 ### F8.1 — Bounded action authorization
 
@@ -4866,7 +4896,7 @@ Permit external effects only through bounded authorization receipts and preserve
 
 [ADR-THINK-001](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-thoughts-are-sources-claims-are-readings.md) · [Delivery plan](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-delivery-plan.md) · [Complete issue catalog](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-issue-catalog.md)
 
-**Milestone:** ADR-THINK-001 P8 — Edict action bridge
+**Milestone:** ADR-THINK-001 P8 — Action bridge and production cutover
 
 **Feature:** F8.1 — Bounded action authorization
 
@@ -4950,7 +4980,7 @@ No ClaimOccurrence, answer, recommendation, or model output can directly authori
 
 [ADR-THINK-001](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-thoughts-are-sources-claims-are-readings.md) · [Delivery plan](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-delivery-plan.md) · [Complete issue catalog](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-issue-catalog.md)
 
-**Milestone:** ADR-THINK-001 P8 — Edict action bridge
+**Milestone:** ADR-THINK-001 P8 — Action bridge and production cutover
 
 **Feature:** F8.1 — Bounded action authorization
 
@@ -5028,7 +5058,7 @@ The external-action adapter validates a receipt and executes only its named oper
 - Do not grant the adapter general access to Think canonical state.
 - Do not treat a provider success response as proof the action was semantically wise.
 
-### F8.2 — Revocation, compensation, and audit
+### F8.2 — Revocation, compensation, audit, and cutover
 
 #### CT-803 — Append revocation, compensation, and incident outcomes
 
@@ -5036,9 +5066,9 @@ The external-action adapter validates a receipt and executes only its named oper
 
 [ADR-THINK-001](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-thoughts-are-sources-claims-are-readings.md) · [Delivery plan](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-delivery-plan.md) · [Complete issue catalog](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-issue-catalog.md)
 
-**Milestone:** ADR-THINK-001 P8 — Edict action bridge
+**Milestone:** ADR-THINK-001 P8 — Action bridge and production cutover
 
-**Feature:** F8.2 — Revocation, compensation, and audit
+**Feature:** F8.2 — Revocation, compensation, audit, and cutover
 
 ##### Outcome
 
@@ -5120,9 +5150,9 @@ Later evidence can stop future action, request a compensating operation, or reco
 
 [ADR-THINK-001](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-thoughts-are-sources-claims-are-readings.md) · [Delivery plan](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-delivery-plan.md) · [Complete issue catalog](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-issue-catalog.md)
 
-**Milestone:** ADR-THINK-001 P8 — Edict action bridge
+**Milestone:** ADR-THINK-001 P8 — Action bridge and production cutover
 
-**Feature:** F8.2 — Revocation, compensation, and audit
+**Feature:** F8.2 — Revocation, compensation, audit, and cutover
 
 ##### Outcome
 
@@ -5198,60 +5228,60 @@ An auditor can reproduce why an action was lawful at its evidence frontier and s
 - Do not judge historical legality with evidence that did not yet exist unless current reevaluation is explicitly requested.
 - Do not recover erased content to make an audit more narratively complete.
 
-#### CT-805 — Prove the end-to-end action safety boundary
+#### CT-805 — Close AC1–AC35 and perform the verified production cutover
 
 <!-- adr-think-001-work-item: CT-805 -->
 
 [ADR-THINK-001](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-thoughts-are-sources-claims-are-readings.md) · [Delivery plan](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-delivery-plan.md) · [Complete issue catalog](https://github.com/flyingrobots/think/blob/main/docs/design/ADR-THINK-001-issue-catalog.md)
 
-**Milestone:** ADR-THINK-001 P8 — Edict action bridge
+**Milestone:** ADR-THINK-001 P8 — Action bridge and production cutover
 
-**Feature:** F8.2 — Revocation, compensation, and audit
+**Feature:** F8.2 — Revocation, compensation, audit, and cutover
 
 ##### Outcome
 
-A production-shaped simulator demonstrates the full witnessed path from capture to authorized effect and every denial, revocation, compensation, incident, resource, and erasure invariant required for release.
+The complete architecture proves every acceptance criterion, demonstrates the action safety boundary, catches up the final legacy tail, and performs exactly one witnessed production authority switch per approved Mind.
 
 ##### User stories
 
-- As a **Think maintainer**, I want one falsifiable acceptance suite for the complete action bridge, so that release claims rest on executable causal stories rather than component-green optimism.
-- As a **Think user**, I want proof that ambiguous or unauthorized language cannot trigger an effect, so that I can trust capture to remain evidence until a separate bounded authorization exists.
+- As a **Think maintainer**, I want one falsifiable AC1–AC35 release gate and exact cutover protocol, so that production authority moves only after the whole architecture, not merely migration, is proven.
+- As a **Think user**, I want my approved Mind to switch once without lost captures or unauthorized effects, so that I can trust both storage migration and semantic action boundaries at cutover.
 
 ##### Deliverables
 
 - [ ] Production-shaped deterministic external-effect simulator and fault injector.
-- [ ] End-to-end fixtures for authorized, denied, bounded, expired, revoked, replayed, compensated, irreversible, and erased cases.
-- [ ] Resource report covering memory, queues, processes, concurrency, retries, time, bytes, and external calls.
-- [ ] P8 acceptance witness, threat-model review, operational runbook, and explicit residual-risk register.
+- [ ] Integrated AC1–AC35 evidence bundle covering every gate, invariant, fixture, migration, authority, erasure, resource, and action proof.
+- [ ] Per-Mind final tail, CutoverWitness verification, atomic authority switch, and AuthoritySwitchReceipt runbook.
+- [ ] Post-switch read/write/restart/doctor/erasure proof, retained-ref posture, resource report, and residual-risk register.
 
 ##### Acceptance criteria
 
-- [ ] The suite proves external action cannot occur from a ClaimOccurrence, projection, answer, or recommendation alone.
-- [ ] Every simulated effect has a valid bounded authorization and conforming execution receipt.
-- [ ] Later invalidation yields revocation, compensation, escalation, or incident without historical mutation.
-- [ ] All ADR acceptance criteria 33–35 and relevant erasure, authority, frontier, and bounded-execution ratchets pass together.
+- [ ] All ADR acceptance criteria AC1–AC35 and gates G1–G5 pass together at the exact candidate frontier with no unresolved obstruction or blocking review.
+- [ ] The suite proves external action cannot occur from a ClaimOccurrence, projection, answer, or recommendation alone, and every simulated effect has a valid bounded receipt.
+- [ ] Each approved Mind either remains wholly legacy-authoritative on failure or switches exactly once after its final verified witness; no dual-write interval exists.
+- [ ] Post-switch reads, captures, restart, doctor, erasure, revocation, compensation, incident, process, memory, queue, and backup ratchets all pass.
 
 ##### Test plan
 
 ###### Contract and unit
 
-- [ ] Acceptance tests enumerate every authorization and aftermath state with exact witness assertions.
+- [ ] Acceptance tests enumerate AC1–AC35, every authorization and aftermath state, and every final-cutover state with exact witness assertions.
 
 ###### Integration and acceptance
 
-- [ ] The full dojo capture-to-action story crosses BodyVault, WARP, reading, claims, authority, query, AnswerWitness, Edict, and audit.
+- [ ] The full dojo and approved-Mind flow crosses BodyVault, WARP, reading, claims, authority, query, AnswerWitness, Edict, final tail, authority switch, and audit.
 
 ###### Failure and recovery
 
-- [ ] Ambiguity, misattribution, conflict, stale frontier, forged receipt, replay, provider fault, irreversible effect, and erasure expose no unsafe path.
+- [ ] Any failed criterion, obstruction, ambiguity, stale frontier, forged receipt, replay, provider fault, lock timeout, witness mismatch, or erasure leak leaves legacy authoritative and exposes no unsafe path.
 
 ###### Resource and performance
 
-- [ ] Long-running action simulations preserve flat memory, bounded queues, scoped processes, bounded retries, and exact external-call counts.
+- [ ] Action simulation and final cutover preserve flat memory, bounded queues, window-scaled Git processes, bounded retries, bounded lock time, and exact external-call counts.
 
 ###### Security, privacy, and erasure
 
-- [ ] Independent threat review and restore drills cover keys, backups, logs, traces, receipts, external credentials, and erased payloads.
+- [ ] Independent threat review and restore drills cover keys, backups, logs, traces, receipts, external credentials, retained refs, and erased payloads before and after the switch.
 
 ##### Build-time resources
 
@@ -5262,6 +5292,9 @@ A production-shaped simulator demonstrates the full witnessed path from capture 
 | `acceptance-scenario-partitions` | **partitioned** | Disjoint authorization and aftermath scenarios. |
 | `production-shaped-mind-fixture` | **exclusive** | Pinned end-to-end evidence and policy worldline. |
 | `release-evidence-bundle` | **exclusive** | Signed acceptance results and residual-risk register. |
+| `production-mind-write-lock` | **partitioned** | Exclusive final lock per approved Mind; Minds never share an authority mutation lane. |
+| `production-authority-pointer` | **exclusive** | The one checked production substrate switch. |
+| `final-cutover-proof-runner` | **exclusive** | Independent final-tail and CutoverWitness verification. |
 
 - **exclusive:** Only one active slice may mutate or lease the named resource.
 - **partitioned:** Concurrent writes are lawful only in disjoint partitions named by each slice.
@@ -5274,8 +5307,8 @@ A production-shaped simulator demonstrates the full witnessed path from capture 
 ##### ADR traceability
 
 - Implementation gates: `G1`, `G2`, `G3`, `G4`, `G5`
-- Constitutional invariants: `I3`, `I9`, `I10`, `I13`, `I14`, `I15`, `I17`
-- ADR acceptance criteria: `AC33`, `AC34`, `AC35`
+- Constitutional invariants: `I1`, `I2`, `I3`, `I4`, `I5`, `I6`, `I7`, `I8`, `I9`, `I10`, `I11`, `I12`, `I13`, `I14`, `I15`, `I16`, `I17`
+- ADR acceptance criteria: `AC1`, `AC2`, `AC3`, `AC4`, `AC5`, `AC6`, `AC7`, `AC8`, `AC9`, `AC10`, `AC11`, `AC12`, `AC13`, `AC14`, `AC15`, `AC16`, `AC17`, `AC18`, `AC19`, `AC20`, `AC21`, `AC22`, `AC23`, `AC24`, `AC25`, `AC26`, `AC27`, `AC28`, `AC29`, `AC30`, `AC31`, `AC32`, `AC33`, `AC34`, `AC35`
 
 ##### Non-goals
 

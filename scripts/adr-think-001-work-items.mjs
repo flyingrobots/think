@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
+import { execFile as execFileCallback } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
+import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
@@ -16,6 +18,18 @@ const EXPECTED_GATES = Object.freeze(['G1', 'G2', 'G3', 'G4', 'G5']);
 const EXPECTED_INVARIANTS = Object.freeze(Array.from({ length: 17 }, (_, index) => `I${index + 1}`));
 const EXPECTED_CRITERIA = Object.freeze(Array.from({ length: 35 }, (_, index) => `AC${index + 1}`));
 const REQUIRED_TESTS = Object.freeze(['contract', 'integration', 'failure', 'resource']);
+const REQUIRED_RESOURCE_MODES = Object.freeze(['exclusive', 'partitioned', 'shared']);
+const REQUIRED_ISSUE_IDS = Object.freeze([
+  'CT-001', 'CT-002', 'CT-003', 'CT-004', 'CT-005', 'CT-006', 'CT-007', 'CT-008',
+  'CT-101', 'CT-102', 'CT-103', 'CT-104', 'CT-105', 'CT-106', 'CT-107', 'CT-108',
+  'CT-201', 'CT-202', 'CT-203', 'CT-204', 'CT-205', 'CT-206', 'CT-207', 'CT-208',
+  'CT-209', 'CT-210', 'CT-301', 'CT-302', 'CT-303', 'CT-304', 'CT-305', 'CT-306',
+  'CT-307', 'CT-401', 'CT-402', 'CT-403', 'CT-404', 'CT-405', 'CT-501', 'CT-502',
+  'CT-503', 'CT-504', 'CT-505', 'CT-601', 'CT-602', 'CT-603', 'CT-604', 'CT-605',
+  'CT-606', 'CT-701', 'CT-702', 'CT-703', 'CT-704', 'CT-705', 'CT-706', 'CT-801',
+  'CT-802', 'CT-803', 'CT-804', 'CT-805',
+]);
+const execFile = promisify(execFileCallback);
 
 class WorkGraphError extends Error {
   constructor(message) {
@@ -58,20 +72,23 @@ async function readJson(path) {
   return JSON.parse(await readFile(path, 'utf8'));
 }
 
-async function readOptionalMap() {
-  try {
-    return await readJson(GITHUB_MAP_PATH);
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      return { schemaVersion: 1, repository: 'flyingrobots/think', milestones: {}, issues: {} };
-    }
-    throw error;
-  }
+function isPlainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function assertExactKeys(value, expected, label) {
+  expect(isPlainObject(value), `${label} must be a plain object`);
+  const actualKeys = Object.keys(value).sort(compareIds);
+  const expectedKeys = [...expected].sort(compareIds);
+  expect(
+    JSON.stringify(actualKeys) === JSON.stringify(expectedKeys),
+    `${label} must define exactly: ${expectedKeys.join(', ')}`,
+  );
 }
 
 function validateTopLevel(manifest) {
   expect(manifest.schemaVersion === 1, 'manifest.schemaVersion must be 1');
-  expect(Object.keys(manifest.resourceModes).length === 3, 'manifest must define exactly three resource modes');
+  assertExactKeys(manifest.resourceModes, REQUIRED_RESOURCE_MODES, 'manifest.resourceModes');
   expectArray(manifest, 'milestones', 9);
   expectArray(manifest, 'features', 18);
   expectArray(manifest, 'issues', 60);
@@ -81,6 +98,11 @@ function validateTopLevel(manifest) {
   assertUnique(manifest.milestones, 'Milestone');
   assertUnique(manifest.features, 'Feature');
   assertUnique(manifest.issues, 'Issue');
+  const issueIds = manifest.issues.map((issue) => issue.id).sort(compareIds);
+  expect(
+    JSON.stringify(issueIds) === JSON.stringify([...REQUIRED_ISSUE_IDS].sort(compareIds)),
+    'manifest must preserve the exact stable ADR-THINK-001 issue identifier set',
+  );
 }
 
 function validateMilestones(manifest) {
@@ -208,6 +230,113 @@ function validateManifest(manifest) {
   validateDependencyGraph(manifest.issues);
 }
 
+function validateGithubMap(manifest, githubMap) {
+  expect(githubMap.schemaVersion === 1, 'github map schemaVersion must be 1');
+  expect(githubMap.repository === 'flyingrobots/think', 'github map repository must be flyingrobots/think');
+  assertExactKeys(
+    githubMap.milestones,
+    manifest.milestones.map((milestone) => milestone.id),
+    'github map milestones',
+  );
+  assertExactKeys(githubMap.issues, REQUIRED_ISSUE_IDS, 'github map issues');
+
+  for (const milestone of manifest.milestones) {
+    const mapped = githubMap.milestones[milestone.id];
+    expect(Number.isInteger(mapped.number) && mapped.number > 0, `${milestone.id} needs a GitHub milestone number`);
+    expect(mapped.title === milestone.title, `${milestone.id} GitHub milestone title is stale`);
+    expect(
+      mapped.url === `https://github.com/flyingrobots/think/milestone/${mapped.number}`,
+      `${milestone.id} GitHub milestone URL is invalid`,
+    );
+    expect(['open', 'closed'].includes(mapped.state), `${milestone.id} GitHub milestone state is invalid`);
+  }
+
+  for (const issue of manifest.issues) {
+    const mapped = githubMap.issues[issue.id];
+    expect(Number.isInteger(mapped.number) && mapped.number > 0, `${issue.id} needs a GitHub issue number`);
+    expect(mapped.title === `[${issue.id}] ${issue.title}`, `${issue.id} GitHub issue title is stale`);
+    expect(mapped.milestone === issue.milestone, `${issue.id} GitHub milestone mapping is stale`);
+    expect(
+      mapped.url === `https://github.com/flyingrobots/think/issues/${mapped.number}`,
+      `${issue.id} GitHub issue URL is invalid`,
+    );
+    expect(['open', 'closed'].includes(mapped.state), `${issue.id} GitHub issue state is invalid`);
+    for (const blocker of issue.blockedBy) {
+      expect(Boolean(githubMap.issues[blocker]), `${issue.id} blocker ${blocker} lacks a GitHub mapping`);
+    }
+  }
+}
+
+function validateCatalog(manifest, githubMap, catalog) {
+  expect(
+    catalog === renderCatalog(manifest, githubMap),
+    'generated ADR-THINK-001 issue catalog is stale; run roadmap:contextual-mind:render',
+  );
+}
+
+function remoteCollection(stdout, label) {
+  const pages = JSON.parse(stdout);
+  expect(Array.isArray(pages), `${label} response must be an array`);
+  return pages.flat();
+}
+
+async function readRemoteGithubState(repository) {
+  const [issueResult, milestoneResult] = await Promise.all([
+    execFile('gh', ['api', '--paginate', '--slurp', `repos/${repository}/issues?state=all&per_page=100`], {
+      maxBuffer: 16 * 1024 * 1024,
+    }),
+    execFile('gh', ['api', '--paginate', '--slurp', `repos/${repository}/milestones?state=all&per_page=100`], {
+      maxBuffer: 4 * 1024 * 1024,
+    }),
+  ]);
+  return {
+    issues: remoteCollection(issueResult.stdout, 'GitHub issues'),
+    milestones: remoteCollection(milestoneResult.stdout, 'GitHub milestones'),
+  };
+}
+
+function reconcileRemoteMilestones(manifest, githubMap, remoteMilestones) {
+  for (const milestone of manifest.milestones) {
+    const mapped = githubMap.milestones[milestone.id];
+    const actual = remoteMilestones.get(mapped.number);
+    expect(Boolean(actual), `${milestone.id} remote GitHub milestone is missing`);
+    expect(actual.title === mapped.title, `${milestone.id} remote GitHub milestone title differs`);
+    expect(actual.html_url === mapped.url, `${milestone.id} remote GitHub milestone URL differs`);
+    expect(actual.state === mapped.state, `${milestone.id} remote GitHub milestone state differs`);
+    expect(actual.description === milestone.thesis, `${milestone.id} remote GitHub milestone description differs`);
+  }
+}
+
+function reconcileRemoteIssues(manifest, githubMap, remoteIssues) {
+  for (const issue of manifest.issues) {
+    const mapped = githubMap.issues[issue.id];
+    const actual = remoteIssues.get(mapped.number);
+    expect(Boolean(actual), `${issue.id} remote GitHub issue is missing`);
+    expect(actual.title === mapped.title, `${issue.id} remote GitHub issue title differs`);
+    expect(actual.html_url === mapped.url, `${issue.id} remote GitHub issue URL differs`);
+    expect(actual.state === mapped.state, `${issue.id} remote GitHub issue state differs`);
+    expect(actual.milestone?.title === githubMap.milestones[issue.milestone].title, `${issue.id} remote GitHub milestone differs`);
+    expect(actual.body === renderIssueBody(issue, manifest, githubMap), `${issue.id} remote GitHub issue body differs`);
+    const actualLabels = actual.labels.map((label) => label.name).sort();
+    expect(
+      JSON.stringify(actualLabels) === JSON.stringify([...issue.labels].sort()),
+      `${issue.id} remote GitHub labels differ`,
+    );
+  }
+}
+
+function reconcileGithubRemote(manifest, githubMap, remote) {
+  validateGithubMap(manifest, githubMap);
+  const remoteMilestones = new Map(remote.milestones.map((milestone) => [milestone.number, milestone]));
+  const remoteIssues = new Map(
+    remote.issues
+      .filter((issue) => !issue.pull_request)
+      .map((issue) => [issue.number, issue]),
+  );
+  reconcileRemoteMilestones(manifest, githubMap, remoteMilestones);
+  reconcileRemoteIssues(manifest, githubMap, remoteIssues);
+}
+
 function markdownList(items, checked = false) {
   const marker = checked ? '- [ ]' : '-';
   return items.map((item) => `${marker} ${item}`).join('\n');
@@ -296,6 +425,17 @@ function mermaidId(id) {
 
 function renderDependencyGraph(manifest) {
   const lines = ['```mermaid', 'flowchart LR'];
+  const externalDependencies = [...new Set(manifest.issues.flatMap((issue) => issue.externalDependencies))].sort();
+  const externalIds = new Map(externalDependencies.map((dependency, index) => [dependency, `EXT${index + 1}`]));
+  if (externalDependencies.length > 0) {
+    lines.push('  subgraph EXT["External blockers"]', '    direction TB');
+    for (const dependency of externalDependencies) {
+      const parsed = new URL(dependency);
+      const [owner, repository, , number] = parsed.pathname.split('/').filter(Boolean);
+      lines.push(`    ${externalIds.get(dependency)}["${owner}/${repository}#${number}"]`);
+    }
+    lines.push('  end');
+  }
   for (const milestone of manifest.milestones) {
     lines.push(`  subgraph ${milestone.id}["${milestone.id}"]`, '    direction TB');
     const issues = manifest.issues.filter((issue) => issue.milestone === milestone.id);
@@ -303,6 +443,9 @@ function renderDependencyGraph(manifest) {
   }
   for (const issue of manifest.issues) {
     lines.push(...issue.blockedBy.map((blocker) => `  ${mermaidId(blocker)} --> ${mermaidId(issue.id)}`));
+    lines.push(...issue.externalDependencies.map((dependency) =>
+      `  ${externalIds.get(dependency)} -. external .-> ${mermaidId(issue.id)}`,
+    ));
   }
   lines.push('```');
   return lines.join('\n');
@@ -392,17 +535,28 @@ function summary(manifest) {
   return `ADR-THINK-001 work graph valid: ${manifest.milestones.length} milestones, ${manifest.features.length} features, ${manifest.issues.length} issues.`;
 }
 
+async function checkWorkGraph(manifest, githubMap) {
+  const catalog = await readFile(CATALOG_PATH, 'utf8');
+  validateCatalog(manifest, githubMap, catalog);
+  process.stdout.write(`${summary(manifest)} GitHub map complete; generated catalog current.\n`);
+}
+
+async function renderWorkGraph(manifest, githubMap) {
+  await writeFile(CATALOG_PATH, renderCatalog(manifest, githubMap));
+  process.stdout.write(`${summary(manifest)} Rendered ${CATALOG_PATH}.\n`);
+}
+
 async function execute(command, requestedId) {
   const manifest = await readJson(MANIFEST_PATH);
   validateManifest(manifest);
-  const githubMap = await readOptionalMap();
+  const githubMap = await readJson(GITHUB_MAP_PATH);
+  validateGithubMap(manifest, githubMap);
   if (command === 'check') {
-    process.stdout.write(`${summary(manifest)}\n`);
+    await checkWorkGraph(manifest, githubMap);
     return;
   }
   if (command === 'render') {
-    await writeFile(CATALOG_PATH, renderCatalog(manifest, githubMap));
-    process.stdout.write(`${summary(manifest)} Rendered ${CATALOG_PATH}.\n`);
+    await renderWorkGraph(manifest, githubMap);
     return;
   }
   if (command === 'body') {
@@ -413,6 +567,12 @@ async function execute(command, requestedId) {
   }
   if (command === 'github-plan') {
     process.stdout.write(`${JSON.stringify(githubPlan(manifest, githubMap), null, 2)}\n`);
+    return;
+  }
+  if (command === 'reconcile') {
+    const remote = await readRemoteGithubState(githubMap.repository);
+    reconcileGithubRemote(manifest, githubMap, remote);
+    process.stdout.write(`GitHub reconciliation exact: ${manifest.milestones.length} milestones, ${manifest.issues.length} issues.\n`);
     return;
   }
   fail(`Unknown command: ${command}`);
@@ -427,7 +587,10 @@ if (IS_DIRECT) {
 export {
   WorkGraphError,
   githubPlan,
+  reconcileGithubRemote,
   renderCatalog,
   renderIssueBody,
+  validateCatalog,
+  validateGithubMap,
   validateManifest,
 };

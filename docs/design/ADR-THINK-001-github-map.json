@@ -28,7 +28,7 @@
     },
     "P4": {
       "number": 5,
-      "title": "ADR-THINK-001 P4 — Verified cutover",
+      "title": "ADR-THINK-001 P4 — Verified cutover rehearsal",
       "url": "https://github.com/flyingrobots/think/milestone/5",
       "state": "open"
     },
@@ -46,13 +46,13 @@
     },
     "P7": {
       "number": 8,
-      "title": "ADR-THINK-001 P7 — Authority and refusal enforcement",
+      "title": "ADR-THINK-001 P7 — Authority and refusal readiness",
       "url": "https://github.com/flyingrobots/think/milestone/8",
       "state": "open"
     },
     "P8": {
       "number": 9,
-      "title": "ADR-THINK-001 P8 — Edict action bridge",
+      "title": "ADR-THINK-001 P8 — Action bridge and production cutover",
       "url": "https://github.com/flyingrobots/think/milestone/9",
       "state": "open"
     }
@@ -298,14 +298,14 @@
     },
     "CT-402": {
       "number": 74,
-      "title": "[CT-402] Implement the short-lock final tail and atomic authority switch",
+      "title": "[CT-402] Rehearse the short-lock final tail without switching authority",
       "url": "https://github.com/flyingrobots/think/issues/74",
       "milestone": "P4",
       "state": "open"
     },
     "CT-403": {
       "number": 75,
-      "title": "[CT-403] Implement the CutoverWitness and zero-obstruction release gate",
+      "title": "[CT-403] Implement candidate CutoverWitness and zero-obstruction gates",
       "url": "https://github.com/flyingrobots/think/issues/75",
       "milestone": "P4",
       "state": "open"
@@ -319,7 +319,7 @@
     },
     "CT-405": {
       "number": 77,
-      "title": "[CT-405] Execute and verify the production Mind cutover fleet",
+      "title": "[CT-405] Execute production-shaped cutover rehearsals for every Mind",
       "url": "https://github.com/flyingrobots/think/issues/77",
       "milestone": "P4",
       "state": "open"
@@ -438,7 +438,7 @@
     },
     "CT-706": {
       "number": 94,
-      "title": "[CT-706] Roll out authority and refusal enforcement safely",
+      "title": "[CT-706] Prove authority and refusal enforcement readiness",
       "url": "https://github.com/flyingrobots/think/issues/94",
       "milestone": "P7",
       "state": "open"
@@ -473,7 +473,7 @@
     },
     "CT-805": {
       "number": 99,
-      "title": "[CT-805] Prove the end-to-end action safety boundary",
+      "title": "[CT-805] Close AC1–AC35 and perform the verified production cutover",
       "url": "https://github.com/flyingrobots/think/issues/99",
       "milestone": "P8",
       "state": "open"
