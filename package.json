@@ -33,6 +33,8 @@
     "echo:probe": "node ./scripts/think-echo-capability-probe.mjs",
     "hexagonal-boundary:ratchet": "node ./scripts/hexagonal-boundary-ratchet.mjs",
     "repair:v17-mind": "node ./scripts/repair-v17-mind.mjs",
+    "roadmap:contextual-mind:check": "node ./scripts/adr-think-001-work-items.mjs check",
+    "roadmap:contextual-mind:render": "node ./scripts/adr-think-001-work-items.mjs render",
     "runtime-truth:ratchet": "node ./scripts/runtime-truth-ratchet.mjs"
   },
   "engines": {
