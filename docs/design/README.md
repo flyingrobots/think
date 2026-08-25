@@ -42,6 +42,10 @@ This review is meant to answer five questions:
 - [`0072-followthrough-job-queue/followthrough-job-queue.md`](./0072-followthrough-job-queue/followthrough-job-queue.md): draft proposal for durable, visible post-capture followthrough jobs that keep raw capture immediate.
 - [`0073-agent-native-memory-api/agent-native-memory-api.md`](./0073-agent-native-memory-api/agent-native-memory-api.md): draft proposal for capability-discovered MCP and JSON memory contracts for agents.
 - [`0074-evidence-bound-enrichment/evidence-bound-enrichment.md`](./0074-evidence-bound-enrichment/evidence-bound-enrichment.md): draft proposal for composable enrichment receipts that keep derived facts evidence-bound.
+- [`0075-atomic-capture-occurrence-experiment/atomic-capture-occurrence-experiment.md`](./0075-atomic-capture-occurrence-experiment/atomic-capture-occurrence-experiment.md):
+  falsification-first experiment for immutable capture occurrences,
+  manifest-free enumeration, additive replay, and isolated page-versus-atom
+  performance evidence.
 - [`ROADMAP.md`](./ROADMAP.md): milestone sequence, hill mapping, exit criteria, and review checkpoints.
 
 ## Archived Slice History

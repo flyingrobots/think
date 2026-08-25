@@ -18,6 +18,7 @@ const allowedBoundaryFiles = Object.freeze([
   'src/cli/commands/doctor.js',
   'src/doctor.js',
   'src/generated/think-memory.generated.js',
+  'src/history/git-warp-capture-occurrence.js',
   'src/history/git-warp-read.js',
   'src/store/native-runtime.js',
   'src/store/runtime.js',
