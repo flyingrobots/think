@@ -54,10 +54,13 @@ Release discipline:
 - replaced the production storage path with the public
   `@git-stunts/git-warp` v19 Runtime, Lane, Intent, Observer, and captured
   coordinate APIs, with no v18 compatibility path
-- upgraded the registry dependency to `@git-stunts/git-warp` 19.0.2
+- upgraded the registry dependency to `@git-stunts/git-warp` 19.1.0
 - read bounded native index pages concurrently at one captured coordinate,
   preserving deterministic newest-first recall while avoiding serial optic
   latency
+- made the native git-warp adapter explicitly disposable, with idempotent
+  process-level teardown owned by CLI, MCP, and Node test composition roots so
+  persistent Git ref sessions cannot outlive their Think runtime scope
 
 ## [0.7.2] - 2026-06-23
 

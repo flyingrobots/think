@@ -23,6 +23,12 @@ const gitWarpCli = path.join(packageRoot, 'bin', 'git-warp');
 const sessions = new Map();
 const MAX_WRITE_ATTEMPTS = 3;
 
+/**
+ * Think's production adapter for the git-warp v19 Runtime boundary.
+ * Product modules consume the Think-shaped methods below rather than importing
+ * git-warp runtime values or depending on its storage topology.
+ */
+
 export async function openNativeMemory(repoDir, {
   writerId = createWriterId(),
 } = {}) {
@@ -44,6 +50,12 @@ export async function closeNativeMemory(repoDir) {
     sessions.delete(cacheKey);
     await session.close();
   }));
+}
+
+export async function closeAllNativeMemory() {
+  const openSessions = [...sessions.values()];
+  sessions.clear();
+  await Promise.all(openSessions.map(async session => await session.close()));
 }
 
 export class NativeMemoryCoordinateReader {
@@ -83,6 +95,7 @@ export class NativeMemorySession {
     this.writerId = writerId;
     this.runtime = runtime;
     this.lane = lane;
+    this.closePromise = null;
   }
 
   static async open(repoDir, writerId) {
@@ -95,16 +108,22 @@ export class NativeMemorySession {
   }
 
   async close() {
-    await this.runtime.close();
+    this.closePromise ??= this.runtime.close();
+    await this.closePromise;
+  }
+
+  async [Symbol.asyncDispose]() {
+    await this.close();
   }
 
   async reopen() {
-    await this.runtime.close();
+    await this.close();
     this.runtime = await Runtime.open({
       at: this.repoDir,
       writer: this.writerId,
     });
     this.lane = await this.runtime.lane(GRAPH_NAME);
+    this.closePromise = null;
   }
 
   hasHistory() {
@@ -278,7 +297,7 @@ export class NativeMemorySession {
   }
 
   async repairBasis() {
-    await this.runtime.close();
+    await this.close();
     await execFileAsync(process.execPath, [
       gitWarpCli,
       '--repo',
@@ -297,6 +316,7 @@ export class NativeMemorySession {
       writer: this.writerId,
     });
     this.lane = await this.runtime.lane(GRAPH_NAME);
+    this.closePromise = null;
   }
 
   async write(intent) {

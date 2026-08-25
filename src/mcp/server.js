@@ -4,6 +4,7 @@ import * as z from 'zod/v4';
 
 import pkg from '../../package.json' with { type: 'json' };
 import { VALID_CAPTURE_INGRESSES } from '../capture-provenance.js';
+import { closeAllNativeMemory } from '../store/native-runtime.js';
 import {
   browseThought,
   captureThought,
@@ -96,11 +97,14 @@ const promptMetricSummarySchema = z.object({
   submitted: z.number().int().nonnegative(),
 });
 
-export function createThinkMcpServer() {
+export function createThinkMcpServer({
+  closeRuntime = closeAllNativeMemory,
+} = {}) {
   const server = new McpServer({
     name: 'think',
     version: pkg.version,
   });
+  bindRuntimeLifecycle(server, closeRuntime);
 
   server.registerTool('capture', {
     description: 'Capture a raw thought into Think using the normal local-first capture core.',
@@ -262,4 +266,27 @@ export async function serveStdio() {
   const server = createThinkMcpServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
+}
+
+function bindRuntimeLifecycle(server, closeRuntime) {
+  const closeRuntimeOnce = createCloseOnce(closeRuntime);
+  const closeServer = server.close.bind(server);
+  server.server.onclose = () => {
+    closeRuntimeOnce().catch(error => server.server.onerror?.(error));
+  };
+  server.close = async () => {
+    try {
+      await closeServer();
+    } finally {
+      await closeRuntimeOnce();
+    }
+  };
+}
+
+function createCloseOnce(closeRuntime) {
+  let closePromise = null;
+  return () => {
+    closePromise ??= Promise.resolve().then(closeRuntime);
+    return closePromise;
+  };
 }

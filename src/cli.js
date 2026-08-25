@@ -24,8 +24,14 @@ import {
   runTopics,
 } from './cli/commands/read.js';
 import { runReflectReply, runReflectStart } from './cli/commands/reflect.js';
+import { closeAllNativeMemory } from './store/native-runtime.js';
 
-export async function main(argv, { stdout, stderr, stdin }) {
+export async function main(argv, {
+  closeRuntime = closeAllNativeMemory,
+  stdout,
+  stderr,
+  stdin,
+}) {
   const options = parseArgs(argv.slice(2));
   const command = resolveCommand(options);
   const helpTopic = resolveHelpTopic(options, command);
@@ -115,6 +121,8 @@ export async function main(argv, { stdout, stderr, stdin }) {
       output.error(`Something went wrong: ${renderedMessage}`);
     }
     return 1;
+  } finally {
+    await closeRuntime();
   }
 }
 
