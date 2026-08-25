@@ -1,6 +1,6 @@
 # Atomic Capture Occurrence Experiment
 
-Status: **proposed; Gate 2 must pass before replay or benchmarking begins**
+Status: **Gate 1 passed; Gate 2 blocked on the supported v19.1 read surface**
 
 This note defines a disposable Think-only experiment against the exact
 `@git-stunts/git-warp@19.1.0` package. It does not authorize a production data
@@ -493,3 +493,28 @@ assumed away.
 
 The default Think storage path remains the current paged adapter throughout
 the experiment.
+
+## Live gate result
+
+On 2026-08-25, the first executable slice established:
+
+- exact `@git-stunts/git-warp@19.1.0` is pinned on the experiment branch;
+- one `entity.addAuto` admission creates one writer commit containing both
+  initial profile values;
+- the Think receipt preserves `CaptureId`, `CaptureIntentId`, the allocated
+  representation subject, the opaque occurrence, outcome, and evidence basis;
+- exact property recovery succeeds after every runtime closes and a fresh
+  runtime opens;
+- equal bodies under different capture and intent IDs produce distinct
+  subjects and occurrences;
+- the supported `Lane`, captured coordinate, coordinate optic, coordinate
+  source, and advanced package exports expose no basis-bound node/entity
+  enumerator;
+- `enumerate()` therefore fails explicitly with
+  `CAPTURE_ENUMERATION_UNAVAILABLE` and includes the real basis that could not
+  be enumerated.
+
+The focused witness is
+`test/ports/atomic-capture-occurrence.test.js`. Gates 3 through 6 remain
+prohibited. The result does not authorize a deep import, raw ref decoder,
+authoritative manifest, or lower-layer change.
