@@ -29,7 +29,7 @@ export function discoverMinds(thinkDir = getThinkDir()) {
       continue;
     }
 
-    const isDefault = entry === 'repo';
+    const isDefault = entry === 'james';
     minds.push({
       name: isDefault ? 'default' : entry,
       repoDir: fullPath,

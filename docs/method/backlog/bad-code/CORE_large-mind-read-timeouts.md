@@ -25,6 +25,11 @@ unavailable even when the underlying mind is intact.
       not call `read.view.query()`.
 - [x] Store self-contained fast capture records so default `remember` can score
       ambient project matches without hydrating capture nodes.
+- [x] Read the bounded native index page set concurrently at one captured v19
+      coordinate while preserving newest-first order. Six installed-wrapper
+      runs on `~/.think/codex` reduced median `codex-think --remember --json`
+      wall time from 11.111s to 4.814s at `/Users/james` and from 11.161s to
+      5.081s at `/Users/james/git/think`.
 - [ ] Add a deterministic large-mind fixture or synthetic benchmark for MCP read
       timeout budgets.
 - [ ] Add an explicit read-model backfill/repair command for existing minds so
@@ -32,8 +37,9 @@ unavailable even when the underlying mind is intact.
       from genesis.
 - [ ] Establish target budgets for `recent`, `stats`, `doctor`, and `remember`
       against large repaired minds. Current `codex-think --remember --json`
-      smoke exits under a 20s timeout on `~/.think/codex`, but still spends
-      roughly 13-14s in one git-warp optic property read.
+      exits reliably on `~/.think/codex`, but its 4.814-5.081s median remains
+      above the sub-second product doctrine; the measured scan phase still
+      consumes about 3.7s for nine bounded v19 index-page reads.
 - [ ] Document and automate safe maintenance for high-loose-object minds.
-- [ ] Prefer public worldline/optic bounded reads where broad transitional
+- [x] Prefer public worldline/optic bounded reads where broad transitional
       queries are not required.

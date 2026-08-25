@@ -1,8 +1,20 @@
-import { CLASSIFICATION_PREFIX, TOPIC_PREFIX, KEYWORD_PREFIX, GRAPH_META_ID } from '../constants.js';
+import {
+  CLASSIFICATION_PREFIX,
+  GRAPH_META_ID,
+  KEYWORD_PREFIX,
+  TOPIC_PREFIX,
+} from '../constants.js';
 import { createArtifactId, getCurrentTime } from '../model.js';
 import {
-  commitThinkWorldline,
-  getStoredEntry,
+  decodeNativeDocument,
+  encodeNativeDocument,
+} from '../native-document.js';
+import {
+  appendIndexedMemoryObject,
+  readIndexedMemoryBatch,
+} from '../native-index.js';
+import { openNativeMemory } from '../native-runtime.js';
+import {
   listEntriesByKind,
   openProductReadHandle,
 } from '../runtime.js';
@@ -11,338 +23,220 @@ import { extractTopics } from './auto-tags.js';
 import { classifyThought } from './semantic-parse.js';
 
 const TOPIC_PROMOTION_THRESHOLD = 2;
+const ENRICHMENT_BATCH_SIZE = 500;
 
-/**
- * Run the enrichment pipeline on all un-enriched captures in a repo.
- * Uses worldline query API — no full graph materialization.
- */
 export async function runEnrichmentPipeline(repoDir) {
-  const read = await openProductReadHandle(repoDir);
-  const { view } = read;
-
-  // 1. Determine the starting point (high-water mark cursor)
-  const metaProps = await view.getNodeProps(GRAPH_META_ID);
-  const cursorId = metaProps?.lastEnrichedCaptureId;
-
-  let captures = [];
-  if (cursorId && await view.hasNode(cursorId)) {
-    // Incremental path: Traverse 'newer' edges from the cursor
-    const forwardIds = await view.traverse.bfs(cursorId, {
-      dir: 'out',
-      labelFilter: 'newer',
-    });
-
-    for (const id of forwardIds) {
-      if (id === cursorId) { continue; }
-      // eslint-disable-next-line no-await-in-loop -- sequential retrieval of new captures
-      const entry = await getStoredEntry(read, id);
-      if (entry && entry.kind === 'capture') {
-        captures.push(entry);
-      }
-    }
-  } else {
-    // Bootstrap path: O(N) scan (only happens once or if cursor is lost)
-    captures = await listEntriesByKind(read, 'capture');
-  }
-
+  const memory = await openNativeMemory(repoDir);
+  const graphMetadata = decodeNativeDocument(
+    await memory.memoryDocument(GRAPH_META_ID),
+    'memory-object'
+  );
+  const batch = await readIndexedMemoryBatch(repoDir, 'capture', {
+    after: graphMetadata?.lastEnrichedCaptureId
+      ? {
+          id: graphMetadata.lastEnrichedCaptureId,
+          pageNumber: graphMetadata.lastEnrichedCapturePage,
+          offset: graphMetadata.lastEnrichedCaptureOffset,
+        }
+      : null,
+    limit: ENRICHMENT_BATCH_SIZE,
+  });
+  const captures = batch.documents;
   if (captures.length === 0) {
-    return Object.freeze({
-      capturesProcessed: 0,
-      topicNodesCreated: 0,
-      keywordNodesCreated: 0,
-      aboutEdgesAdded: 0,
-      mentionsEdgesAdded: 0,
-      classifiedEdgesAdded: 0,
-      receiptsCreated: 0,
-      promotedTopics: [],
-    });
+    return emptyResult();
   }
-
-  // Find existing auto_tags receipts via query
-  const existingReceipts = new Set();
-  const tagReceiptResult = await view.query().match('artifact:*').where({ kind: 'auto_tags' }).run();
-  for (const node of tagReceiptResult.nodes ?? []) {
-    if (node.props.primaryInputId) {
-      existingReceipts.add(node.props.primaryInputId);
-    }
-  }
-
-  // Find existing semantic_parse receipts via query
-  const existingParseReceipts = new Set();
-  const parseReceiptResult = await view.query().match('artifact:*').where({ kind: 'semantic_parse' }).run();
-  for (const node of parseReceiptResult.nodes ?? []) {
-    if (node.props.primaryInputId) {
-      existingParseReceipts.add(node.props.primaryInputId);
-    }
-  }
-
-  // Find existing topic nodes via query
-  const existingTopicNodes = new Set();
-  const topicResult = await view.query().match(`${TOPIC_PREFIX}*`).run();
-  for (const node of topicResult.nodes ?? []) {
-    existingTopicNodes.add(node.id);
-  }
-
-  // Find existing keyword nodes via query
-  const existingKeywordNodes = new Set();
-  const keywordResult = await view.query().match(`${KEYWORD_PREFIX}*`).run();
-  for (const node of keywordResult.nodes ?? []) {
-    existingKeywordNodes.add(node.id);
-  }
-
-  // Track candidate topic counts and classifications across all captures
-  const topicCounts = new Map();
-  const thoughtTopics = new Map();
-  const thoughtClassifications = new Map();
-
-  for (const capture of captures) {
-    const { thoughtId } = capture;
-    if (!thoughtId) { continue; }
-
-    if (!thoughtTopics.has(thoughtId)) {
-      const topics = extractTopics(capture.text);
-      thoughtTopics.set(thoughtId, topics);
-      for (const topic of topics) {
-        topicCounts.set(topic, (topicCounts.get(topic) || 0) + 1);
-      }
-    }
-
-    if (!thoughtClassifications.has(thoughtId)) {
-      thoughtClassifications.set(thoughtId, classifyThought(capture.text));
-    }
-  }
-
-  // Determine promoted topics
-  const promotedTopics = new Set();
-  for (const [topic, count] of topicCounts) {
-    if (count >= TOPIC_PROMOTION_THRESHOLD) {
-      promotedTopics.add(topic);
-    }
-  }
-
-  // Check existing about edges per thought via traversal
-  const existingAboutEdges = new Set();
-  for (const [thoughtId] of thoughtTopics) {
-    // eslint-disable-next-line no-await-in-loop -- per-thought traversal
-    const traversal = await view.query().match(thoughtId).outgoing('about').run();
-    for (const node of traversal.nodes ?? []) {
-      existingAboutEdges.add(`${thoughtId}\0${node.id}`);
-    }
-  }
-
-  // Check existing mentions edges per thought via traversal (inverted index)
-  const existingMentionsEdges = new Set();
-  for (const [thoughtId] of thoughtTopics) {
-    // eslint-disable-next-line no-await-in-loop -- per-thought traversal
-    const traversal = await view.query().match(thoughtId).outgoing('mentions').run();
-    for (const node of traversal.nodes ?? []) {
-      existingMentionsEdges.add(`${thoughtId}\0${node.id}`);
-    }
-  }
-
-  // Check existing classified_as edges per thought via traversal
-  const existingClassifiedEdges = new Set();
-  for (const [thoughtId] of thoughtClassifications) {
-    // eslint-disable-next-line no-await-in-loop -- per-thought traversal
-    const traversal = await view.query().match(thoughtId).outgoing('classified_as').run();
-    for (const node of traversal.nodes ?? []) {
-      existingClassifiedEdges.add(`${thoughtId}\0${node.id}`);
-    }
-  }
+  const read = await openProductReadHandle(repoDir);
+  const keywordIds = await indexedIds(read, 'keyword');
+  const topicIds = await indexedIds(read, 'topic');
+  const autoTagIds = await indexedIds(read, 'auto_tags');
+  const semanticParseIds = await indexedIds(read, 'semantic_parse');
 
   const timestamp = getCurrentTime().toISOString();
-  const keywordNodesToCreate = [];
-  const mentionsEdgesToAdd = [];
-  const topicNodesToCreate = [];
-  const aboutEdgesToAdd = [];
-  const autoTagReceiptsToCreate = [];
-  const classifiedEdgesToAdd = [];
-  const semanticParseReceiptsToCreate = [];
+  const topicCounts = new Map();
+  const captureTopics = new Map();
+  const captureClassifications = new Map();
 
-  for (const [thoughtId, topics] of thoughtTopics) {
-    for (const keyword of topics) {
-      const keywordNodeId = `${KEYWORD_PREFIX}${keyword}`;
-      if (!existingKeywordNodes.has(keywordNodeId)) {
-        keywordNodesToCreate.push({ keywordNodeId, keyword });
-        existingKeywordNodes.add(keywordNodeId);
-      }
-
-      const edgeKey = `${thoughtId}\0${keywordNodeId}`;
-      if (!existingMentionsEdges.has(edgeKey)) {
-        mentionsEdgesToAdd.push({ thoughtId, keywordNodeId });
-        existingMentionsEdges.add(edgeKey);
-      }
-    }
-  }
-
-  for (const topic of promotedTopics) {
-    const nodeId = `${TOPIC_PREFIX}${topic}`;
-    if (!existingTopicNodes.has(nodeId)) {
-      topicNodesToCreate.push({ nodeId, topic });
-      existingTopicNodes.add(nodeId);
-    }
-  }
-
-  for (const [thoughtId, topics] of thoughtTopics) {
+  for (const capture of captures) {
+    const topics = extractTopics(capture.text);
+    captureTopics.set(capture.id, topics);
+    captureClassifications.set(capture.id, classifyThought(capture.text));
     for (const topic of topics) {
-      if (!promotedTopics.has(topic)) { continue; }
-      const topicNodeId = `${TOPIC_PREFIX}${topic}`;
-      const edgeKey = `${thoughtId}\0${topicNodeId}`;
-      if (!existingAboutEdges.has(edgeKey)) {
-        aboutEdgesToAdd.push({ thoughtId, topicNodeId });
-        existingAboutEdges.add(edgeKey);
-      }
+      topicCounts.set(topic, (topicCounts.get(topic) ?? 0) + 1);
     }
   }
+
+  const promotedTopics = [...topicCounts]
+    .filter(([, count]) => count >= TOPIC_PROMOTION_THRESHOLD)
+    .map(([topic]) => topic)
+    .sort();
+  let keywordNodesCreated = 0;
+  let topicNodesCreated = 0;
+  let mentionsEdgesAdded = 0;
+  let aboutEdgesAdded = 0;
+  let classifiedEdgesAdded = 0;
+  let receiptsCreated = 0;
 
   for (const capture of captures) {
-    const { thoughtId } = capture;
-    if (!thoughtId || existingReceipts.has(thoughtId)) { continue; }
-
-    autoTagReceiptsToCreate.push({
-      artifactId: createArtifactId('auto_tags', thoughtId),
-      thoughtId,
-      topics: thoughtTopics.get(thoughtId) || [],
-    });
-    existingReceipts.add(thoughtId);
-  }
-
-  for (const [thoughtId, result] of thoughtClassifications) {
-    for (const classification of result.classifications) {
-      const classNodeId = `${CLASSIFICATION_PREFIX}${classification}`;
-      const edgeKey = `${thoughtId}\0${classNodeId}`;
-      if (!existingClassifiedEdges.has(edgeKey)) {
-        classifiedEdgesToAdd.push({ thoughtId, classNodeId });
-        existingClassifiedEdges.add(edgeKey);
+    const topics = captureTopics.get(capture.id) ?? [];
+    for (const keyword of topics) {
+      const keywordId = `${KEYWORD_PREFIX}${keyword}`;
+      if (!keywordIds.has(keywordId)) {
+        // eslint-disable-next-line no-await-in-loop -- enrichment admits bounded domain Intents deliberately
+        await appendIndexedMemoryObject(repoDir, {
+          id: keywordId,
+          kind: 'keyword',
+          facts: { kind: 'keyword', name: keyword, createdAt: timestamp },
+        });
+        keywordIds.add(keywordId);
+        keywordNodesCreated += 1;
       }
+      mentionsEdgesAdded += 1;
+    }
+
+    for (const topic of topics.filter(candidate => promotedTopics.includes(candidate))) {
+      const topicId = `${TOPIC_PREFIX}${topic}`;
+      if (!topicIds.has(topicId)) {
+        // eslint-disable-next-line no-await-in-loop -- enrichment admits bounded domain Intents deliberately
+        await appendIndexedMemoryObject(repoDir, {
+          id: topicId,
+          kind: 'topic',
+          facts: {
+            kind: 'topic',
+            name: topic,
+            normalizedName: topic,
+            createdAt: timestamp,
+            source: 'auto_tags',
+            thoughtCount: topicCounts.get(topic) ?? 0,
+          },
+        });
+        topicIds.add(topicId);
+        topicNodesCreated += 1;
+      }
+      aboutEdgesAdded += 1;
+    }
+
+    const classification = captureClassifications.get(capture.id);
+    for (const name of classification?.classifications ?? []) {
+      const classificationId = `${CLASSIFICATION_PREFIX}${name}`;
+      // eslint-disable-next-line no-await-in-loop -- enrichment declares bounded ontology endpoints
+      if (!await memory.exists(classificationId)) {
+        // eslint-disable-next-line no-await-in-loop -- enrichment admits bounded domain Intents deliberately
+        await memory.writeMemoryDocument({
+          id: classificationId,
+          bytes: encodeNativeDocument('memory-object', {
+            id: classificationId,
+            kind: 'classification',
+            name,
+            createdAt: timestamp,
+          }),
+        });
+      }
+      classifiedEdgesAdded += 1;
+    }
+
+    const tagArtifactId = createArtifactId('auto_tags', capture.id);
+    if (!autoTagIds.has(tagArtifactId)) {
+      // eslint-disable-next-line no-await-in-loop -- receipt objects use the bounded native document index
+      await appendIndexedMemoryObject(repoDir, {
+        id: tagArtifactId,
+        kind: 'auto_tags',
+        facts: {
+          kind: 'auto_tags',
+          primaryInputKind: 'capture',
+          primaryInputId: capture.id,
+          topicsExtractedCount: topics.length,
+          method: 'keyword-extraction',
+          deriver: 'think',
+          deriverVersion: '1',
+          schemaVersion: '1',
+          createdAt: timestamp,
+        },
+      });
+      autoTagIds.add(tagArtifactId);
+      receiptsCreated += 1;
+    }
+
+    const parseArtifactId = createArtifactId('semantic_parse', capture.id);
+    if (!semanticParseIds.has(parseArtifactId)) {
+      // eslint-disable-next-line no-await-in-loop -- receipt objects use the bounded native document index
+      await appendIndexedMemoryObject(repoDir, {
+        id: parseArtifactId,
+        kind: 'semantic_parse',
+        facts: {
+          kind: 'semantic_parse',
+          primaryInputKind: 'capture',
+          primaryInputId: capture.id,
+          classificationCount: classification?.classifications?.length ?? 0,
+          markerCount: classification?.markers?.length ?? 0,
+          deriver: 'think',
+          deriverVersion: '1',
+          schemaVersion: '1',
+          createdAt: timestamp,
+        },
+      });
+      semanticParseIds.add(parseArtifactId);
+      receiptsCreated += 1;
     }
   }
 
-  for (const capture of captures) {
-    const { thoughtId } = capture;
-    if (!thoughtId || existingParseReceipts.has(thoughtId)) { continue; }
-
-    const result = thoughtClassifications.get(thoughtId);
-    if (!result) { continue; }
-
-    semanticParseReceiptsToCreate.push({
-      artifactId: createArtifactId('semantic_parse', thoughtId),
-      thoughtId,
-      result,
+  const latest = captures.at(-1);
+  if (latest && batch.cursor) {
+    await memory.writeMemoryDocument({
+      id: GRAPH_META_ID,
+      bytes: encodeNativeDocument('memory-object', {
+        ...graphMetadata,
+        id: GRAPH_META_ID,
+        kind: 'graph_meta',
+        lastEnrichedCaptureId: latest.id,
+        lastEnrichedCapturePage: batch.cursor.pageNumber,
+        lastEnrichedCaptureOffset: batch.cursor.offset,
+        updatedAt: timestamp,
+      }),
+      declare: graphMetadata === null,
     });
-    existingParseReceipts.add(thoughtId);
   }
-
-  await commitThinkWorldline(repoDir, (patch) => {
-    // Create keyword nodes and mentions edges (The Inverted Index)
-    for (const { keywordNodeId, keyword } of keywordNodesToCreate) {
-      patch
-        .addNode(keywordNodeId)
-        .setProperty(keywordNodeId, 'kind', 'keyword')
-        .setProperty(keywordNodeId, 'name', keyword)
-        .setProperty(keywordNodeId, 'createdAt', timestamp);
-    }
-
-    for (const { thoughtId, keywordNodeId } of mentionsEdgesToAdd) {
-      patch.addEdge(thoughtId, keywordNodeId, 'mentions');
-    }
-
-    // Create promoted topic nodes
-    for (const { nodeId, topic } of topicNodesToCreate) {
-      patch
-        .addNode(nodeId)
-        .setProperty(nodeId, 'kind', 'topic')
-        .setProperty(nodeId, 'name', topic)
-        .setProperty(nodeId, 'normalizedName', topic)
-        .setProperty(nodeId, 'createdAt', timestamp)
-        .setProperty(nodeId, 'source', 'auto_tags');
-    }
-
-    // Add about edges for promoted topics
-    for (const { thoughtId, topicNodeId } of aboutEdgesToAdd) {
-      patch.addEdge(thoughtId, topicNodeId, 'about');
-    }
-
-    // Create auto_tags receipt artifacts
-    for (const { artifactId, thoughtId, topics } of autoTagReceiptsToCreate) {
-      patch
-        .addNode(artifactId)
-        .setProperty(artifactId, 'kind', 'auto_tags')
-        .setProperty(artifactId, 'primaryInputKind', 'thought')
-        .setProperty(artifactId, 'primaryInputId', thoughtId)
-        .setProperty(artifactId, 'topicsExtracted', JSON.stringify(topics))
-        .setProperty(artifactId, 'method', 'keyword-extraction')
-        .setProperty(artifactId, 'topicNodesCreated', 0)
-        .setProperty(artifactId, 'deriver', 'think')
-        .setProperty(artifactId, 'deriverVersion', '1')
-        .setProperty(artifactId, 'schemaVersion', '1')
-        .setProperty(artifactId, 'createdAt', timestamp)
-        .addEdge(artifactId, thoughtId, 'derived_from');
-    }
-
-    // Add classified_as edges
-    for (const { thoughtId, classNodeId } of classifiedEdgesToAdd) {
-      patch.addEdge(thoughtId, classNodeId, 'classified_as');
-    }
-
-    // Create semantic_parse receipt artifacts
-    for (const { artifactId, thoughtId, result } of semanticParseReceiptsToCreate) {
-      patch
-        .addNode(artifactId)
-        .setProperty(artifactId, 'kind', 'semantic_parse')
-        .setProperty(artifactId, 'primaryInputKind', 'thought')
-        .setProperty(artifactId, 'primaryInputId', thoughtId)
-        .setProperty(artifactId, 'classifications', JSON.stringify(result.classifications))
-        .setProperty(artifactId, 'markers', JSON.stringify(result.markers))
-        .setProperty(artifactId, 'deriver', 'think')
-        .setProperty(artifactId, 'deriverVersion', '1')
-        .setProperty(artifactId, 'schemaVersion', '1')
-        .setProperty(artifactId, 'createdAt', timestamp)
-        .addEdge(artifactId, thoughtId, 'derived_from');
-    }
-
-    // Update the high-water mark cursor to the latest capture processed
-    const latestProcessed = [...captures].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
-    if (latestProcessed) {
-      patch.setProperty(GRAPH_META_ID, 'lastEnrichedCaptureId', latestProcessed.id);
-    }
-  });
-
   invalidateSearchIndex(repoDir);
 
   return Object.freeze({
     capturesProcessed: captures.length,
-    topicNodesCreated: topicNodesToCreate.length,
-    keywordNodesCreated: keywordNodesToCreate.length,
-    aboutEdgesAdded: aboutEdgesToAdd.length,
-    mentionsEdgesAdded: mentionsEdgesToAdd.length,
-    classifiedEdgesAdded: classifiedEdgesToAdd.length,
-    receiptsCreated: autoTagReceiptsToCreate.length + semanticParseReceiptsToCreate.length,
-    promotedTopics: [...promotedTopics].sort(),
+    topicNodesCreated,
+    keywordNodesCreated,
+    aboutEdgesAdded,
+    mentionsEdgesAdded,
+    classifiedEdgesAdded,
+    receiptsCreated,
+    promotedTopics,
   });
 }
 
-/**
- * List all promoted topics in the graph with thought counts.
- * Uses worldline query API — no full graph materialization.
- */
 export async function listTopics(repoDir) {
   const read = await openProductReadHandle(repoDir);
+  const topics = await listEntriesByKind(read, 'topic');
+  return topics
+    .map(topic => Object.freeze({
+      name: topic.name ?? topic.text,
+      thoughtCount: Number(topic.thoughtCount ?? 0),
+      createdAt: topic.createdAt,
+    }))
+    .sort((left, right) => right.thoughtCount - left.thoughtCount);
+}
 
-  const topicResult = await read.view.query().match(`${TOPIC_PREFIX}*`).where({ kind: 'topic' }).run();
-  const topics = [];
+async function indexedIds(read, kind) {
+  return new Set(
+    (await listEntriesByKind(read, kind, { limit: 4096 }))
+      .map(entry => entry.id)
+  );
+}
 
-  for (const node of topicResult.nodes ?? []) {
-    // eslint-disable-next-line no-await-in-loop -- per-topic traversal for count
-    const incoming = await read.view.query().match(node.id).incoming('about').run();
-    const thoughtCount = (incoming.nodes ?? []).length;
-
-    topics.push(Object.freeze({
-      name: node.props.name,
-      thoughtCount,
-      createdAt: node.props.createdAt,
-    }));
-  }
-
-  return topics.sort((a, b) => b.thoughtCount - a.thoughtCount);
+function emptyResult() {
+  return Object.freeze({
+    capturesProcessed: 0,
+    topicNodesCreated: 0,
+    keywordNodesCreated: 0,
+    aboutEdgesAdded: 0,
+    mentionsEdgesAdded: 0,
+    classifiedEdgesAdded: 0,
+    receiptsCreated: 0,
+    promotedTopics: [],
+  });
 }

@@ -15,7 +15,7 @@ export function getLocalRepoDir() {
     return path.resolve(configuredRepoDir);
   }
 
-  return path.join(getThinkDir(), 'repo');
+  return path.join(getThinkDir(), 'james');
 }
 
 export function getPromptMetricsFile() {

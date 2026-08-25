@@ -9,14 +9,18 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const baselinePath = path.join(repoRoot, 'docs', 'audit', 'hexagonal-boundary-ratchet-baseline.json');
 const sourcePrefixes = Object.freeze(['src/', 'bin/', 'scripts/']);
 const allowedBoundaryFiles = Object.freeze([
+  'scripts/convert-v19-mind.mjs',
   'scripts/hexagonal-boundary-ratchet.mjs',
-  'scripts/repair-v17-mind.mjs',
+  'scripts/render-think-memory-sdk.mjs',
   'src/browse-benchmark.js',
   'src/browse/adapters/git-warp-worker.js',
   'src/browse/adapters/git-warp.js',
   'src/cli/commands/doctor.js',
   'src/doctor.js',
+  'src/generated/think-memory.generated.js',
   'src/history/git-warp-read.js',
+  'src/store/native-runtime.js',
+  'src/store/runtime.js',
 ]);
 const substrateTerms = Object.freeze([
   {

@@ -11,6 +11,11 @@ import {
   loadSearchIndex,
 } from '../../src/store/queries.js';
 import { runEnrichmentPipeline } from '../../src/store/enrichment/runner.js';
+import {
+  getSingleNeighborId,
+  listEntriesByKind,
+  openProductReadHandle,
+} from '../../src/store/runtime.js';
 import { createTempDir } from '../fixtures/tmp.js';
 
 test('enrichment invalidates the per-repo search index after creating keyword nodes', async () => {
@@ -36,6 +41,9 @@ test('enrichment invalidates the per-repo search index after creating keyword no
     2,
     'Expected enrichment to count both auto_tags and semantic_parse receipts.'
   );
+
+  await assertNativeCaptureRootedEnrichment(repoDir, entry);
+  await assertRepeatedEnrichmentIsNoop(repoDir);
 
   const after = await loadSearchIndex(repoDir);
   assert.ok(
@@ -87,4 +95,48 @@ async function createEnrichedRepo(prefix, thought) {
   await runEnrichmentPipeline(repoDir);
 
   return repoDir;
+}
+
+async function assertRepeatedEnrichmentIsNoop(repoDir) {
+  assert.deepEqual(
+    await runEnrichmentPipeline(repoDir),
+    {
+      capturesProcessed: 0,
+      topicNodesCreated: 0,
+      keywordNodesCreated: 0,
+      aboutEdgesAdded: 0,
+      mentionsEdgesAdded: 0,
+      classifiedEdgesAdded: 0,
+      receiptsCreated: 0,
+      promotedTopics: [],
+    },
+    'Expected the persisted native capture cursor to make a repeated enrichment run a no-op.'
+  );
+  const tagReceipts = await listEntriesByKind(
+    await openProductReadHandle(repoDir),
+    'auto_tags'
+  );
+  assert.equal(
+    tagReceipts.length,
+    1,
+    'Expected repeated enrichment not to duplicate its native receipt.'
+  );
+}
+
+async function assertNativeCaptureRootedEnrichment(repoDir, entry) {
+  const read = await openProductReadHandle(repoDir);
+  const tagReceipts = await listEntriesByKind(read, 'auto_tags');
+  assert.equal(tagReceipts.length, 1, 'Expected one native auto-tags receipt for the capture.');
+  assert.equal(tagReceipts[0].primaryInputKind, 'capture');
+  assert.equal(tagReceipts[0].primaryInputId, entry.id);
+  assert.equal(
+    await getSingleNeighborId(read, tagReceipts[0].id, 'outgoing', 'derived_from'),
+    entry.id,
+    'Expected the native receipt to derive from the stored capture object.'
+  );
+  assert.equal(
+    await read.memory.exists(entry.thoughtId),
+    false,
+    'Expected content identity to remain a capture fact rather than a legacy thought node.'
+  );
 }

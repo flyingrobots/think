@@ -1,5 +1,4 @@
 import { getPromptMetricsFile } from '../paths.js';
-import { KEYWORD_PREFIX } from './constants.js';
 import {
   compareEntriesNewestFirst,
   formatBucketKey,
@@ -26,29 +25,26 @@ import {
   getLatestCaptureId,
   getStoredEntry,
   getChronologyNeighborEntries,
+  getIndexSummary,
   listIndexedCaptureProps,
   listChronologyEntries,
+  listEntriesByKind,
   listRecentStoredEntries,
   openProductReadHandle,
   resolveHistorySessionTraversal,
   toBrowseEntry,
 } from './runtime.js';
 import {
-  CAPTURE_READ_MODEL_LIMIT,
-  readCaptureReadModel,
-} from './read-model.js';
-import {
   assessReflectability,
-  ensureFirstDerivedArtifacts,
   getCanonicalThought,
   getSeedQualityReceipt,
   getSessionAttributionReceipt,
-  getSessionAttributionReceiptIfPresent,
   listDirectDerivedReceipts,
 } from './derivation.js';
 import { KeywordTrie } from './trie.js';
 
 const DEFAULT_RECENT_LIMIT = 50;
+const CAPTURE_READ_MODEL_LIMIT = 500;
 const searchIndexCache = new Map();
 const searchIndexLoadingPromises = new Map();
 
@@ -76,10 +72,10 @@ export function loadSearchIndex(repoDir) {
     const read = await openProductReadHandle(repoDir);
     const trie = new KeywordTrie();
 
-    const keywordResult = await read.view.query().match(`${KEYWORD_PREFIX}*`).where({ kind: 'keyword' }).run();
-    for (const node of keywordResult.nodes ?? []) {
-      if (node.props.name) {
-        trie.insert(node.props.name);
+    const keywords = await listEntriesByKind(read, 'keyword');
+    for (const keyword of keywords) {
+      if (keyword.name) {
+        trie.insert(keyword.name);
       }
     }
 
@@ -259,14 +255,14 @@ export async function getPromptMetrics({ from, to, since, bucket } = {}) {
 export async function listRecent(repoDir, { count = null, query = null } = {}) {
   const limit = count ?? DEFAULT_RECENT_LIMIT;
   const read = await openProductReadHandle(repoDir);
-  const index = await readCaptureReadModel(read);
+  const index = await getIndexSummary(read, 'capture');
 
   if (!query) {
     const unfilteredRecent = (await listRecentStoredEntries(read, { limit }))
       .map(toBrowseEntry);
     return Object.freeze({
       entries: unfilteredRecent,
-      total: index.totalCaptures,
+      total: index.total,
     });
   }
 
@@ -359,14 +355,11 @@ export async function getBrowseWindowForRead(read, entryId) {
 }
 
 export async function inspectRawEntryForRead(read, entryId) {
-  let entry = await getStoredEntry(read, entryId);
+  const entry = await getStoredEntry(read, entryId);
 
   if (!entry || entry.kind !== 'capture') {
     return null;
   }
-
-  await ensureFirstDerivedArtifacts(read.repoDir, read, entry);
-  entry = await getStoredEntry(read, entryId);
 
   const canonicalThought = await getCanonicalThought(read, entry);
   const seedQuality = await getSeedQualityReceipt(read, entry);
@@ -392,22 +385,15 @@ export async function inspectRawEntryForRead(read, entryId) {
 }
 
 async function listAnnotationsForEntry(read, entryId) {
-  const traversal = await read.view.query().match(entryId).incoming('annotates').run();
-  const annotations = [];
-
-  for (const node of traversal.nodes ?? []) {
-    // eslint-disable-next-line no-await-in-loop -- sequential annotation reads
-    const entry = await getStoredEntry(read, node.id);
-    if (entry) {
-      annotations.push(Object.freeze({
-        annotationId: entry.id,
-        text: entry.text,
-        createdAt: entry.createdAt,
-      }));
-    }
-  }
-
-  return annotations.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const entries = await listEntriesByKind(read, 'annotation');
+  return entries
+    .filter(entry => entry.targetEntryId === entryId)
+    .map(entry => Object.freeze({
+      annotationId: entry.id,
+      text: entry.text,
+      createdAt: entry.createdAt,
+    }))
+    .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
 }
 
 async function buildBrowseWindow(read, entryId) {
@@ -417,7 +403,7 @@ async function buildBrowseWindow(read, entryId) {
     return null;
   }
 
-  const sessionAttribution = await getSessionAttributionReceiptIfPresent(read, currentEntry);
+  const sessionAttribution = await getSessionAttributionReceipt(read, currentEntry);
   const current = toBrowseEntryWithSession(currentEntry, sessionAttribution?.sessionId ?? null);
   const neighbors = await resolveChronologyNeighbors(read, currentEntry);
   const older = neighbors.older ? toBrowseEntry(neighbors.older) : null;

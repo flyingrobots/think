@@ -1,13 +1,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { GitGraphAdapter, openWarpWorldline } from '@git-stunts/git-warp';
+import { Runtime } from '@git-stunts/git-warp';
 
-import { createThinkPlumbing, ensureGitRepo } from '../../src/git.js';
-import { getCaptureAmbientContext, getAmbientProjectContext } from '../../src/project-context.js';
+import { ensureGitRepo } from '../../src/git.js';
+import { getAmbientProjectContext } from '../../src/project-context.js';
 import {
   finalizeCapturedThought,
+  getGraphModelStatus,
   GRAPH_NAME,
   inspectRawEntry,
+  listRecent,
   openProductReadHandle,
   saveAnnotation,
   saveRawCapture,
@@ -15,11 +17,16 @@ import {
   startReflect,
 } from '../../src/store.js';
 import { createWriterId } from '../../src/store/model.js';
+import { thinkMemory } from '../../src/generated/think-memory.generated.js';
+import {
+  getStoredEntry,
+  listEntriesByKind,
+} from '../../src/store/runtime.js';
 import { createGitRepo, runGit } from '../fixtures/git.js';
 import { createTempDir } from '../fixtures/tmp.js';
 import { formatResult } from '../fixtures/runtime.js';
 
-test('saveRawCapture writes cwd receipts first and defers git enrichment to followthrough', async () => {
+test('saveRawCapture stores complete ambient receipts in the native capture document', async () => {
   const localRepoDir = await createTempDir('think-capture-context-');
   await ensureGitRepo(localRepoDir);
 
@@ -46,37 +53,57 @@ test('saveRawCapture writes cwd receipts first and defers git enrichment to foll
   );
 
   const entry = await saveRawCapture(localRepoDir, 'capture should stay cheap', {
-    ambientContext: getCaptureAmbientContext(projectRepoDir),
+    ambientContext: getAmbientProjectContext(projectRepoDir),
   });
   const readBeforeFollowthrough = await openProductReadHandle(localRepoDir);
-  const savedBeforeFollowthrough = await readBeforeFollowthrough.view.getNodeProps(entry.id);
+  const savedBeforeFollowthrough = await getStoredEntry(readBeforeFollowthrough, entry.id);
 
   assert.ok(savedBeforeFollowthrough, 'Expected saved raw entry to be readable immediately after local save.');
-  assert.equal(savedBeforeFollowthrough.ambientCwd, projectRepoDir, 'Expected the cheap capture path to still record cwd immediately.');
-  assert.equal(savedBeforeFollowthrough.ambientGitRoot ?? null, null, 'Expected git root enrichment to be deferred until followthrough.');
-  assert.equal(savedBeforeFollowthrough.ambientGitRemote ?? null, null, 'Expected git remote enrichment to be deferred until followthrough.');
-  assert.equal(savedBeforeFollowthrough.ambientGitBranch ?? null, null, 'Expected git branch enrichment to be deferred until followthrough.');
+  assert.equal(savedBeforeFollowthrough.ambientCwd, projectRepoDir);
+  assert.equal(savedBeforeFollowthrough.ambientGitRoot, String(gitRoot.stdout || '').trim());
+  assert.equal(savedBeforeFollowthrough.ambientGitRemote, remoteUrl);
+  assert.equal(savedBeforeFollowthrough.ambientGitBranch, String(branch.stdout || '').trim());
 
   const followthrough = await finalizeCapturedThought(localRepoDir, entry.id, {
     ambientContext: getAmbientProjectContext(projectRepoDir),
   });
   const readAfterFollowthrough = await openProductReadHandle(localRepoDir);
-  const savedAfterFollowthrough = await readAfterFollowthrough.view.getNodeProps(entry.id);
+  const savedAfterFollowthrough = await getStoredEntry(readAfterFollowthrough, entry.id);
 
   assert.ok(followthrough.entry, 'Expected followthrough to keep the saved capture entry available.');
   assert.ok(savedAfterFollowthrough, 'Expected saved raw entry to remain readable after followthrough.');
-  assert.equal(savedAfterFollowthrough.ambientCwd, projectRepoDir, 'Expected followthrough to preserve the original cwd receipt.');
-  assert.equal(
-    savedAfterFollowthrough.ambientGitRoot,
-    String(gitRoot.stdout || '').trim(),
-    'Expected followthrough to backfill the git root receipt.'
+  assert.equal(savedAfterFollowthrough.ambientCwd, projectRepoDir);
+  assert.equal(savedAfterFollowthrough.ambientGitRoot, String(gitRoot.stdout || '').trim());
+  assert.equal(savedAfterFollowthrough.ambientGitRemote, remoteUrl);
+  assert.equal(savedAfterFollowthrough.ambientGitBranch, String(branch.stdout || '').trim());
+});
+
+test('new-mind raw capture initializes History metadata before followthrough', async () => {
+  const localRepoDir = await createTempDir('think-capture-bootstrap-');
+  await ensureGitRepo(localRepoDir);
+
+  await saveRawCapture(localRepoDir, 'bootstrap History metadata atomically', {
+    initializeGraphModel: true,
+  });
+
+  const status = await getGraphModelStatus(localRepoDir);
+  assert.equal(status.migrationRequired, false);
+  assert.equal(status.currentGraphModelVersion, status.requiredGraphModelVersion);
+});
+
+test('raw captures preserve the bounded recent index before followthrough', async () => {
+  const localRepoDir = await createTempDir('think-capture-index-');
+  await ensureGitRepo(localRepoDir);
+
+  await saveRawCapture(localRepoDir, 'first pending followthrough');
+  await saveRawCapture(localRepoDir, 'second pending followthrough');
+
+  const recent = await listRecent(localRepoDir, { count: 2 });
+  assert.deepEqual(
+    recent.entries.map((entry) => entry.text),
+    ['second pending followthrough', 'first pending followthrough']
   );
-  assert.equal(savedAfterFollowthrough.ambientGitRemote, remoteUrl, 'Expected followthrough to backfill the git remote receipt.');
-  assert.equal(
-    savedAfterFollowthrough.ambientGitBranch,
-    String(branch.stdout || '').trim(),
-    'Expected followthrough to backfill the current git branch receipt.'
-  );
+  assert.equal(recent.total, 2);
 });
 
 test('saveRawCapture retries after the cached writer ref is advanced externally', async () => {
@@ -84,16 +111,11 @@ test('saveRawCapture retries after the cached writer ref is advanced externally'
   await ensureGitRepo(localRepoDir);
 
   await saveRawCapture(localRepoDir, 'seed capture before external writer advance');
-  const externalWorldline = await openExternalWorldline(localRepoDir);
-  await externalWorldline.commit((patch) => {
-    patch
-      .addNode('external:writer-advance')
-      .setProperty('external:writer-advance', 'kind', 'external_fixture');
-  });
+  await advanceWriterExternally(localRepoDir, 'external:writer-advance');
 
   const entry = await saveRawCapture(localRepoDir, 'capture should retry after writer ref conflict');
   const read = await openProductReadHandle(localRepoDir);
-  const saved = await read.view.getNodeProps(entry.id);
+  const saved = await getStoredEntry(read, entry.id);
 
   assert.ok(saved, 'Expected retrying raw capture to be committed after the writer ref advanced.');
   assert.equal(saved.kind, 'capture', 'Expected retried write to preserve capture semantics.');
@@ -104,12 +126,7 @@ test('saveAnnotation retries after the cached writer ref is advanced externally'
   await ensureGitRepo(localRepoDir);
 
   const entry = await saveRawCapture(localRepoDir, 'annotation retry seed capture');
-  const externalWorldline = await openExternalWorldline(localRepoDir);
-  await externalWorldline.commit((patch) => {
-    patch
-      .addNode('external:annotation-writer-advance')
-      .setProperty('external:annotation-writer-advance', 'kind', 'external_fixture');
-  });
+  await advanceWriterExternally(localRepoDir, 'external:annotation-writer-advance');
 
   const result = await saveAnnotation(localRepoDir, entry.id, 'annotation should retry after writer ref conflict');
   const inspected = await inspectRawEntry(localRepoDir, entry.id);
@@ -129,22 +146,12 @@ test('reflect writes retry after the cached writer ref is advanced externally', 
     localRepoDir,
     'We should redesign browse startup because transitional reads can hide latency.'
   );
-  const firstExternalWorldline = await openExternalWorldline(localRepoDir);
-  await firstExternalWorldline.commit((patch) => {
-    patch
-      .addNode('external:reflect-start-writer-advance')
-      .setProperty('external:reflect-start-writer-advance', 'kind', 'external_fixture');
-  });
+  await advanceWriterExternally(localRepoDir, 'external:reflect-start-writer-advance');
 
   const started = await startReflect(localRepoDir, entry.id, { promptType: 'challenge' });
   assert.equal(started.ok, true, 'Expected reflect start to retry and create a session after writer ref conflict.');
 
-  const secondExternalWorldline = await openExternalWorldline(localRepoDir);
-  await secondExternalWorldline.commit((patch) => {
-    patch
-      .addNode('external:reflect-reply-writer-advance')
-      .setProperty('external:reflect-reply-writer-advance', 'kind', 'external_fixture');
-  });
+  await advanceWriterExternally(localRepoDir, 'external:reflect-reply-writer-advance');
 
   const saved = await saveReflectResponse(
     localRepoDir,
@@ -154,14 +161,26 @@ test('reflect writes retry after the cached writer ref is advanced externally', 
 
   assert.ok(saved, 'Expected reflect reply to retry and save after writer ref conflict.');
   assert.equal(saved.sessionId, started.sessionId, 'Expected retried reflect reply to preserve session lineage.');
+
+  const read = await openProductReadHandle(localRepoDir);
+  const sessions = await listEntriesByKind(read, 'reflect_session');
+  assert.equal(sessions.length, 1, 'Expected the native reflect-session index to retain one session.');
+  assert.equal(
+    sessions[0].stepCount,
+    1,
+    'Expected the indexed reflect session to advance with the exact session document.'
+  );
 });
 
-async function openExternalWorldline(repoDir) {
-  return await openWarpWorldline({
-    persistence: new GitGraphAdapter({
-      plumbing: createThinkPlumbing(repoDir),
-    }),
-    worldlineName: GRAPH_NAME,
-    writerId: createWriterId(),
+async function advanceWriterExternally(repoDir, nodeId) {
+  const runtime = await Runtime.open({
+    at: repoDir,
+    writer: createWriterId(),
   });
+  try {
+    const lane = await runtime.lane(GRAPH_NAME);
+    await lane.write(thinkMemory.intents.declareMemoryObject({ subject: nodeId }));
+  } finally {
+    await runtime.close();
+  }
 }

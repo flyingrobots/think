@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 import { createSyntheticBrowseFixture, prepareBrowseBootstrap } from '../src/browse-benchmark.js';
 import { getLocalRepoDir } from '../src/paths.js';
+import { closeAllNativeMemory } from '../src/store/native-runtime.js';
 
 const DEFAULT_CAPTURE_COUNT = 100;
 const DEFAULT_SESSION_COUNT = 10;
@@ -78,7 +79,11 @@ async function main(argv) {
       process.stdout.write(formatHumanReport(report, options.outPath));
     }
   } finally {
-    await rm(homeDir, { recursive: true, force: true });
+    try {
+      await closeAllNativeMemory();
+    } finally {
+      await rm(homeDir, { recursive: true, force: true });
+    }
   }
 }
 

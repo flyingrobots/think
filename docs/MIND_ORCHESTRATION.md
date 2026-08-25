@@ -11,17 +11,25 @@ Any directory under `~/.think/` that contains a git repository
 (a `.git/` subdirectory) is a mind. The directory name is the
 mind's display name.
 
+The repository must contain Think's native git-warp v19 application data.
+Think does not open v18 substrates or the rejected v19 compatibility-record
+layout. Migrate those repositories with
+`docs/operations/git-warp-v19-cutover.md` before placing them at an
+authoritative mind path.
+
 ```
 ~/.think/
-  repo/          → "default" mind (the original single-mind path)
+  james/         → "default" human mind
+  repo/          → "repo" mind (retained pre-James path, when present)
   claude/        → "claude" mind
   work/          → "work" mind
   metrics/       → NOT a mind (no .git/)
 ```
 
-The special directory `~/.think/repo` displays as **"default"** for
-backward compatibility — it's the mind Think uses when no other is
-selected.
+The special directory `~/.think/james` displays as **"default"** and
+is the mind Think uses when no other is selected. A retained
+`~/.think/repo` remains discoverable under the display name **"repo"**;
+Think does not silently merge or delete it.
 
 ## Creating a mind
 
@@ -32,8 +40,9 @@ git init
 ```
 
 That's it. Think discovers it automatically on the next browse launch.
-No configuration files, no registration step. The filesystem is the
-registry.
+The first capture initializes the native v19 substrate and bounded Think
+indexes. No configuration file or separate registration command is required;
+the filesystem is the registry.
 
 ## Discovery
 
@@ -72,7 +81,7 @@ The header shows the active mind name when multiple minds exist
 
 ## Capture
 
-Capture always goes to the default mind (`~/.think/repo`) or
+Capture always goes to the default mind (`~/.think/james`) or
 whatever `THINK_REPO_DIR` points to. Mind selection in browse is
 read-only — it does not change which mind receives new captures.
 
@@ -89,7 +98,7 @@ both capture and browse. The mind switcher in the TUI is limited to
 a single-element list containing the overridden path.
 
 When `THINK_REPO_DIR` is not set, Think discovers all minds under
-`~/.think/` and uses `~/.think/repo` as the default.
+`~/.think/` and uses `~/.think/james` as the default.
 
 ## Agent isolation
 

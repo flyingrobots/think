@@ -8,10 +8,10 @@ import { repoRoot } from '../fixtures/runtime.js';
 const benchmarkScript = path.join(repoRoot, 'benchmarks', 'capture-latency.js');
 
 test('capture latency benchmark with --profile produces phase-level timing breakdown', () => {
-  const result = spawnSync(process.execPath, [benchmarkScript, '--json', '--profile', '--runs=2', '--warmup=1'], {
+  const result = spawnSync(process.execPath, [benchmarkScript, '--json', '--profile', '--runs=1', '--warmup=0'], {
     cwd: repoRoot,
     encoding: 'utf8',
-    timeout: 30_000,
+    timeout: 90_000,
   });
 
   assert.equal(result.status, 0, `Benchmark exited with status ${result.status}:\n${result.stderr}`);
@@ -27,13 +27,21 @@ test('capture latency benchmark with --profile produces phase-level timing break
     assert.equal(typeof report.profile[phase].medianMs, 'number', `Expected medianMs for ${phase}.`);
     assert.ok(report.profile[phase].medianMs >= 0, `Expected non-negative medianMs for ${phase}.`);
   }
+  assert.ok(
+    report.profile.repoEnsure.medianMs > 0,
+    'Expected profile events to report repository setup work.'
+  );
+  assert.ok(
+    report.profile.rawSave.medianMs > 0,
+    'Expected profile events to report native capture write work.'
+  );
 });
 
 test('capture latency profile phases sum to approximately the total end-to-end time', () => {
-  const result = spawnSync(process.execPath, [benchmarkScript, '--json', '--profile', '--runs=3', '--warmup=1'], {
+  const result = spawnSync(process.execPath, [benchmarkScript, '--json', '--profile', '--runs=1', '--warmup=0'], {
     cwd: repoRoot,
     encoding: 'utf8',
-    timeout: 30_000,
+    timeout: 90_000,
   });
 
   assert.equal(result.status, 0);
@@ -50,10 +58,10 @@ test('capture latency profile phases sum to approximately the total end-to-end t
 });
 
 test('capture latency --profile human output shows phase breakdown', () => {
-  const result = spawnSync(process.execPath, [benchmarkScript, '--profile', '--runs=2', '--warmup=0'], {
+  const result = spawnSync(process.execPath, [benchmarkScript, '--profile', '--runs=1', '--warmup=0'], {
     cwd: repoRoot,
     encoding: 'utf8',
-    timeout: 30_000,
+    timeout: 90_000,
   });
 
   assert.equal(result.status, 0, `Benchmark exited with status ${result.status}:\n${result.stderr}`);

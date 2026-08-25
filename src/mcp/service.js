@@ -8,7 +8,7 @@ import { ValidationError, NotFoundError, GraphError } from '../errors.js';
 import { ensureGitRepo, getFsmonitorStatus, hasGitRepo, lsRemote, pushWarpRefs } from '../git.js';
 import { getLocalRepoDir, getThinkDir, getUpstreamUrl } from '../paths.js';
 import { normalizeCaptureProvenance } from '../capture-provenance.js';
-import { getCaptureAmbientContext, getAmbientProjectContext } from '../project-context.js';
+import { getAmbientProjectContext } from '../project-context.js';
 import {
   finalizeCapturedThought,
   getBrowseWindow,
@@ -64,7 +64,6 @@ const defaultCaptureDeps = Object.freeze({
   ensureGitRepo,
   finalizeCapturedThought,
   getAmbientProjectContext,
-  getCaptureAmbientContext,
   getCwd: () => process.cwd(),
   getGraphModelStatus,
   getLocalRepoDir,
@@ -89,7 +88,8 @@ export function createCaptureThoughtService(deps = defaultCaptureDeps) {
     await deps.ensureGitRepo(repoDir);
     const entry = await deps.saveRawCapture(repoDir, thought, {
       provenance: captureProvenance,
-      ambientContext: deps.getCaptureAmbientContext(deps.getCwd()),
+      ambientContext: deps.getAmbientProjectContext(deps.getCwd()),
+      initializeGraphModel: !repoAlreadyExists,
     });
     const followthrough = await runCaptureFollowthrough(deps, repoDir, entry.id, repoAlreadyExists);
     const backupStatus = await runCaptureBackup(deps, repoDir);
