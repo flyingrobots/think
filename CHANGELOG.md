@@ -59,8 +59,8 @@ Release discipline:
   preserving deterministic newest-first recall while avoiding serial optic
   latency
 - made the native git-warp adapter explicitly disposable, with idempotent
-  process-level teardown owned by CLI, MCP, and Node test composition roots so
-  persistent Git ref sessions cannot outlive their Think runtime scope
+  process-level teardown owned by CLI, MCP, benchmark, and Node test composition
+  roots so persistent Git ref sessions cannot outlive their Think runtime scope
 
 ## [0.7.2] - 2026-06-23
 
