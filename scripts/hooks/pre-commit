@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# shellcheck source=scripts/hooks/lib/scrub-git-env.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/scrub-git-env.sh"
+scrub_git_location_env
+
 echo "pre-commit: running lint..."
 npm run lint
 echo "pre-commit: lint passed."

@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 
-import { baseEnv, cliEntrypoint, repoRoot, requireCliEntrypoint } from './runtime.js';
+import { cliEntrypoint, createHermeticThinkEnv, repoRoot, requireCliEntrypoint } from './runtime.js';
 import { createBareGitRepo } from './git.js';
 import { createTempDir } from './tmp.js';
 
@@ -34,12 +34,10 @@ export function runThink(context, args, extraEnv = {}, options = {}) {
     cwd: options.cwd ?? repoRoot,
     encoding: 'utf8',
     input: options.input,
-    env: {
-      ...process.env,
-      ...baseEnv,
-      ...extraEnv,
-      HOME: context.homeDir,
-      THINK_UPSTREAM_URL: context.upstreamUrl,
-    },
+    env: createHermeticThinkEnv({
+      extraEnv,
+      homeDir: context.homeDir,
+      upstreamUrl: context.upstreamUrl,
+    }),
   });
 }
