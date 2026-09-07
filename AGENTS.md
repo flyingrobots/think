@@ -20,6 +20,7 @@ Do not audit the repository by recursively walking the filesystem. Follow the au
 ### 2. The Bedrock
 - **`ARCHITECTURE.md`**: The authoritative structural reference (Git, WARP, Minds).
 - **`docs/INFRASTRUCTURE_DOCTRINE.md`**: The runtime-first engineering standards (MANDATORY).
+- **[`docs/TESTING_STANDARDS.md`](docs/TESTING_STANDARDS.md)**: Contract, oracle, failure-evidence, isolation, and performance standards (MANDATORY for test design and validation).
 - **`docs/VISION.md`**: Core tenets and the capture doctrine.
 - **`docs/method/process.md`**: Repo work doctrine (Backlog lanes, Cycle loop).
 
@@ -40,6 +41,7 @@ When starting a new session or recovering from context loss:
 2. **Read `docs/method/process.md`** to understand the work doctrine.
 3. **Check `docs/method/backlog/asap/`** for imminent work.
 4. **Check `git log -n 5` and `git status`** to verify the current branch state.
+5. **Read `docs/TESTING_STANDARDS.md`** before designing tests or selecting validation evidence. Apply it with `docs/INFRASTRUCTURE_DOCTRINE.md`.
 
 ## End of Turn Checklist
 
@@ -49,6 +51,7 @@ After altering files:
 2. **Log Debt**: Add follow-on backlog items to `bad-code/` or `cool-ideas/`.
 3. **Commit**: Use focused, conventional commit messages. Propose a draft before executing.
 4. **Validate**: Run `npm run test:fast`.
+5. **Account for evidence**: Declare the change kind, affected contracts and oracles, checks run, and applicable calibration or red-on-unfixed evidence in the PR. Disclose unrun relevant checks and linked exceptions; see `docs/TESTING_STANDARDS.md` and the PR template. Existing suite debt does not justify new violations.
 
 ---
 **The goal is inevitably. Every feature is defined by its tests.**
