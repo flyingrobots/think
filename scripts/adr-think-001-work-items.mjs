@@ -625,7 +625,10 @@ async function execute(command, requestedId) {
   if (command === 'body') {
     const issue = manifest.issues.find((item) => item.id === requestedId);
     expect(Boolean(issue), `Unknown issue id: ${requestedId}`);
-    process.stdout.write(`${renderIssueBody(issue, manifest, githubMap)}\n`);
+    // No trailing newline: this output is piped straight into
+    // `gh issue edit --body-file`, and reconcile compares the stored body byte
+    // for byte. A decorative newline silently corrupts a published issue.
+    process.stdout.write(renderIssueBody(issue, manifest, githubMap));
     return;
   }
   if (command === 'github-plan') {

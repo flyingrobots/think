@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
+import { execFile as execFileCallback } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { promisify } from 'node:util';
+
+const execFile = promisify(execFileCallback);
+const scriptUrl = new URL('../../scripts/adr-think-001-work-items.mjs', import.meta.url);
 
 import {
   COMMANDS_REQUIRING_A_COMPLETE_GITHUB_MAP,
@@ -117,6 +122,18 @@ test('migration and production cutover remain gated by the complete constitution
   const finalCutover = manifest.issues.find((issue) => issue.id === 'CT-805');
   assert.match(finalCutover.title, /production cutover/u);
   assert.deepEqual(finalCutover.criteria, Array.from({ length: 35 }, (_, index) => `AC${index + 1}`));
+});
+
+test('the body command emits exactly the bytes reconciliation demands', async () => {
+  // The publication path is `body <id>` piped into `gh issue edit --body-file`,
+  // and reconcile compares the stored body byte for byte. A decorative trailing
+  // newline here silently corrupts a published issue.
+  const manifest = await loadManifest();
+  const githubMap = await loadGithubMap();
+  const issue = manifest.issues.find((item) => item.id === 'CT-102');
+
+  const { stdout } = await execFile(process.execPath, [scriptUrl.pathname, 'body', 'CT-102']);
+  assert.equal(stdout, renderIssueBody(issue, manifest, githubMap));
 });
 
 test('every ErasureTombstone field named by the ADR has an owning deliverable', async () => {
