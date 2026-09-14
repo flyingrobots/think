@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { execFile as execFileCallback } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
 const execFile = promisify(execFileCallback);
@@ -132,7 +133,7 @@ test('the body command emits exactly the bytes reconciliation demands', async ()
   const githubMap = await loadGithubMap();
   const issue = manifest.issues.find((item) => item.id === 'CT-102');
 
-  const { stdout } = await execFile(process.execPath, [scriptUrl.pathname, 'body', 'CT-102']);
+  const { stdout } = await execFile(process.execPath, [fileURLToPath(scriptUrl), 'body', 'CT-102']);
   assert.equal(stdout, renderIssueBody(issue, manifest, githubMap));
 });
 
@@ -211,6 +212,11 @@ test('the delivery plan allocation table matches the authoritative manifest', as
 
   const rows = [...plan.matchAll(/^\| (P[0-8]) \| (F[0-8]\.[12])[^|]*\| ([^|]+?) \|/gmu)];
   assert.equal(rows.length, manifest.features.length, 'plan must table every feature exactly once');
+  assert.deepEqual(
+    [...new Set(rows.map(([, , feature]) => feature))].sort(),
+    manifest.features.map((feature) => feature.id).sort(),
+    'plan must table each manifest feature exactly once, with none repeated or missing',
+  );
 
   for (const [, milestone, feature, allocation] of rows) {
     const issues = byFeature.get(feature);
