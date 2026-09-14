@@ -1,13 +1,28 @@
 # Phase 1: Immutable Memory Entities with Derived Retrieval Optics
 
-Status: ready to execute — supersedes the page/read-model storage shape
+> **Superseded historical record. Do not execute.**
+>
+> Written 2026-08-01. The architecture it proposed was replaced by
+> [ADR-THINK-001](../design/ADR-THINK-001-thoughts-are-sources-claims-are-readings.md),
+> whose delivery graph is
+> [`ADR-THINK-001-work-items.json`](../design/ADR-THINK-001-work-items.json).
+> This document is kept unretouched because the census in **Why** is the
+> measured evidence that motivated that ADR, and editing it to match the
+> decision it caused would destroy the only record of what was actually
+> observed. Its open questions — the `sortKey` collision policy, the physical
+> range access path, the governing doctrine reference — were inputs to the ADR,
+> not commitments carried forward. Where this document and ADR-THINK-001
+> disagree, the ADR wins.
+
+Status (2026-08-01, as written): ready to execute — supersedes the
+page/read-model storage shape
 
 Governed by: `git-warp` `docs/READINGS_AND_OPTICS.md`
 
 Narrative background: `~/agy-readings/think-warp-data-model.md`
 
-**This plan is subordinate to `READINGS_AND_OPTICS.md`. Where they disagree, the
-doctrine wins.** Section references below (§N) are to that document.
+**This plan was subordinate to `READINGS_AND_OPTICS.md`. Where they disagreed,
+the doctrine won.** Section references below (§N) are to that document.
 
 ## Why
 
