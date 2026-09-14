@@ -34,6 +34,17 @@ const REQUIRED_ISSUE_IDS = Object.freeze([
 // URL passes a prefix test and then renders as `owner/repo#undefined`.
 const EXTERNAL_DEPENDENCY_URL = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/(?:issues|pull)\/[1-9]\d*$/u;
 
+// Publication order is manifest -> payloads -> GitHub -> map. The commands that
+// generate those payloads therefore run before any map exists, and demanding a
+// complete one would make the roadmap unbootstrappable in a fresh repository.
+const COMMANDS_REQUIRING_A_COMPLETE_GITHUB_MAP = Object.freeze(new Set(['check', 'render', 'reconcile']));
+const EMPTY_GITHUB_MAP = Object.freeze({
+  schemaVersion: 1,
+  repository: 'flyingrobots/think',
+  milestones: {},
+  issues: {},
+});
+
 const execFile = promisify(execFileCallback);
 
 class WorkGraphError extends Error {
@@ -90,6 +101,17 @@ function compareIds(left, right) {
 
 async function readJson(path) {
   return JSON.parse(await readFile(path, 'utf8'));
+}
+
+async function readGithubMap() {
+  try {
+    return await readJson(GITHUB_MAP_PATH);
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      return structuredClone(EMPTY_GITHUB_MAP);
+    }
+    throw error;
+  }
 }
 
 function isPlainObject(value) {
@@ -588,8 +610,10 @@ async function renderWorkGraph(manifest, githubMap) {
 async function execute(command, requestedId) {
   const manifest = await readJson(MANIFEST_PATH);
   validateManifest(manifest);
-  const githubMap = await readJson(GITHUB_MAP_PATH);
-  validateGithubMap(manifest, githubMap);
+  const githubMap = await readGithubMap();
+  if (COMMANDS_REQUIRING_A_COMPLETE_GITHUB_MAP.has(command)) {
+    validateGithubMap(manifest, githubMap);
+  }
   if (command === 'check') {
     await checkWorkGraph(manifest, githubMap);
     return;
@@ -624,6 +648,7 @@ if (IS_DIRECT) {
 }
 
 export {
+  COMMANDS_REQUIRING_A_COMPLETE_GITHUB_MAP,
   WorkGraphError,
   githubPlan,
   reconcileGithubRemote,

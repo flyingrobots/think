@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import {
+  COMMANDS_REQUIRING_A_COMPLETE_GITHUB_MAP,
   WorkGraphError,
   githubPlan,
   reconcileGithubRemote,
@@ -116,6 +117,24 @@ test('migration and production cutover remain gated by the complete constitution
   const finalCutover = manifest.issues.find((issue) => issue.id === 'CT-805');
   assert.match(finalCutover.title, /production cutover/u);
   assert.deepEqual(finalCutover.criteria, Array.from({ length: 35 }, (_, index) => `AC${index + 1}`));
+});
+
+test('payload generation works before any GitHub map exists', async () => {
+  // Bootstrap order is manifest -> payloads -> GitHub -> map, so the commands
+  // that create the remote issues cannot themselves demand a complete map.
+  assert.deepEqual(
+    [...COMMANDS_REQUIRING_A_COMPLETE_GITHUB_MAP].sort(),
+    ['check', 'reconcile', 'render'],
+  );
+
+  const manifest = await loadManifest();
+  const emptyMap = { schemaVersion: 1, repository: 'flyingrobots/think', milestones: {}, issues: {} };
+  const plan = githubPlan(manifest, emptyMap);
+  assert.equal(plan.issues.length, 60);
+
+  const blocked = plan.issues.find((issue) => issue.id === 'CT-303');
+  assert.match(blocked.body, /`CT-004` \(planned\)/u);
+  assert.doesNotMatch(blocked.body, /undefined/u);
 });
 
 test('list entries must be non-empty text, not just present', async () => {
