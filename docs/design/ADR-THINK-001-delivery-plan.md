@@ -1371,14 +1371,14 @@ gantt
 
 | Milestone | Feature | Leaf issues | Exit signal |
 | --- | --- | --- | --- |
-| P0 | F0.1 Constitutional contracts and ownership | CT-001–CT-004 | Vocabulary, record contracts, fixtures, and capability minting law are frozen. |
-| P0 | F0.2 Gating proofs and bounded-execution law | CT-005–CT-008 | Observation, authority, erasure, admission, and streaming gate contracts are executable. |
+| P0 | F0.1 Constitutional contracts and ownership | CT-001–CT-002, CT-005–CT-006 | Vocabulary, record contracts, fixtures, and capability minting law are frozen. |
+| P0 | F0.2 Gating proofs and bounded-execution law | CT-003–CT-004, CT-007–CT-008 | Observation, authority, erasure, admission, and streaming gate contracts are executable. |
 | P1 | F1.1 Encrypted vault and occurrence identity | CT-101–CT-104 | Equal bytes produce distinct erasable ThoughtCaptures, each as one node atom. |
 | P1 | F1.2 Windowed evidence admission | CT-105–CT-108 | Capture and bounded publication satisfy atomicity, recovery, memory, and process ratchets. |
 | P2 | F2.1 Observation, attempts, and qualified claims | CT-201–CT-206 | Exact observations produce immutable attempts, claims, and witnessed relations. |
 | P2 | F2.2 Authority-aware query vertical | CT-207–CT-210 | One typed query proves projection insufficiency, bounded rehydration, authority, and an AnswerWitness. |
-| P3 | F3.1 Legacy occurrence observation and import | CT-301–CT-303 | Legacy logical occurrences stream into deterministic encrypted ThoughtCaptures without snapshot duplication. |
-| P3 | F3.2 Resumable migration proof | CT-304–CT-307 | Crashes, obstructions, mappings, equivalence bounds, and real-Mind rehearsal are witnessed on disposable refs. |
+| P3 | F3.1 Legacy occurrence observation and import | CT-301–CT-302 | Legacy logical occurrences stream into deterministic encrypted ThoughtCaptures without snapshot duplication. |
+| P3 | F3.2 Resumable migration proof | CT-303–CT-307 | Crashes, obstructions, mappings, equivalence bounds, and real-Mind rehearsal are witnessed on disposable refs. |
 | P4 | F4.1 Tail convergence rehearsal | CT-401–CT-402 | Base and bounded tails converge under a rehearsed short lock without changing production authority. |
 | P4 | F4.2 Candidate cutover proof and recovery | CT-403–CT-405 | Candidate CutoverWitnesses, recovery refs, erasure posture, and fleet rehearsals prove the eventual switch path without split brain. |
 | P5 | F5.1 Bounded semantic scheduling and extraction | CT-501–CT-502 | Finite obligations schedule bounded attempts without coupling extraction to capture or migration validity. |

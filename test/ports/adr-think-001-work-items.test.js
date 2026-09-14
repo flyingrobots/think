@@ -17,6 +17,24 @@ import {
 const manifestUrl = new URL('../../docs/design/ADR-THINK-001-work-items.json', import.meta.url);
 const githubMapUrl = new URL('../../docs/design/ADR-THINK-001-github-map.json', import.meta.url);
 const catalogUrl = new URL('../../docs/design/ADR-THINK-001-issue-catalog.md', import.meta.url);
+const planUrl = new URL('../../docs/design/ADR-THINK-001-delivery-plan.md', import.meta.url);
+
+function collapseRuns(ids) {
+  const runs = [];
+  let start = ids[0];
+  let previous = ids[0];
+  for (const id of ids.slice(1)) {
+    if (Number(id.slice(3)) === Number(previous.slice(3)) + 1) {
+      previous = id;
+      continue;
+    }
+    runs.push([start, previous]);
+    start = id;
+    previous = id;
+  }
+  runs.push([start, previous]);
+  return runs.map(([from, to]) => (from === to ? from : `${from}\u2013${to}`)).join(', ');
+}
 
 async function loadManifest() {
   return JSON.parse(await readFile(manifestUrl, 'utf8'));
@@ -98,6 +116,29 @@ test('migration and production cutover remain gated by the complete constitution
   const finalCutover = manifest.issues.find((issue) => issue.id === 'CT-805');
   assert.match(finalCutover.title, /production cutover/u);
   assert.deepEqual(finalCutover.criteria, Array.from({ length: 35 }, (_, index) => `AC${index + 1}`));
+});
+
+test('the delivery plan allocation table matches the authoritative manifest', async () => {
+  const manifest = await loadManifest();
+  const plan = await readFile(planUrl, 'utf8');
+  const byFeature = new Map();
+  for (const issue of manifest.issues) {
+    byFeature.set(issue.feature, [...(byFeature.get(issue.feature) ?? []), issue.id]);
+  }
+
+  const rows = [...plan.matchAll(/^\| (P[0-8]) \| (F[0-8]\.[12])[^|]*\| ([^|]+?) \|/gmu)];
+  assert.equal(rows.length, manifest.features.length, 'plan must table every feature exactly once');
+
+  for (const [, milestone, feature, allocation] of rows) {
+    const issues = byFeature.get(feature);
+    assert.ok(issues, `plan tables unknown feature ${feature}`);
+    assert.equal(
+      allocation.trim(),
+      collapseRuns(issues),
+      `${feature} allocation in the delivery plan disagrees with the manifest`,
+    );
+    assert.equal(manifest.features.find((item) => item.id === feature).milestone, milestone);
+  }
 });
 
 test('the cycle detector actually rejects a cycle', async () => {
