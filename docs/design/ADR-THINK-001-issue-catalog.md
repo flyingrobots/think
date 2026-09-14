@@ -1030,10 +1030,12 @@ The default local adapter encrypts each occurrence behind independently revocabl
 - [ ] Local encrypted BodyVault adapter and key-wrapper boundary.
 - [ ] Per-occurrence grant revocation and optional private-deduplication isolation.
 - [ ] Orphan prepared-grant collector with a safe grace period.
+- [ ] Canonical ErasureTombstone append carrying requestedBy, authorizedBy, erasurePolicyDigest, erasureFrontier, derivationInvalidationRoot, and keyDestructionReceipt.
 - [ ] Synthetic active/backup/restore erasure drill and signed destruction receipt.
 
 ##### Acceptance criteria
 
+- [ ] Every erasure appends exactly one ErasureTombstone whose authorization and derivationInvalidationRoot are verifiable, and no tombstone field recovers or links source plaintext.
 - [ ] Raw body bytes, plaintext hashes, and decryption keys never enter WARP history or inseparable backups.
 - [ ] Erasing one of two equal-content grants leaves the other readable and publicly unlinkable.
 - [ ] Restoring the test backup does not restore destroyed key access.

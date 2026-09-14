@@ -119,6 +119,30 @@ test('migration and production cutover remain gated by the complete constitution
   assert.deepEqual(finalCutover.criteria, Array.from({ length: 35 }, (_, index) => `AC${index + 1}`));
 });
 
+test('every ErasureTombstone field named by the ADR has an owning deliverable', async () => {
+  // ADR-THINK-001 24.3 requires erasure to append a canonical record. A graph
+  // that only threat-models the shape and asserts a tombstone exists leaves the
+  // append, its authorization, and derivation invalidation unowned.
+  const manifest = await loadManifest();
+  const owners = manifest.issues.filter((issue) =>
+    issue.deliverables.some((item) => item.includes('ErasureTombstone')),
+  );
+  assert.equal(owners.length, 1, 'exactly one issue must own the ErasureTombstone append');
+
+  const [owner] = owners;
+  assert.equal(owner.milestone, 'P1', 'the ADR places erasure records in Phase 1');
+  assert.ok(owner.gates.includes('G5'), 'the owner must sit behind the erasure-storage gate');
+
+  const deliverable = owner.deliverables.find((item) => item.includes('ErasureTombstone'));
+  for (const field of ['authorizedBy', 'derivationInvalidationRoot', 'keyDestructionReceipt']) {
+    assert.match(deliverable, new RegExp(field, 'u'), `${field} must be named by the owning deliverable`);
+  }
+  assert.ok(
+    owner.acceptance.some((item) => item.includes('ErasureTombstone')),
+    'the owner must assert the appended record, not merely produce it',
+  );
+});
+
 test('payload generation works before any GitHub map exists', async () => {
   // Bootstrap order is manifest -> payloads -> GitHub -> map, so the commands
   // that create the remote issues cannot themselves demand a complete map.
