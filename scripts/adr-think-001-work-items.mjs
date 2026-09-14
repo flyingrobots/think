@@ -29,6 +29,11 @@ const REQUIRED_ISSUE_IDS = Object.freeze([
   'CT-606', 'CT-701', 'CT-702', 'CT-703', 'CT-704', 'CT-705', 'CT-706', 'CT-801',
   'CT-802', 'CT-803', 'CT-804', 'CT-805',
 ]);
+// The dependency graph renders these as `owner/repo#number`, so the shape the
+// renderer destructures is the shape the validator has to demand. A bare repo
+// URL passes a prefix test and then renders as `owner/repo#undefined`.
+const EXTERNAL_DEPENDENCY_URL = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/(?:issues|pull)\/[1-9]\d*$/u;
+
 const execFile = promisify(execFileCallback);
 
 class WorkGraphError extends Error {
@@ -183,7 +188,7 @@ function validateIssueReferences(issue, indexes) {
     expect(issueOrder.get(blocker) < issueOrder.get(issue.id), `${issue.id} blocker ${blocker} must appear earlier for deterministic publication`);
   }
   for (const dependency of issue.externalDependencies) {
-    expect(/^https:\/\/github\.com\//u.test(dependency), `${issue.id} has an invalid external dependency URL`);
+    expect(EXTERNAL_DEPENDENCY_URL.test(dependency), `${issue.id} has an invalid external dependency URL`);
   }
 }
 

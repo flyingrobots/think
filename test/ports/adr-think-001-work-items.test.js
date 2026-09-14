@@ -99,6 +99,28 @@ test('migration and production cutover remain gated by the complete constitution
   assert.deepEqual(finalCutover.criteria, Array.from({ length: 35 }, (_, index) => `AC${index + 1}`));
 });
 
+test('external dependency URLs must carry the shape the graph renderer reads', async () => {
+  const manifest = await loadManifest();
+  const target = manifest.issues.find((issue) => issue.id === 'CT-105');
+  assert.ok(target.externalDependencies.length > 0);
+
+  for (const malformed of [
+    'https://github.com/git-stunts/git-warp',
+    'https://github.com/git-stunts/git-warp/issues',
+    'https://github.com/git-stunts/git-warp/discussions/12',
+    'https://github.com/git-stunts/git-warp/issues/0',
+    'https://github.com/git-stunts/git-warp/issues/824/',
+  ]) {
+    const broken = structuredClone(manifest);
+    broken.issues.find((issue) => issue.id === 'CT-105').externalDependencies = [malformed];
+    assert.throws(
+      () => validateManifest(broken),
+      /CT-105 has an invalid external dependency URL/u,
+      `expected ${malformed} to be rejected`,
+    );
+  }
+});
+
 test('GitHub map and generated catalog fail closed when incomplete or stale', async () => {
   const manifest = await loadManifest();
   const githubMap = await loadGithubMap();
