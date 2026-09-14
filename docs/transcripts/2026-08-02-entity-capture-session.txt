@@ -1,0 +1,771 @@
+ ▐▛███▜▌   Claude Code v2.1.220
+▝▜█████▛▘  Opus 5 · Claude Max
+  ▘▘ ▝▝    ~/git/think
+
+
+❯ /clear                                                                        
+
+❯ Read these four, in this order, before doing anything:                        
+                                                                                
+  1. `claude-think --recent --count=10 --query=HANDOFF` — the two HANDOFF       
+     entries from 2026-08-02 (PART 1 = state + next actions,                    
+     PART 2 = repo state + gotchas). Entry ids if you need them directly:       
+     entry:1785685701815-1997e97e-ad3c-4bdf-9325-fdf5712dd1d1 and               
+     entry:1785685735153-72661548-797d-40e8-aa0f-804f710e60b4                   
+  2.                                                                            
+  `~/git/think/docs/plans/2026-08-01-memory-entities-and-retrieval-optics.md`   
+     — the plan, Phases 1A–1E.                                                  
+  3. `~/git/git-stunts/git-warp-entity-capture/docs/READINGS_AND_OPTICS.md`     
+     — the doctrine. The plan is subordinate to it; where they disagree,        
+     the doctrine wins.                                                         
+  4. `git -C ~/git/git-stunts/git-warp-entity-capture log -p -1 8309c7c00`      
+     — the review remediation. It is the commit that changed what the           
+     feature claims, and it is the one awaiting James's review.                 
+                                                                                
+  Context in one paragraph: Think stores ~7,184 memories inside four mutable    
+  graph nodes; a census of 274 patches found 4 distinct nodes written, 0 edges, 
+  272 PropSet + 2 NodeAdd, because a read model was stored inside the event log 
+  instead of derived from it. Phase 1A makes each capture one dependency-pure   
+  entity. That turned out to be inexpressible in git-warp 19.0.2 — verified in  
+  the installed dist, not inferred — so the `entity.add` affordance was built   
+  upstream first. It is done, hardened against one review pass, and sitting in  
+  three unpushed commits on `feat/entity-capture-intent` in the worktree        
+  `~/git/git-stunts/git-warp-entity-capture`.                                   
+                                                                                
+  THE GATE: do NOT start the Think cutover, and do NOT push. James is holding   
+  the push pending his own review of 8309c7c00. Ask him before either. Think    
+  pins git-warp 19.0.2 from npm and cannot see `entity.add` until it consumes   
+  this build via a file: link or npm link, so any Think work before that is     
+  premature regardless.                                                         
+                                                                                
+  Decisions already made. Do not relitigate:                                    
+  - Build the affordance upstream first, rather than a Think-side two-patch     
+  entity.                                                                       
+  - Migrate against fixtures plus a COPY of ~/.think/claude. Leave              
+  ~/.think/codex                                                                
+    alone; it is unrecoverable and degrading.                                   
+  - Keep the two-commit history. Do not rewrite it into refactor/feat/docs.     
+  - Ship as MAJOR 20.0.0, not 19.1.0. Evidence: an exhaustive consumer switch   
+    over Intent['kind'] fails with TS2345.                                      
+                                                                                
+  Seven corrections are recorded. Do not reintroduce them:                      
+  - The trie is NOT the primary structure. Immutable entities are; any trie is  
+  a                                                                             
+    derived, deletable optic.                                                   
+  - Enumeration is not provenance. edgesFrom/range-scan answer membership;      
+    patchesFor/materializeSlice answer causation.                               
+  - `edge.add` is NOT a prerequisite for entity-per-node — a range scan over    
+    `entry:<sortKey>` needs no edges.                                           
+  - "complete payload" is wrong; it is an INITIAL payload. A substrate can      
+  enforce                                                                       
+    non-empty, never application schema completeness.                           
+  - "the cone is a singleton" is wrong; the CREATION gives an initial singleton 
+    cone. property.set and node.remove stay public, so immutable-entity         
+  lifetime                                                                      
+    is a law an application adopts, not one a constructor imposes.              
+  - "rejects an id that already exists" is wrong, measured false.               
+    PatchController.ts:147 supplies getCurrentState as h._cachedState, null     
+  until                                                                         
+    something materializes, so E_PATCH_ENTITY_EXISTS never fires on the lane    
+  write                                                                         
+    path Think uses. Two writers from the same frontier are both admitted and   
+    merged. Uniqueness is a local guard against ids the builder can SEE.        
+  - Consequence of the above: Think's Phase 1B sortKey tiebreaker is            
+  LOAD-BEARING,                                                                 
+    not cosmetic. A millisecond timestamp alone is not collision-safe and the   
+    substrate will not catch a collision. Pick, document and version the        
+    total-order policy.                                                         
+                                                                                
+  Two open items to settle before the phases that depend on them:               
+  - Phase 1D (context indexing) is unsolved, not merely unbuilt. `remember`     
+  filters                                                                       
+    on cwd/gitRoot/gitRemote/gitBranch. Temporal ordering gives ordering, not   
+    selectivity, so acceptance criterion 2 is NOT met and flat cost must not be 
+    claimed until 1D lands.                                                     
+  - Phase 1E is blocked on a doctrinal conflict: §7 says derived data cannot    
+  live                                                                          
+    in the patch log, §9 permits a materialised bucket+edge trie without saying 
+    where it lives. Resolve in the doctrine first, then code.                   
+                                                                                
+  Gotchas that will cost you an hour each if you rediscover them: a fresh       
+  git-warp                                                                      
+  worktree has no node_modules, run `npm ci` (it reports 2 pre-existing         
+  high-severi                                                                   
+  advisories, uninvestigated); PatchBuilder.ts is at 494 lines against a hard   
+  500 L                                                                         
+  gate, so any addition there fails lint:source-size; eslint enforces           
+  cyclomatic                                                                    
+  complexity 5 and max-params 3; semgrep rejects `Record<string, unknown>` in   
+  core                                                                          
+  code, use PropValue; and the integration suite is flaky under full parallel   
+  runs                                                                          
+  with a 4→1→0-of-120 signature, always inside createTestRepo setup, always     
+  passing                                                                       
+  in isolation — do not mistake it for a regression you caused.                 
+                                                                                
+  Use Graft MCP tools for reads and to save context. Standing session state is  
+  in                                                                            
+  graft state_load.                                                             
+                                                                                
+  Two notes on using it. The --query=HANDOFF read costs the same ~5,267 git     
+  subprocthat's the bug being fixed, so budget for a slow start. And if James   
+  has since                                                                     
+  pushed or merged the git-warp branch, the gate paragraph is stale; git -C     
+  ~/git/gcapture branch -r --contains HEAD settles it in one command.           
+
+⏺ I'll start by reading the four sources in order.
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ The gate paragraph is current: branch -r --contains HEAD returned nothing, so
+  the three commits are still local and unpushed. Reading the full handoff.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Handoff absorbed. Now the plan and doctrine.
+
+  Read 2 files (ctrl+o to expand)
+
+⏺ Now the remediation commit — the one awaiting review.
+
+  Ran 6 shell commands (ctrl+o to expand)
+
+⏺ All four read. State verified independently, not assumed:
+
+  The gate is still live. git -C ~/git/git-stunts/git-warp-entity-capture branch
+  -r --contains HEAD returns nothing. Three commits still local on
+  feat/entity-capture-intent, working tree clean:
+
+  - 778acb04d feat: add entity.add for dependency-pure entity capture
+  - 8309c7c00 fix: make entity capture prove what it claims ← the one awaiting
+  you
+  - d85e1c61b docs: target 20.0.0 (carries the BREAKING CHANGE footer)
+
+  Think is genuinely blocked, confirmed by execution. package.json:49 pins
+  "@git-stunts/git-warp": "^19.0.2", installed resolves to 19.0.2, and importing
+  it gives Intent.addEntity → undefined. So every step from plan item 3 onward
+  (captureMemoryEntity in the generated vocabulary, rewriting capture.js:41,
+  deleting native-index.js:125-187) is unreachable until Think consumes the
+  local build.
+
+  What 8309c7c00 actually does, in the order that matters for your review:
+
+  1. IntentRuntime.entityIntent now takes the whole Patch, not just ops, and
+  gates on declaresEntityFootprint — reads empty, writes exactly [subject]. This
+  is the substantive fix: a legacy NodeAdd + same-subject PropSet sequence is
+  operation-identical to an entity capture while carrying the self-read the
+  shape exists to eliminate. Shape-only recognition would have laundered it into
+  a dependency-pure claim. Non-matching patches now fall through to the one-op
+  rule and fail hydration rather than being reinterpreted.
+  2. Duplicate property keys throw on hydration instead of LWW-collapsing —
+  otherwise re-lowering a hydrated intent could not reproduce its source patch.
+  3. Object.create(null) at both boundaries, keys sorted at both boundaries.
+  4. Three retractions in prose: complete→initial payload, singleton
+  cone→initial singleton cone, and the uniqueness claim rewritten to "this
+  writer can already see that id" with the measured behaviour pinned by a new
+  concurrent integration test.
+
+  One thing I'd flag as a reviewer, not a blocker: declaresEntityFootprint reads
+  patch.reads ?? [] and patch.writes ?? [], so a patch with absent footprint
+  fields is treated as reads: {} — it fails on the writes check, so the outcome
+  is correct, but the safety comes from the writes arm alone rather than from
+  both. Worth one sentence of confirmation that absent-vs-empty is intentionally
+  collapsed there.
+
+  Also noting, unrelated to the gate: ~/git/think/docs/plans/ is untracked. The
+  plan governing this whole phase has never been committed.
+
+  I have not pushed and have not touched the Think cutover.
+
+⏺ User answered Claude's questions:
+  ⎿  · The gate is yours to open. What now? → Hold; I re-review first
+
+⏺ Holding the push. Running an independent adversarial pass over 8309c7c00
+  myself.
+
+  Read 7 files, ran 8 shell commands (ctrl+o to expand)
+
+⏺ Now let me run the actual tests rather than trust the claim.
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ Now the adversarial probe: the commit claims "two writers from the same
+  frontier are both admitted and merged," but the test never materializes either
+  writer. Let me check whether that's separable.
+
+  Read 1 file, ran 8 shell commands (ctrl+o to expand)
+⏺ Let me settle this empirically with a probe rather than by reasoning from an
+  absent method.
+
+⏺ Write(~/git/git-stunts/git-warp-entity-capture/test/integration/application/zz
+       .probe.temp.test.ts)
+  ⎿  Wrote 75 lines to ../git-stunts/git-warp-entity-capture/test/integrati
+     on/application/zz.probe.temp.test.ts
+       1 import { afterEach, beforeEach, describe, expect, it } from 'vit
+         est';
+       2 
+       4 import Intent from '../../../src/domain/api/Intent.ts';
+       5 import { createTestRepo } from '../api/helpers/setup.ts';
+       6 
+       7 const LANE = 'think';
+       9 
+      10 describe('PROBE: is the uniqueness guard reachable on the lane p
+         ath at all?', () => {
+     … +79 lines (ctrl+o to expand)
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+⏺ Decisive result. Removing the probe and confirming the tree is untouched.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ Review complete. I ran the tests (29 pass), read the sources rather than the
+  diff alone, and settled the one claim I could not verify by reading with a
+  probe I wrote, ran, and deleted — the worktree is clean at d85e1c61b.
+
+  What holds up
+
+  The central claim is sound, and I verified the mechanism rather than taking it
+  on faith. PatchBuilder._lowerNodePropertyIntent (PatchBuilder.ts:387-392)
+  does _observedOperands.add(nodeId) unconditionally — there is no same-patch
+  exemption — so legacy addNode+setProperty really does record reads {subject},
+  while addEntity (PatchBuilder.ts:156-164) pushes its NodePropSet ops straight
+  into _ops and bypasses that path entirely. The two sequences are
+  operation-identical and footprint-distinct. The gate discriminates exactly
+  what the commit says it discriminates.
+
+  Three smaller things I checked because they were the plausible ways this could
+  be quietly wrong:
+
+  - patch.reads ?? [] is load-bearing, not defensive noise. Patch's _nonEmpty
+  (Patch.ts:39-44) normalises empty arrays to undefined, so a real entity
+  capture persists with reads === undefined — asserted at
+  Runtime.entityCapture.integration.test.ts:46. This retracts the concern I
+  raised before reading it: there is no "unrecorded" footprint state distinct
+  from empty, so nothing is being laundered by the coalesce.
+  - Round-trip is key-stable. LegacyNodePropertyKey.toString() returns its input
+  verbatim, so propertyKey() performs no transformation and hydrate→re-lower
+  reproduces keys. Both ends sort on the same key. No drift.
+  - The atomicity claim is real. All validation in planEntityCapturePayload
+  completes and returns ops before addEntity calls addNode, so a rejection
+  leaves _ops untouched (PatchBuilder.entity.test.ts:51).
+
+  Findings
+
+  F1 — the guard is not merely weak on the lane path, it is unreachable, and 
+  nothing says so. Measured, not reasoned: same runtime, same lane, same id
+  written twice in a row → no error, cone becomes 2 patches. Runtime exposes
+  only lane/fork/strand/settle/close (src/application/Runtime.ts) and Lane
+  exposes only write (Lane.ts:100), so there is no public way to give a lane
+  writer a materialized basis — scope.state is always null there. The
+  scope.added arm can't fire either, since Lane.write is one intent per patch
+  and planEntityCapturePayload runs before addNode. So E_PATCH_ENTITY_EXISTS is
+  dead on the Runtime→Lane path.
+
+  The CHANGELOG's "A writer that has not materialized has no basis to check" is
+  grammatically conditional and implies a lane writer might. It cannot. The
+  accurate statement is that the guard is reachable only for direct PatchBuilder
+  users opened against a materialized state. This matters downstream: it makes
+  Think's Phase 1B sortKey tiebreaker the sole defense, with no substrate
+  backstop on the production path at all.
+
+  F2 — the test named "under concurrent writers" contains no concurrency.
+  capture() opens a Runtime, writes, and closes; writer-b opens only after
+  writer-a has closed. So case 1 ("two writers from the same frontier") passes
+  for the same reason as case 2 (no materialized basis). The doc comment at the
+  top presents these as two distinct mechanisms; the test isolates one. The
+  claim is nonetheless true — I held both runtimes open before either wrote, and
+  b was admitted with patchCount 2 — so the repair is to make the test do that,
+  not to retract anything. Worth naming: this is exactly the "a fix added a
+  variable that confounds what the test isolates" pattern flagged in the last
+  session's own self-assessment.
+
+  F3 (minor) — two assertions can't fail for the reason they're named. The
+  integration test's MEMORY literal is already in lexicographic key order, so it
+  cannot detect a lost sort (the canonical-order unit tests do cover it, so
+  coverage exists — the integration assertion is decorative). And the
+  five-capture cone test writes identical {...MEMORY} to all five subjects, so
+  cross-attributed slices would still pass; distinct payloads would make it a
+  real check.
+
+  F4 (minor, doc precision) — "reads empty, writes exactly the new id" is a 
+  property of a patch containing only the capture, not of the method. Nothing
+  stops addEdge(...).addEntity(...) in one patch on the advanced surface; that
+  patch gets a wider footprint and then fails hydration. It fails closed, which
+  is correct — but the PatchBuilderEntity docstring reads as unconditional.
+  Unreachable via the Intent/Lane API.
+
+  Not re-run: the full 7,336-test suite, lint gates, semgrep, typecheck. The
+  handoff records them green and the tree is byte-identical to that state.
+
+  Verdict: the commit does what it claims. Two of its three retractions are
+  fully evidenced. The third — uniqueness — is under-evidenced in the direction
+  of not being pessimistic enough, which is the good direction to be wrong in
+  but still worth correcting before it becomes the documented contract Think
+  builds on.
+
+⏺ User answered Claude's questions:
+  ⎿  · F1 and F2 are cheap and both concern claim-accuracy — the stated purpose 
+     of 8309c7c00 itself. Fix before the PR, or push as-is? → 4th commit, then 
+     decide (Recommended)
+
+⏺ Implementing. Test first, then the docs it forces.
+
+  Read 1 file, ran 1 shell command (ctrl+o to expand)
+
+⏺ Test first. The CLI doc is the sharpest instance of F1 — git warp write --lane
+  is precisely the path where the guard cannot fire, yet it documents a failure
+  mode.
+
+⏺ Write(~/git/git-stunts/git-warp-entity-capture/test/integration/application/Ru
+       ntime.entityCapture.concurrent.test.ts)
+  ⎿  Added 82 lines, removed 29 lines
+      2  
+      3  import { Runtime } from '../../../index.ts';
+      4  import Intent from '../../../src/domain/api/Intent.ts';
+      5 +import type Lane from '../../../src/domain/api/Lane.ts';        
+      6  import type WarpState from '../../../src/domain/services/state/W
+         arpState.ts';
+      7  import type { PropValue } from '../../../src/domain/types/PropVa
+         lue.ts';
+      8  import { createTestRepo } from '../api/helpers/setup.ts';
+     ...
+      11  const SUBJECT = 'entry:same';
+      12  
+      13  /**
+      13 - * What `addEntity`'s uniqueness guard actually promises.      
+      14 + * What `addEntity`'s uniqueness guard actually promises on the
+         + lane path.                                                    
+      15   *
+      15 - * It refuses an id it can *see* — one this patch already added
+         -, or one alive                                                 
+      16 - * in the materialized basis the builder was opened against. Th
+         -at is a local                                                  
+      17 - * guard, not a distributed uniqueness law:                    
+      16 + * It refuses an id it can *see* — one this patch already added
+         +, or one alive in                                              
+      17 + * the materialized basis the builder was opened against. On th
+         +e `Runtime` →                                                  
+      18 + * `Lane.write` path it can see neither, so it never fires:    
+      19   *
+      19 - * - Two writers from the same frontier see neither each other'
+         -s patch nor each                                               
+      20 - *   other's intent, so both are admitted and the join merges t
+         -hem.                                                           
+      21 - * - A writer that has never materialized has no basis to check
+         - against, so the                                               
+      22 - *   guard cannot fire at all.                                 
+      20 + * - `Runtime` exposes `lane`, `fork`, `strand`, `settle` and `
+         +close`, and                                                    
+      21 + *   `Lane` exposes `write`. Nothing there materializes, so the
+         + builder's basis                                               
+      22 + *   is always null and the "alive in the basis" arm is unreach
+         +able.                                                          
+      23 + *   Materializing is a reader concern, and readers do not writ
+         +e.                                                             
+      24 + * - `Lane.write` lowers one intent per patch, and `addEntity` 
+         +validates before                                               
+      25 + *   it adds the node, so the "added earlier in this patch" arm
+         + is unreachable                                                
+      26 + *   too.                                                      
+      27   *
+      28 + * The three tests below walk that from the tightest case outwa
+         +rds: one writer                                                
+      29 + * on one lane, then two writers holding a shared frontier, the
+         +n a writer that                                                
+      30 + * opens only after the other's patch is durable. All three are
+         + admitted. The                                                 
+      31 + * guard is reachable only for a direct `PatchBuilder` opened a
+         +gainst a                                                       
+      32 + * materialized state — see `test/unit/domain/services/PatchBui
+         +lder.entity.test.ts`.                                          
+      33 + *                                                             
+      34   * Collision-resistant ids are therefore the application's job,
+           not the
+      35   * substrate's. These tests exist so the documented promise sta
+          ys the one the
+      36   * substrate actually keeps.
+      37   */
+      28 -describe('entity capture under concurrent writers', () => {    
+      38 +describe('entity capture uniqueness on the lane write path', ()
+         + => {                                                          
+      39    let repository: Awaited<ReturnType<typeof createTestRepo>>;
+      40  
+      41    beforeEach(async () => {
+     ...
+      46      await repository.cleanup();
+      47    });
+      48  
+      39 -  it('admits both writers and merges them rather than rejecting
+         - either', async () => {                                        
+      40 -    await capture('writer-a', { kind: 'capture', text: 'from a'
+         - });                                                           
+      41 -    await capture('writer-b', { kind: 'capture', text: 'from b'
+         - });                                                           
+      49 +  it('cannot refuse a re-creation even on one lane held by one 
+         +writer', async () => {                                         
+      50 +    // The tightest case there is: nothing is concurrent, nothi
+         +ng is remote, and                                              
+      51 +    // the first patch is already in this lane's own history. T
+         +he guard still                                                 
+      52 +    // has no basis to see it in.                              
+      53 +    const runtime = await Runtime.open({ at: repository.tempDir
+         +, writer: 'writer-a' });                                       
+      54 +    try {                                                      
+      55 +      const lane = await runtime.lane(LANE);                   
+      56 +      await write(lane, 'first');                              
+      57 +      await expect(write(lane, 'second')).resolves.toBeUndefine
+         +d();                                                           
+      58 +    } finally {                                                
+      59 +      await runtime.close();                                   
+      60 +    }                                                          
+      61  
+      43 -    const graph = await repository.openGraph(LANE, 'reader');  
+      44 -    await graph.materialize();                                 
+      45 -    const slice = await graph.materializeSlice(SUBJECT);       
+      62 +    expect(await creationCount()).toBe(2);                     
+      63 +  });                                                          
+      64  
+      65 +  it('admits both writers holding a shared frontier and merges 
+         +them', async () => {                                           
+      66 +    // Both runtimes are open before either writes, so neither 
+         +could observe the                                              
+      67 +    // other even if it had a basis. This is the genuine fronti
+         +er case: the                                                   
+      68 +    // sequential test below cannot distinguish it from "never 
+         +materialized".                                                 
+      69 +    const a = await Runtime.open({ at: repository.tempDir, writ
+         +er: 'writer-a' });                                             
+      70 +    const b = await Runtime.open({ at: repository.tempDir, writ
+         +er: 'writer-b' });                                             
+      71 +    try {                                                      
+      72 +      const laneA = await a.lane(LANE);                        
+      73 +      const laneB = await b.lane(LANE);                        
+      74 +      await write(laneA, 'from a');                            
+      75 +      await expect(write(laneB, 'from b')).resolves.toBeUndefin
+         +ed();                                                          
+      76 +    } finally {                                                
+      77 +      await b.close();                                         
+      78 +      await a.close();                                         
+      79 +    }                                                          
+      80 +                                                               
+      81 +    const slice = await sliceOfSubject();                      
+      82 +                                                               
+      83      // Both creations are real facts. Neither was silently drop
+          ped, and the
+      84      // entity's cone is no longer a singleton.
+      85      expect(slice.patchCount).toBe(2);
+     ...
+       92        .toContain(propertiesOf(slice.state, SUBJECT)['text']);
+       93    });
+       94  
+       59 -  it('cannot refuse a re-creation when the writer has no mater
+          -ialized basis', async () => {                                 
+       60 -    await capture('writer-a', { kind: 'capture', text: 'first'
+          - });                                                          
+       95 +  it('admits a writer that opens only after the first creation
+          + is durable', async () => {                                   
+       96 +    await captureThroughOwnRuntime('writer-a', 'from a');     
+       97  
+       62 -    // Same writer, same id, admitted — because a lane that ha
+          -s never                                                       
+       63 -    // materialized has no basis in which to observe the exist
+          -ing id. The                                                   
+       64 -    // guard is a shape check against what the builder can see
+          -, and here it                                                 
+       65 -    // can see nothing.                                       
+       66 -    await expect(capture('writer-a', { kind: 'capture', text: 
+          -'second' }))                                                  
+       67 -      .resolves.toBeUndefined();                              
+       98 +    // writer-b opens after writer-a's patch is committed and 
+          +its runtime                                                   
+       99 +    // closed, so the id it is about to create already exists 
+          +on disk. It is                                                
+      100 +    // still admitted, because opening a lane does not materia
+          +lize anything.                                                
+      101 +    await expect(captureThroughOwnRuntime('writer-b', 'from b'
+          +)).resolves.toBeUndefined();                                  
+      102 +                                                              
+      103 +    expect(await creationCount()).toBe(2);                    
+      104    });
+      105  
+       70 -  async function capture(                                     
+       71 -    writer: string,                                           
+       72 -    properties: Record<string, PropValue>,                    
+       73 -  ): Promise<void> {                                          
+      106 +  async function write(lane: Lane, text: string): Promise<void
+          +> {                                                           
+      107 +    await lane.write(Intent.addEntity({                       
+      108 +      subject: SUBJECT,                                       
+      109 +      properties: { kind: 'capture', text },                  
+      110 +    }));                                                      
+      111 +  }                                                           
+      112 +                                                              
+      113 +  async function captureThroughOwnRuntime(writer: string, text
+          +: string): Promise<void> {                                    
+      114      const runtime = await Runtime.open({ at: repository.tempDi
+           r, writer });
+      115      try {
+       76 -      const lane = await runtime.lane(LANE);                  
+       77 -      await lane.write(Intent.addEntity({ subject: SUBJECT, pr
+          -operties }));                                                 
+      116 +      await write(await runtime.lane(LANE), text);            
+      117      } finally {
+      118        await runtime.close();
+      119      }
+      120    }
+      121 +                                                              
+      122 +  async function sliceOfSubject(): Promise<{                  
+      123 +    patchCount: number;                                       
+      124 +    state: WarpState;                                         
+      125 +  }> {                                                        
+      126 +    const graph = await repository.openGraph(LANE, 'reader'); 
+      127 +    await graph.materialize();                                
+      128 +    return graph.materializeSlice(SUBJECT);                   
+      129 +  }                                                           
+      130 +                                                              
+      131 +  async function creationCount(): Promise<number> {           
+      132 +    const slice = await sliceOfSubject();                     
+      133 +    return slice.patchCount;                                  
+      134 +  }                                                           
+      135  });
+      136  
+      137  function propertiesOf(state: WarpState, nodeId: string): Recor
+           d<string, PropValue> {
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ Now the docs the test forces. Three places carry the claim.
+
+⏺ Update(~/git/git-stunts/git-warp-entity-capture/src/domain/services/PatchBuild
+        erEntity.ts)
+  ⎿  Added 3 lines, removed 2 lines
+      18   *   writes the id. `property.set` and `node.remove` remain ava
+          ilable, so an
+      19   *   immutable-entity lifetime is a law an application must ado
+          pt, not one this
+      20   *   constructor imposes.
+      21 - * - **Local, not distributed.** The uniqueness guard refuses i
+         -ds the builder                                                 
+      22 - *   can see. See {@link assertEntityAbsent}.                  
+      21 + * - **Local, not distributed — and inert on the lane path.** T
+         +he uniqueness                                                  
+      22 + *   guard refuses ids the builder can see, and a lane writer c
+         +an see nothing.                                                
+      23 + *   See {@link assertEntityAbsent}.                           
+      24   *
+      25   * See `docs/READINGS_AND_OPTICS.md` §4 and §8.
+      26   *
+
+⏺ Update(~/git/git-stunts/git-warp-entity-capture/src/domain/services/PatchBuild
+        erEntity.ts)
+  ⎿  Added 15 lines, removed 5 lines
+       92   * Refuses an id the builder can already see.
+       93   *
+       94   * "Can see" is the whole promise: an id added earlier in this
+            same patch, or
+       95 - * one alive in the materialized basis the builder was opened 
+          -against. A writer                                             
+       96 - * with no materialized basis has nothing to check against, an
+          -d two writers                                                 
+       97 - * from the same frontier cannot see each other, so both are a
+          -dmitted and the                                               
+       98 - * join merges them. Applications that need one-creation-per-i
+          -d must supply                                                 
+       99 - * collision-resistant ids; this guard catches mistakes, not r
+          -aces.                                                         
+       95 + * one alive in the materialized basis the builder was opened 
+          +against.                                                      
+       96 + *                                                            
+       97 + * **On the `Runtime` → `Lane.write` path this guard never fir
+          +es**, because a                                               
+       98 + * lane writer has neither. `Runtime` exposes no materializati
+          +on, so the basis                                              
+       99 + * is always null; and one intent lowers to one patch, with va
+          +lidation running                                              
+      100 + * before the node is added, so nothing precedes the entity in
+          + its own patch                                                
+      101 + * either. Both arms are therefore unreachable there — measure
+          +d, not inferred:                                              
+      102 + * see `test/integration/application/Runtime.entityCapture.con
+          +current.test.ts`,                                             
+      103 + * where one writer re-creates the same id on one lane and is 
+          +admitted.                                                     
+      104 + *                                                            
+      105 + * What remains is a guard for a direct `PatchBuilder` opened 
+          +against a                                                     
+      106 + * materialized state, which is the advanced and testing surfa
+          +ce. It catches a                                              
+      107 + * mistake a caller could have seen; it is not uniqueness, and
+          + it is not a                                                  
+      108 + * race detector. Applications that need one-creation-per-id m
+          +ust supply                                                    
+      109 + * collision-resistant ids and treat that as their own invaria
+          +nt.                                                           
+      110   */
+      111  function assertEntityAbsent(nodeId: string, scope: EntityCaptu
+           reScope): void {
+      112    if (!scope.added.has(nodeId) && !(scope.state?.nodeAlive.con
+           tains(nodeId) ?? false)) {
+
+⏺ Update(~/git/git-stunts/git-warp-entity-capture/docs/topics/cli.md)
+  ⎿  Added 9 lines, removed 5 lines
+      56  exact by construction and the creation gives the entity an init
+          ial singleton
+      57  cone. It requires at least one property.
+      58  
+      59 -It also fails when the subject is one the writer can already se
+         -e — added earlier                                              
+      60 -in the same patch, or alive in the materialized basis. That is 
+         -a local guard,                                                 
+      61 -not distributed uniqueness: a writer that has not materialized 
+         -has no basis to                                                
+      62 -check, and two writers from the same frontier are both admitted
+         - and merged.                                                   
+      63 -Choose collision-resistant subjects if one-creation-per-id matt
+         -ers.                                                           
+      59 +It does **not** check that the subject is new. `git warp write`
+         + goes through a                                                
+      60 +lane, and a lane writer never materializes, so the uniqueness g
+         +uard has no basis                                              
+      61 +in which to observe an existing id and never fires. Writing the
+         + same subject                                                  
+      62 +twice is admitted both times, whether from one lane or from two
+         + writers, and the                                              
+      63 +join merges the results into one entity with a two-patch cone. 
+         +The guard exists                                               
+      64 +for a directly constructed `PatchBuilder` opened against a mate
+         +rialized state.                                                
+      65  
+      66 +Choose collision-resistant subjects. One-creation-per-id is you
+         +r invariant to                                                 
+      67 +keep, and nothing on this path will keep it for you.           
+      68 +                                                               
+      69  ## Prepare and observe a Lane
+      70  
+      71  Bounded observations require a prepared materialization basis. 
+          The explicit
+
+⏺ Update(~/git/git-stunts/git-warp-entity-capture/CHANGELOG.md)
+  ⎿  Added 10 lines, removed 6 lines
+      39      writes the id. `property.set` and `node.remove` remain avai
+          lable, so an
+      40      immutable-entity lifetime is a law an application adopts, n
+          ot one this
+      41      constructor imposes.
+      42 -  - **Local guard, not distributed uniqueness.** `E_PATCH_ENTIT
+         -Y_EXISTS` fires                                                
+      43 -    only for an id the builder can see: added earlier in the sa
+         -me patch, or                                                   
+      44 -    alive in the materialized basis it was opened against. A wr
+         -iter that has                                                  
+      45 -    not materialized has no basis to check, and two writers fro
+         -m the same                                                     
+      46 -    frontier cannot see each other, so both are admitted and th
+         -e join merges                                                  
+      47 -    them. Collision-resistant ids remain the application's resp
+         -onsibility.                                                    
+      42 +  - **No uniqueness on the lane path.** `E_PATCH_ENTITY_EXISTS`
+         + fires only for                                                
+      43 +    an id the builder can see: added earlier in the same patch,
+         + or alive in the                                               
+      44 +    materialized basis it was opened against. A `Runtime` lane 
+         +writer has                                                     
+      45 +    neither — nothing on `Runtime` materializes, and one intent
+         + lowers to one                                                 
+      46 +    patch — so the guard never fires there. Re-creating a subje
+         +ct is admitted                                                 
+      47 +    on one lane by one writer, across writers sharing a frontie
+         +r, and by a                                                    
+      48 +    writer opening after the first creation is durable; the joi
+         +n merges them                                                  
+      49 +    into one entity with a multi-patch cone. The guard is a mis
+         +take-catcher for                                               
+      50 +    a directly constructed `PatchBuilder` opened against a mate
+         +rialized state.                                                
+      51 +    Collision-resistant ids remain the application's responsibi
+         +lity.                                                          
+      52  
+      53  ### Changed
+      54  
+
+  Ran 7 shell commands (ctrl+o to expand)
+
+⏺ All gates green: eslint + test-law + source-size + cas-invariants,
+  markdownlint + mermaid, typecheck (src & test), semgrep, docs-topology, and
+  the full unit suite at 7,336 passed — exactly the handoff's recorded number,
+  so no regression.
+  Committed 6ee206afb, ran 2 shell commands (ctrl+o to expand)
+
+⏺ Re-review done, corrections landed as a fourth commit, still nothing pushed.
+
+  What I changed
+
+  6ee206afb docs: correct entity capture uniqueness to what the lane path keeps
+  — 4 files, no behaviour change.
+
+  The test now creates the case it names. Three cases, walking reachability
+  outward instead of asserting the interesting one:
+
+  1. one writer, one lane, same id twice — the tightest possible case, still
+  admitted
+  2. two runtimes held open simultaneously before either writes — the genuine
+  shared frontier, still admitted, and this one keeps the merge and two-dot cone
+  assertions
+  3. a writer opening only after the first creation is durable on disk — still
+  admitted
+
+  The old file's two cases both passed for the no-basis reason, so the frontier
+  claim was riding on a test that couldn't distinguish it.
+
+  The docs now say what the substrate does. docs/topics/cli.md was the sharpest
+  instance — it documented a failure mode for git warp write --lane that cannot
+  occur, on the one command a reader would try. PatchBuilderEntity's
+  assertEntityAbsent and the CHANGELOG now state that both arms of the guard are
+  unreachable on the Runtime→Lane path (Runtime exposes nothing that
+  materializes; one intent lowers to one patch with validation ahead of the node
+  add), and that the guard is a mistake-catcher for a directly constructed
+  PatchBuilder opened against a materialized state.
+
+  Verification
+
+  Full unit suite 7,336 passed — identical to the handoff's recorded figure, so
+  nothing regressed. Also green: eslint + test-law + source-size +
+  cas-invariants, markdownlint + mermaid, typecheck of src and test, semgrep
+  anti-sludge, docs-topology, and the IRONCLAD pre-commit gate. Entity tests
+  specifically: 38 across the five files.
+
+  Branch is 4 ahead of origin/main, 0 behind, tree clean, branch -r --contains 
+  HEAD still empty. My probe file was deleted before the commit — it appears
+  nowhere in history.
+
+  F3 and F4 are untouched, as scoped: the integration test's MEMORY literal is
+  already key-sorted so it can't detect a lost sort, the five-capture test uses
+  identical payloads so cross-attribution would pass, and the "reads empty,
+  writes one id" docstring is a property of a capture-only patch rather than of
+  the method. All three are cosmetic against a green suite — PR notes, or a
+  fifth commit if you'd rather they didn't ship.
+
+  The one thing that follows you into Think: there is no substrate backstop for
+  id collision on the path Think uses. Phase 1B's sortKey tiebreaker isn't
+  merely load-bearing, it's the only thing bearing load. (timestamp, writerId, 
+  counter) survives the two-writers-same-millisecond case that (timestamp, 
+  random) only makes unlikely — worth deciding when you pick the total-order
+  policy.
+
+  🎬 think vNext · entity capture  🟡  44% (4/9)  [git-warp:🟡 · think:🟡]
+  → Re-read 6ee206afb, then say push or hold
+
+  📦 git-warp-entity-capture  ████████░░  80% (4/5) 🟡
+  entity.add affordance — Δ re-reviewed 8309c7c00; 4 findings; 2 fixed
+  ⎇ feat/entity-capture-intent +4 · 🚫 no PR
+  → 🚏 Your review, then push + open PR at 20.0.0
+
+  📦 think  ░░░░░░░░░░  0% (0/5) 🟡
+  Phase 1A immutable entities — Δ verified 19.0.2 pin blocks cutover
+  ⎇ feature/git-warp-v19-cutover · 🚫 no PR
+  → 🔒 Blocked: Intent.addEntity undefined until Think consumes local build
+
+✻ Cooked for 14m 20s
+
+※ recap: Goal is making Think store each memory as its own git-warp entity, which needs the new entity.add affordance upstream. I re-reviewed that branch, found two claim-accuracy issues, and fixed them in a fourth commit. Nothing is pushed; next you decide push or hold.

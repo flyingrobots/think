@@ -42,6 +42,10 @@ This review is meant to answer five questions:
 - [`0072-followthrough-job-queue/followthrough-job-queue.md`](./0072-followthrough-job-queue/followthrough-job-queue.md): draft proposal for durable, visible post-capture followthrough jobs that keep raw capture immediate.
 - [`0073-agent-native-memory-api/agent-native-memory-api.md`](./0073-agent-native-memory-api/agent-native-memory-api.md): draft proposal for capability-discovered MCP and JSON memory contracts for agents.
 - [`0074-evidence-bound-enrichment/evidence-bound-enrichment.md`](./0074-evidence-bound-enrichment/evidence-bound-enrichment.md): draft proposal for composable enrichment receipts that keep derived facts evidence-bound.
+- [`ADR-THINK-001-thoughts-are-sources-claims-are-readings.md`](./ADR-THINK-001-thoughts-are-sources-claims-are-readings.md): accepted, implementation-gated architecture decision for immutable ThoughtCaptures, contextual readings, witnessed authority, capability-gated projections, bounded migration, and erasure-compatible body storage.
+- [`ADR-THINK-001-delivery-plan.md`](./ADR-THINK-001-delivery-plan.md): implementation program and Mermaid diagram atlas covering repository ownership, entity relationships, classes, read/write sequences, state machines, Git publication, migration, Gantt sequencing, resource exclusivity, and verification.
+- [`ADR-THINK-001-work-items.json`](./ADR-THINK-001-work-items.json): machine-checked source for the 9 milestones, 18 features, and 60 complete leaf issues.
+- [`ADR-THINK-001-issue-catalog.md`](./ADR-THINK-001-issue-catalog.md): generated human review surface for every user story, deliverable, acceptance criterion, test plan, dependency, non-goal, and build-time resource declaration.
 - [`ROADMAP.md`](./ROADMAP.md): milestone sequence, hill mapping, exit criteria, and review checkpoints.
 
 ## Archived Slice History
@@ -116,6 +120,10 @@ flowchart TD
     R --> P72["0072 Followthrough Job Queue"]
     R --> P73["0073 Agent-Native Memory API"]
     R --> P74["0074 Evidence-Bound Enrichment"]
+    R --> ADR1["ADR-THINK-001 Contextual Streaming Mind"]
+    R --> ADRD["ADR-THINK-001 Delivery Plan And Diagram Atlas"]
+    R --> ADRC["ADR-THINK-001 Complete Issue Catalog"]
+    R --> ADRJ["ADR-THINK-001 Machine-Checked Work Graph"]
     R --> RD["Roadmap and Milestones"]
     R --> BL["Backlog (deferred ideas)"]
     P --> A
@@ -209,6 +217,13 @@ flowchart TD
     P70 --> P73
     P72 --> P74
     P73 --> P74
+    P70 --> ADR1
+    P72 --> ADR1
+    P74 --> ADR1
+    ADR1 --> ADRD
+    ADRD --> ADRJ
+    ADRJ --> ADRC
+    ADRC --> RD
     P70 --> RD
     P71 --> RD
     P72 --> RD

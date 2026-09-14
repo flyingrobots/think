@@ -29,6 +29,36 @@ Milestones exist to prove user value in sequence. They are not buckets for unrel
 - the second `M5` slice, local URL-triggered capture and Apple Shortcuts, is implemented and closed.
 - `0027-m5-additional-ingress-surfaces.md` now frames the milestone and its next slice.
 - `0029-m5-selected-text-share-capture.md` now frames the next active `M5` slice.
+- `ADR-THINK-001` is accepted as the next implementation-gated architecture
+  program; P4 rehearses cutover mechanics, and the P0–P8 plan does not switch
+  production authority before AC1–AC35 and the verified P8 cutover.
+
+## Accepted Contextual Streaming Mind Program
+
+The historical M0–M5 product milestones remain the record of shipped and
+active production behavior. The accepted replacement architecture is a
+separate gated program:
+
+- [`ADR-THINK-001`](./ADR-THINK-001-thoughts-are-sources-claims-are-readings.md)
+  is the canonical decision;
+- [`ADR-THINK-001-delivery-plan.md`](./ADR-THINK-001-delivery-plan.md) explains
+  the P0–P8 sequence and performance proof;
+- [`ADR-THINK-001-work-items.json`](./ADR-THINK-001-work-items.json) is the
+  machine-checked source for 9 milestones, 18 features, and 60 leaf issues;
+- [`ADR-THINK-001-issue-catalog.md`](./ADR-THINK-001-issue-catalog.md) is the
+  generated complete issue review surface.
+
+P0 constitutional work may begin. Migration and production cutover may not.
+All five implementation gates must pass independently before migration mints
+the first canonical replacement identity.
+
+```mermaid
+flowchart LR
+    P0["P0 Foundation"] --> P1["P1 Evidence"] --> P2["P2 Semantic vertical"]
+    P2 --> P3["P3 Migration dry run"] --> P4["P4 Cutover rehearsal"]
+    P4 --> P5["P5 Claims backfill"] --> P6["P6 Projection shadow"]
+    P6 --> P7["P7 Authority readiness"] --> P8["P8 Action bridge + cutover"]
+```
 
 ## Planning Principles
 

@@ -1,0 +1,482 @@
+{
+  "schemaVersion": 1,
+  "repository": "flyingrobots/think",
+  "milestones": {
+    "P0": {
+      "number": 1,
+      "title": "ADR-THINK-001 P0 — Constitutional foundation",
+      "url": "https://github.com/flyingrobots/think/milestone/1",
+      "state": "open"
+    },
+    "P1": {
+      "number": 2,
+      "title": "ADR-THINK-001 P1 — Evidence substrate",
+      "url": "https://github.com/flyingrobots/think/milestone/2",
+      "state": "open"
+    },
+    "P2": {
+      "number": 3,
+      "title": "ADR-THINK-001 P2 — Minimal semantic vertical slice",
+      "url": "https://github.com/flyingrobots/think/milestone/3",
+      "state": "open"
+    },
+    "P3": {
+      "number": 4,
+      "title": "ADR-THINK-001 P3 — Migration dry run",
+      "url": "https://github.com/flyingrobots/think/milestone/4",
+      "state": "open"
+    },
+    "P4": {
+      "number": 5,
+      "title": "ADR-THINK-001 P4 — Verified cutover rehearsal",
+      "url": "https://github.com/flyingrobots/think/milestone/5",
+      "state": "open"
+    },
+    "P5": {
+      "number": 6,
+      "title": "ADR-THINK-001 P5 — Contextual Claims backfill",
+      "url": "https://github.com/flyingrobots/think/milestone/6",
+      "state": "open"
+    },
+    "P6": {
+      "number": 7,
+      "title": "ADR-THINK-001 P6 — Projection shadow mode",
+      "url": "https://github.com/flyingrobots/think/milestone/7",
+      "state": "open"
+    },
+    "P7": {
+      "number": 8,
+      "title": "ADR-THINK-001 P7 — Authority and refusal readiness",
+      "url": "https://github.com/flyingrobots/think/milestone/8",
+      "state": "open"
+    },
+    "P8": {
+      "number": 9,
+      "title": "ADR-THINK-001 P8 — Action bridge and production cutover",
+      "url": "https://github.com/flyingrobots/think/milestone/9",
+      "state": "open"
+    }
+  },
+  "issues": {
+    "CT-001": {
+      "number": 40,
+      "title": "[CT-001] Freeze canonical terminology, identity, and repository ownership",
+      "url": "https://github.com/flyingrobots/think/issues/40",
+      "milestone": "P0",
+      "state": "open"
+    },
+    "CT-002": {
+      "number": 41,
+      "title": "[CT-002] Define canonical record schemas and completion-manifest boundaries",
+      "url": "https://github.com/flyingrobots/think/issues/41",
+      "milestone": "P0",
+      "state": "open"
+    },
+    "CT-003": {
+      "number": 42,
+      "title": "[CT-003] Build the governing Contextual Mind conformance corpus",
+      "url": "https://github.com/flyingrobots/think/issues/42",
+      "milestone": "P0",
+      "state": "open"
+    },
+    "CT-004": {
+      "number": 43,
+      "title": "[CT-004] Create the capability registry and killing-mutant build gate",
+      "url": "https://github.com/flyingrobots/think/issues/43",
+      "milestone": "P0",
+      "state": "open"
+    },
+    "CT-005": {
+      "number": 44,
+      "title": "[CT-005] Specify CoveragePolicy and exact ObservationSpec identity",
+      "url": "https://github.com/flyingrobots/think/issues/44",
+      "milestone": "P0",
+      "state": "open"
+    },
+    "CT-006": {
+      "number": 45,
+      "title": "[CT-006] Specify versioned AuthorityPolicy and judgment precedence",
+      "url": "https://github.com/flyingrobots/think/issues/45",
+      "milestone": "P0",
+      "state": "open"
+    },
+    "CT-007": {
+      "number": 46,
+      "title": "[CT-007] Threat-model the BodyVault, derivation index, backups, and erasure",
+      "url": "https://github.com/flyingrobots/think/issues/46",
+      "milestone": "P0",
+      "state": "open"
+    },
+    "CT-008": {
+      "number": 47,
+      "title": "[CT-008] Specify AdmissionWindow, resource claims, and streaming process budgets",
+      "url": "https://github.com/flyingrobots/think/issues/47",
+      "milestone": "P0",
+      "state": "open"
+    },
+    "CT-101": {
+      "number": 48,
+      "title": "[CT-101] Implement the BodyVault port and opaque BodyGrant contract",
+      "url": "https://github.com/flyingrobots/think/issues/48",
+      "milestone": "P1",
+      "state": "open"
+    },
+    "CT-102": {
+      "number": 49,
+      "title": "[CT-102] Implement the encrypted local vault, key lifecycle, and erasure drill",
+      "url": "https://github.com/flyingrobots/think/issues/49",
+      "milestone": "P1",
+      "state": "open"
+    },
+    "CT-103": {
+      "number": 50,
+      "title": "[CT-103] Implement ThoughtCapture occurrence identity and provenance",
+      "url": "https://github.com/flyingrobots/think/issues/50",
+      "milestone": "P1",
+      "state": "open"
+    },
+    "CT-104": {
+      "number": 51,
+      "title": "[CT-104] Encode one ThoughtCapture as one node atom and one witnessed birth",
+      "url": "https://github.com/flyingrobots/think/issues/51",
+      "milestone": "P1",
+      "state": "open"
+    },
+    "CT-105": {
+      "number": 52,
+      "title": "[CT-105] Implement bounded AdmissionWindow assembly and bulk substrate handoff",
+      "url": "https://github.com/flyingrobots/think/issues/52",
+      "milestone": "P1",
+      "state": "open"
+    },
+    "CT-106": {
+      "number": 53,
+      "title": "[CT-106] Publish AdmissionWindows atomically and recover zero-or-one admission",
+      "url": "https://github.com/flyingrobots/think/issues/53",
+      "milestone": "P1",
+      "state": "open"
+    },
+    "CT-107": {
+      "number": 54,
+      "title": "[CT-107] Install streaming, memory, backpressure, and process-count ratchets",
+      "url": "https://github.com/flyingrobots/think/issues/54",
+      "milestone": "P1",
+      "state": "open"
+    },
+    "CT-108": {
+      "number": 55,
+      "title": "[CT-108] Prove the isolated evidence substrate end to end",
+      "url": "https://github.com/flyingrobots/think/issues/55",
+      "milestone": "P1",
+      "state": "open"
+    },
+    "CT-201": {
+      "number": 56,
+      "title": "[CT-201] Implement finite CoverageObligations and satisfaction evaluation",
+      "url": "https://github.com/flyingrobots/think/issues/56",
+      "milestone": "P2",
+      "state": "open"
+    },
+    "CT-202": {
+      "number": 57,
+      "title": "[CT-202] Implement exact ObservationSpec manifests, digests, and cycle rejection",
+      "url": "https://github.com/flyingrobots/think/issues/57",
+      "milestone": "P2",
+      "state": "open"
+    },
+    "CT-203": {
+      "number": 58,
+      "title": "[CT-203] Implement immutable ReadingAttempt outcomes and competing candidates",
+      "url": "https://github.com/flyingrobots/think/issues/58",
+      "milestone": "P2",
+      "state": "open"
+    },
+    "CT-204": {
+      "number": 59,
+      "title": "[CT-204] Integrate the Contextual Claims term and extraction-envelope contract",
+      "url": "https://github.com/flyingrobots/think/issues/59",
+      "milestone": "P2",
+      "state": "open"
+    },
+    "CT-205": {
+      "number": 60,
+      "title": "[CT-205] Implement ClaimOccurrence identity, evidence anchors, and binding environments",
+      "url": "https://github.com/flyingrobots/think/issues/60",
+      "milestone": "P2",
+      "state": "open"
+    },
+    "CT-206": {
+      "number": 61,
+      "title": "[CT-206] Implement witnessed RelationAssertions without naked canonical edges",
+      "url": "https://github.com/flyingrobots/think/issues/61",
+      "milestone": "P2",
+      "state": "open"
+    },
+    "CT-207": {
+      "number": 62,
+      "title": "[CT-207] Implement the default authority resolver for low-risk uses",
+      "url": "https://github.com/flyingrobots/think/issues/62",
+      "milestone": "P2",
+      "state": "open"
+    },
+    "CT-208": {
+      "number": 63,
+      "title": "[CT-208] Implement ProjectionManifest publication and capability compatibility",
+      "url": "https://github.com/flyingrobots/think/issues/63",
+      "milestone": "P2",
+      "state": "open"
+    },
+    "CT-209": {
+      "number": 64,
+      "title": "[CT-209] Implement typed query plans, result types, and remediation quotes",
+      "url": "https://github.com/flyingrobots/think/issues/64",
+      "milestone": "P2",
+      "state": "open"
+    },
+    "CT-210": {
+      "number": 65,
+      "title": "[CT-210] Deliver the minimal contextual reading-to-answer vertical slice",
+      "url": "https://github.com/flyingrobots/think/issues/65",
+      "milestone": "P2",
+      "state": "open"
+    },
+    "CT-301": {
+      "number": 66,
+      "title": "[CT-301] Define and implement the legacy logical-occurrence observer",
+      "url": "https://github.com/flyingrobots/think/issues/66",
+      "milestone": "P3",
+      "state": "open"
+    },
+    "CT-302": {
+      "number": 67,
+      "title": "[CT-302] Implement deterministic source mapping and encrypted body import",
+      "url": "https://github.com/flyingrobots/think/issues/67",
+      "milestone": "P3",
+      "state": "open"
+    },
+    "CT-303": {
+      "number": 68,
+      "title": "[CT-303] Implement the streaming legacy-to-AdmissionWindow migrator",
+      "url": "https://github.com/flyingrobots/think/issues/68",
+      "milestone": "P3",
+      "state": "open"
+    },
+    "CT-304": {
+      "number": 69,
+      "title": "[CT-304] Prove resumable migration with no duplicate semantic births",
+      "url": "https://github.com/flyingrobots/think/issues/69",
+      "milestone": "P3",
+      "state": "open"
+    },
+    "CT-305": {
+      "number": 70,
+      "title": "[CT-305] Implement MigrationObstruction and evidence-bearing resolution",
+      "url": "https://github.com/flyingrobots/think/issues/70",
+      "milestone": "P3",
+      "state": "open"
+    },
+    "CT-306": {
+      "number": 71,
+      "title": "[CT-306] Generate MigrationWitnesses and bounded equivalence verification",
+      "url": "https://github.com/flyingrobots/think/issues/71",
+      "milestone": "P3",
+      "state": "open"
+    },
+    "CT-307": {
+      "number": 72,
+      "title": "[CT-307] Run a disposable real-Mind migration and erasure rehearsal",
+      "url": "https://github.com/flyingrobots/think/issues/72",
+      "milestone": "P3",
+      "state": "open"
+    },
+    "CT-401": {
+      "number": 73,
+      "title": "[CT-401] Implement base migration and bounded legacy tail catch-up",
+      "url": "https://github.com/flyingrobots/think/issues/73",
+      "milestone": "P4",
+      "state": "open"
+    },
+    "CT-402": {
+      "number": 74,
+      "title": "[CT-402] Rehearse the short-lock final tail without switching authority",
+      "url": "https://github.com/flyingrobots/think/issues/74",
+      "milestone": "P4",
+      "state": "open"
+    },
+    "CT-403": {
+      "number": 75,
+      "title": "[CT-403] Implement candidate CutoverWitness and zero-obstruction gates",
+      "url": "https://github.com/flyingrobots/think/issues/75",
+      "milestone": "P4",
+      "state": "open"
+    },
+    "CT-404": {
+      "number": 76,
+      "title": "[CT-404] Define legacy-ref retention, recovery, rollback, and erasure handling",
+      "url": "https://github.com/flyingrobots/think/issues/76",
+      "milestone": "P4",
+      "state": "open"
+    },
+    "CT-405": {
+      "number": 77,
+      "title": "[CT-405] Execute production-shaped cutover rehearsals for every Mind",
+      "url": "https://github.com/flyingrobots/think/issues/77",
+      "milestone": "P4",
+      "state": "open"
+    },
+    "CT-501": {
+      "number": 78,
+      "title": "[CT-501] Implement bounded coverage scheduling and context invalidation",
+      "url": "https://github.com/flyingrobots/think/issues/78",
+      "milestone": "P5",
+      "state": "open"
+    },
+    "CT-502": {
+      "number": 79,
+      "title": "[CT-502] Implement the streaming extraction executor and immutable attempt publication",
+      "url": "https://github.com/flyingrobots/think/issues/79",
+      "milestone": "P5",
+      "state": "open"
+    },
+    "CT-503": {
+      "number": 80,
+      "title": "[CT-503] Implement longitudinal relation proposal and review workflow",
+      "url": "https://github.com/flyingrobots/think/issues/80",
+      "milestone": "P5",
+      "state": "open"
+    },
+    "CT-504": {
+      "number": 81,
+      "title": "[CT-504] Run bounded Contextual Claims backfill with operational progress",
+      "url": "https://github.com/flyingrobots/think/issues/81",
+      "milestone": "P5",
+      "state": "open"
+    },
+    "CT-505": {
+      "number": 82,
+      "title": "[CT-505] Prove source-time readings and current reinterpretations coexist",
+      "url": "https://github.com/flyingrobots/think/issues/82",
+      "milestone": "P5",
+      "state": "open"
+    },
+    "CT-601": {
+      "number": 83,
+      "title": "[CT-601] Demote legacy enrichment into confessing projections",
+      "url": "https://github.com/flyingrobots/think/issues/83",
+      "milestone": "P6",
+      "state": "open"
+    },
+    "CT-602": {
+      "number": 84,
+      "title": "[CT-602] Build fixture-gated projection publication",
+      "url": "https://github.com/flyingrobots/think/issues/84",
+      "milestone": "P6",
+      "state": "open"
+    },
+    "CT-603": {
+      "number": 85,
+      "title": "[CT-603] Run typed query planning in shadow mode",
+      "url": "https://github.com/flyingrobots/think/issues/85",
+      "milestone": "P6",
+      "state": "open"
+    },
+    "CT-604": {
+      "number": 86,
+      "title": "[CT-604] Overlay bounded canonical deltas and rehydrate missing evidence",
+      "url": "https://github.com/flyingrobots/think/issues/86",
+      "milestone": "P6",
+      "state": "open"
+    },
+    "CT-605": {
+      "number": 87,
+      "title": "[CT-605] Price lawful remediation and bounded automatic escalation",
+      "url": "https://github.com/flyingrobots/think/issues/87",
+      "milestone": "P6",
+      "state": "open"
+    },
+    "CT-606": {
+      "number": 88,
+      "title": "[CT-606] Publish shadow-mode evidence and enforcement readiness",
+      "url": "https://github.com/flyingrobots/think/issues/88",
+      "milestone": "P6",
+      "state": "open"
+    },
+    "CT-701": {
+      "number": 89,
+      "title": "[CT-701] Evaluate versioned authority at historical frontiers",
+      "url": "https://github.com/flyingrobots/think/issues/89",
+      "milestone": "P7",
+      "state": "open"
+    },
+    "CT-702": {
+      "number": 90,
+      "title": "[CT-702] Apply explicit judgment precedence, conflict, and revocation",
+      "url": "https://github.com/flyingrobots/think/issues/90",
+      "milestone": "P7",
+      "state": "open"
+    },
+    "CT-703": {
+      "number": 91,
+      "title": "[CT-703] Build a finite-attention adjudication inbox",
+      "url": "https://github.com/flyingrobots/think/issues/91",
+      "milestone": "P7",
+      "state": "open"
+    },
+    "CT-704": {
+      "number": 92,
+      "title": "[CT-704] Enforce projection sufficiency and exhaustive-answer law",
+      "url": "https://github.com/flyingrobots/think/issues/92",
+      "milestone": "P7",
+      "state": "open"
+    },
+    "CT-705": {
+      "number": 93,
+      "title": "[CT-705] Publish structural AnswerWitnesses with erasable payloads",
+      "url": "https://github.com/flyingrobots/think/issues/93",
+      "milestone": "P7",
+      "state": "open"
+    },
+    "CT-706": {
+      "number": 94,
+      "title": "[CT-706] Prove authority and refusal enforcement readiness",
+      "url": "https://github.com/flyingrobots/think/issues/94",
+      "milestone": "P7",
+      "state": "open"
+    },
+    "CT-801": {
+      "number": 95,
+      "title": "[CT-801] Specify bounded action authorization receipts",
+      "url": "https://github.com/flyingrobots/think/issues/95",
+      "milestone": "P8",
+      "state": "open"
+    },
+    "CT-802": {
+      "number": 96,
+      "title": "[CT-802] Enforce receipts at the Edict or Boundary adapter",
+      "url": "https://github.com/flyingrobots/think/issues/96",
+      "milestone": "P8",
+      "state": "open"
+    },
+    "CT-803": {
+      "number": 97,
+      "title": "[CT-803] Append revocation, compensation, and incident outcomes",
+      "url": "https://github.com/flyingrobots/think/issues/97",
+      "milestone": "P8",
+      "state": "open"
+    },
+    "CT-804": {
+      "number": 98,
+      "title": "[CT-804] Audit and replay historical action legality",
+      "url": "https://github.com/flyingrobots/think/issues/98",
+      "milestone": "P8",
+      "state": "open"
+    },
+    "CT-805": {
+      "number": 99,
+      "title": "[CT-805] Close AC1–AC35 and perform the verified production cutover",
+      "url": "https://github.com/flyingrobots/think/issues/99",
+      "milestone": "P8",
+      "state": "open"
+    }
+  }
+}
