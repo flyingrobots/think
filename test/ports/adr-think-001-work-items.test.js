@@ -9,6 +9,7 @@ import {
   renderCatalog,
   renderIssueBody,
   validateCatalog,
+  validateDependencyGraph,
   validateGithubMap,
   validateManifest,
 } from '../../scripts/adr-think-001-work-items.mjs';
@@ -97,6 +98,29 @@ test('migration and production cutover remain gated by the complete constitution
   const finalCutover = manifest.issues.find((issue) => issue.id === 'CT-805');
   assert.match(finalCutover.title, /production cutover/u);
   assert.deepEqual(finalCutover.criteria, Array.from({ length: 35 }, (_, index) => `AC${index + 1}`));
+});
+
+test('the cycle detector actually rejects a cycle', async () => {
+  // validateManifest can never reach a cyclic graph: validateIssueReferences
+  // requires every blocker to sit at a strictly lower index, which makes the
+  // edge set a strict partial order. The detector is defence in depth for any
+  // future caller that drops that ordering rule, so it is proved directly.
+  const manifest = await loadManifest();
+  assert.doesNotThrow(() => validateDependencyGraph(manifest.issues));
+
+  assert.throws(
+    () => validateDependencyGraph([
+      { id: 'CT-001', blockedBy: ['CT-003'] },
+      { id: 'CT-002', blockedBy: ['CT-001'] },
+      { id: 'CT-003', blockedBy: ['CT-002'] },
+    ]),
+    /Issue dependency graph contains a cycle/u,
+  );
+
+  assert.throws(
+    () => validateDependencyGraph([{ id: 'CT-001', blockedBy: ['CT-001'] }]),
+    /Issue dependency graph contains a cycle/u,
+  );
 });
 
 test('external dependency URLs must carry the shape the graph renderer reads', async () => {

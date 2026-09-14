@@ -198,6 +198,11 @@ function assertExactCoverage(issues, key, expected) {
   expect(JSON.stringify(actual) === JSON.stringify(wanted), `${key} coverage mismatch: ${actual.join(', ')}`);
 }
 
+// Unreachable from validateManifest by construction: validateIssueReferences
+// already requires every blocker to sit at a strictly lower index, so the edge
+// set is a strict partial order and cannot contain a cycle. Kept and exported
+// as defence in depth for any caller that does not enforce that ordering, and
+// proved directly in test/ports/adr-think-001-work-items.test.js.
 function validateDependencyGraph(issues) {
   const remaining = new Map(issues.map((issue) => [issue.id, new Set(issue.blockedBy)]));
   const ready = issues.filter((issue) => issue.blockedBy.length === 0).map((issue) => issue.id);
@@ -610,6 +615,7 @@ export {
   renderCatalog,
   renderIssueBody,
   validateCatalog,
+  validateDependencyGraph,
   validateGithubMap,
   validateManifest,
 };
