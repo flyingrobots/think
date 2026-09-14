@@ -118,6 +118,29 @@ test('migration and production cutover remain gated by the complete constitution
   assert.deepEqual(finalCutover.criteria, Array.from({ length: 35 }, (_, index) => `AC${index + 1}`));
 });
 
+test('list entries must be non-empty text, not just present', async () => {
+  const manifest = await loadManifest();
+  for (const [key, blank] of [
+    ['deliverables', ''],
+    ['acceptance', '   '],
+    ['nonGoals', null],
+    ['labels', ''],
+    ['gates', ''],
+  ]) {
+    const broken = structuredClone(manifest);
+    const target = broken.issues.find((issue) => issue.id === 'CT-805');
+    if (target[key].length === 0) {
+      continue;
+    }
+    target[key][0] = blank;
+    assert.throws(
+      () => validateManifest(broken),
+      new RegExp(`CT-805\\.${key}\\[0\\] must be non-empty text`, 'u'),
+      `expected a blank ${key} entry to be rejected`,
+    );
+  }
+});
+
 test('the delivery plan allocation table matches the authoritative manifest', async () => {
   const manifest = await loadManifest();
   const plan = await readFile(planUrl, 'utf8');

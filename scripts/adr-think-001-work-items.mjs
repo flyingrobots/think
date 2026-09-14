@@ -56,8 +56,23 @@ function expect(condition, message) {
 
 function expectArray(owner, key, minimum = 1) {
   const value = owner[key];
-  expect(Array.isArray(value), `${owner.id ?? 'manifest'}.${key} must be an array`);
-  expect(value.length >= minimum, `${owner.id ?? 'manifest'}.${key} needs at least ${minimum} item(s)`);
+  const label = owner.id ?? 'manifest';
+  expect(Array.isArray(value), `${label}.${key} must be an array`);
+  expect(value.length >= minimum, `${label}.${key} needs at least ${minimum} item(s)`);
+}
+
+// Length alone is not specification. A deliverable replaced by "" keeps the
+// array shape and renders as an empty checklist item on the GitHub issue, so
+// every text entry has to carry text.
+function expectTextArray(owner, key, minimum = 1) {
+  expectArray(owner, key, minimum);
+  const label = owner.id ?? 'manifest';
+  for (const [index, entry] of owner[key].entries()) {
+    expect(
+      typeof entry === 'string' && entry.trim().length > 0,
+      `${label}.${key}[${index}] must be non-empty text`,
+    );
+  }
 }
 
 function assertUnique(items, label) {
@@ -163,15 +178,15 @@ function validateIssueShape(issue, resourceModes) {
   expect(Boolean(issue.title), `${issue.id}.title is required`);
   expect(issue.title.length <= 220, `${issue.id}.title exceeds the GitHub limit budget`);
   expect(Boolean(issue.outcome), `${issue.id}.outcome is required`);
-  expectArray(issue, 'deliverables', 4);
-  expectArray(issue, 'acceptance', 4);
-  expectArray(issue, 'nonGoals', 2);
-  expectArray(issue, 'labels');
-  expectArray(issue, 'blockedBy', 0);
-  expectArray(issue, 'externalDependencies', 0);
-  expectArray(issue, 'gates', 0);
-  expectArray(issue, 'invariants');
-  expectArray(issue, 'criteria');
+  expectTextArray(issue, 'deliverables', 4);
+  expectTextArray(issue, 'acceptance', 4);
+  expectTextArray(issue, 'nonGoals', 2);
+  expectTextArray(issue, 'labels');
+  expectTextArray(issue, 'blockedBy', 0);
+  expectTextArray(issue, 'externalDependencies', 0);
+  expectTextArray(issue, 'gates', 0);
+  expectTextArray(issue, 'invariants');
+  expectTextArray(issue, 'criteria');
   validateStories(issue);
   validateTests(issue);
   validateResources(issue, resourceModes);
